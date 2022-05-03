@@ -1,0 +1,7 @@
+[default]
+src = 'contracts'
+out = 'artifacts'
+test = 'test'
+libs = ['lib']
+
+# See more config options https://github.com/gakonst/foundry/tree/master/config
