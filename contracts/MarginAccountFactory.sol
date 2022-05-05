@@ -7,7 +7,7 @@ import "./CrossMarginBase.sol";
 contract MarginAccountFactory is MinimalProxyFactory {
 
     string public version; // 0.1.0
-    CrossMarginBase implementation;
+    CrossMarginBase public implementation;
 
     constructor(string memory _version) {
         version = _version;
