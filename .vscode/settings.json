@@ -1,5 +1,5 @@
 {
-  "solidity.packageDefaultDependenciesContractsDirectory": "contracts",
-  "solidity.packageDefaultDependenciesDirectory": "lib",
+  "solidity.packageDefaultDependenciesContractsDirectory": "",
+  "solidity.packageDefaultDependenciesDirectory": "",
   "solidity.compileUsingRemoteVersion": "v0.8.13+commit.abaa5c0e"
 }
