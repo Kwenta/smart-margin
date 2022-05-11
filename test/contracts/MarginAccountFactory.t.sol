@@ -3,6 +3,7 @@ pragma solidity 0.8.13;
 
 import "ds-test/test.sol";
 import "../../contracts/MarginAccountFactory.sol";
+import "../../contracts/MarginBase.sol";
 
 contract MarginAccountFactoryTest is DSTest {
     CheatCodes cheats = CheatCodes(HEVM_ADDRESS);
@@ -22,6 +23,11 @@ contract MarginAccountFactoryTest is DSTest {
         address account = marginAccountFactory.newAccount();
         assertEq(account.code.length, 45); // Minimal proxy is 45 bytes
         assertLt(account.code.length, address(marginAccountFactory.implementation()).code.length);
+    }
+
+    function testAccountOwnerIsMsgSender() public {
+        MarginBase account = MarginBase(marginAccountFactory.newAccount());
+        assertEq(account.owner(), address(this));
     }
 }
 
