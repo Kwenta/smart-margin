@@ -2,21 +2,28 @@
 pragma solidity 0.8.13;
 
 import "./utils/MinimalProxyable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract MarginBase is MinimalProxyable {
 
-    constructor() MinimalProxyable() {}
+    IERC20 public margin;
 
-    /*function initialize(address baseAsset) external initOnce {
-        initialize();
-    }*/
+    constructor() MinimalProxyable() {
+        // Note never used except for first CREATE
+    }
+
+    function initialize(address _marginAsset) external initOnce {
+        margin = IERC20(_marginAsset);
+        // Note the Ownable constructor is never when we create minimal proxies
+        _transferOwnership(msg.sender);
+    }
 
     function deposit(uint amount) public onlyOwner {
-        // @TODO: Deposit sUSD into margin account
+        margin.transferFrom(owner(), address(this), amount);
     }
 
     function withdraw(uint amount) external onlyOwner {
-        // @TODO: Withdraw sUSD from margin account
+        margin.transfer(owner(), amount);
     }
 
     //////////////////////////////////////

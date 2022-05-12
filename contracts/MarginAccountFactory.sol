@@ -3,20 +3,23 @@ pragma solidity 0.8.13;
 
 import "./utils/MinimalProxyFactory.sol";
 import "./MarginBase.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract MarginAccountFactory is MinimalProxyFactory {
 
     string public version; // 0.1.0
-    MarginBase public implementation;
+    MarginBase public immutable implementation;
+    IERC20 public immutable marginAsset;
 
-    constructor(string memory _version) {
+    constructor(string memory _version, address _marginAsset) {
         version = _version;
         implementation = new MarginBase();
+        marginAsset = IERC20(_marginAsset);
     }
 
     function newAccount() external returns (address) {
         MarginBase account = MarginBase(_cloneAsMinimalProxy(address(implementation), "Creation failure"));
-        account.initialize();
+        account.initialize(address(marginAsset));
         account.transferOwnership(msg.sender);
 
         emit NewAccount(msg.sender, address(account));

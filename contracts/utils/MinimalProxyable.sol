@@ -12,10 +12,7 @@ contract MinimalProxyable is Ownable {
         masterCopy = true;
     }
 
-    function initialize() public initOnce {
-        // Note the Ownable constructor is never when we create minimal proxies
-        _transferOwnership(msg.sender);
-    }
+    function initialize() public initOnce {}
 
     modifier initOnce {
         require(!masterCopy, "Cannot initialize implementation");
