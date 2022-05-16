@@ -1,4 +1,4 @@
-# Kwenta Cross Margin Manager
+# Kwenta Margin Manager
 
 Contracts to manage account abstractions and features on top of the Synthetix Futures Platform. This will support future implementations of cross margin, limit orders, stop orders (TBD), copy trading (TBD). 
 
