@@ -12,7 +12,7 @@ contract MinimalProxyable is Ownable {
         masterCopy = true;
     }
 
-    function initialize() external initOnce {}
+    function initialize() public initOnce {}
 
     modifier initOnce {
         require(!masterCopy, "Cannot initialize implementation");
