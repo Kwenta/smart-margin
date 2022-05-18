@@ -13,9 +13,12 @@ contract MarginAccountFactoryTest is DSTest {
     MarginAccountFactory marginAccountFactory;
     MarginBase account;
 
+    // @TODO import addressResolver correctly?
+    address addressResolver = address(0);
+
     function setUp() public {
         marginAsset = new MintableERC20(address(this), 0);
-        marginAccountFactory = new MarginAccountFactory("0.0.0", address(marginAsset));
+        marginAccountFactory = new MarginAccountFactory("0.0.0", address(marginAsset), addressResolver);
         account = MarginBase(marginAccountFactory.newAccount());
     }
 
@@ -24,7 +27,7 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     function testExpectedMargin() public {
-        assertEq(address(account.margin()), address(marginAsset));
+        assertEq(address(account.marginAsset()), address(marginAsset));
     }
 
     function testDeposit() public {

@@ -11,7 +11,7 @@ contract MarginAccountFactoryTest is DSTest {
     MarginAccountFactory marginAccountFactory;
 
     function setUp() public {
-        marginAccountFactory = new MarginAccountFactory("0.0.0", address(0));
+        marginAccountFactory = new MarginAccountFactory("0.0.0", address(0), address(0));
     }
 
     function testAccountCreation() public {
