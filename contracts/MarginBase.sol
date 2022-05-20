@@ -6,9 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IAddressResolver.sol";
 import "./interfaces/IFuturesMarket.sol";
 
-/// @TODO: Document
+// @TODO: Document
 contract MarginBase is MinimalProxyable {
-
     //////////////////////////////////////
     ///////////// CONSTANTS //////////////
     //////////////////////////////////////
@@ -47,7 +46,7 @@ contract MarginBase is MinimalProxyable {
     //////////////////////////////////////
     ///////////// MODIFIERS //////////////
     //////////////////////////////////////
-    
+
     // @TODO: TBD
 
     //////////////////////////////////////
@@ -57,36 +56,33 @@ contract MarginBase is MinimalProxyable {
     /// @notice constructor never used except for first CREATE
     constructor() MinimalProxyable() {}
 
-    function initialize(address _marginAsset, address _addressResolver) external initOnce {
+    function initialize(address _marginAsset, address _addressResolver)
+        external
+        initOnce
+    {
         marginAsset = IERC20(_marginAsset);
         addressResolver = IAddressResolver(_addressResolver);
 
         /// @dev the Ownable constructor is never called when we create minimal proxies
         _transferOwnership(msg.sender);
     }
-    
+
     //////////////////////////////////////
     ///////// EXTERNAL FUNCTIONS /////////
     //////////////////////////////////////
 
     /// @notice deposit amount of marginAsset into account
-    function deposit(
-        uint _amount
-    ) external onlyOwner {
+    function deposit(uint256 _amount) external onlyOwner {
         marginAsset.transferFrom(owner(), address(this), _amount);
     }
 
     /// @notice withdraw amount of marginAsset from account
-    function withdraw(
-        uint _amount
-    ) external onlyOwner {
+    function withdraw(uint256 _amount) external onlyOwner {
         marginAsset.transfer(owner(), _amount);
     }
 
-    /// @TODO: Document
-    function closeMarketPosition(
-        bytes32 _marketKey
-    ) external onlyOwner {
+    // @TODO: Document
+    function closeMarketPosition(bytes32 _marketKey) external onlyOwner {
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
 
@@ -98,7 +94,7 @@ contract MarginBase is MinimalProxyable {
         removeActiveMarketPositon(_marketKey);
     }
 
-    /// @TODO: Document
+    // @TODO: Document
     function depositAndModifyPositionForMarket(
         int256 _depositSize,
         int256 _sizeDelta,
@@ -115,13 +111,13 @@ contract MarginBase is MinimalProxyable {
         market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
 
         // fetch new position data from Synthetix
-        (,,uint128 margin,,int128 size) = market.positions(address(this));
+        (, , uint128 margin, , int128 size) = market.positions(address(this));
 
         // update state for given open market position
         updateActiveMarketPosition(_marketKey, margin, size);
     }
 
-    /// @TODO: Document
+    // @TODO: Document
     function modifyPositionForMarketAndWithdraw(
         int256 withdrawSize,
         int256 _sizeDelta,
@@ -138,16 +134,16 @@ contract MarginBase is MinimalProxyable {
         market.transferMargin(withdrawSize);
 
         // fetch new position data from Synthetix
-        (,,uint128 margin,,int128 size) = market.positions(address(this));
+        (, , uint128 margin, , int128 size) = market.positions(address(this));
 
         // update state for given open market position
         updateActiveMarketPosition(_marketKey, margin, size);
     }
 
-    /// @TODO: Document
+    // @TODO: Document
     function rebalance() external {
-        /// @TODO: Implement
-        /// @TODO: Design parameter describing how to rebalance
+        // @TODO: Implement
+        // @TODO: Design parameter describing how to rebalance
     }
 
     //////////////////////////////////////
@@ -159,18 +155,22 @@ contract MarginBase is MinimalProxyable {
         bytes32 _marketKey
     ) internal view returns (IFuturesMarket) {
         return IFuturesMarket(addressResolver.requireAndGetAddress(
-            _marketKey, 
-            "MarginBase: Could not get Futures Market"
-        ));
+                _marketKey,
+                "MarginBase: Could not get Futures Market"
+            )
+        );
     }
 
-    /// @TODO: Document
+    // @TODO: Document
     function updateActiveMarketPosition(
         bytes32 _marketKey,
         uint128 _margin,
         int128 _size
     ) internal {
-        ActiveMarketPosition memory newPosition = ActiveMarketPosition(_margin, _size);
+        ActiveMarketPosition memory newPosition = ActiveMarketPosition(
+            _margin,
+            _size
+        );
 
         // check if this is updating a position or creating one
         if (activeMarketPositions[_marketKey].margin == 0) {
@@ -182,28 +182,27 @@ contract MarginBase is MinimalProxyable {
         activeMarketPositions[_marketKey] = newPosition;
     }
 
-    /// @TODO: Document
-    function removeActiveMarketPositon(
-        bytes32 _marketKey
-    ) internal {
+    // @TODO: Document
+    function removeActiveMarketPositon(bytes32 _marketKey) internal {
         delete activeMarketPositions[_marketKey];
         numberOfActivePositions--;
-        
+
         require(activeMarketKeys.length > 0, "MarginBase: Empty array");
         bool found = false;
 
-        for (uint i = 0; i < activeMarketKeys.length; i++) {
-            // once `_marketKey` is encountered, swap with 
+        for (uint256 i = 0; i < activeMarketKeys.length; i++) {
+            // once `_marketKey` is encountered, swap with
             // last element in array exit for-loop
             if (activeMarketKeys[i] == _marketKey) {
-                activeMarketKeys[i] = activeMarketKeys[activeMarketKeys.length - 1];
+                activeMarketKeys[i] = activeMarketKeys[
+                    activeMarketKeys.length - 1
+                ];
                 found = true;
                 break;
-            } 
+            }
         }
         // remove last element (which will be `_marketKey`)
         require(found, "MarginBase: Market Key not found");
         activeMarketKeys.pop();
     }
-
 }
