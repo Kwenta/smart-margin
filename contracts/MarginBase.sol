@@ -7,6 +7,7 @@ import "./interfaces/IAddressResolver.sol";
 import "./interfaces/IFuturesMarket.sol";
 
 // @TODO: Document
+/// @title MarginBase
 contract MarginBase is MinimalProxyable {
     //////////////////////////////////////
     ///////////// CONSTANTS //////////////
@@ -89,9 +90,8 @@ contract MarginBase is MinimalProxyable {
 
         // close market position with KWENTA tracking code
         market.closePositionWithTracking(TRACKING_CODE);
-
-        /// @dev update state:
-        // delete formerly active position
+        
+        /// @dev update state
         removeActiveMarketPositon(_marketKey);
     }
 
@@ -146,7 +146,7 @@ contract MarginBase is MinimalProxyable {
         ActiveMarketPosition[] memory newPositions
     ) external {
         /*
-        
+
         [newPosition0, newPosition2, newPosition3, ..., newPositionN]
 
             ------->
