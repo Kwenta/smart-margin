@@ -20,6 +20,7 @@ contract MarginBase is MinimalProxyable {
     //////////////////////////////////////
 
     struct ActiveMarketPosition {
+        bytes32 marketKey;
         uint128 margin;
         int128 size;
     }
@@ -141,9 +142,24 @@ contract MarginBase is MinimalProxyable {
     }
 
     // @TODO: Document
-    function rebalance() external {
-        // @TODO: Implement
-        // @TODO: Design parameter describing how to rebalance
+    function rebalance(
+        ActiveMarketPosition[] memory newPositions
+    ) external {
+        /*
+        
+        [newPosition0, newPosition2, newPosition3, ..., newPositionN]
+
+            ------->
+        FOR-EACH newPosition:
+
+            find market and then,
+                if newPositionN.newMargin less than oldMargin (i.e. reducing margin)
+                    -> modifyPositionForMarketAndWithdraw(oldMargin - newPositionN.newMargin, newPositionN.newSize, marketKey)
+                if newMargin greater than oldMargin (i.e. increasing margin)
+                    -> depositAndModifyPositionForMarket(newPositionN.newMargin - oldMargin, newPositionN.newSize, marketKey)
+                else no change
+
+        */
     }
 
     //////////////////////////////////////
@@ -168,12 +184,13 @@ contract MarginBase is MinimalProxyable {
         int128 _size
     ) internal {
         ActiveMarketPosition memory newPosition = ActiveMarketPosition(
+            _marketKey,
             _margin,
             _size
         );
 
         // check if this is updating a position or creating one
-        if (activeMarketPositions[_marketKey].margin == 0) {
+        if (activeMarketPositions[_marketKey].marketKey == 0) {
             activeMarketKeys.push(_marketKey);
             numberOfActivePositions++;
         }
