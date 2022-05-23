@@ -7,9 +7,8 @@ import "./interfaces/IAddressResolver.sol";
 import "./interfaces/IFuturesMarket.sol";
 
 /// @title MarginBase
-/// @notice MarginBase provides users a way to open multiple positions
-/// from the same base account with cross-margin. Margin can be customly balanced
-/// across different positions. 
+/// @notice MarginBase provides users a way to open multiple positions from the same base account
+/// with cross-margin. Margin can be customly balanced across different positions. 
 contract MarginBase is MinimalProxyable {
     //////////////////////////////////////
     ///////////// CONSTANTS //////////////
@@ -26,6 +25,12 @@ contract MarginBase is MinimalProxyable {
         bytes32 marketKey;
         uint128 margin;
         int128 size;
+    }
+
+    struct UpdateMarketPositionSpec {
+        bytes32 marketKey;
+        int256 marginDelta;
+        int256 sizeDelta;
     }
 
     //////////////////////////////////////
@@ -87,7 +92,7 @@ contract MarginBase is MinimalProxyable {
 
     /// @notice close market position (note: not just modify position to 0 margin)
     /// @param _marketKey: synthetix futures market id/key
-    function closeMarketPosition(bytes32 _marketKey) external onlyOwner {
+    function closeMarketPosition(bytes32 _marketKey) public onlyOwner {
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
 
@@ -107,7 +112,7 @@ contract MarginBase is MinimalProxyable {
         int256 _depositSize,
         int256 _sizeDelta,
         bytes32 _marketKey
-    ) external onlyOwner {
+    ) public onlyOwner {
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
 
@@ -133,7 +138,7 @@ contract MarginBase is MinimalProxyable {
         int256 _withdrawSize,
         int256 _sizeDelta,
         bytes32 _marketKey
-    ) external onlyOwner {
+    ) public onlyOwner {
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
 
@@ -151,28 +156,48 @@ contract MarginBase is MinimalProxyable {
         updateActiveMarketPosition(_marketKey, margin, size);
     }
 
-    /// @notice rebalance margin in all positions specificed via newPositions
-    /// @dev `newPositions` does not necessarily contain ALL positions nor does the new allocation 
+    /// @notice rebalance margin in all positions specificed via _newPositions
+    /// @dev `_newPositions` does not necessarily contain ALL positions nor does the new allocation 
     /// have to be equally distributed. Distribution is up to the caller
-    /// @param newPositions: an array of ActiveMarketPosition used to modify active market positions
+    /// @dev it is up to the caller to ensure UpdateMarketPositionSpec is valid. Otherwise
+    /// call with be reverted via Synthetix's FuturesMarket
+    /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
     function rebalance(
-        ActiveMarketPosition[] memory newPositions
+        UpdateMarketPositionSpec[] memory _newPositions
     ) external {
-        /*
 
-        [newPosition0, newPosition2, newPosition3, ..., newPositionN]
+        // for each new position in _newPositions, rebalance accordingly and update state
+        for (uint256 i = 0; i < _newPositions.length; i++) {
+            // establish market
+            bytes32 marketKey = _newPositions[i].marketKey;
 
-            ------->
-        FOR-EACH newPosition:
+            // establish old position to compare to new
+            ActiveMarketPosition memory oldPosition = activeMarketPositions[marketKey];
+            require(oldPosition.marketKey != 0, "MarginBase: Invalid _newPositions");
 
-            find market and then,
-                if newPositionN.newMargin less than oldMargin (i.e. reducing margin)
-                    -> modifyPositionForMarketAndWithdraw(oldMargin - newPositionN.newMargin, newPositionN.newSize, marketKey)
-                if newMargin greater than oldMargin (i.e. increasing margin)
-                    -> depositAndModifyPositionForMarket(newPositionN.newMargin - oldMargin, newPositionN.newSize, marketKey)
-                else no change
+            int256 marginDelta = _newPositions[i].marginDelta;
+            int256 sizeDelta = _newPositions[i].sizeDelta;
+            
+            /// @notice remove margin from market and potentially adjust size
+            if (marginDelta < 0) {
+                modifyPositionForMarketAndWithdraw(
+                    marginDelta,
+                    sizeDelta,
+                    marketKey
+                );
 
-        */
+            /// @notice deposit margin into market and potentially adjust size
+            /// @dev marginDelta >= 0
+            } else {
+                // if marginDelta is 0, there will simply be NO additional 
+                // margin deposited into the market
+                depositAndModifyPositionForMarket(
+                    marginDelta,
+                    sizeDelta,
+                    marketKey
+                );
+            }
+        }
     }
 
     //////////////////////////////////////
@@ -190,8 +215,7 @@ contract MarginBase is MinimalProxyable {
         );
     }
 
-    /// @notice used internally to update contract state for 
-    /// the account's active position tracking
+    /// @notice used internally to update contract state for the account's active position tracking
     function updateActiveMarketPosition(
         bytes32 _marketKey,
         uint128 _margin,
@@ -213,8 +237,7 @@ contract MarginBase is MinimalProxyable {
         activeMarketPositions[_marketKey] = newPosition;
     }
 
-     /// @notice used internally to update (remove) contract state for 
-    /// the account's active position tracking
+    /// @notice used internally to update (remove) contract state for the account's active position tracking
     function removeActiveMarketPositon(bytes32 _marketKey) internal {
         delete activeMarketPositions[_marketKey];
         numberOfActivePositions--;
