@@ -90,6 +90,54 @@ contract MarginBase is MinimalProxyable {
         marginAsset.transfer(owner(), _amount);
     }
 
+    /// @notice rebalance margin in all positions specificed via _newPositions
+    /// @dev `_newPositions` does not necessarily contain ALL positions nor does the new allocation 
+    /// have to be equally distributed. Distribution is up to the caller
+    /// @dev it is up to the caller to ensure UpdateMarketPositionSpec is valid. Otherwise
+    /// call with be reverted via Synthetix's FuturesMarket
+    /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
+    function rebalance(
+        UpdateMarketPositionSpec[] memory _newPositions
+    ) external {
+
+        // for each new position in _newPositions, rebalance accordingly and update state
+        for (uint256 i = 0; i < _newPositions.length; i++) {
+            // establish market
+            bytes32 marketKey = _newPositions[i].marketKey;
+
+            // establish old position to compare to new
+            ActiveMarketPosition memory oldPosition = activeMarketPositions[marketKey];
+            require(oldPosition.marketKey != 0, "MarginBase: Invalid _newPositions");
+
+            int256 marginDelta = _newPositions[i].marginDelta;
+            int256 sizeDelta = _newPositions[i].sizeDelta;
+            
+            /// @notice remove margin from market and potentially adjust size
+            if (marginDelta < 0) {
+                modifyPositionForMarketAndWithdraw(
+                    marginDelta,
+                    sizeDelta,
+                    marketKey
+                );
+
+            /// @notice deposit margin into market and potentially adjust size
+            /// @dev marginDelta >= 0
+            } else {
+                // if marginDelta is 0, there will simply be NO additional 
+                // margin deposited into the market
+                depositAndModifyPositionForMarket(
+                    marginDelta,
+                    sizeDelta,
+                    marketKey
+                );
+            }
+        }
+    }
+
+    //////////////////////////////////////
+    ////////// PUBLIC FUNCTIONS //////////
+    //////////////////////////////////////
+
     /// @notice close market position (note: not just modify position to 0 margin)
     /// @param _marketKey: synthetix futures market id/key
     function closeMarketPosition(bytes32 _marketKey) public onlyOwner {
@@ -154,50 +202,6 @@ contract MarginBase is MinimalProxyable {
 
         // update state for given open market position
         updateActiveMarketPosition(_marketKey, margin, size);
-    }
-
-    /// @notice rebalance margin in all positions specificed via _newPositions
-    /// @dev `_newPositions` does not necessarily contain ALL positions nor does the new allocation 
-    /// have to be equally distributed. Distribution is up to the caller
-    /// @dev it is up to the caller to ensure UpdateMarketPositionSpec is valid. Otherwise
-    /// call with be reverted via Synthetix's FuturesMarket
-    /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
-    function rebalance(
-        UpdateMarketPositionSpec[] memory _newPositions
-    ) external {
-
-        // for each new position in _newPositions, rebalance accordingly and update state
-        for (uint256 i = 0; i < _newPositions.length; i++) {
-            // establish market
-            bytes32 marketKey = _newPositions[i].marketKey;
-
-            // establish old position to compare to new
-            ActiveMarketPosition memory oldPosition = activeMarketPositions[marketKey];
-            require(oldPosition.marketKey != 0, "MarginBase: Invalid _newPositions");
-
-            int256 marginDelta = _newPositions[i].marginDelta;
-            int256 sizeDelta = _newPositions[i].sizeDelta;
-            
-            /// @notice remove margin from market and potentially adjust size
-            if (marginDelta < 0) {
-                modifyPositionForMarketAndWithdraw(
-                    marginDelta,
-                    sizeDelta,
-                    marketKey
-                );
-
-            /// @notice deposit margin into market and potentially adjust size
-            /// @dev marginDelta >= 0
-            } else {
-                // if marginDelta is 0, there will simply be NO additional 
-                // margin deposited into the market
-                depositAndModifyPositionForMarket(
-                    marginDelta,
-                    sizeDelta,
-                    marketKey
-                );
-            }
-        }
     }
 
     //////////////////////////////////////
