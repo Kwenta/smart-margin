@@ -6,8 +6,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IAddressResolver.sol";
 import "./interfaces/IFuturesMarket.sol";
 
-// @TODO: Document
 /// @title MarginBase
+/// @notice MarginBase provides users a way to open multiple positions
+/// from the same base account with cross-margin. Margin can be customly balanced
+/// across different positions. 
 contract MarginBase is MinimalProxyable {
     //////////////////////////////////////
     ///////////// CONSTANTS //////////////
@@ -73,17 +75,18 @@ contract MarginBase is MinimalProxyable {
     ///////// EXTERNAL FUNCTIONS /////////
     //////////////////////////////////////
 
-    /// @notice deposit amount of marginAsset into account
+    /// @param _amount: amount of marginAsset to deposit into marginBase account
     function deposit(uint256 _amount) external onlyOwner {
         marginAsset.transferFrom(owner(), address(this), _amount);
     }
 
-    /// @notice withdraw amount of marginAsset from account
+    /// @param _amount: amount of marginAsset to withdraw from marginBase account
     function withdraw(uint256 _amount) external onlyOwner {
         marginAsset.transfer(owner(), _amount);
     }
 
-    // @TODO: Document
+    /// @notice close market position (note: not just modify position to 0 margin)
+    /// @param _marketKey: synthetix futures market id/key
     function closeMarketPosition(bytes32 _marketKey) external onlyOwner {
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
@@ -95,7 +98,11 @@ contract MarginBase is MinimalProxyable {
         removeActiveMarketPositon(_marketKey);
     }
 
-    // @TODO: Document
+    /// @notice deposit margin into specific market, either creating or adding
+    /// to a position and then updating account's active positions for user
+    /// @param _depositSize: size of deposit in sUSD
+    /// @param _sizeDelta: size and position type (long//short) denoted in market synth (ex: sETH)
+    /// @param _marketKey: synthetix futures market id/key
     function depositAndModifyPositionForMarket(
         int256 _depositSize,
         int256 _sizeDelta,
@@ -118,9 +125,12 @@ contract MarginBase is MinimalProxyable {
         updateActiveMarketPosition(_marketKey, margin, size);
     }
 
-    // @TODO: Document
+    /// @notice modify active position and withdraw marginAsset from market into this account
+    /// @param _withdrawSize: size of sUSD to withdraw from market into account
+    /// @param _sizeDelta: size and position type (long//short) denoted in market synth (ex: sETH)
+    /// @param _marketKey: synthetix futures market id/key
     function modifyPositionForMarketAndWithdraw(
-        int256 withdrawSize,
+        int256 _withdrawSize,
         int256 _sizeDelta,
         bytes32 _marketKey
     ) external onlyOwner {
@@ -132,7 +142,7 @@ contract MarginBase is MinimalProxyable {
 
         /// @notice alter the amount of margin in specific market position
         /// @dev positive input triggers a deposit; a negative one, a withdrawal
-        market.transferMargin(withdrawSize);
+        market.transferMargin(_withdrawSize);
 
         // fetch new position data from Synthetix
         (, , uint128 margin, , int128 size) = market.positions(address(this));
@@ -141,7 +151,10 @@ contract MarginBase is MinimalProxyable {
         updateActiveMarketPosition(_marketKey, margin, size);
     }
 
-    // @TODO: Document
+    /// @notice rebalance margin in all positions specificed via newPositions
+    /// @dev `newPositions` does not necessarily contain ALL positions nor does the new allocation 
+    /// have to be equally distributed. Distribution is up to the caller
+    /// @param newPositions: an array of ActiveMarketPosition used to modify active market positions
     function rebalance(
         ActiveMarketPosition[] memory newPositions
     ) external {
@@ -177,7 +190,8 @@ contract MarginBase is MinimalProxyable {
         );
     }
 
-    // @TODO: Document
+    /// @notice used internally to update contract state for 
+    /// the account's active position tracking
     function updateActiveMarketPosition(
         bytes32 _marketKey,
         uint128 _margin,
@@ -199,7 +213,8 @@ contract MarginBase is MinimalProxyable {
         activeMarketPositions[_marketKey] = newPosition;
     }
 
-    // @TODO: Document
+     /// @notice used internally to update (remove) contract state for 
+    /// the account's active position tracking
     function removeActiveMarketPositon(bytes32 _marketKey) internal {
         delete activeMarketPositions[_marketKey];
         numberOfActivePositions--;
