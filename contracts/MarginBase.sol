@@ -98,7 +98,7 @@ contract MarginBase is MinimalProxyable {
     /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
     function rebalance(
         UpdateMarketPositionSpec[] memory _newPositions
-    ) external {
+    ) external onlyOwner { // TODO: since rebalance callsmodifyPositionForMarketAndWithdraw/depositAndModifyPositionForMarket needs to be onlyOnwer
 
         // for each new position in _newPositions, rebalance accordingly and update state
         for (uint256 i = 0; i < _newPositions.length; i++) {
