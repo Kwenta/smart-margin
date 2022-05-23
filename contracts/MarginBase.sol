@@ -98,7 +98,13 @@ contract MarginBase is MinimalProxyable {
     /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
     function rebalance(
         UpdateMarketPositionSpec[] memory _newPositions
-    ) external onlyOwner { // TODO: since rebalance callsmodifyPositionForMarketAndWithdraw/depositAndModifyPositionForMarket needs to be onlyOnwer
+    ) external onlyOwner {
+        // @TODO: 
+        // 1. since rebalance() calls modifyPositionForMarketAndWithdraw/depositAndModifyPositionForMarket, it needs to be onlyOnwer
+        // 2. if we want another rebalance() that distributes equally, it can be external and not onlyOwner, but I discourage it
+        // 2.1. If one rebalance() is specific, and another is not, that can lead to a caller maliciously 
+        // calling the latter to botch the former's strategy
+
 
         // for each new position in _newPositions, rebalance accordingly and update state
         for (uint256 i = 0; i < _newPositions.length; i++) {
