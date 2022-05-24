@@ -2,6 +2,7 @@
   "name": "cross-margin-manager",
   "version": "1.0.0",
   "scripts": {
+    "compile": "npx hardhat compile",
     "foundry-test": "forge test --fork-url $(grep ARCHIVE_NODE_URL_L2 .env | cut -d '=' -f2) --fork-block-number 8626683 --etherscan-api-key $(grep ETHERSCAN_API_KEY .env | cut -d '=' -f2)",
     "hh-test:integration": "npx hardhat test test/integration/*"
   },
