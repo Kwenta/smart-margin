@@ -49,7 +49,7 @@ jobs:
         with:
           version: nightly
       - name: Run tests
-        run: npm run foundry-test
+        run: forge test --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --fork-block-number 8626683 --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }}
   Hardhat_Tests:
     runs-on: ubuntu-latest
     env:
