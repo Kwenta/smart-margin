@@ -72,5 +72,5 @@ jobs:
         run: npm i --no-audit
       - name: Compile contracts
         run: npm run compile
-      - name: Execute Foundry tests
+      - name: Execute Hardhat tests
         run: npm run hh-test:integration
