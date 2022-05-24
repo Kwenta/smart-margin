@@ -44,8 +44,17 @@ jobs:
         run: npm i --no-audit
       - name: Compile contracts
         run: npm run compile
-      - name: Execute Foundry tests
-        run: forge test --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --fork-block-number 8626683 --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }}
+      - name: Foundry project
+        steps:
+          - uses: actions/cache@v2
+            with:
+              submodules: recursive
+          - name: Install Foundry
+            uses: foundry-rs/foundry-toolchain@v1
+            with:
+              version: nightly
+          - name: Run tests
+            run: npm run foundry-test
   Hardhat_Tests:
     runs-on: ubuntu-latest
     env:
