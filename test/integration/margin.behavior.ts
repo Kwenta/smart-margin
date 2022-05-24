@@ -58,7 +58,7 @@ describe('Integration: Test Cross Margin', function () {
     });
 
     it('Test MarginBase deployment', async () => {
-        const signer = await ethers.getSigner(TEST_ADDRESS_0);
+        const signer = await ethers.provider.getSigner(TEST_ADDRESS_0);
         const marginBaseAddress = await marginAccountFactory
             .connect(signer)
             .newAccount();
