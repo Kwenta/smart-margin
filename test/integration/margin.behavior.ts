@@ -2,7 +2,7 @@
 import { expect } from 'chai';
 import { ethers, artifacts, waffle, network } from 'hardhat';
 import dotenv from 'dotenv';
-import { Contract } from 'ethers';
+import { Contract, Signer } from 'ethers';
 
 dotenv.config();
 
@@ -58,10 +58,10 @@ describe('Integration: Test Cross Margin', function () {
     });
 
     it('Test MarginBase deployment', async () => {
-        const signer = await ethers.provider.getSigner(TEST_ADDRESS_0);
-        const marginBaseAddress = await marginAccountFactory
-            .connect(signer)
-            .newAccount();
+        const signer: Signer = await ethers.provider.getSigner(
+            TEST_ADDRESS_0
+        );
+        const marginBaseAddress = await marginAccountFactory.connect(signer).newAccount();
         marginBase = await ethers.getContractAt(
             'MarginBase',
             marginBaseAddress,
