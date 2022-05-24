@@ -8,13 +8,13 @@ import "../../contracts/MarginBase.sol";
 import "./utils/MintableERC20.sol";
 
 contract MarginAccountFactoryTest is DSTest {
-    CheatCodes cheats = CheatCodes(HEVM_ADDRESS);
-    MintableERC20 marginAsset;
-    MarginAccountFactory marginAccountFactory;
-    MarginBase account;
+    CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
+    MintableERC20 private marginAsset;
+    MarginAccountFactory private marginAccountFactory;
+    MarginBase private account;
 
-    // @TODO import addressResolver correctly?
-    address addressResolver = address(0);
+    // works for fork testing
+    address private addressResolver = 0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C;
 
     function setUp() public {
         marginAsset = new MintableERC20(address(this), 0);

@@ -113,7 +113,7 @@ contract MarginBase is MinimalProxyable {
 
             // establish old position to compare to new
             ActiveMarketPosition memory oldPosition = activeMarketPositions[marketKey];
-            require(oldPosition.marketKey != 0, "MarginBase: Invalid _newPositions");
+            require(oldPosition.marketKey != 0, "MarginBase: Invalid position");
 
             int256 marginDelta = _newPositions[i].marginDelta;
             int256 sizeDelta = _newPositions[i].sizeDelta;
