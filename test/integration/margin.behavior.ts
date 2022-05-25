@@ -34,7 +34,7 @@ const forkAtBlock = async (block: number) => {
             {
                 forking: {
                     jsonRpcUrl: process.env.ARCHIVE_NODE_URL_L2,
-                    blockNumber: block, // 8626683
+                    blockNumber: block,
                 },
             },
         ],
