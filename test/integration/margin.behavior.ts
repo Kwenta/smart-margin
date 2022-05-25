@@ -1,16 +1,16 @@
 /* eslint-disable no-unused-expressions */
 import { expect } from 'chai';
-import { ethers, artifacts, waffle, network } from 'hardhat';
+import { artifacts, ethers, network, waffle } from 'hardhat';
+import { Contract } from 'ethers';
+import { mintToAccountSUSD } from '../utils/helpers';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import dotenv from 'dotenv';
-import { Contract, Signer } from 'ethers';
 
 dotenv.config();
 
 // constants
-const TEST_ADDRESS_0 = '0x42f9134E9d3Bf7eEE1f8A5Ac2a4328B059E7468c'; // EOA
-// const TEST_ADDRESS_1 = '0xB483F21dC981D2D1E483192a15FcAc281669bF73'; // EOA
-// const TEST_VALUE = ethers.BigNumber.from('10000000000000000');
-// const TREASURY_DAO = '0x82d2242257115351899894eF384f779b5ba8c695'; // actual address
+const TEST_VALUE = ethers.BigNumber.from('10000000000000000');
+const TREASURY_DAO = '0x82d2242257115351899894eF384f779b5ba8c695';
 
 // synthetix
 const ADDRESS_RESOLVER = '0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C';
@@ -22,7 +22,12 @@ const SUSD_PROXY = '0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9';
 let marginAccountFactory: Contract;
 let marginBase: Contract;
 
-const forkAndImpersonateAtBlock = async (block: number, account: string) => {
+// test accounts
+let account0: SignerWithAddress;
+let account1: SignerWithAddress;
+let account2: SignerWithAddress;
+
+const forkAtBlock = async (block: number) => {
     await network.provider.request({
         method: 'hardhat_reset',
         params: [
@@ -34,15 +39,21 @@ const forkAndImpersonateAtBlock = async (block: number, account: string) => {
             },
         ],
     });
-
-    await network.provider.request({
-        method: 'hardhat_impersonateAccount',
-        params: [account],
-    });
 };
 
-describe('Integration: Test Cross Margin', function () {
-    forkAndImpersonateAtBlock(6950543, TEST_ADDRESS_0);
+describe('Integration: Test Cross Margin', () => {
+
+    before('Fork and Mint sUSD to Test Account', async () => {
+        [account0, account1, account2] = await ethers.getSigners();
+
+		forkAtBlock(6950543);
+        mintToAccountSUSD(account0.address, TEST_VALUE);
+
+        const IERC20ABI = (await artifacts.readArtifact("contracts/interfaces/IERC20.sol:IERC20")).abi;
+        const sUSD = new ethers.Contract(SUSD_PROXY, IERC20ABI, waffle.provider);
+        const balance = await sUSD.balanceOf(account0.address);
+        expect(balance).to.equal(TEST_VALUE);
+	});
 
     it('Test MarginAccountFactory deployment', async () => {
         const MarginAccountFactory = await ethers.getContractFactory(
@@ -58,14 +69,10 @@ describe('Integration: Test Cross Margin', function () {
     });
 
     it('Test MarginBase deployment', async () => {
-        const signer: Signer = await ethers.provider.getSigner(
-            TEST_ADDRESS_0
-        );
-        const marginBaseAddress = await marginAccountFactory.connect(signer).newAccount();
+        const marginBaseAddress = await marginAccountFactory.connect(account0).newAccount();
         marginBase = await ethers.getContractAt(
             'MarginBase',
-            marginBaseAddress,
-            signer
+            marginBaseAddress
         );
         expect(marginBase.address).to.exist;
     });
