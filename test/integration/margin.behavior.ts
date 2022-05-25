@@ -9,7 +9,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // constants
-const TEST_VALUE = ethers.BigNumber.from('10000000000000000');
+const TEST_VALUE = ethers.BigNumber.from('1000000000000000000');
 const TREASURY_DAO = '0x82d2242257115351899894eF384f779b5ba8c695';
 
 // synthetix
@@ -46,8 +46,8 @@ describe('Integration: Test Cross Margin', () => {
     before('Fork and Mint sUSD to Test Account', async () => {
         [account0, account1, account2] = await ethers.getSigners();
 
-		forkAtBlock(6950543);
-        mintToAccountSUSD(account0.address, TEST_VALUE);
+		await forkAtBlock(9000000);
+        await mintToAccountSUSD(account0.address, TEST_VALUE);
 
         const IERC20ABI = (await artifacts.readArtifact("contracts/interfaces/IERC20.sol:IERC20")).abi;
         const sUSD = new ethers.Contract(SUSD_PROXY, IERC20ABI, waffle.provider);
