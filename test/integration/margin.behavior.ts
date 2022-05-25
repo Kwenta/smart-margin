@@ -20,7 +20,7 @@ const SUSD_PROXY = '0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9';
 
 // cross margin
 let marginAccountFactory: Contract;
-let marginBase: Contract;
+let marginAccount: Contract;
 
 // test accounts
 let account0: SignerWithAddress;
@@ -69,11 +69,11 @@ describe('Integration: Test Cross Margin', () => {
     });
 
     it('Test MarginBase deployment', async () => {
-        const marginBaseAddress = await marginAccountFactory.connect(account0).newAccount();
-        marginBase = await ethers.getContractAt(
+        const marginAccountAddress = await marginAccountFactory.connect(account0).newAccount();
+        marginAccount = await ethers.getContractAt(
             'MarginBase',
-            marginBaseAddress
+            marginAccountAddress
         );
-        expect(marginBase.address).to.exist;
+        expect(marginAccount.address).to.exist;
     });
 });
