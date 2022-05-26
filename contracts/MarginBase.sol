@@ -8,7 +8,7 @@ import "./interfaces/IFuturesMarket.sol";
 
 /// @title MarginBase
 /// @notice MarginBase provides users a way to open multiple positions from the same base account
-/// with cross-margin. Margin can be customly balanced across different positions. 
+/// with cross-margin. Margin can be customly balanced across different positions.
 contract MarginBase is MinimalProxyable {
     //////////////////////////////////////
     ///////////// CONSTANTS //////////////
@@ -91,20 +91,20 @@ contract MarginBase is MinimalProxyable {
     }
 
     /// @notice rebalance margin in all positions specificed via _newPositions
-    /// @dev `_newPositions` does not necessarily contain ALL positions nor does the new allocation 
+    /// @dev `_newPositions` does not necessarily contain ALL positions nor does the new allocation
     /// have to be equally distributed. Distribution is up to the caller
     /// @dev it is up to the caller to ensure UpdateMarketPositionSpec is valid. Otherwise
     /// call with be reverted via Synthetix's FuturesMarket
     /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
-    function rebalance(
-        UpdateMarketPositionSpec[] memory _newPositions
-    ) external onlyOwner {
-        // @TODO: 
+    function rebalance(UpdateMarketPositionSpec[] memory _newPositions)
+        external
+        onlyOwner
+    {
+        // @TODO:
         // 1. since rebalance() calls modifyPositionForMarketAndWithdraw/depositAndModifyPositionForMarket, it needs to be onlyOnwer
         // 2. if we want another rebalance() that distributes equally, it can be external and not onlyOwner, but I discourage it
-        // 2.1. If one rebalance() is specific, and another is not, that can lead to a caller maliciously 
+        // 2.1. If one rebalance() is specific, and another is not, that can lead to a caller maliciously
         // calling the latter to botch the former's strategy
-
 
         // for each new position in _newPositions, rebalance accordingly and update state
         for (uint256 i = 0; i < _newPositions.length; i++) {
@@ -112,12 +112,14 @@ contract MarginBase is MinimalProxyable {
             bytes32 marketKey = _newPositions[i].marketKey;
 
             // establish old position to compare to new
-            ActiveMarketPosition memory oldPosition = activeMarketPositions[marketKey];
+            ActiveMarketPosition memory oldPosition = activeMarketPositions[
+                marketKey
+            ];
             require(oldPosition.marketKey != 0, "MarginBase: Invalid position");
 
             int256 marginDelta = _newPositions[i].marginDelta;
             int256 sizeDelta = _newPositions[i].sizeDelta;
-            
+
             /// @notice remove margin from market and potentially adjust size
             if (marginDelta < 0) {
                 modifyPositionForMarketAndWithdraw(
@@ -126,10 +128,10 @@ contract MarginBase is MinimalProxyable {
                     marketKey
                 );
 
-            /// @notice deposit margin into market and potentially adjust size
-            /// @dev marginDelta >= 0
+                /// @notice deposit margin into market and potentially adjust size
+                /// @dev marginDelta >= 0
             } else {
-                // if marginDelta is 0, there will simply be NO additional 
+                // if marginDelta is 0, there will simply be NO additional
                 // margin deposited into the market
                 depositAndModifyPositionForMarket(
                     marginDelta,
@@ -152,7 +154,7 @@ contract MarginBase is MinimalProxyable {
 
         // close market position with KWENTA tracking code
         market.closePositionWithTracking(TRACKING_CODE);
-        
+
         /// @dev update state
         removeActiveMarketPositon(_marketKey);
     }
@@ -215,14 +217,18 @@ contract MarginBase is MinimalProxyable {
     //////////////////////////////////////
 
     /// @notice addressResolver fetches IFuturesMarket address for specific market
-    function futuresMarket(
-        bytes32 _marketKey
-    ) internal view returns (IFuturesMarket) {
-        return IFuturesMarket(addressResolver.requireAndGetAddress(
-                _marketKey,
-                "MarginBase: Could not get Futures Market"
-            )
-        );
+    function futuresMarket(bytes32 _marketKey)
+        internal
+        view
+        returns (IFuturesMarket)
+    {
+        return
+            IFuturesMarket(
+                addressResolver.requireAndGetAddress(
+                    _marketKey,
+                    "MarginBase: Could not get Futures Market"
+                )
+            );
     }
 
     /// @notice used internally to update contract state for the account's active position tracking

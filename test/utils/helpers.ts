@@ -1,5 +1,5 @@
-import { BigNumber } from '@ethersproject/bignumber';
-import { artifacts, ethers, network } from 'hardhat';
+import { BigNumber } from "@ethersproject/bignumber";
+import { artifacts, ethers, network } from "hardhat";
 
 /*
  * mint sUSD and transfer to account address specified:
@@ -21,23 +21,23 @@ export const mintToAccountSUSD = async (
     amount: BigNumber
 ) => {
     // internal contract which can call synth.issue()
-    const issuerAddress = '0x939313420A85ab8F21B8c2fE15b60528f34E0d63';
+    const issuerAddress = "0x939313420A85ab8F21B8c2fE15b60528f34E0d63";
     await network.provider.request({
-        method: 'hardhat_impersonateAccount',
+        method: "hardhat_impersonateAccount",
         params: [issuerAddress],
     });
     const issuerSigner = await ethers.getSigner(issuerAddress);
 
     // contract needs ETH to send tx
-    await network.provider.send('hardhat_setBalance', [
+    await network.provider.send("hardhat_setBalance", [
         issuerAddress,
-        '0x38d7ea4c68000', // 0.001 ETH
+        "0x38d7ea4c68000", // 0.001 ETH
     ]);
 
     // MultiCollateralSynth contract address for sUSD
-    const synthSUSDAddress = '0xD1599E478cC818AFa42A4839a6C665D9279C3E50';
+    const synthSUSDAddress = "0xD1599E478cC818AFa42A4839a6C665D9279C3E50";
     const ISynthABI = (
-        await artifacts.readArtifact('contracts/interfaces/ISynth.sol:ISynth')
+        await artifacts.readArtifact("contracts/interfaces/ISynth.sol:ISynth")
     ).abi;
     const synth = new ethers.Contract(synthSUSDAddress, ISynthABI);
 
