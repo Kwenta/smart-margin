@@ -6,11 +6,14 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IAddressResolver.sol";
 import "./interfaces/IFuturesMarket.sol";
 import "./interfaces/IFuturesMarketManager.sol";
+import "./utils/OpsReady.sol";
+import "./utils/MinimalProxyable.sol";
+import "./interfaces/IExchangeRates.sol";
 
 /// @title MarginBase
 /// @notice MarginBase provides users a way to open multiple positions from the same base account
 ///                    with cross-margin. Margin can be customly balanced across different positions.
-contract MarginBase is MinimalProxyable {
+contract MarginBase is MinimalProxyable, OpsReady {
     //////////////////////////////////////
     ///////////// CONSTANTS //////////////
     //////////////////////////////////////
@@ -32,7 +35,7 @@ contract MarginBase is MinimalProxyable {
         bytes32 marketKey;
         uint128 margin;
         int128 size;
-    }
+    }   
 
     // marketKey: synthetix futures market id/key
     // marginDelta: amount of margin (in sUSD) to deposit or withdraw
@@ -43,6 +46,12 @@ contract MarginBase is MinimalProxyable {
         int256 marginDelta; // positive indicates deposit, negative withdraw
         int256 sizeDelta;
         bool isClosing; // if true, marginDelta nor sizeDelta are considered. simply closes position
+    }
+
+    struct Order {
+        int256 margin;
+        int256 size;
+        uint price;
     }
 
     //////////////////////////////////////
@@ -64,6 +73,9 @@ contract MarginBase is MinimalProxyable {
     // market keys mapped to active market positions
     mapping(bytes32 => ActiveMarketPosition) public activeMarketPositions;
 
+    // limit orders 
+    mapping(address => Order) public orders; 
+
     //////////////////////////////////////
     /////////////// ERRORS ///////////////
     //////////////////////////////////////
@@ -81,7 +93,7 @@ contract MarginBase is MinimalProxyable {
     //////////////////////////////////////
 
     /// @notice constructor never used except for first CREATE
-    constructor() MinimalProxyable() {}
+    constructor(address payable _ops) OpsReady(_ops) MinimalProxyable() {}
 
     function initialize(address _marginAsset, address _addressResolver)
         external
@@ -326,4 +338,70 @@ contract MarginBase is MinimalProxyable {
         // remove last element (which will be _marketKey)
         activeMarketKeys.pop();
     }
+    //////////////////////////////////////
+    //////////// CROSS MARGIN ////////////
+    //////////////////////////////////////
+
+    function validOrder(address _market) 
+        public 
+        view 
+        returns (bool) 
+    {
+        Order memory order = orders[_market];
+        bytes32 currencyKey = IFuturesMarket(_market).baseAsset();
+        // Get exchange rate for 1 unit
+        uint price = IExchangeRates(/* TODO: set address resolver */address(0)).effectiveValue(currencyKey, 1e18, "sUSD");
+        
+        if (order.size > 0) { // Long
+            return price <= order.price;
+        } 
+        else if (order.size < 0) { // Short
+            return price >= order.price;
+        }
+        else {
+            revert("Order size 0");
+        }
+        
+    }
+    
+    function placeOrder(
+        address _market,
+        int256 _marginDelta,
+        int256 _sizeDelta,
+        uint _desiredPrice
+    ) external onlyOwner {
+        require(!validOrder(_market), "Order must not be immediately executable");
+
+        orders[_market] = Order({
+            margin: _marginDelta,
+            size: _sizeDelta,
+            price: _desiredPrice
+        });
+
+        IOps(gelato).createTask(
+            address(this), 
+            this.executeOrder.selector,
+            address(this),
+            abi.encodeWithSelector(this.checker.selector, _market)
+        );
+    }
+    
+    function executeOrder(address _market) external onlyOps {
+        require(validOrder(_market), "Order not ready for execution");
+        delete orders[_market];
+        // TODO: Execute order
+    }
+    
+    function checker(address _market)
+        external
+        view
+        returns (bool canExec, bytes memory execPayload)
+    {
+        canExec = validOrder(_market);
+        execPayload = abi.encodeWithSelector(
+            this.executeOrder.selector,
+            _market
+        );
+    }
+
 }
