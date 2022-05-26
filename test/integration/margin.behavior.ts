@@ -57,7 +57,7 @@ describe("Integration: Test Cross Margin", () => {
         const sUSD = new ethers.Contract(
             SUSD_PROXY,
             IERC20ABI,
-            waffle.provider
+            ethers.provider
         );
         const balance = await sUSD.balanceOf(account0.address);
         expect(balance).to.equal(TEST_VALUE);
@@ -85,5 +85,21 @@ describe("Integration: Test Cross Margin", () => {
             marginAccountAddress
         );
         expect(marginAccount.address).to.exist;
+    });
+
+    it("Test Opening Multiple Positions", async () => {
+
+    });
+
+    it("Test Modifying Multiple Positions", async () => {
+
+    });
+
+    it("Test Position Rebalancing", async () => {
+
+    });
+
+    it("Test Exiting Positions", async () => {
+        
     });
 });
