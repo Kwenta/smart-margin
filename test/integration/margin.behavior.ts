@@ -9,8 +9,9 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // constants
-const MINT_AMOUNT = ethers.BigNumber.from("1000000000000000000000"); // == $1_000 sUSD
-const TEST_VALUE = ethers.BigNumber.from("100000000000000000000"); // == $100 sUSD
+const MINT_AMOUNT = ethers.BigNumber.from("100000000000000000000000"); // == $100_000 sUSD
+const ACCOUNT_AMOUNT = ethers.BigNumber.from("10000000000000000000000"); // == $10_000 sUSD
+const TEST_VALUE = ethers.BigNumber.from("1000000000000000000000"); // == $1_000 sUSD
 const TREASURY_DAO = "0x82d2242257115351899894eF384f779b5ba8c695";
 
 // synthetix
@@ -21,6 +22,11 @@ const SUSD_PROXY = "0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9";
 let sUSD: Contract;
 
 // synthetix: market keys
+// see: https://github.com/Synthetixio/synthetix/blob/develop/publish/deployed/mainnet-ovm/futures-markets.json
+const MARKET_KEY_sETH = ethers.utils.formatBytes32String("sETH");
+const MARKET_KEY_sBTC = ethers.utils.formatBytes32String("sBTC");
+const MARKET_KEY_sLINK = ethers.utils.formatBytes32String("sLINK");
+const MARKET_KEY_sUNI = ethers.utils.formatBytes32String("sUNI");
 
 // cross margin
 let marginAccountFactory: Contract;
@@ -94,16 +100,31 @@ describe("Integration: Test Cross Margin", () => {
 
         // check owner
         const actualOwner = await marginAccount.connect(account0).owner();
+        expect(owner).to.equal(actualOwner);
         expect(actualOwner).to.equal(account0.address);
     });
 
-    it.skip("Test Opening Multiple Positions", async () => {
+    it("Test Opening Multiple Positions", async () => {
         // approve allowance for marginAccount to spend
-        //sUSD.connect(account0).approve(marginAccountAddress, TEST_VALUE);
-        // deposit (amount in wei == $100 sUSD) sUSD into margin account
-        //marginAccount.connect(account0).deposit(TEST_VALUE);
-        //const marginAccountBalance = await sUSD.balanceOf(marginAccountAddress);
-        //expect(TEST_VALUE).to.equal(marginAccountBalance);
+        await sUSD
+            .connect(account0)
+            .approve(marginAccount.address, MINT_AMOUNT);
+
+        // deposit (amount in wei == $10_000 sUSD) sUSD into margin account
+        await marginAccount.connect(account0).deposit(ACCOUNT_AMOUNT);
+
+        //////////////// TRADES ////////////////
+
+        // open ~ 1x LONG position in ETH-PERP Market
+        await marginAccount.connect(account0).depositAndModifyPositionForMarket(
+            TEST_VALUE, // 1_000 sUSD
+            ethers.BigNumber.from("500000000000000000"), // 0.5 ETH
+            MARKET_KEY_sETH
+        );
+
+        // open 1x SHORT position in BTC-PERP Market
+        // open 5x LONG position in LINK-PERP Market
+        // open 5x SHORT position in UNI-PERP Market
     });
 
     it.skip("Test Modifying Multiple Positions", async () => {});

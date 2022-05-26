@@ -100,7 +100,7 @@ contract MarginBase is MinimalProxyable {
         external
         onlyOwner
     {
-        // @TODO:
+        // @TODO: DISCUSS
         // 1. since rebalance() calls modifyPositionForMarketAndWithdraw/depositAndModifyPositionForMarket, it needs to be onlyOnwer
         // 2. if we want another rebalance() that distributes equally, it can be external and not onlyOwner, but I discourage it
         // 2.1. If one rebalance() is specific, and another is not, that can lead to a caller maliciously
