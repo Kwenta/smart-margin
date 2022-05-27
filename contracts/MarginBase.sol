@@ -5,6 +5,7 @@ import "./utils/MinimalProxyable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IAddressResolver.sol";
 import "./interfaces/IFuturesMarket.sol";
+import "./interfaces/IFuturesMarketManager.sol";
 
 /// @title MarginBase
 /// @notice MarginBase provides users a way to open multiple positions from the same base account
@@ -16,6 +17,9 @@ contract MarginBase is MinimalProxyable {
 
     // tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
+
+    // name for futures market manager, needed for fetching market key
+    bytes32 private constant FUTURES_MANAGER = "FuturesMarketManager";
 
     //////////////////////////////////////
     /////////////// TYPES ////////////////
@@ -39,6 +43,9 @@ contract MarginBase is MinimalProxyable {
 
     // synthetix address resolver
     IAddressResolver private addressResolver;
+
+    // synthetix futures market manager
+    IFuturesMarketManager private futuresManager;
 
     // token contract used for account margin
     IERC20 public marginAsset;
@@ -71,6 +78,12 @@ contract MarginBase is MinimalProxyable {
     {
         marginAsset = IERC20(_marginAsset);
         addressResolver = IAddressResolver(_addressResolver);
+        futuresManager = IFuturesMarketManager(
+            addressResolver.requireAndGetAddress(
+                FUTURES_MANAGER,
+                "MarginBase: Could not get Futures Market Manager"
+            )
+        );
 
         /// @dev the Ownable constructor is never called when we create minimal proxies
         _transferOwnership(msg.sender);
@@ -174,6 +187,7 @@ contract MarginBase is MinimalProxyable {
 
         /// @notice alter the amount of margin in specific market position
         /// @dev positive input triggers a deposit; a negative one, a withdrawal
+        require(_depositSize >= 0, "MarginBase: Invalid deposit size");
         market.transferMargin(_depositSize);
 
         // modify position in specific market with KWENTA tracking code
@@ -203,6 +217,7 @@ contract MarginBase is MinimalProxyable {
 
         /// @notice alter the amount of margin in specific market position
         /// @dev positive input triggers a deposit; a negative one, a withdrawal
+        require(_withdrawSize <= 0, "MarginBase: Invalid withdraw size");
         market.transferMargin(_withdrawSize);
 
         // fetch new position data from Synthetix
@@ -222,13 +237,7 @@ contract MarginBase is MinimalProxyable {
         view
         returns (IFuturesMarket)
     {
-        return
-            IFuturesMarket(
-                addressResolver.requireAndGetAddress(
-                    _marketKey,
-                    "MarginBase: Could not get Futures Market"
-                )
-            );
+        return IFuturesMarket(futuresManager.marketForKey(_marketKey));
     }
 
     /// @notice used internally to update contract state for the account's active position tracking

@@ -77,7 +77,7 @@ describe("Integration: Test Cross Margin", () => {
         expect(marginAccountFactory.address).to.exist;
     });
 
-    it("Should deploy a MarginBase contract and initialize it", async () => {
+    it("Should deploy MarginBase contract and initialize it", async () => {
         const tx = await marginAccountFactory.connect(account0).newAccount();
         const rc = await tx.wait(); // 0ms, as tx is already confirmed
         const event = rc.events.find(
@@ -104,30 +104,83 @@ describe("Integration: Test Cross Margin", () => {
         expect(actualOwner).to.equal(account0.address);
     });
 
-    it("Test Opening Multiple Positions", async () => {
+    it("Should Open Multiple Positions", async () => {
         // approve allowance for marginAccount to spend
         await sUSD
             .connect(account0)
-            .approve(marginAccount.address, MINT_AMOUNT);
+            .approve(marginAccount.address, ACCOUNT_AMOUNT);
 
         // deposit (amount in wei == $10_000 sUSD) sUSD into margin account
         await marginAccount.connect(account0).deposit(ACCOUNT_AMOUNT);
 
         //////////////// TRADES ////////////////
 
-        // open ~ 1x LONG position in ETH-PERP Market
+        // open ~1x LONG position in ETH-PERP Market
         await marginAccount.connect(account0).depositAndModifyPositionForMarket(
             TEST_VALUE, // 1_000 sUSD
             ethers.BigNumber.from("500000000000000000"), // 0.5 ETH
             MARKET_KEY_sETH
         );
 
-        // open 1x SHORT position in BTC-PERP Market
-        // open 5x LONG position in LINK-PERP Market
-        // open 5x SHORT position in UNI-PERP Market
+        // open ~1x SHORT position in BTC-PERP Market
+        await marginAccount.connect(account0).depositAndModifyPositionForMarket(
+            TEST_VALUE, // 1_000 sUSD
+            ethers.BigNumber.from("-30000000000000000"), // 0.03 BTC
+            MARKET_KEY_sBTC
+        );
+
+        // open ~5x LONG position in LINK-PERP Market
+        await marginAccount.connect(account0).depositAndModifyPositionForMarket(
+            TEST_VALUE, // 1_000 sUSD
+            ethers.BigNumber.from("700000000000000000000"), // 700 LINK
+            MARKET_KEY_sLINK
+        );
+
+        // open ~5x SHORT position in UNI-PERP Market
+        await marginAccount.connect(account0).depositAndModifyPositionForMarket(
+            TEST_VALUE, // 1_000 sUSD
+            ethers.BigNumber.from("-900000000000000000000"), // 900 UNI
+            MARKET_KEY_sUNI
+        );
+
+        // check positions opened match what is seen on synthetix (margin, size, etc)
+        // @TODO: perform checks
     });
 
-    it.skip("Test Modifying Multiple Positions", async () => {});
+    it("Should Modify Multiple Positions", async () => {
+        //////////////// TRADES ////////////////
+
+        // modify ~1x LONG position in ETH-PERP Market to ~2x
+        await marginAccount.connect(account0).depositAndModifyPositionForMarket(
+            0,
+            ethers.BigNumber.from("1000000000000000000"), // 1 ETH
+            MARKET_KEY_sETH
+        );
+
+        // modify ~1x SHORT position in BTC-PERP Market to ~2x
+        await marginAccount.connect(account0).depositAndModifyPositionForMarket(
+            0,
+            ethers.BigNumber.from("-60000000000000000"), // 0.06 BTC
+            MARKET_KEY_sBTC
+        );
+
+        // modify ~5x LONG position in LINK-PERP Market to ~1x
+        await marginAccount.connect(account0).depositAndModifyPositionForMarket(
+            0,
+            ethers.BigNumber.from("140000000000000000000"), // 140 LINK
+            MARKET_KEY_sLINK
+        );
+
+        // modify ~5x SHORT position in UNI-PERP Market to ~1x
+        await marginAccount.connect(account0).depositAndModifyPositionForMarket(
+            0,
+            ethers.BigNumber.from("-180000000000000000000"), // 900 UNI
+            MARKET_KEY_sUNI
+        );
+
+        // check positions match what is seen on synthetix (margin, size, etc)
+        // @TODO: perform checks
+    });
 
     it.skip("Test Position Rebalancing", async () => {});
 
