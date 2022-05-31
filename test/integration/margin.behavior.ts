@@ -104,7 +104,7 @@ describe("Integration: Test Cross Margin", () => {
         expect(actualOwner).to.equal(account0.address);
     });
 
-    it("Should Open Multiple Positions", async () => {
+    it.skip("Should Open Multiple Positions", async () => {
         // approve allowance for marginAccount to spend
         await sUSD
             .connect(account0)
@@ -147,7 +147,7 @@ describe("Integration: Test Cross Margin", () => {
         // @TODO: perform checks
     });
 
-    it("Should Modify Multiple Positions", async () => {
+    it.skip("Should Modify Multiple Positions", async () => {
         //////////////// TRADES ////////////////
 
         // modify ~1x LONG position in ETH-PERP Market to ~2x
