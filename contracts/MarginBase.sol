@@ -9,7 +9,7 @@ import "./interfaces/IFuturesMarketManager.sol";
 
 /// @title MarginBase
 /// @notice MarginBase provides users a way to open multiple positions from the same base account
-/// with cross-margin. Margin can be customly balanced across different positions.
+///                    with cross-margin. Margin can be customly balanced across different positions.
 contract MarginBase is MinimalProxyable {
     //////////////////////////////////////
     ///////////// CONSTANTS //////////////
@@ -60,10 +60,16 @@ contract MarginBase is MinimalProxyable {
     mapping(bytes32 => ActiveMarketPosition) public activeMarketPositions;
 
     //////////////////////////////////////
-    ///////////// MODIFIERS //////////////
+    /////////////// ERRORS ///////////////
     //////////////////////////////////////
 
-    // @TODO: TBD
+    /// deposit size was negative
+    /// @param depositSize: amount of margin asset to deposit into market
+    error InvalidDepositSize(int256 _depositSize);
+
+    /// withdraw size was positive
+    /// @param withdrawSize: amount of margin asset to withdraw from market
+    error InvalidWithdrawSize(int256 withdrawSize);
 
     //////////////////////////////////////
     //// CONSTRUCTOR / INITIALIZER ///////
@@ -103,33 +109,32 @@ contract MarginBase is MinimalProxyable {
         marginAsset.transfer(owner(), _amount);
     }
 
-    /// @notice rebalance margin in all positions specificed via _newPositions
-    /// @dev `_newPositions` does not necessarily contain ALL positions nor does the new allocation
-    /// have to be equally distributed. Distribution is up to the caller
-    /// @dev it is up to the caller to ensure UpdateMarketPositionSpec is valid. Otherwise
-    /// call with be reverted via Synthetix's FuturesMarket
+    /// @notice close market position (note: not just modify position to 0 margin)
+    /// @param _marketKey: synthetix futures market id/key
+    function closeMarketPosition(bytes32 _marketKey) public onlyOwner {
+        // define market via _marketKey
+        IFuturesMarket market = futuresMarket(_marketKey);
+
+        // close market position with KWENTA tracking code
+        market.closePositionWithTracking(TRACKING_CODE);
+
+        /// @dev update state
+        removeActiveMarketPositon(_marketKey);
+    }
+
+    /// @notice distribute margin across all positions specified via _newPositions
+    /// @dev _newPositions may contain any number of new or existing positions
+    /// @dev caller can withdraw all margin from a position specified in _newPositions,
+    ///      but the position can only be closed via closeMarketPosition()
     /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
-    function rebalance(UpdateMarketPositionSpec[] memory _newPositions)
+    function distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
         external
         onlyOwner
     {
-        // @TODO: DISCUSS
-        // 1. since rebalance() calls modifyPositionForMarketAndWithdraw/depositAndModifyPositionForMarket, it needs to be onlyOnwer
-        // 2. if we want another rebalance() that distributes equally, it can be external and not onlyOwner, but I discourage it
-        // 2.1. If one rebalance() is specific, and another is not, that can lead to a caller maliciously
-        // calling the latter to botch the former's strategy
-
-        // for each new position in _newPositions, rebalance accordingly and update state
+        // for each new position in _newPositions, distribute margin accordingly and update state
         for (uint256 i = 0; i < _newPositions.length; i++) {
             // establish market
             bytes32 marketKey = _newPositions[i].marketKey;
-
-            // establish old position to compare to new
-            ActiveMarketPosition memory oldPosition = activeMarketPositions[
-                marketKey
-            ];
-            require(oldPosition.marketKey != 0, "MarginBase: Invalid position");
-
             int256 marginDelta = _newPositions[i].marginDelta;
             int256 sizeDelta = _newPositions[i].sizeDelta;
 
@@ -156,24 +161,21 @@ contract MarginBase is MinimalProxyable {
     }
 
     //////////////////////////////////////
-    ////////// PUBLIC FUNCTIONS //////////
+    ///////// INTERNAL FUNCTIONS /////////
     //////////////////////////////////////
 
-    /// @notice close market position (note: not just modify position to 0 margin)
-    /// @param _marketKey: synthetix futures market id/key
-    function closeMarketPosition(bytes32 _marketKey) public onlyOwner {
-        // define market via _marketKey
-        IFuturesMarket market = futuresMarket(_marketKey);
-
-        // close market position with KWENTA tracking code
-        market.closePositionWithTracking(TRACKING_CODE);
-
-        /// @dev update state
-        removeActiveMarketPositon(_marketKey);
+    /// @notice addressResolver fetches IFuturesMarket address for specific market
+    /// @param _marketKey: key for synthetix futures market
+    function futuresMarket(bytes32 _marketKey)
+        internal
+        view
+        returns (IFuturesMarket)
+    {
+        return IFuturesMarket(futuresManager.marketForKey(_marketKey));
     }
 
     /// @notice deposit margin into specific market, either creating or adding
-    /// to a position and then updating account's active positions for user
+    ///         to a position and then updating account's active positions for user
     /// @param _depositSize: size of deposit in sUSD
     /// @param _sizeDelta: size and position type (long//short) denoted in market synth (ex: sETH)
     /// @param _marketKey: synthetix futures market id/key
@@ -181,13 +183,15 @@ contract MarginBase is MinimalProxyable {
         int256 _depositSize,
         int256 _sizeDelta,
         bytes32 _marketKey
-    ) public onlyOwner {
+    ) internal {
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
 
         /// @notice alter the amount of margin in specific market position
         /// @dev positive input triggers a deposit; a negative one, a withdrawal
-        require(_depositSize >= 0, "MarginBase: Invalid deposit size");
+        if (_depositSize < 0) {
+            revert InvalidDepositSize(_depositSize);
+        }
         market.transferMargin(_depositSize);
 
         // modify position in specific market with KWENTA tracking code
@@ -208,7 +212,7 @@ contract MarginBase is MinimalProxyable {
         int256 _withdrawSize,
         int256 _sizeDelta,
         bytes32 _marketKey
-    ) public onlyOwner {
+    ) internal {
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
 
@@ -217,7 +221,9 @@ contract MarginBase is MinimalProxyable {
 
         /// @notice alter the amount of margin in specific market position
         /// @dev positive input triggers a deposit; a negative one, a withdrawal
-        require(_withdrawSize <= 0, "MarginBase: Invalid withdraw size");
+        if (_withdrawSize > 0) {
+            revert InvalidWithdrawSize(_withdrawSize);
+        }
         market.transferMargin(_withdrawSize);
 
         // fetch new position data from Synthetix
@@ -227,20 +233,10 @@ contract MarginBase is MinimalProxyable {
         updateActiveMarketPosition(_marketKey, margin, size);
     }
 
-    //////////////////////////////////////
-    ///////// INTERNAL FUNCTIONS /////////
-    //////////////////////////////////////
-
-    /// @notice addressResolver fetches IFuturesMarket address for specific market
-    function futuresMarket(bytes32 _marketKey)
-        internal
-        view
-        returns (IFuturesMarket)
-    {
-        return IFuturesMarket(futuresManager.marketForKey(_marketKey));
-    }
-
     /// @notice used internally to update contract state for the account's active position tracking
+    /// @param _marketKey: key for synthetix futures market
+    /// @param _margin: amount of margin the specific market position has
+    /// @param _size: represents size of position (i.e. accounts for leverage)
     function updateActiveMarketPosition(
         bytes32 _marketKey,
         uint128 _margin,
@@ -262,27 +258,26 @@ contract MarginBase is MinimalProxyable {
         activeMarketPositions[_marketKey] = newPosition;
     }
 
-    /// @notice used internally to update (remove) contract state for the account's active position tracking
+    /// @notice used internally to update contract state for the account's
+    ///         active position tracking (remove market position)
+    /// @dev removeActiveMarketPositon can ONLY be reached when _marketKey
+    ///      is valid (i.e. there was an active position in that market)
+    /// @param _marketKey: key for previously active market position
     function removeActiveMarketPositon(bytes32 _marketKey) internal {
         delete activeMarketPositions[_marketKey];
         numberOfActivePositions--;
 
-        require(activeMarketKeys.length > 0, "MarginBase: Empty array");
-        bool found = false;
-
         for (uint256 i = 0; i < activeMarketKeys.length; i++) {
-            // once `_marketKey` is encountered, swap with
-            // last element in array exit for-loop
+            // once _marketKey is encountered, swap with
+            // last element in array and exit for-loop
             if (activeMarketKeys[i] == _marketKey) {
                 activeMarketKeys[i] = activeMarketKeys[
                     activeMarketKeys.length - 1
                 ];
-                found = true;
                 break;
             }
         }
-        // remove last element (which will be `_marketKey`)
-        require(found, "MarginBase: Market Key not found");
+        // remove last element (which will be _marketKey)
         activeMarketKeys.pop();
     }
 }
