@@ -27,7 +27,7 @@ dotenv.config();
  * Notice he still has 8_000 sUSD of available margin which is not in either market. If
  * Tom wishes to use that margin, he can call distributeMargin() again with:
  *
- * [{sETH, 4_000, 1*10e18}, {sUNI, 4_000, -900*10e18}]
+ * @TODO 
  *
  * That will increase the margin for each position, thus decreasing the leverage accordingly
  * (assuming that the size delta (1*10e18 or -900*10e18 in the above case) remains the same).
@@ -45,7 +45,6 @@ dotenv.config();
  * He will now have three active market positions: (1)long in sETH (2) short in sUNI and (3) long in sBTC.
  * Notice, only 11_000 of his 20_000 margin is being used in markets, but that can be changed quite
  * easily.
- *
  *
  * Ultimately, the goal of MarginBase is to offer users the flexibility to define cross margin
  * however they see fit. Single positions with limited margin relative to account margin is supported
