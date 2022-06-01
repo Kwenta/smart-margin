@@ -52,9 +52,6 @@ contract MarginBase is MinimalProxyable {
     // token contract used for account margin
     IERC20 public marginAsset;
 
-    // number of active market positions account has
-    uint16 public numberOfActivePositions = 0;
-
     // market keys that the account has active positions in
     bytes32[] public activeMarketKeys;
 
@@ -149,16 +146,26 @@ contract MarginBase is MinimalProxyable {
         }
     }
 
+    /// @notice get number of active market positions account has
+    /// @return number of positions which are currently active for account
+    function getNumberOfActivePositions() external view returns (uint256) {
+        return activeMarketKeys.length;
+    }
+
     /// @notice get all active market positions
     /// @return positions which are currently active for account (ActiveMarketPosition structs)
     function getAllActiveMarketPositions()
         external
         view
-        returns (ActiveMarketPosition[] memory positions)
+        returns (ActiveMarketPosition[] memory)
     {
+        ActiveMarketPosition[] memory positions = new ActiveMarketPosition[](
+            activeMarketKeys.length
+        );
         for (uint16 i = 0; i < activeMarketKeys.length; i++) {
             positions[i] = (activeMarketPositions[activeMarketKeys[i]]);
         }
+        return positions;
     }
 
     //////////////////////////////////////
@@ -253,7 +260,6 @@ contract MarginBase is MinimalProxyable {
         // check if this is updating a position or creating one
         if (activeMarketPositions[_marketKey].marketKey == 0) {
             activeMarketKeys.push(_marketKey);
-            numberOfActivePositions++;
         }
 
         // update state of active market positions
@@ -267,7 +273,6 @@ contract MarginBase is MinimalProxyable {
     /// @param _marketKey: key for previously active market position
     function removeActiveMarketPositon(bytes32 _marketKey) internal {
         delete activeMarketPositions[_marketKey];
-        numberOfActivePositions--;
 
         for (uint16 i = 0; i < activeMarketKeys.length; i++) {
             // once _marketKey is encountered, swap with

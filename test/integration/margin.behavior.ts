@@ -10,49 +10,48 @@ dotenv.config();
 
 /**
  * README:
- * 
+ *
  * MarginBase offers true cross-margin for users via the MarginBase.distributeMargin()
  * function. distributeMargin() gives the caller the flexibility to distribute margin
  * equally across all positions after opening/closing/modifying any/some/all market positions.
  * More specifically, distributeMargin() takes an array of objects defined by the caller
  * which represent market positions the account will take.
- * 
+ *
  * example:
- * If Tom deposits 10_000 sUSD into a MarginBase account, and then passes this array of 
+ * If Tom deposits 10_000 sUSD into a MarginBase account, and then passes this array of
  * market positions to distributeMargin():
- * 
+ *
  * [{sETH, 1_000, 1*10e18}, {sUNI, 1_000, -900*10e18}]
- * 
+ *
  * Then he will have two active market positions: (1) 2x long in sETH and (2) 5x short in sUNI.
  * Notice he still has 8_000 sUSD of available margin which is not in either market. If
  * Tom wishes to use that margin, he can call distributeMargin() again with:
- * 
+ *
  * [{sETH, 4_000, 1*10e18}, {sUNI, 4_000, -900*10e18}]
- * 
+ *
  * That will increase the margin for each position, thus decreasing the leverage accordingly
  * (assuming that the size delta (1*10e18 or -900*10e18 in the above case) remains the same).
- * 
- * Furthermore, notice that once a position has been taken by the account, 
+ *
+ * Furthermore, notice that once a position has been taken by the account,
  * calling distributeMargin() with an array of market positions/orders that do no include the
- * currently active positions will work, as long as there is sufficient margin available for the 
+ * currently active positions will work, as long as there is sufficient margin available for the
  * position:
- * 
+ *
  * Assume Tom deposited 20_000 sUSD and made the same trades as above, he could then call
  * distributeMargin() with:
- * 
+ *
  * [{sBTC, 1_000, 0.5*10e18}]
- * 
+ *
  * He will now have three active market positions: (1)long in sETH (2) short in sUNI and (3) long in sBTC.
  * Notice, only 11_000 of his 20_000 margin is being used in markets, but that can be changed quite
  * easily.
- * 
- * The above examples will be followed below in the integration tests
- * 
+ *
+ *
  * Ultimately, the goal of MarginBase is to offer users the flexibility to define cross margin
  * however they see fit. Single positions with limited margin relative to account margin is supported
  * as well as equally distrubted margin among all active market positions. It is up to the caller/front-end
  * to implement whatever strategy that best serves them.
- * 
+ *
  * @author jaredborders
  */
 
@@ -152,7 +151,16 @@ describe("Integration: Test Cross Margin", () => {
         expect(actualOwner).to.equal(account0.address);
     });
 
-    it.skip("Should Open Multiple Positions", async () => {
+    /** 
+     * For the following tests, the approximated leverage (1x, 3x, 5x, etc) 
+     * is not crucial. I added the approximations just for clarity. The
+     * token prices at this current block (9000000) I only estimated.
+     * 
+     * What is important are the multiples which change when new or modified
+     * positions are passed to the contract (i.e. did size/margin/etc change appropriately)
+     * */
+
+    it("Should Open Multiple Positions", async () => {
         // approve allowance for marginAccount to spend
         await sUSD
             .connect(account0)
@@ -163,71 +171,94 @@ describe("Integration: Test Cross Margin", () => {
 
         //////////////// TRADES ////////////////
 
-        // open ~1x LONG position in ETH-PERP Market
-        await marginAccount.connect(account0).depositAndModifyPositionForMarket(
-            TEST_VALUE, // 1_000 sUSD
-            ethers.BigNumber.from("500000000000000000"), // 0.5 ETH
-            MARKET_KEY_sETH
-        );
+        const newPositions = [
+            {
+                // open ~1x LONG position in ETH-PERP Market
+                marketKey: MARKET_KEY_sETH,
+                marginDelta: TEST_VALUE, // 1_000 sUSD
+                sizeDelta: ethers.BigNumber.from("500000000000000000"), // 0.5 ETH
+            },
+            {
+                // open ~1x SHORT position in BTC-PERP Market
+                marketKey: MARKET_KEY_sBTC,
+                marginDelta: TEST_VALUE, // 1_000 sUSD
+                sizeDelta: ethers.BigNumber.from("-30000000000000000"), // 0.03 BTC
+            },
+            {
+                // open ~5x LONG position in LINK-PERP Market
+                marketKey: MARKET_KEY_sLINK,
+                marginDelta: TEST_VALUE, // 1_000 sUSD
+                sizeDelta: ethers.BigNumber.from("700000000000000000000"), // 700 LINK
+            },
+            {
+                // open ~5x SHORT position in UNI-PERP Market
+                marketKey: MARKET_KEY_sUNI,
+                marginDelta: TEST_VALUE, // 1_000 sUSD
+                sizeDelta: ethers.BigNumber.from("-900000000000000000000"), // 900 UNI
+            },
+        ];
 
-        // open ~1x SHORT position in BTC-PERP Market
-        await marginAccount.connect(account0).depositAndModifyPositionForMarket(
-            TEST_VALUE, // 1_000 sUSD
-            ethers.BigNumber.from("-30000000000000000"), // 0.03 BTC
-            MARKET_KEY_sBTC
-        );
+        // open positions that are defined above
+        await marginAccount.connect(account0).distributeMargin(newPositions);
 
-        // open ~5x LONG position in LINK-PERP Market
-        await marginAccount.connect(account0).depositAndModifyPositionForMarket(
-            TEST_VALUE, // 1_000 sUSD
-            ethers.BigNumber.from("700000000000000000000"), // 700 LINK
-            MARKET_KEY_sLINK
-        );
+        const numberOfActivePositions = await marginAccount
+            .connect(account0)
+            .getNumberOfActivePositions();
+        expect(numberOfActivePositions).to.equal(4);
 
-        // open ~5x SHORT position in UNI-PERP Market
-        await marginAccount.connect(account0).depositAndModifyPositionForMarket(
-            TEST_VALUE, // 1_000 sUSD
-            ethers.BigNumber.from("-900000000000000000000"), // 900 UNI
-            MARKET_KEY_sUNI
-        );
-
-        // check positions opened match what is seen on synthetix (margin, size, etc)
-        // @TODO: perform checks
+        // @TODO: Remove Logging Below
+        const positions = await marginAccount.connect(account0).getAllActiveMarketPositions();
+        console.log(positions);
     });
 
-    it.skip("Should Modify Multiple Positions", async () => {
+    it("Should Modify Multiple Position Delta Sizes", async () => {
+
+        /**
+         * Notice that marginDelta for all positions is 0. 
+         * No withdrawing nor depositing into market positions, only
+         * modifying position size (i.e. leverage)
+         */
+
         //////////////// TRADES ////////////////
 
-        // modify ~1x LONG position in ETH-PERP Market to ~2x
-        await marginAccount.connect(account0).depositAndModifyPositionForMarket(
-            0,
-            ethers.BigNumber.from("1000000000000000000"), // 1 ETH
-            MARKET_KEY_sETH
-        );
+        const newPositions = [
+            {
+                // modify ~1x LONG position in ETH-PERP Market to ~3x
+                marketKey: MARKET_KEY_sETH,
+                marginDelta: 0, // no deposit
+                sizeDelta: ethers.BigNumber.from("1000000000000000000"), // 0.5 ETH -> 1.5 ETH
+            },
+            {
+                // modify ~1x SHORT position in BTC-PERP Market to ~3x
+                marketKey: MARKET_KEY_sBTC,
+                marginDelta: 0, // no deposit
+                sizeDelta: ethers.BigNumber.from("-60000000000000000"), // 0.03 BTC -> 0.09 BTC
+            },
+            {
+                // modify ~5x LONG position in LINK-PERP Market to ~1x
+                marketKey: MARKET_KEY_sLINK,
+                marginDelta: 0, // no deposit
+                sizeDelta: ethers.BigNumber.from("-560000000000000000000"), // 700 LINK -> 140 LINK
+            },
+            {
+                 // modify ~5x SHORT position in UNI-PERP Market to ~1x
+                marketKey: MARKET_KEY_sUNI,
+                marginDelta: 0, // no deposit
+                sizeDelta: ethers.BigNumber.from("720000000000000000000"), // 900 UNI -> 180 UNI
+            },
+        ];
 
-        // modify ~1x SHORT position in BTC-PERP Market to ~2x
-        await marginAccount.connect(account0).depositAndModifyPositionForMarket(
-            0,
-            ethers.BigNumber.from("-60000000000000000"), // 0.06 BTC
-            MARKET_KEY_sBTC
-        );
+        // modify positions that are defined above
+        await marginAccount.connect(account0).distributeMargin(newPositions);
 
-        // modify ~5x LONG position in LINK-PERP Market to ~1x
-        await marginAccount.connect(account0).depositAndModifyPositionForMarket(
-            0,
-            ethers.BigNumber.from("140000000000000000000"), // 140 LINK
-            MARKET_KEY_sLINK
-        );
+        const numberOfActivePositions = await marginAccount
+            .connect(account0)
+            .getNumberOfActivePositions();
+        expect(numberOfActivePositions).to.equal(4);
 
-        // modify ~5x SHORT position in UNI-PERP Market to ~1x
-        await marginAccount.connect(account0).depositAndModifyPositionForMarket(
-            0,
-            ethers.BigNumber.from("-180000000000000000000"), // 900 UNI
-            MARKET_KEY_sUNI
-        );
-
-        // check positions match what is seen on synthetix (margin, size, etc)
-        // @TODO: perform checks
+        // @TODO: Remove Logging Below
+        const positions = await marginAccount.connect(account0).getAllActiveMarketPositions();
+        console.log(positions);
     });
 
     it.skip("Test Position Rebalancing", async () => {});
