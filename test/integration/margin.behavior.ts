@@ -8,6 +8,54 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+/**
+ * README:
+ * 
+ * MarginBase offers true cross-margin for users via the MarginBase.distributeMargin()
+ * function. distributeMargin() gives the caller the flexibility to distribute margin
+ * equally across all positions after opening/closing/modifying any/some/all market positions.
+ * More specifically, distributeMargin() takes an array of objects defined by the caller
+ * which represent market positions the account will take.
+ * 
+ * example:
+ * If Tom deposits 10_000 sUSD into a MarginBase account, and then passes this array of 
+ * market positions to distributeMargin():
+ * 
+ * [{sETH, 1_000, 1*10e18}, {sUNI, 1_000, -900*10e18}]
+ * 
+ * Then he will have two active market positions: (1) 2x long in sETH and (2) 5x short in sUNI.
+ * Notice he still has 8_000 sUSD of available margin which is not in either market. If
+ * Tom wishes to use that margin, he can call distributeMargin() again with:
+ * 
+ * [{sETH, 4_000, 1*10e18}, {sUNI, 4_000, -900*10e18}]
+ * 
+ * That will increase the margin for each position, thus decreasing the leverage accordingly
+ * (assuming that the size delta (1*10e18 or -900*10e18 in the above case) remains the same).
+ * 
+ * Furthermore, notice that once a position has been taken by the account, 
+ * calling distributeMargin() with an array of market positions/orders that do no include the
+ * currently active positions will work, as long as there is sufficient margin available for the 
+ * position:
+ * 
+ * Assume Tom deposited 20_000 sUSD and made the same trades as above, he could then call
+ * distributeMargin() with:
+ * 
+ * [{sBTC, 1_000, 0.5*10e18}]
+ * 
+ * He will now have three active market positions: (1)long in sETH (2) short in sUNI and (3) long in sBTC.
+ * Notice, only 11_000 of his 20_000 margin is being used in markets, but that can be changed quite
+ * easily.
+ * 
+ * The above examples will be followed below in the integration tests
+ * 
+ * Ultimately, the goal of MarginBase is to offer users the flexibility to define cross margin
+ * however they see fit. Single positions with limited margin relative to account margin is supported
+ * as well as equally distrubted margin among all active market positions. It is up to the caller/front-end
+ * to implement whatever strategy that best serves them.
+ * 
+ * @author jaredborders
+ */
+
 // constants
 const MINT_AMOUNT = ethers.BigNumber.from("100000000000000000000000"); // == $100_000 sUSD
 const ACCOUNT_AMOUNT = ethers.BigNumber.from("10000000000000000000000"); // == $10_000 sUSD

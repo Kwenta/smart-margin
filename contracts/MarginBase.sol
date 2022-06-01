@@ -25,12 +25,14 @@ contract MarginBase is MinimalProxyable {
     /////////////// TYPES ////////////////
     //////////////////////////////////////
 
+    // @TODO: Docs
     struct ActiveMarketPosition {
         bytes32 marketKey;
         uint128 margin;
         int128 size;
     }
 
+    // @TODO: Docs
     struct UpdateMarketPositionSpec {
         bytes32 marketKey;
         int256 marginDelta;
@@ -65,7 +67,7 @@ contract MarginBase is MinimalProxyable {
 
     /// deposit size was negative
     /// @param depositSize: amount of margin asset to deposit into market
-    error InvalidDepositSize(int256 _depositSize);
+    error InvalidDepositSize(int256 depositSize);
 
     /// withdraw size was positive
     /// @param withdrawSize: amount of margin asset to withdraw from market
@@ -109,19 +111,6 @@ contract MarginBase is MinimalProxyable {
         marginAsset.transfer(owner(), _amount);
     }
 
-    /// @notice close market position (note: not just modify position to 0 margin)
-    /// @param _marketKey: synthetix futures market id/key
-    function closeMarketPosition(bytes32 _marketKey) public onlyOwner {
-        // define market via _marketKey
-        IFuturesMarket market = futuresMarket(_marketKey);
-
-        // close market position with KWENTA tracking code
-        market.closePositionWithTracking(TRACKING_CODE);
-
-        /// @dev update state
-        removeActiveMarketPositon(_marketKey);
-    }
-
     /// @notice distribute margin across all positions specified via _newPositions
     /// @dev _newPositions may contain any number of new or existing positions
     /// @dev caller can withdraw all margin from a position specified in _newPositions,
@@ -160,12 +149,25 @@ contract MarginBase is MinimalProxyable {
         }
     }
 
+    /// @notice get all active market positions
+    /// @return positions which are currently active for account (ActiveMarketPosition structs)
+    function getAllActiveMarketPositions()
+        external
+        view
+        returns (ActiveMarketPosition[] memory positions)
+    {
+        for (uint16 i = 0; i < activeMarketKeys.length; i++) {
+            positions[i] = (activeMarketPositions[activeMarketKeys[i]]);
+        }
+    }
+
     //////////////////////////////////////
     ///////// INTERNAL FUNCTIONS /////////
     //////////////////////////////////////
 
     /// @notice addressResolver fetches IFuturesMarket address for specific market
     /// @param _marketKey: key for synthetix futures market
+    /// @return IFuturesMarket contract interface
     function futuresMarket(bytes32 _marketKey)
         internal
         view
@@ -267,7 +269,7 @@ contract MarginBase is MinimalProxyable {
         delete activeMarketPositions[_marketKey];
         numberOfActivePositions--;
 
-        for (uint256 i = 0; i < activeMarketKeys.length; i++) {
+        for (uint16 i = 0; i < activeMarketKeys.length; i++) {
             // once _marketKey is encountered, swap with
             // last element in array and exit for-loop
             if (activeMarketKeys[i] == _marketKey) {
