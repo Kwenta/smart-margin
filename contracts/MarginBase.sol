@@ -93,9 +93,9 @@ contract MarginBase is MinimalProxyable, OpsReady {
     //////////////////////////////////////
 
     /// @notice constructor never used except for first CREATE
-    constructor(address payable _ops) OpsReady(_ops) MinimalProxyable() {}
+    constructor() MinimalProxyable() {}
 
-    function initialize(address _marginAsset, address _addressResolver)
+    function initialize(address _marginAsset, address _addressResolver, address payable _ops)
         external
         initOnce
     {
@@ -110,6 +110,8 @@ contract MarginBase is MinimalProxyable, OpsReady {
 
         /// @dev the Ownable constructor is never called when we create minimal proxies
         _transferOwnership(msg.sender);
+
+        ops = _ops;
     }
 
     //////////////////////////////////////
@@ -278,6 +280,21 @@ contract MarginBase is MinimalProxyable, OpsReady {
         market.withdrawAllMargin();
     }
 
+    /// @notice addressResolver fetches IFuturesMarket address for specific market
+    function exchangeRates()
+        internal
+        view
+        returns (IExchangeRates)
+    {
+        return
+            IExchangeRates(
+                addressResolver.requireAndGetAddress(
+                    "ExchangeRates",
+                    "MarginBase: Could not get ExchangeRates"
+                )
+            );
+    }
+
     /// @notice used internally to update contract state for the account's active position tracking
     /// @param _marketKey: key for synthetix futures market
     /// @param _margin: amount of margin the specific market position has
@@ -338,8 +355,9 @@ contract MarginBase is MinimalProxyable, OpsReady {
         // remove last element (which will be _marketKey)
         activeMarketKeys.pop();
     }
+
     //////////////////////////////////////
-    //////////// CROSS MARGIN ////////////
+    //////////// LIMIT ORDERS ////////////
     //////////////////////////////////////
 
     function validOrder(address _market) 
@@ -350,7 +368,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
         Order memory order = orders[_market];
         bytes32 currencyKey = IFuturesMarket(_market).baseAsset();
         // Get exchange rate for 1 unit
-        uint price = IExchangeRates(/* TODO: set address resolver */address(0)).effectiveValue(currencyKey, 1e18, "sUSD");
+        uint price = exchangeRates().effectiveValue(currencyKey, 1e18, "sUSD");
         
         if (order.size > 0) { // Long
             return price <= order.price;
@@ -370,7 +388,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
         int256 _sizeDelta,
         uint _desiredPrice
     ) external onlyOwner {
-        require(!validOrder(_market), "Order must not be immediately executable");
+        //require(!validOrder(_market), "Order must not be immediately executable");
 
         orders[_market] = Order({
             margin: _marginDelta,
@@ -378,7 +396,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
             price: _desiredPrice
         });
 
-        IOps(gelato).createTask(
+        IOps(gelato()).createTask(
             address(this), 
             this.executeOrder.selector,
             address(this),
@@ -389,7 +407,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
     function executeOrder(address _market) external onlyOps {
         require(validOrder(_market), "Order not ready for execution");
         delete orders[_market];
-        // TODO: Execute order
+        revert("Success!"); // For testing until position placing is functional
     }
     
     function checker(address _market)

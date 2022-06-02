@@ -14,7 +14,7 @@ contract MarginAccountFactoryTest is DSTest {
     address private addressResolver = 0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C;
 
     function setUp() public {
-        marginAccountFactory = new MarginAccountFactory("0.0.0", address(0), addressResolver);
+        marginAccountFactory = new MarginAccountFactory("0.0.0", address(0), addressResolver, payable(address(0)));
     }
 
     function testAccountCreation() public {
