@@ -236,8 +236,8 @@ describe("Integration: Test Cross Margin", () => {
         // ETH
         const position = await marginAccount.connect(account0).activeMarketPositions(MARKET_KEY_sETH);
         expect(position.marketKey).to.equal(MARKET_KEY_sETH);
-        expect(position.margin).to.be.closeTo(TEST_VALUE, TEST_VALUE.mul(1).div(100));
-        expect(position.size).to.equal(ethers.BigNumber.from("500000000000000000"));
+        expect(position.margin).to.be.closeTo(TEST_VALUE, TEST_VALUE.mul(1).div(100)); // 1% fee
+        expect(position.size).to.equal(ethers.BigNumber.from("500000000000000000")); // 0.5 ETH
     });
 
     it("Should Open Multiple Positions", async () => {
@@ -288,15 +288,14 @@ describe("Integration: Test Cross Margin", () => {
         expect(UNIposition.size).to.equal(ethers.BigNumber.from("-900000000000000000000")); // 900 UNI
     });
 
-    it.skip("Should Modify Multiple Position's Delta Size", async () => {
+    it("Should Modify Multiple Position's Delta Size", async () => {
         /**
          * Notice that marginDelta for all positions is 0.
          * No withdrawing nor depositing into market positions, only
          * modifying position size (i.e. leverage)
          */
 
-        //////////////// TRADES ////////////////
-
+        // define new positions (modify existing)
         const newPositions = [
             {
                 // modify ~1x LONG position in ETH-PERP Market to ~3x
@@ -330,11 +329,38 @@ describe("Integration: Test Cross Margin", () => {
             .connect(account0)
             .getNumberOfActivePositions();
         expect(numberOfActivePositions).to.equal(4);
+
+        // NOTICE: margin in each market position should stay *close* to the same 
+        // (only decreasing slightly due to further fees for altering the position)
+
+        // confirm correct position details: Market, Margin, Size
+        // ETH
+        const position = await marginAccount.connect(account0).activeMarketPositions(MARKET_KEY_sETH);
+        expect(position.marketKey).to.equal(MARKET_KEY_sETH);
+        expect(position.margin).to.be.closeTo(TEST_VALUE, TEST_VALUE.mul(1).div(100));
+        expect(position.size).to.equal(ethers.BigNumber.from("1500000000000000000"));
+        // BTC
+        const BTCposition = await marginAccount.connect(account0).activeMarketPositions(MARKET_KEY_sBTC);
+        expect(BTCposition.marketKey).to.equal(MARKET_KEY_sBTC);
+        expect(BTCposition.margin).to.be.closeTo(TEST_VALUE, TEST_VALUE.mul(1).div(100)); // 1% fee
+        expect(BTCposition.size).to.equal(ethers.BigNumber.from("-90000000000000000")); // 0.09 BTC
+        // LINK
+        const LINKposition = await marginAccount.connect(account0).activeMarketPositions(MARKET_KEY_sLINK);
+        expect(LINKposition.marketKey).to.equal(MARKET_KEY_sLINK);
+        expect(LINKposition.margin).to.be.closeTo(TEST_VALUE, TEST_VALUE.mul(4).div(100)); // 4% fee
+        expect(LINKposition.size).to.equal(ethers.BigNumber.from("140000000000000000000")); // 140 LINK
+        // UNI
+        const UNIposition = await marginAccount.connect(account0).activeMarketPositions(MARKET_KEY_sUNI);
+        expect(UNIposition.marketKey).to.equal(MARKET_KEY_sUNI);
+        expect(UNIposition.margin).to.be.closeTo(TEST_VALUE, TEST_VALUE.mul(4).div(100)); // 4% fee
+        expect(UNIposition.size).to.equal(ethers.BigNumber.from("-180000000000000000000")); // 180 UNI
     });
 
-    it.skip("Should Modify Multiple Position's Margin", async () => {
+    it("Should Modify Multiple Position's Margin (deposit)", async () => {
         /**
-         * @TODO doc
+         * BaseMargin Account at this point is only utilizing $4_000 sUSD of the
+         * total $10_000 sUSD. The following trades will deposit more margin
+         * into each active position, but will not alter the size
          */
 
         //////////////// TRADES ////////////////
@@ -343,26 +369,26 @@ describe("Integration: Test Cross Margin", () => {
             {
                 // modify ~1x LONG position in ETH-PERP Market to ~3x
                 marketKey: MARKET_KEY_sETH,
-                marginDelta: 0, // no deposit
-                sizeDelta: ethers.BigNumber.from("1000000000000000000"), // 0.5 ETH -> 1.5 ETH
+                marginDelta: TEST_VALUE, // 1_000 sUSD -> 2_000 sUSD
+                sizeDelta: 0, // (no change) prev set to: 1.5 ETH
             },
             {
                 // modify ~1x SHORT position in BTC-PERP Market to ~3x
                 marketKey: MARKET_KEY_sBTC,
-                marginDelta: 0, // no deposit
-                sizeDelta: ethers.BigNumber.from("-60000000000000000"), // 0.03 BTC -> 0.09 BTC
+                marginDelta: TEST_VALUE, // 1_000 sUSD -> 2_000 sUSD
+                sizeDelta: 0, // (no change) prev set to: 0.09 BTC
             },
             {
                 // modify ~5x LONG position in LINK-PERP Market to ~1x
                 marketKey: MARKET_KEY_sLINK,
-                marginDelta: 0, // no deposit
-                sizeDelta: ethers.BigNumber.from("-560000000000000000000"), // 700 LINK -> 140 LINK
+                marginDelta: TEST_VALUE, // 1_000 sUSD -> 2_000 sUSD
+                sizeDelta: 0, // (no change) prev set to: 140 LINK
             },
             {
                 // modify ~5x SHORT position in UNI-PERP Market to ~1x
                 marketKey: MARKET_KEY_sUNI,
-                marginDelta: 0, // no deposit
-                sizeDelta: ethers.BigNumber.from("720000000000000000000"), // 900 UNI -> 180 UNI
+                marginDelta: TEST_VALUE, // 1_000 sUSD -> 2_000 sUSD
+                sizeDelta: 0, // (no change) prev set to: 180 UNI
             },
         ];
 
@@ -372,6 +398,56 @@ describe("Integration: Test Cross Margin", () => {
             .connect(account0)
             .getNumberOfActivePositions();
         expect(numberOfActivePositions).to.equal(4);
+
+        const positions = await marginAccount.connect(account0).getAllActiveMarketPositions();
+        console.log(positions);
+    });
+
+    it("Should Modify Multiple Position's Margin (withdraw)", async () => {
+        /**
+         * BaseMargin Account at this point is only utilizing $8_000 sUSD of the
+         * total $10_000 sUSD. The following trades will withdraw margin
+         * from each active position, but will not alter the size
+         */
+
+        //////////////// TRADES ////////////////
+
+        const newPositions = [
+            {
+                // modify ~1x LONG position in ETH-PERP Market to ~3x
+                marketKey: MARKET_KEY_sETH,
+                marginDelta: TEST_VALUE.mul(-1), // 2_000 sUSD -> 1_000 sUSD
+                sizeDelta: 0, // (no change) prev set to: 1.5 ETH
+            },
+            {
+                // modify ~1x SHORT position in BTC-PERP Market to ~3x
+                marketKey: MARKET_KEY_sBTC,
+                marginDelta: TEST_VALUE.mul(-1), // 2_000 sUSD -> 1_000 sUSD
+                sizeDelta: 0, // (no change) prev set to: 0.09 BTC
+            },
+            {
+                // modify ~5x LONG position in LINK-PERP Market to ~1x
+                marketKey: MARKET_KEY_sLINK,
+                marginDelta: TEST_VALUE.mul(-1), // 2_000 sUSD -> 1_000 sUSD
+                sizeDelta: 0, // (no change) prev set to: 140 LINK
+            },
+            {
+                // modify ~5x SHORT position in UNI-PERP Market to ~1x
+                marketKey: MARKET_KEY_sUNI,
+                marginDelta: TEST_VALUE.mul(-1), // 2_000 sUSD -> 1_000 sUSD
+                sizeDelta: 0, // (no change) prev set to: 180 UNI
+            },
+        ];
+
+        // confirm number of open positions
+        await marginAccount.connect(account0).distributeMargin(newPositions);
+        const numberOfActivePositions = await marginAccount
+            .connect(account0)
+            .getNumberOfActivePositions();
+        expect(numberOfActivePositions).to.equal(4);
+
+        const positions = await marginAccount.connect(account0).getAllActiveMarketPositions();
+        console.log(positions);
     });
 
     it.skip("Test Position Rebalancing", async () => {});

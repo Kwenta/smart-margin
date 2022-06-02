@@ -204,8 +204,11 @@ contract MarginBase is MinimalProxyable {
         }
         market.transferMargin(_depositSize);
 
-        // modify position in specific market with KWENTA tracking code
-        market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
+        /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
+        if (_sizeDelta != 0) {
+            // modify position in specific market with KWENTA tracking code
+            market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
+        }
 
         // fetch new position data from Synthetix
         (, , uint128 margin, , int128 size) = market.positions(address(this));
@@ -226,8 +229,11 @@ contract MarginBase is MinimalProxyable {
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
 
-        // modify position in specific market with KWENTA tracking code
-        market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
+        /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
+        if (_sizeDelta != 0) {
+            // modify position in specific market with KWENTA tracking code
+            market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
+        }
 
         /// @notice alter the amount of margin in specific market position
         /// @dev positive input triggers a deposit; a negative one, a withdrawal
