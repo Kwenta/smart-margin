@@ -108,6 +108,7 @@ contract MarginBase is MinimalProxyable {
         marginAsset.transfer(owner(), _amount);
     }
 
+    // @TODO: Gas Optimization
     /// @notice distribute margin across all positions specified via _newPositions
     /// @dev _newPositions may contain any number of new or existing positions
     /// @dev caller can withdraw all margin from a position specified in _newPositions,
@@ -251,6 +252,14 @@ contract MarginBase is MinimalProxyable {
         uint128 _margin,
         int128 _size
     ) internal {
+        // @TODO: If size is now zero, 
+        // (1) remove position from state 
+        // (2) update state on synthetix side?
+        // (3) transfer margin back to this account?
+        if (_size == 0) {
+            removeActiveMarketPositon(_marketKey);
+        }
+
         ActiveMarketPosition memory newPosition = ActiveMarketPosition(
             _marketKey,
             _margin,
