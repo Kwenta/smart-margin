@@ -258,13 +258,7 @@ contract MarginBase is MinimalProxyable {
         uint128 _margin,
         int128 _size
     ) internal {
-        // @TODO: If size is now zero, 
-        // (1) remove position from state 
-        // (2) update state on synthetix side?
-        // (3) transfer margin back to this account?
-        if (_size == 0) {
-            removeActiveMarketPositon(_marketKey);
-        }
+        // @TODO: Handle case when _size == 0 (i.e. closing position)
 
         ActiveMarketPosition memory newPosition = ActiveMarketPosition(
             _marketKey,
