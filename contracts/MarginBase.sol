@@ -386,17 +386,15 @@ contract MarginBase is MinimalProxyable, OpsReady {
         address _market,
         int256 _marginDelta,
         int256 _sizeDelta,
-        uint _desiredPrice
+        uint _limitPrice
     ) external onlyOwner {
-        //require(!validOrder(_market), "Order must not be immediately executable");
-
         orders[_market] = Order({
             margin: _marginDelta,
             size: _sizeDelta,
-            price: _desiredPrice
+            price: _limitPrice
         });
 
-        IOps(gelato()).createTask(
+        IOps(ops).createTask(
             address(this), 
             this.executeOrder.selector,
             address(this),
