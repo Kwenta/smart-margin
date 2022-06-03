@@ -14,11 +14,17 @@ contract MarginAccountFactoryTest is DSTest {
     MarginBase private account;
 
     // works for fork testing
-    address private addressResolver = 0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C;
+    address private addressResolver =
+        0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C;
 
     function setUp() public {
         marginAsset = new MintableERC20(address(this), 0);
-        marginAccountFactory = new MarginAccountFactory("0.0.0", address(marginAsset), addressResolver, payable(addressResolver));
+        marginAccountFactory = new MarginAccountFactory(
+            "0.0.0",
+            address(marginAsset),
+            addressResolver,
+            payable(addressResolver)
+        );
         account = MarginBase(marginAccountFactory.newAccount());
     }
 
@@ -31,20 +37,20 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     function testDeposit() public {
-        uint amount = 10e18;
+        uint256 amount = 10e18;
         deposit(amount);
         assertEq(marginAsset.balanceOf(address(account)), amount);
     }
 
     function testWithdrawal() public {
-        uint amount = 10e18;
+        uint256 amount = 10e18;
         deposit(amount);
         account.withdraw(amount);
         assertEq(marginAsset.balanceOf(address(account)), 0);
     }
 
     /// @dev Deposit/Withdrawal fuzz test
-    function testWithdrawal(uint amount) public {
+    function testWithdrawal(uint256 amount) public {
         deposit(amount);
         account.withdraw(amount);
         assertEq(marginAsset.balanceOf(address(account)), 0);
@@ -52,14 +58,19 @@ contract MarginAccountFactoryTest is DSTest {
 
     function testLimitValid() public {
         address market = address(1);
-        uint amount = 10e18;
+        uint256 amount = 10e18;
         int256 orderSizeDelta = 1e18;
-        uint expectedLimitPrice = 3e18;
-        uint currentPrice = 2e18;
+        uint256 expectedLimitPrice = 3e18;
+        uint256 currentPrice = 2e18;
 
-        // Setup 
+        // Setup
         deposit(amount);
-        placeLimitOrder(market, int(amount), orderSizeDelta, expectedLimitPrice);
+        placeLimitOrder(
+            market,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
 
         mockExternalCallsForPrice(market, currentPrice);
         assertTrue(account.validOrder(market));
@@ -67,19 +78,23 @@ contract MarginAccountFactoryTest is DSTest {
 
     /// @notice These orders should ALWAYS be valid
     /// @dev Limit order validity fuzz test
-    function testLimitValid(uint currentPrice) public {
+    function testLimitValid(uint256 currentPrice) public {
         address market = address(1);
-        uint amount = 10e18;
+        uint256 amount = 10e18;
         int256 orderSizeDelta = 1e18;
-        uint expectedLimitPrice = 3e18;
+        uint256 expectedLimitPrice = 3e18;
 
         // Toss out fuzz runs greater than limit price
         cheats.assume(currentPrice <= expectedLimitPrice);
-        
+
         // Setup
         deposit(amount);
-        placeLimitOrder(market, int(amount), orderSizeDelta, expectedLimitPrice);
-
+        placeLimitOrder(
+            market,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
 
         mockExternalCallsForPrice(market, currentPrice);
         assertTrue(account.validOrder(market));
@@ -87,37 +102,47 @@ contract MarginAccountFactoryTest is DSTest {
 
     /// @notice These orders should ALWAYS be valid
     /// @dev Limit order validity fuzz test
-    function testLimitInvalid(uint currentPrice) public {
+    function testLimitInvalid(uint256 currentPrice) public {
         address market = address(1);
-        uint amount = 10e18;
+        uint256 amount = 10e18;
         int256 orderSizeDelta = 1e18;
-        uint expectedLimitPrice = 3e18;
+        uint256 expectedLimitPrice = 3e18;
 
         // Toss out fuzz runs less than limit price
         cheats.assume(currentPrice > expectedLimitPrice);
 
         // Setup
         deposit(amount);
-        placeLimitOrder(market, int(amount), orderSizeDelta, expectedLimitPrice);
-        
+        placeLimitOrder(
+            market,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
+
         mockExternalCallsForPrice(market, currentPrice);
         assertTrue(!account.validOrder(market));
     }
 
     function testPlaceOrder() public {
         address market = address(1);
-        uint amount = 10e18;
+        uint256 amount = 10e18;
         int256 orderSizeDelta = 1e18;
-        uint expectedLimitPrice = 3e18;
+        uint256 expectedLimitPrice = 3e18;
         deposit(amount);
-        placeLimitOrder(market, int(amount), orderSizeDelta, expectedLimitPrice);
-        (,,uint actualLimitPrice) = account.orders(market);
+        placeLimitOrder(
+            market,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
+        (, , uint256 actualLimitPrice) = account.orders(market);
         assertEq(expectedLimitPrice, actualLimitPrice);
     }
 
     // Helpers
 
-    function deposit(uint amount) internal {
+    function deposit(uint256 amount) internal {
         marginAsset.mint(address(this), amount);
         marginAsset.approve(address(account), amount);
         account.deposit(amount);
@@ -125,20 +150,36 @@ contract MarginAccountFactoryTest is DSTest {
 
     function placeLimitOrder(
         address market,
-        int256 marginDelta, 
-        int256 sizeDelta, 
-        uint limitPrice
+        int256 marginDelta,
+        int256 sizeDelta,
+        uint256 limitPrice
     ) internal {
-        bytes memory createTaskSelector = abi.encodePacked(IOps.createTask.selector);
+        bytes memory createTaskSelector = abi.encodePacked(
+            IOps.createTask.selector
+        );
         cheats.mockCall(account.ops(), createTaskSelector, abi.encode(true));
         account.placeOrder(market, marginDelta, sizeDelta, limitPrice);
     }
 
-    function mockExternalCallsForPrice(address market, uint mockedPrice) internal {
+    function mockExternalCallsForPrice(address market, uint256 mockedPrice)
+        internal
+    {
         address exchangeRates = address(2);
-        cheats.mockCall(market, abi.encodePacked(IFuturesMarket.baseAsset.selector), abi.encode("sSYNTH"));
-        cheats.mockCall(addressResolver, abi.encodePacked(IAddressResolver.requireAndGetAddress.selector), abi.encode(exchangeRates));
-        cheats.mockCall(exchangeRates, abi.encodePacked(IExchangeRates.effectiveValue.selector), abi.encode(mockedPrice));
+        cheats.mockCall(
+            market,
+            abi.encodePacked(IFuturesMarket.baseAsset.selector),
+            abi.encode("sSYNTH")
+        );
+        cheats.mockCall(
+            addressResolver,
+            abi.encodePacked(IAddressResolver.requireAndGetAddress.selector),
+            abi.encode(exchangeRates)
+        );
+        cheats.mockCall(
+            exchangeRates,
+            abi.encodePacked(IExchangeRates.effectiveValue.selector),
+            abi.encode(mockedPrice)
+        );
     }
 
     // Utils
