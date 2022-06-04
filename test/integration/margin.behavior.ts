@@ -22,13 +22,14 @@ dotenv.config();
  *      Market Key, 
  *      Margin in sUSD (negative denotes withdraw from market), 
  *      Size of Position (negative denotes short position)
+ *      Boolean: will this position be closed (i.e. if true, close position)
  * }
  *
  * example (1.0):
  * If Tom deposits 10_000 sUSD into a MarginBase account, and then passes this array of
  * market positions to distributeMargin():
  *
- * [{sETH, 1_000, 1*10e18}, {sUNI, 1_000, -900*10e18}]
+ * [{sETH, 1_000, 1*10e18, false}, {sUNI, 1_000, -900*10e18, false}]
  *
  * Then he will have two active market positions: (1) 2x long in sETH and (2) 5x short in sUNI.
  * 
@@ -36,7 +37,7 @@ dotenv.config();
  * Notice, Tom still has 8_000 sUSD of available margin which is not in either market. If
  * Tom wishes to use that margin, he can call distributeMargin() again with:
  *
- * [{sETH, 4_000, 0}, {sUNI, 4_000, 0}]
+ * [{sETH, 4_000, 0, false}, {sUNI, 4_000, 0, false}]
  *
  * That will increase the margin for each position, thus decreasing the leverage accordingly.
  * That will not change the size of either position; margin was simply deposited into each market.
@@ -52,7 +53,7 @@ dotenv.config();
  * Assume Tom deposits another 10_000 sUSD into his account. He could then call
  * distributeMargin() with:
  *
- * [{sBTC, 1_000, 0.5*10e18}]
+ * [{sBTC, 1_000, 0.5*10e18, false}]
  *
  * He will now have three active market positions: (1) long in sETH (2) short in sUNI and (3) long in sBTC.
  * Notice, only 11_000 of his 20_000 margin is being used in markets, but that can be changed quite
@@ -64,7 +65,7 @@ dotenv.config();
  * and sizeDelta set to the newly desired size. An example of changing his above sETH long position
  * size and not altering his other positions:
  * 
- * [{sETH, 0, 5*10e18}]
+ * [{sETH, 0, 5*10e18, false}]
  * 
  * His sETH is now 10x long position.
  * 
@@ -72,7 +73,7 @@ dotenv.config();
  * Now, Tom wishes to withdraw margin from one of his positions. He can do so by
  * passing a new position into distributeMargin() that has a negative margin value:
  * 
- * [{sUNI, -(1_000), 0}]
+ * [{sUNI, -(1_000), 0, false}]
  * 
  * The above position object results in the sUNI market losing $1_000 sUSD in margin and
  * Tom's account balance increasing by $1_000 sUSD (which can be deposited immediately
@@ -81,14 +82,12 @@ dotenv.config();
  * example (2):
  * Assume Tom has a single long position in sETH made via:
  * 
- * [{sETH, 1_000, 1*10e18}
+ * [{sETH, 1_000, 1*10e18, false}
  * 
- * Tom wishes to close this position. He can do so simply by passing in an array of
- * new position objects which result in a net delta size of "0" for each position.
- * In this case, he only has a single position, so the following will effectively
- * close his position AND withdraw that margin back to his account:
+ * Tom wishes to close this position. He can do so simply by:
+ * @TODO
  * 
- * [{sETH, -1_000, -1*10e18}
+ * [{sETH, 0, 0, true}
  *
  * ########### FINAL GOAL ###########
  * Ultimately, the goal of MarginBase is to offer users the flexibility to define cross margin
@@ -109,7 +108,7 @@ dotenv.config();
  * Assume a 1x BTC Long position already exists and then the following array of positions
  * is passed to distributeMargin:
  * 
- * [{sBTC, 0, -1*10e18}, {X}, {Y}, {Z}]
+ * [{sBTC, 0, 0, true}, {X}, {Y}, {Z}]
  * 
  * The first position object closes the BTC position, returning that margin to the account 
  * which can then be used to open or modify positions: X, Y, Z.
@@ -248,6 +247,7 @@ describe("Integration: Test Cross Margin", () => {
                 marketKey: MARKET_KEY_sETH,
                 marginDelta: TEST_VALUE, // $1_000 sUSD
                 sizeDelta: ethers.BigNumber.from("500000000000000000"),
+                isClosing: false, // position is active (i.e. not closed)
             },
         ];
 
@@ -274,18 +274,21 @@ describe("Integration: Test Cross Margin", () => {
                 marketKey: MARKET_KEY_sBTC,
                 marginDelta: TEST_VALUE, // $1_000 sUSD
                 sizeDelta: ethers.BigNumber.from("-30000000000000000"), // 0.03 BTC
+                isClosing: false, // position is active (i.e. not closed)
             },
             {
                 // open ~5x LONG position in LINK-PERP Market
                 marketKey: MARKET_KEY_sLINK,
                 marginDelta: TEST_VALUE, // $1_000 sUSD
                 sizeDelta: ethers.BigNumber.from("700000000000000000000"), // 700 LINK
+                isClosing: false, // position is active (i.e. not closed)
             },
             {
                 // open ~5x SHORT position in UNI-PERP Market
                 marketKey: MARKET_KEY_sUNI,
                 marginDelta: TEST_VALUE, // $1_000 sUSD
                 sizeDelta: ethers.BigNumber.from("-900000000000000000000"), // 900 UNI
+                isClosing: false, // position is active (i.e. not closed)
             },
         ];
 
@@ -328,24 +331,28 @@ describe("Integration: Test Cross Margin", () => {
                 marketKey: MARKET_KEY_sETH,
                 marginDelta: 0, // no deposit
                 sizeDelta: ethers.BigNumber.from("1000000000000000000"), // 0.5 ETH -> 1.5 ETH
+                isClosing: false, // position is active (i.e. not closed)
             },
             {
                 // modify ~1x SHORT position in BTC-PERP Market to ~3x
                 marketKey: MARKET_KEY_sBTC,
                 marginDelta: 0, // no deposit
                 sizeDelta: ethers.BigNumber.from("-60000000000000000"), // 0.03 BTC -> 0.09 BTC
+                isClosing: false, // position is active (i.e. not closed)
             },
             {
                 // modify ~5x LONG position in LINK-PERP Market to ~1x
                 marketKey: MARKET_KEY_sLINK,
                 marginDelta: 0, // no deposit
                 sizeDelta: ethers.BigNumber.from("-560000000000000000000"), // 700 LINK -> 140 LINK
+                isClosing: false, // position is active (i.e. not closed)
             },
             {
                 // modify ~5x SHORT position in UNI-PERP Market to ~1x
                 marketKey: MARKET_KEY_sUNI,
                 marginDelta: 0, // no deposit
                 sizeDelta: ethers.BigNumber.from("720000000000000000000"), // 900 UNI -> 180 UNI
+                isClosing: false, // position is active (i.e. not closed)
             },
         ];
 
@@ -401,24 +408,28 @@ describe("Integration: Test Cross Margin", () => {
                 marketKey: MARKET_KEY_sETH,
                 marginDelta: TEST_VALUE, // $1_000 sUSD -> $2_000 sUSD
                 sizeDelta: 0, // (no change) prev set to: 1.5 ETH
+                isClosing: false, // position is active (i.e. not closed)
             },
             {
                 // modify margin in position via $1_000 sUSD deposit
                 marketKey: MARKET_KEY_sBTC,
                 marginDelta: TEST_VALUE, // $1_000 sUSD -> $2_000 sUSD
                 sizeDelta: 0, // (no change) prev set to: 0.09 BTC
+                isClosing: false, // position is active (i.e. not closed)
             },
             {
                 // modify margin in position via $1_000 sUSD deposit
                 marketKey: MARKET_KEY_sLINK,
                 marginDelta: TEST_VALUE, // $1_000 sUSD -> $2_000 sUSD
                 sizeDelta: 0, // (no change) prev set to: 140 LINK
+                isClosing: false, // position is active (i.e. not closed)
             },
             {
                 // modify margin in position via $1_000 sUSD deposit
                 marketKey: MARKET_KEY_sUNI,
                 marginDelta: TEST_VALUE, // $1_000 sUSD -> $2_000 sUSD
                 sizeDelta: 0, // (no change) prev set to: 180 UNI
+                isClosing: false, // position is active (i.e. not closed)
             },
         ];
 
@@ -474,24 +485,28 @@ describe("Integration: Test Cross Margin", () => {
                 marketKey: MARKET_KEY_sETH,
                 marginDelta: TEST_VALUE.mul(-1), // $2_000 sUSD -> $1_000 sUSD
                 sizeDelta: 0, // (no change) prev set to: 1.5 ETH
+                isClosing: false, // position is active (i.e. not closed)
             },
             {
                 // modify margin in position via $1_000 sUSD withdraw
                 marketKey: MARKET_KEY_sBTC,
                 marginDelta: TEST_VALUE.mul(-1), // $2_000 sUSD -> $1_000 sUSD
                 sizeDelta: 0, // (no change) prev set to: 0.09 BTC
+                isClosing: false, // position is active (i.e. not closed)
             },
             {
                 // modify margin in position via $1_000 sUSD withdraw
                 marketKey: MARKET_KEY_sLINK,
                 marginDelta: TEST_VALUE.mul(-1), // $2_000 sUSD -> $1_000 sUSD
                 sizeDelta: 0, // (no change) prev set to: 140 LINK
+                isClosing: false, // position is active (i.e. not closed)
             },
             {
                 // modify margin in position via $1_000 sUSD withdraw
                 marketKey: MARKET_KEY_sUNI,
                 marginDelta: TEST_VALUE.mul(-1), // $2_000 sUSD -> $1_000 sUSD
                 sizeDelta: 0, // (no change) prev set to: 180 UNI
+                isClosing: false, // position is active (i.e. not closed)
             },
         ];
 
@@ -559,26 +574,30 @@ describe("Integration: Test Cross Margin", () => {
             {
                 // exit position
                 marketKey: MARKET_KEY_sETH,
-                marginDelta: 0, // ETHposition.margin.mul(-1), // ~$1_000 sUSD -> $0 sUSD
-                sizeDelta: ETHposition.size.mul(-1), // 1.5 ETH -> 0 ETH
+                marginDelta: 0, 
+                sizeDelta: 0,
+                isClosing: true, // position should be closed
             },
             {
                 // exit position
                 marketKey: MARKET_KEY_sBTC,
-                marginDelta: 0, // BTCposition.margin.mul(-1), // ~$1_000 sUSD -> $0 sUSD
-                sizeDelta: BTCposition.size.mul(-1), // 0.09 BTC -> 0 BTC
+                marginDelta: 0,
+                sizeDelta: 0, 
+                isClosing: true, // position should be closed
             },
             {
                 // exit position
                 marketKey: MARKET_KEY_sLINK,
-                marginDelta: 0, // LINKposition.margin.mul(-1), // ~$1_000 sUSD -> $0 sUSD
-                sizeDelta: LINKposition.size.mul(-1), // 140 LINK -> 0 LINK
+                marginDelta: 0,
+                sizeDelta: 0, 
+                isClosing: true, // position should be closed
             },
             {
                 // exit position
                 marketKey: MARKET_KEY_sUNI,
-                marginDelta: 0, // UNIposition.margin.mul(-1), // ~$1_000 sUSD -> $0 sUSD
-                sizeDelta: UNIposition.size.mul(-1), // 180 UNI -> 0 UNI
+                marginDelta: 0, 
+                sizeDelta: 0, 
+                isClosing: true, // position should be closed
             },
         ];
 
@@ -591,36 +610,10 @@ describe("Integration: Test Cross Margin", () => {
 
         // @TODO: Update state properly within account 
 
-        //expect(numberOfActivePositions).to.equal(0);
-
-        // @TODO: Withdraw ALL margin
-
-        // confirm correct position details: Market, Margin, Size
-        // ETH
-        ETHposition = await marginAccount.connect(account0).activeMarketPositions(MARKET_KEY_sETH);
-        expect(ETHposition.marketKey).to.equal(MARKET_KEY_sETH);
-        //expect(ETHposition.margin).to.be.closeTo(0, TEST_VALUE.mul(1).div(100));
-        expect(ETHposition.size).to.equal(0);
-        // BTC
-        BTCposition = await marginAccount.connect(account0).activeMarketPositions(MARKET_KEY_sBTC);
-        expect(BTCposition.marketKey).to.equal(MARKET_KEY_sBTC);
-        //expect(BTCposition.margin).to.be.closeTo(0, TEST_VALUE.mul(1).div(100)); 
-        expect(BTCposition.size).to.equal(0);
-        // LINK
-        LINKposition = await marginAccount.connect(account0).activeMarketPositions(MARKET_KEY_sLINK);
-        expect(LINKposition.marketKey).to.equal(MARKET_KEY_sLINK);
-        //expect(LINKposition.margin).to.be.closeTo(0, TEST_VALUE.mul(4).div(100)); 
-        expect(LINKposition.size).to.equal(0); 
-        // UNI
-        UNIposition = await marginAccount.connect(account0).activeMarketPositions(MARKET_KEY_sUNI);
-        expect(UNIposition.marketKey).to.equal(MARKET_KEY_sUNI);
-        //expect(UNIposition.margin).to.be.closeTo(0, TEST_VALUE.mul(4).div(100)); 
-        expect(UNIposition.size).to.equal(0); 
-
-
+        // expect(numberOfActivePositions).to.equal(0);
     });
 
-    it.skip("Should have Withdrawn ALL Margin back to Account", async () => {
+    it("Should have Withdrawn ALL Margin back to Account", async () => {
         /**
          * Above test closed and withdrew ALL margin from each (4) position.
          * Given that, the account should now have:

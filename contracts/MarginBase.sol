@@ -37,6 +37,7 @@ contract MarginBase is MinimalProxyable {
         bytes32 marketKey;
         int256 marginDelta;
         int256 sizeDelta;
+        bool isClosing;
     }
 
     //////////////////////////////////////
@@ -111,8 +112,7 @@ contract MarginBase is MinimalProxyable {
     // @TODO: Gas Optimization
     /// @notice distribute margin across all positions specified via _newPositions
     /// @dev _newPositions may contain any number of new or existing positions
-    /// @dev caller can withdraw all margin from a position specified in _newPositions,
-    ///      but the position can only be closed via closeMarketPosition()
+    /// @dev caller can close and withdraw all margin from position if `_newPositions[i].isClosing` is true
     /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
     function distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
         external
@@ -120,29 +120,26 @@ contract MarginBase is MinimalProxyable {
     {
         // for each new position in _newPositions, distribute margin accordingly and update state
         for (uint256 i = 0; i < _newPositions.length; i++) {
-            // establish market
-            bytes32 marketKey = _newPositions[i].marketKey;
-            int256 marginDelta = _newPositions[i].marginDelta;
-            int256 sizeDelta = _newPositions[i].sizeDelta;
-
-            /// @notice remove margin from market and potentially adjust size
-            if (marginDelta < 0) {
+            if (_newPositions[i].isClosing) {
+                /// @notice close position and transfer margin back to account
+                closePositionAndWithdraw(_newPositions[i].marketKey);
+            } else if (marginDelta < 0) {
+                /// @notice remove margin from market and potentially adjust size
                 modifyPositionForMarketAndWithdraw(
-                    marginDelta,
-                    sizeDelta,
-                    marketKey
+                    _newPositions[i].marginDelta,
+                    _newPositions[i].sizeDelta,
+                    _newPositions[i].marketKey
                 );
-
-                /// @notice deposit margin into market and potentially adjust size
-                /// @dev marginDelta >= 0
             } else {
+                /// @dev marginDelta >= 0
+                /// @notice deposit margin into market and potentially adjust size
+                depositAndModifyPositionForMarket(
+                    _newPositions[i].marginDelta,
+                    _newPositions[i].sizeDelta,
+                    _newPositions[i].marketKey
+                );
                 // if marginDelta is 0, there will simply be NO additional
                 // margin deposited into the market
-                depositAndModifyPositionForMarket(
-                    marginDelta,
-                    sizeDelta,
-                    marketKey
-                );
             }
         }
     }
@@ -247,6 +244,18 @@ contract MarginBase is MinimalProxyable {
 
         // update state for given open market position
         updateActiveMarketPosition(_marketKey, margin, size);
+    }
+
+    // @TODO: Docs
+    function closePositionAndWithdraw(bytes32 _marketKey) internal {
+        // define market via _marketKey
+        IFuturesMarket market = futuresMarket(_marketKey);
+
+        // close position
+        market.closePosition();
+
+        // withdraw margin back to this account
+        market.withdrawAllMargin();
     }
 
     /// @notice used internally to update contract state for the account's active position tracking
