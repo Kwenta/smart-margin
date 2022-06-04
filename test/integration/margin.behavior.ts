@@ -564,7 +564,7 @@ describe("Integration: Test Cross Margin", () => {
         expect(expectedBalance).to.equal(actualbalance);
     });
 
-    it("Should Exit All Positions", async () => {
+    it("Should Exit all Positions", async () => {
         // define new positions (modify existing)
         const newPositions = [
             {
@@ -608,7 +608,7 @@ describe("Integration: Test Cross Margin", () => {
         // expect(numberOfActivePositions).to.equal(0);
     });
 
-    it("Should have Withdrawn ALL Margin back to Account", async () => {
+    it("Should have Withdrawn all Margin back to Account", async () => {
         /**
          * Above test closed and withdrew ALL margin from each (4) position.
          * Given that, the account should now have:
