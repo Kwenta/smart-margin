@@ -241,7 +241,7 @@ describe("Integration: Test Cross Margin", () => {
 
     it("Should Open Single Position", async () => {
         // define new positions
-        const newPositions = [
+        const newPosition = [
             {
                 // open ~1x LONG position in ETH-PERP Market
                 marketKey: MARKET_KEY_sETH,
@@ -251,8 +251,10 @@ describe("Integration: Test Cross Margin", () => {
             },
         ];
 
+        // execute trade
+        await marginAccount.connect(account0).distributeMargin(newPosition);
+
         // confirm number of open positions that were defined above
-        await marginAccount.connect(account0).distributeMargin(newPositions);
         const numberOfActivePositions = await marginAccount
             .connect(account0)
             .getNumberOfActivePositions();
@@ -292,8 +294,10 @@ describe("Integration: Test Cross Margin", () => {
             },
         ];
 
-        // confirm number of open positions
+        // execute trades
         await marginAccount.connect(account0).distributeMargin(newPositions);
+
+        // confirm number of open positions
         const numberOfActivePositions = await marginAccount
             .connect(account0)
             .getNumberOfActivePositions();
@@ -356,8 +360,10 @@ describe("Integration: Test Cross Margin", () => {
             },
         ];
 
-        // confirm number of open positions
+        // execute trades
         await marginAccount.connect(account0).distributeMargin(newPositions);
+
+        // confirm number of open positions
         const numberOfActivePositions = await marginAccount
             .connect(account0)
             .getNumberOfActivePositions();
@@ -433,8 +439,10 @@ describe("Integration: Test Cross Margin", () => {
             },
         ];
 
-        // confirm number of open positions
+        // execute trades
         await marginAccount.connect(account0).distributeMargin(newPositions);
+
+        // confirm number of open positions
         const numberOfActivePositions = await marginAccount
             .connect(account0)
             .getNumberOfActivePositions();
@@ -510,8 +518,10 @@ describe("Integration: Test Cross Margin", () => {
             },
         ];
 
-        // confirm number of open positions
+        // execute trades
         await marginAccount.connect(account0).distributeMargin(newPositions);
+
+        // confirm number of open positions
         const numberOfActivePositions = await marginAccount
             .connect(account0)
             .getNumberOfActivePositions();
@@ -554,21 +564,7 @@ describe("Integration: Test Cross Margin", () => {
         expect(expectedBalance).to.equal(actualbalance);
     });
 
-    it("Test Exiting Positions", async () => {
-        /**
-         * Due to fees, the margin in each market is not the same as
-         * depositied. In order to remove all margin wthout any left over,
-         * we need to determine the exact margin balance prior to closing a position
-         */
-
-        // define positions (to have access to exact margin/size)
-        let ETHposition = await marginAccount.connect(account0).activeMarketPositions(MARKET_KEY_sETH);
-        let BTCposition = await marginAccount.connect(account0).activeMarketPositions(MARKET_KEY_sBTC);
-        let LINKposition = await marginAccount.connect(account0).activeMarketPositions(MARKET_KEY_sLINK);
-        let UNIposition = await marginAccount.connect(account0).activeMarketPositions(MARKET_KEY_sUNI);
-
-        // @TODO: marginDelta needs to be correct
-
+    it("Should Exit All Positions", async () => {
         // define new positions (modify existing)
         const newPositions = [
             {
@@ -601,15 +597,14 @@ describe("Integration: Test Cross Margin", () => {
             },
         ];
 
-        // confirm number of open positions
+        // execute trades
         await marginAccount.connect(account0).distributeMargin(newPositions);
+
+        // confirm number of open positions
         const numberOfActivePositions = await marginAccount
             .connect(account0)
             .getNumberOfActivePositions();
-
-
         // @TODO: Update state properly within account 
-
         // expect(numberOfActivePositions).to.equal(0);
     });
 
