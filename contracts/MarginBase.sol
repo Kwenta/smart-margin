@@ -110,9 +110,9 @@ contract MarginBase is MinimalProxyable {
     }
 
     // @TODO: Gas Optimization
-    /// @notice distribute margin across all positions specified via _newPositions
+    /// @notice distribute margin across all/some positions specified via _newPositions
     /// @dev _newPositions may contain any number of new or existing positions
-    /// @dev caller can close and withdraw all margin from position if `_newPositions[i].isClosing` is true
+    /// @dev caller can close and withdraw all margin from position if _newPositions[i].isClosing is true
     /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
     function distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
         external
@@ -123,7 +123,7 @@ contract MarginBase is MinimalProxyable {
             if (_newPositions[i].isClosing) {
                 /// @notice close position and transfer margin back to account
                 closePositionAndWithdraw(_newPositions[i].marketKey);
-            } else if (marginDelta < 0) {
+            } else if (_newPositions[i].marginDelta < 0) {
                 /// @notice remove margin from market and potentially adjust size
                 modifyPositionForMarketAndWithdraw(
                     _newPositions[i].marginDelta,
