@@ -278,6 +278,9 @@ contract MarginBase is MinimalProxyable {
         int128 _size,
         IFuturesMarket market
     ) internal {
+        // if position size is 0, position is effectively closed on
+        // FuturesMarket but margin is still in contract, thus it must
+        // be withdrawn back to this account
         if (_size == 0) {
             // update state (remove market)
             removeActiveMarketPositon(_marketKey);
