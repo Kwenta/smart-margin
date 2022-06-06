@@ -114,7 +114,6 @@ contract MarginBase is MinimalProxyable {
         marginAsset.transfer(owner(), _amount);
     }
 
-    // @TODO: Gas Optimization
     /// @notice distribute margin across all/some positions specified via _newPositions
     /// @dev _newPositions may contain any number of new or existing positions
     /// @dev caller can close and withdraw all margin from position if _newPositions[i].isClosing is true
@@ -124,7 +123,7 @@ contract MarginBase is MinimalProxyable {
         onlyOwner
     {
         // for each new position in _newPositions, distribute margin accordingly and update state
-        for (uint256 i = 0; i < _newPositions.length; i++) {
+        for (uint16 i = 0; i < _newPositions.length; i++) {
             if (_newPositions[i].isClosing) {
                 /// @notice close position and transfer margin back to account
                 closePositionAndWithdraw(_newPositions[i].marketKey);
@@ -312,13 +311,14 @@ contract MarginBase is MinimalProxyable {
     /// @param _marketKey: key for previously active market position
     function removeActiveMarketPositon(bytes32 _marketKey) internal {
         delete activeMarketPositions[_marketKey];
+        uint numberOfActiveMarkets = activeMarketKeys.length;
 
-        for (uint16 i = 0; i < activeMarketKeys.length; i++) {
+        for (uint16 i = 0; i < numberOfActiveMarkets; i++) {
             // once _marketKey is encountered, swap with
             // last element in array and exit for-loop
             if (activeMarketKeys[i] == _marketKey) {
                 activeMarketKeys[i] = activeMarketKeys[
-                    activeMarketKeys.length - 1
+                    numberOfActiveMarkets - 1
                 ];
                 break;
             }
