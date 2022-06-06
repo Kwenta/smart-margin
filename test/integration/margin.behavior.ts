@@ -567,15 +567,18 @@ describe("Integration: Test Cross Margin", () => {
         expect(expectedBalance).to.equal(actualbalance);
     });
 
-    it("Should Exit One Position", async () => {
+    it("Should Exit Position by Setting Size to Zero", async () => {
+        // establish ETH position
+        let position = await marginAccount.connect(account0).activeMarketPositions(MARKET_KEY_sETH);
+
         // define new positions (modify existing)
         const newPositions = [
             {
-                // exit position
+                // modify size in position to 0
                 marketKey: MARKET_KEY_sETH,
-                marginDelta: 0, 
-                sizeDelta: 0,
-                isClosing: true, // position should be closed
+                marginDelta: 0,
+                sizeDelta: (position.size).mul(-1), // opposite size
+                isClosing: false, // position is active (i.e. not closed)
             }
         ];
 
@@ -589,7 +592,7 @@ describe("Integration: Test Cross Margin", () => {
         expect(numberOfActivePositions).to.equal(3);
     });
 
-    it("Should Exit all Positions", async () => {
+    it("Should Exit One Position with isClosing", async () => {
         // define new positions (modify existing)
         const newPositions = [
             {
@@ -599,6 +602,21 @@ describe("Integration: Test Cross Margin", () => {
                 sizeDelta: 0, 
                 isClosing: true, // position should be closed
             },
+        ];
+
+        // execute trades
+        await marginAccount.connect(account0).distributeMargin(newPositions);
+
+        // confirm number of open positions
+        const numberOfActivePositions = await marginAccount
+            .connect(account0)
+            .getNumberOfActivePositions();
+        expect(numberOfActivePositions).to.equal(2);
+    });
+
+    it("Should Exit all Positions with isClosing", async () => {
+        // define new positions (modify existing)
+        const newPositions = [
             {
                 // exit position
                 marketKey: MARKET_KEY_sLINK,

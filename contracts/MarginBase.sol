@@ -216,7 +216,7 @@ contract MarginBase is MinimalProxyable {
         (, , uint128 margin, , int128 size) = market.positions(address(this));
 
         // update state for given open market position
-        updateActiveMarketPosition(_marketKey, margin, size);
+        updateActiveMarketPosition(_marketKey, margin, size, market);
     }
 
     /// @notice modify active position and withdraw marginAsset from market into this account
@@ -248,7 +248,7 @@ contract MarginBase is MinimalProxyable {
         (, , uint128 margin, , int128 size) = market.positions(address(this));
 
         // update state for given open market position
-        updateActiveMarketPosition(_marketKey, margin, size);
+        updateActiveMarketPosition(_marketKey, margin, size, market);
     }
 
     /// @notice closes futures position and withdraws all margin in that market back to this account
@@ -271,14 +271,22 @@ contract MarginBase is MinimalProxyable {
     /// @param _marketKey: key for synthetix futures market
     /// @param _margin: amount of margin the specific market position has
     /// @param _size: represents size of position (i.e. accounts for leverage)
-    /// @dev if _size becomes 0 (which it shouldn't, `isClosing` should be used to close positions)
-    ///      the position is effectively closed but margin may be locked in synthetix futures
-    ///      contract. In that case, `isClosing` can be used to completely retrieve margin
+    /// @dev if _size becomes 0, remove position from account state and withdraw margin
     function updateActiveMarketPosition(
         bytes32 _marketKey,
         uint128 _margin,
-        int128 _size
+        int128 _size,
+        IFuturesMarket market
     ) internal {
+        if (_size == 0) {
+            // update state (remove market)
+            removeActiveMarketPositon(_marketKey);
+
+            // withdraw margin back to this account
+            market.withdrawAllMargin();
+            return;
+        }
+
         ActiveMarketPosition memory newPosition = ActiveMarketPosition(
             _marketKey,
             _margin,
