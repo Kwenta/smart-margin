@@ -85,9 +85,12 @@ dotenv.config();
  * [{sETH, 1_000, 1*10e18, false}
  * 
  * Tom wishes to close this position. He can do so simply by:
- * @TODO
  * 
  * [{sETH, 0, 0, true}
+ * 
+ * Notice that size and margin do not matter. If `isClosing` is set to true, distributeMargin() will
+ * immediately execute logic which will exit the position and tranfer all margin in that market back
+ * to this account.
  *
  * ########### FINAL GOAL ###########
  * Ultimately, the goal of MarginBase is to offer users the flexibility to define cross margin

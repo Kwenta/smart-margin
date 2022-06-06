@@ -25,19 +25,24 @@ contract MarginBase is MinimalProxyable {
     /////////////// TYPES ////////////////
     //////////////////////////////////////
 
-    // @TODO: Docs
+    // marketKey: synthetix futures market id/key
+    // margin: amount of margin (in sUSD) in specific futures market
+    // size: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
     struct ActiveMarketPosition {
         bytes32 marketKey;
         uint128 margin;
         int128 size;
     }
 
-    // @TODO: Docs
+    // marketKey: synthetix futures market id/key
+    // marginDelta: amount of margin (in sUSD) to deposit or withdraw
+    // sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
+    // isClosing: indicates if position needs to be closed
     struct UpdateMarketPositionSpec {
         bytes32 marketKey;
-        int256 marginDelta;
+        int256 marginDelta; // positive indicates deposit, negative withdraw
         int256 sizeDelta;
-        bool isClosing;
+        bool isClosing; // if true, marginDelta nor sizeDelta are considered. simply closes position
     }
 
     //////////////////////////////////////
@@ -246,7 +251,8 @@ contract MarginBase is MinimalProxyable {
         updateActiveMarketPosition(_marketKey, margin, size);
     }
 
-    // @TODO: Docs
+    /// @notice closes futures position and withdraws all margin in that market back to this account
+    /// @param _marketKey: synthetix futures market id/key
     function closePositionAndWithdraw(bytes32 _marketKey) internal {
         // update state (remove market)
         removeActiveMarketPositon(_marketKey);
@@ -265,13 +271,14 @@ contract MarginBase is MinimalProxyable {
     /// @param _marketKey: key for synthetix futures market
     /// @param _margin: amount of margin the specific market position has
     /// @param _size: represents size of position (i.e. accounts for leverage)
+    /// @dev if _size becomes 0 (which it shouldn't, `isClosing` should be used to close positions)
+    ///      the position is effectively closed but margin may be locked in synthetix futures
+    ///      contract. In that case, `isClosing` can be used to completely retrieve margin
     function updateActiveMarketPosition(
         bytes32 _marketKey,
         uint128 _margin,
         int128 _size
     ) internal {
-        // @TODO: Handle case when _size == 0 (i.e. closing position)
-
         ActiveMarketPosition memory newPosition = ActiveMarketPosition(
             _marketKey,
             _margin,
