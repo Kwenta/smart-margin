@@ -162,7 +162,7 @@ describe("Integration: Test Cross Margin", () => {
 
         [account0] = await ethers.getSigners();
 
-        // mint account0 $1_000 sUSD
+        // mint account0 $100_000 sUSD
         await mintToAccountSUSD(account0.address, MINT_AMOUNT);
 
         const IERC20ABI = (
@@ -604,7 +604,7 @@ describe("Integration: Test Cross Margin", () => {
         const numberOfActivePositions = await marginAccount
             .connect(account0)
             .getNumberOfActivePositions();
-        // @TODO: Update state properly within account 
+        // @TODO: Update state properly within account
         // expect(numberOfActivePositions).to.equal(0);
     });
 
@@ -617,5 +617,20 @@ describe("Integration: Test Cross Margin", () => {
         const expectedBalance = ethers.BigNumber.from("10000000000000000000000"); // $10_000 sUSD
         const actualbalance = await sUSD.balanceOf(marginAccount.address);
         expect(expectedBalance).to.be.closeTo(actualbalance, expectedBalance.mul(5).div(100)); // 5% fees
+    });
+
+    it("Should Withdraw Margin from Account", async () => {
+        // get account balance
+        const accountBalance = await sUSD.balanceOf(marginAccount.address);
+
+        // withdraw sUSD from margin account
+        await marginAccount.connect(account0).withdraw(accountBalance);
+
+        // confirm withdraw
+        const eoaBalance = await sUSD.balanceOf(account0.address);
+
+        // fees resulted in:
+        // ACCOUNT_AMOUNT (initial margin amount depositied into account) > accountBalance 
+        expect(eoaBalance).to.equal(MINT_AMOUNT.sub(ACCOUNT_AMOUNT).add(accountBalance));
     });
 });
