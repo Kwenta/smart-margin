@@ -564,7 +564,7 @@ describe("Integration: Test Cross Margin", () => {
         expect(expectedBalance).to.equal(actualbalance);
     });
 
-    it("Should Exit all Positions", async () => {
+    it("Should Exit One Position", async () => {
         // define new positions (modify existing)
         const newPositions = [
             {
@@ -573,7 +573,22 @@ describe("Integration: Test Cross Margin", () => {
                 marginDelta: 0, 
                 sizeDelta: 0,
                 isClosing: true, // position should be closed
-            },
+            }
+        ];
+
+        // execute trades
+        await marginAccount.connect(account0).distributeMargin(newPositions);
+
+        // confirm number of open positions
+        const numberOfActivePositions = await marginAccount
+            .connect(account0)
+            .getNumberOfActivePositions();
+        expect(numberOfActivePositions).to.equal(3);
+    });
+
+    it("Should Exit all Positions", async () => {
+        // define new positions (modify existing)
+        const newPositions = [
             {
                 // exit position
                 marketKey: MARKET_KEY_sBTC,
@@ -604,8 +619,7 @@ describe("Integration: Test Cross Margin", () => {
         const numberOfActivePositions = await marginAccount
             .connect(account0)
             .getNumberOfActivePositions();
-        // @TODO: Update state properly within account
-        // expect(numberOfActivePositions).to.equal(0);
+        expect(numberOfActivePositions).to.equal(0);
     });
 
     it("Should have Withdrawn all Margin back to Account", async () => {

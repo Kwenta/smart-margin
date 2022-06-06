@@ -248,6 +248,9 @@ contract MarginBase is MinimalProxyable {
 
     // @TODO: Docs
     function closePositionAndWithdraw(bytes32 _marketKey) internal {
+        // update state (remove market)
+        removeActiveMarketPositon(_marketKey);
+
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
 
