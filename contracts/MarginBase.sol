@@ -119,7 +119,7 @@ contract MarginBase is MinimalProxyable {
     /// @dev _newPositions may contain any number of new or existing positions
     /// @dev caller can close and withdraw all margin from position if _newPositions[i].isClosing is true
     /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
-    function distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
+    function distributeMargin(UpdateMarketPositionSpec[] calldata _newPositions)
         external
         onlyOwner
     {
