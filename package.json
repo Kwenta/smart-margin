@@ -4,7 +4,8 @@
   "scripts": {
     "compile": "npx hardhat compile",
     "foundry-test": "forge test --fork-url $(grep ARCHIVE_NODE_URL_L2 .env | cut -d '=' -f2) --fork-block-number 9000000 --etherscan-api-key $(grep ETHERSCAN_API_KEY .env | cut -d '=' -f2)",
-    "hh-test:integration": "npx hardhat test test/integration/*"
+    "hh-test:integration": "npx hardhat test test/integration/*",
+    "coverage": "npx hardhat coverage"
   },
   "repository": {
     "type": "git",

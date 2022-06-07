@@ -25,7 +25,7 @@ jobs:
   Foundry_Tests:
     runs-on: ubuntu-latest
     env:
-      ARCHIVE_NODE_URL: ${{ secrets.ARCHIVE_NODE_URL_L2 }}
+      ARCHIVE_NODE_URL_L2: ${{ secrets.ARCHIVE_NODE_URL_L2 }}
       ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
     steps:
       - name: Check out repository code
@@ -53,7 +53,7 @@ jobs:
   Hardhat_Tests:
     runs-on: ubuntu-latest
     env:
-      ARCHIVE_NODE_URL: ${{ secrets.ARCHIVE_NODE_URL_L2 }}
+      ARCHIVE_NODE_URL_L2: ${{ secrets.ARCHIVE_NODE_URL_L2 }}
       ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
     steps:
       - name: Check out repository code
