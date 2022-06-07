@@ -173,7 +173,7 @@ describe("Integration: Test Cross Margin", () => {
                 "contracts/interfaces/IERC20.sol:IERC20"
             )
         ).abi;
-        sUSD = new ethers.Contract(SUSD_PROXY, IERC20ABI, ethers.provider);
+        sUSD = new ethers.Contract(SUSD_PROXY, IERC20ABI, waffle.provider);
         const balance = await sUSD.balanceOf(account0.address);
         expect(balance).to.equal(MINT_AMOUNT);
     });
@@ -198,7 +198,7 @@ describe("Integration: Test Cross Margin", () => {
         marginAccount = new ethers.Contract(
             marginAccountAddress,
             MarginBaseABI,
-            ethers.provider
+            waffle.provider
         );
         expect(marginAccount.address).to.exist;
 
