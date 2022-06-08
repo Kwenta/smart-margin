@@ -106,12 +106,12 @@ contract MarginBase is MinimalProxyable {
 
     /// @param _amount: amount of marginAsset to deposit into marginBase account
     function deposit(uint256 _amount) external onlyOwner {
-        marginAsset.transferFrom(owner(), address(this), _amount);
+        require(marginAsset.transferFrom(owner(), address(this), _amount), "MarginBase: deposit failed");
     }
 
     /// @param _amount: amount of marginAsset to withdraw from marginBase account
     function withdraw(uint256 _amount) external onlyOwner {
-        marginAsset.transfer(owner(), _amount);
+       require(marginAsset.transfer(owner(), _amount), "MarginBase: withdraw failed");
     }
 
     /// @notice distribute margin across all/some positions specified via _newPositions

@@ -170,7 +170,7 @@ describe("Integration: Test Cross Margin", () => {
 
         const IERC20ABI = (
             await artifacts.readArtifact(
-                "contracts/interfaces/IERC20.sol:IERC20"
+                "@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20"
             )
         ).abi;
         sUSD = new ethers.Contract(SUSD_PROXY, IERC20ABI, waffle.provider);
