@@ -148,16 +148,37 @@ contract MarginAccountFactoryTest is DSTest {
 
     function testDistributeMargin() public {
         bytes32 ethMarketKey = "sETH";
+        bytes32 btcMarketKey = "sBTC";
+        bytes32 linkMarketKey = "sLINK";
+        bytes32 uniMarketKey = "sUNI";
         MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
             ethMarketKey,
             1e18,
             1e18,
             false
         );
+        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+            btcMarketKey,
+            1e18,
+            1e18,
+            false
+        );
+        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
+            linkMarketKey,
+            1e18,
+            1e18,
+            false
+        );
+        newPositions[3] = MarginBase.UpdateMarketPositionSpec(
+            uniMarketKey,
+            1e18,
+            1e18,
+            false
+        );
         account.distributeMargin(newPositions);
-        assertEq(account.getNumberOfActivePositions(), 1);
+        assertEq(account.getNumberOfActivePositions(), 4);
     }
 
     // @TODO: getNumberOfActivePositions()
