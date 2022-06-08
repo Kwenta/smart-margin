@@ -10,7 +10,6 @@ contract MarginAccountFactoryTest is DSTest {
     CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
     MarginAccountFactory private marginAccountFactory;
 
-    // works for fork testing
     address private addressResolver = 0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C;
 
     function setUp() public {
