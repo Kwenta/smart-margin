@@ -8,14 +8,17 @@ import "../../contracts/MarginBase.sol";
 import "./utils/MintableERC20.sol";
 
 contract MarginAccountFactoryTest is DSTest {
-    CheatCodes cheats = CheatCodes(HEVM_ADDRESS);
-    MintableERC20 marginAsset;
-    MarginAccountFactory marginAccountFactory;
-    MarginBase account;
+    CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
+    MintableERC20 private marginAsset;
+    MarginAccountFactory private marginAccountFactory;
+    MarginBase private account;
+
+    // works for fork testing
+    address private addressResolver = 0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C;
 
     function setUp() public {
         marginAsset = new MintableERC20(address(this), 0);
-        marginAccountFactory = new MarginAccountFactory("0.0.0", address(marginAsset));
+        marginAccountFactory = new MarginAccountFactory("0.0.0", address(marginAsset), addressResolver);
         account = MarginBase(marginAccountFactory.newAccount());
     }
 
@@ -24,7 +27,7 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     function testExpectedMargin() public {
-        assertEq(address(account.margin()), address(marginAsset));
+        assertEq(address(account.marginAsset()), address(marginAsset));
     }
 
     function testDeposit() public {

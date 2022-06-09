@@ -7,11 +7,14 @@ import "../../contracts/MarginAccountFactory.sol";
 import "../../contracts/MarginBase.sol";
 
 contract MarginAccountFactoryTest is DSTest {
-    CheatCodes cheats = CheatCodes(HEVM_ADDRESS);
-    MarginAccountFactory marginAccountFactory;
+    CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
+    MarginAccountFactory private marginAccountFactory;
+
+    // works for fork testing
+    address private addressResolver = 0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C;
 
     function setUp() public {
-        marginAccountFactory = new MarginAccountFactory("0.0.0", address(0));
+        marginAccountFactory = new MarginAccountFactory("0.0.0", address(0), addressResolver);
     }
 
     function testAccountCreation() public {
