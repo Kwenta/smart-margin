@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.13;
 
-import "ds-test/test.sol";
+import "forge-std/Test.sol";
 import "./interfaces/CheatCodes.sol";
 import "../../contracts/MarginAccountFactory.sol";
 import "../../contracts/MarginBase.sol";
 import "../../contracts/interfaces/IFuturesMarket.sol";
 import "./utils/MintableERC20.sol";
 
-contract MarginAccountFactoryTest is DSTest {
+contract MarginAccountFactoryTest is Test {
     bytes32 private constant TRACKING_CODE = "KWENTA";
 
     CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
@@ -44,11 +44,12 @@ contract MarginAccountFactoryTest is DSTest {
      * @dev Mocked calls are in effect until clearMockedCalls is called.
      */
     function mockFuturesMarketCalls() internal {
-        IFuturesMarket[] memory marketsToMock = new IFuturesMarket[](4);
-        marketsToMock[0] = futuresMarketETH;
-        marketsToMock[1] = futuresMarketBTC;
-        marketsToMock[2] = futuresMarketLINK;
-        marketsToMock[3] = futuresMarketUNI;
+        IFuturesMarket[4] memory marketsToMock = [
+            futuresMarketETH,
+            futuresMarketBTC,
+            futuresMarketLINK,
+            futuresMarketUNI
+        ];
         for (uint16 i = 0; i < 4; i++) {
             // @mock market.transferMargin()
             cheats.mockCall(
@@ -59,6 +60,14 @@ contract MarginAccountFactoryTest is DSTest {
                 ),
                 abi.encode()
             );
+            cheats.mockCall(
+                address(marketsToMock[i]),
+                abi.encodeWithSelector(
+                    IFuturesMarket.transferMargin.selector,
+                    -1e10
+                ),
+                abi.encode()
+            );
 
             // @mock market.modifyPositionWithTracking()
             cheats.mockCall(
@@ -66,6 +75,14 @@ contract MarginAccountFactoryTest is DSTest {
                 abi.encodeWithSelector(
                     IFuturesMarket.modifyPositionWithTracking.selector,
                     1e18
+                ),
+                abi.encode()
+            );
+            cheats.mockCall(
+                address(marketsToMock[i]),
+                abi.encodeWithSelector(
+                    IFuturesMarket.modifyPositionWithTracking.selector,
+                    -1e10
                 ),
                 abi.encode()
             );
@@ -145,7 +162,6 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     // @TODO: testDistributeMargin()
-
     function testDistributeMargin() public {
         bytes32 ethMarketKey = "sETH";
         bytes32 btcMarketKey = "sBTC";
@@ -190,6 +206,48 @@ contract MarginAccountFactoryTest is DSTest {
     // @TODO: closePositionAndWithdraw()
 
     // @TODO: updateActiveMarketPosition()
+    function testCanUpdatePosition() public {
+        bytes32 ethMarketKey = "sETH";
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
+
+        // open position
+        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            1e18,
+            1e18,
+            false
+        );
+        // update position (same tx)
+        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            -1e10, // reduce margin
+            -1e10, // reduce size
+            false
+        );
+        account.distributeMargin(newPositions);
+        assertEq(account.getNumberOfActivePositions(), 1);
+    }
 
     // @TODO: removeActiveMarketPositon()
+    function testCannotRemoveMissingPosition() public {
+        bytes32 aaveMarketKey = "sAAVE";
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
+
+        // close position which doesn't exist
+        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+            aaveMarketKey,
+            0,
+            0,
+            true // signals -> closePositionAndWithdraw()
+        );
+        cheats.expectRevert(
+            abi.encodeWithSelector(
+                MarginBase.MissingMarketKey.selector,
+                aaveMarketKey
+            )
+        );
+        account.distributeMargin(newPositions);
+    }
 }

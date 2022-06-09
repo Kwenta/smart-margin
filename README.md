@@ -23,7 +23,7 @@ The repo is a mix of [Hardhat](https://hardhat.org/) & [Foundry](https://github.
 ```
 forge build
 ```
-3. Execute tests
+3. Execute unit tests
 ```
 npm run foundry-test
 ```

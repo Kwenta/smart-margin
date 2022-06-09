@@ -76,11 +76,16 @@ contract MarginBase is MinimalProxyable {
     /// @param withdrawSize: amount of margin asset to withdraw from market
     error InvalidWithdrawSize(int256 withdrawSize);
 
+    /// position with given marketKey does not exist
+    /// @param marketKey: key for synthetix futures market
+    error MissingMarketKey(bytes32 marketKey);
+
     //////////////////////////////////////
     //// CONSTRUCTOR / INITIALIZER ///////
     //////////////////////////////////////
 
     /// @notice constructor never used except for first CREATE
+    // solhint-disable-next-line
     constructor() MinimalProxyable() {}
 
     function initialize(address _marginAsset, address _addressResolver)
@@ -310,6 +315,10 @@ contract MarginBase is MinimalProxyable {
     ///      is valid (i.e. there was an active position in that market)
     /// @param _marketKey: key for previously active market position
     function removeActiveMarketPositon(bytes32 _marketKey) internal {
+        if (activeMarketPositions[_marketKey].marketKey == 0) {
+            revert MissingMarketKey(_marketKey);
+        }
+
         delete activeMarketPositions[_marketKey];
         uint numberOfActiveMarkets = activeMarketKeys.length;
 
