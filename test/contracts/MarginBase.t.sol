@@ -49,9 +49,9 @@ contract MarginAccountFactoryTest is DSTest {
         IAddressResolver(0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C);
 
     /**
-     * Mocking FuturesMarketManager.sol
+     * Mocking AddressResolver.sol
      *
-     * @notice loop through each market and mock respective functions
+     * @notice mock requireAndGetAddress (which returns futuresManager address)
      * @dev Mocked calls are in effect until clearMockedCalls is called.
      */
     function mockAddressResolverCalls() internal {
@@ -203,6 +203,10 @@ contract MarginAccountFactoryTest is DSTest {
         assertEq(address(account.marginAsset()), address(marginAsset));
     }
 
+    /**********************************
+     * deposit()
+     * withdraw()
+     **********************************/
     function testDeposit() public {
         uint256 amount = 10e18;
         marginAsset.mint(address(this), amount);
@@ -229,7 +233,9 @@ contract MarginAccountFactoryTest is DSTest {
         assertEq(marginAsset.balanceOf(address(account)), 0);
     }
 
-    // @TODO: testDistributeMargin()
+    /**********************************
+     * testDistributeMargin()
+     **********************************/
     function testDistributeMargin() public {
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
@@ -261,15 +267,156 @@ contract MarginAccountFactoryTest is DSTest {
         assertEq(account.getNumberOfActivePositions(), 4);
     }
 
-    // @TODO: getNumberOfActivePositions()
+    function testCannotDistributeMarginWithInvalidKey() public {
+        bytes32 key = "LUNA";
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
+        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+            key,
+            1e18,
+            1e18,
+            false
+        );
+        cheats.expectRevert();
+        account.distributeMargin(newPositions);
+    }
 
-    // @TODO: getAllActiveMarketPositions()
+    /**********************************
+     * getNumberOfActivePositions()
+     **********************************/
+    function testGetNumberOfActivePositionsReturnsZero() public {
+        assertEq(account.getNumberOfActivePositions(), 0);
+    }
 
-    // @TODO: depositAndModifyPositionForMarket()
+    function testGetNumberOfActivePositions() public {
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
+        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            1e18,
+            1e18,
+            false
+        );
+        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+            btcMarketKey,
+            1e18,
+            1e18,
+            false
+        );
+        account.distributeMargin(newPositions);
+        assertEq(account.getNumberOfActivePositions(), 2);
+    }
 
-    // @TODO: closePositionAndWithdraw()
+    /**********************************
+     * getAllActiveMarketPositions()
+     * @notice position.margin and position.size are calculated by Synthetix
+     *         so they're not tested here (and are in-fact mocked above)
+     **********************************/
+    function testCanGetActivePositions() public {
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
+        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            1e18,
+            1e18,
+            false
+        );
+        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+            btcMarketKey,
+            1e18,
+            1e18,
+            false
+        );
+        account.distributeMargin(newPositions);
+        assertEq(
+            account.getAllActiveMarketPositions()[0].marketKey,
+            ethMarketKey
+        );
+        assertEq(
+            account.getAllActiveMarketPositions()[1].marketKey,
+            btcMarketKey
+        );
+    }
 
-    // @TODO: updateActiveMarketPosition()
+    function testCanGetActivePositionsAfterClosingOne() public {
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](3);
+
+        // close position which doesn't exist
+        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            1e18,
+            1e18,
+            false
+        );
+        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            0,
+            0,
+            true // signals -> closePositionAndWithdraw()
+        );
+        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
+            btcMarketKey,
+            1e18,
+            1e18,
+            false
+        );
+
+        account.distributeMargin(newPositions);
+        assertEq(account.getNumberOfActivePositions(), 1);
+        assertEq(
+            account.getAllActiveMarketPositions()[0].marketKey,
+            btcMarketKey
+        );
+    }
+
+    function testCanGetActivePositionsAfterClosingTwo() public {
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](5);
+
+        // close position which doesn't exist
+        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            1e18,
+            1e18,
+            false
+        );
+        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+            uniMarketKey,
+            1e18,
+            1e18,
+            false
+        );
+        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            0,
+            0,
+            true // signals -> closePositionAndWithdraw()
+        );
+        newPositions[3] = MarginBase.UpdateMarketPositionSpec(
+            btcMarketKey,
+            1e18,
+            1e18,
+            false
+        );
+        newPositions[4] = MarginBase.UpdateMarketPositionSpec(
+            btcMarketKey,
+            0,
+            0,
+            true // signals -> closePositionAndWithdraw()
+        );
+
+        account.distributeMargin(newPositions);
+        assertEq(account.getNumberOfActivePositions(), 1);
+        assertEq(
+            account.getAllActiveMarketPositions()[0].marketKey,
+            uniMarketKey
+        );
+    }
+
+    /**********************************
+     * updateActiveMarketPosition()
+     **********************************/
     function testCanUpdatePosition() public {
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
@@ -292,7 +439,10 @@ contract MarginAccountFactoryTest is DSTest {
         assertEq(account.getNumberOfActivePositions(), 1);
     }
 
-    // removeActiveMarketPositon()
+    /**********************************
+     * closePositionAndWithdraw()
+     * removeActiveMarketPositon()
+     **********************************/
     function testCanRemovePosition() public {
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
