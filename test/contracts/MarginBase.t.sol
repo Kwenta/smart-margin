@@ -1,20 +1,26 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.13;
 
-import "forge-std/Test.sol";
+import "ds-test/test.sol";
 import "./interfaces/CheatCodes.sol";
+import "../../contracts/interfaces/IFuturesMarket.sol";
+import "../../contracts/interfaces/IFuturesMarketManager.sol";
+import "../../contracts/interfaces/IAddressResolver.sol";
 import "../../contracts/MarginAccountFactory.sol";
 import "../../contracts/MarginBase.sol";
-import "../../contracts/interfaces/IFuturesMarket.sol";
 import "./utils/MintableERC20.sol";
 
-contract MarginAccountFactoryTest is Test {
-    bytes32 private constant TRACKING_CODE = "KWENTA";
-
+contract MarginAccountFactoryTest is DSTest {
     CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
     MintableERC20 private marginAsset;
     MarginAccountFactory private marginAccountFactory;
     MarginBase private account;
+
+    // market keys
+    bytes32 private ethMarketKey = "sETH";
+    bytes32 private btcMarketKey = "sBTC";
+    bytes32 private linkMarketKey = "sLINK";
+    bytes32 private uniMarketKey = "sUNI";
 
     struct Position {
         uint64 id;
@@ -34,8 +40,66 @@ contract MarginAccountFactoryTest is Test {
     IFuturesMarket private futuresMarketUNI =
         IFuturesMarket(0x5Af0072617F7f2AEB0e314e2faD1DE0231Ba97cD);
 
-    address private addressResolver =
-        0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C;
+    // futures market manager for mocking
+    IFuturesMarketManager private futuresManager =
+        IFuturesMarketManager(0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B);
+
+    // address resolver for mocking
+    IAddressResolver private addressResolver =
+        IAddressResolver(0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C);
+
+    /**
+     * Mocking FuturesMarketManager.sol
+     *
+     * @notice loop through each market and mock respective functions
+     * @dev Mocked calls are in effect until clearMockedCalls is called.
+     */
+    function mockAddressResolverCalls() internal {
+        bytes32 futuresManagerKey = "FuturesMarketManager";
+
+        // @mock addressResolver.requireAndGetAddress()
+        cheats.mockCall(
+            address(addressResolver),
+            abi.encodeWithSelector(
+                IAddressResolver.requireAndGetAddress.selector,
+                futuresManagerKey,
+                "MarginBase: Could not get Futures Market Manager"
+            ),
+            abi.encode(address(futuresManager))
+        );
+    }
+
+    /**
+     * Mocking FuturesMarketManager.sol
+     *
+     * @notice loop through each market and mock respective functions
+     * @dev Mocked calls are in effect until clearMockedCalls is called.
+     */
+    function mockFuturesMarketManagerCalls() internal {
+        bytes32[4] memory keys = [
+            ethMarketKey,
+            btcMarketKey,
+            linkMarketKey,
+            uniMarketKey
+        ];
+        IFuturesMarket[4] memory marketsToMock = [
+            futuresMarketETH,
+            futuresMarketBTC,
+            futuresMarketLINK,
+            futuresMarketUNI
+        ];
+        for (uint16 i = 0; i < 4; i++) {
+            // @mock futuresManager.marketForKey()
+            cheats.mockCall(
+                address(futuresManager),
+                abi.encodeWithSelector(
+                    IFuturesMarketManager.marketForKey.selector,
+                    keys[i]
+                ),
+                abi.encode(address(marketsToMock[i]))
+            );
+        }
+    }
 
     /**
      * Mocking FuturesMarket.sol
@@ -100,14 +164,16 @@ contract MarginAccountFactoryTest is Test {
             // @mock market.withdrawAllMargin()
             cheats.mockCall(
                 address(marketsToMock[i]),
-                abi.encode(IFuturesMarket.withdrawAllMargin.selector),
+                abi.encodeWithSelector(
+                    IFuturesMarket.withdrawAllMargin.selector
+                ),
                 abi.encode()
             );
 
             // @mock market.closePosition()
             cheats.mockCall(
                 address(marketsToMock[i]),
-                abi.encode(IFuturesMarket.closePosition.selector),
+                abi.encodeWithSelector(IFuturesMarket.closePosition.selector),
                 abi.encode()
             );
         }
@@ -120,10 +186,12 @@ contract MarginAccountFactoryTest is Test {
         marginAccountFactory = new MarginAccountFactory(
             "0.0.0",
             address(marginAsset),
-            addressResolver
+            address(addressResolver)
         );
         account = MarginBase(marginAccountFactory.newAccount());
 
+        mockAddressResolverCalls();
+        mockFuturesMarketManagerCalls();
         mockFuturesMarketCalls();
     }
 
@@ -163,10 +231,6 @@ contract MarginAccountFactoryTest is Test {
 
     // @TODO: testDistributeMargin()
     function testDistributeMargin() public {
-        bytes32 ethMarketKey = "sETH";
-        bytes32 btcMarketKey = "sBTC";
-        bytes32 linkMarketKey = "sLINK";
-        bytes32 uniMarketKey = "sUNI";
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
@@ -207,7 +271,6 @@ contract MarginAccountFactoryTest is Test {
 
     // @TODO: updateActiveMarketPosition()
     function testCanUpdatePosition() public {
-        bytes32 ethMarketKey = "sETH";
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
 
@@ -229,8 +292,30 @@ contract MarginAccountFactoryTest is Test {
         assertEq(account.getNumberOfActivePositions(), 1);
     }
 
-    // @TODO: removeActiveMarketPositon()
-    function testCannotRemoveMissingPosition() public {
+    // removeActiveMarketPositon()
+    function testCanRemovePosition() public {
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
+
+        // close position which doesn't exist
+        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            1e18,
+            1e18,
+            false
+        );
+        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            0,
+            0,
+            true // signals -> closePositionAndWithdraw()
+        );
+
+        account.distributeMargin(newPositions);
+        assertEq(account.getNumberOfActivePositions(), 0);
+    }
+
+    function testCannotRemoveNonexistentPosition() public {
         bytes32 aaveMarketKey = "sAAVE";
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
@@ -246,6 +331,40 @@ contract MarginAccountFactoryTest is Test {
             abi.encodeWithSelector(
                 MarginBase.MissingMarketKey.selector,
                 aaveMarketKey
+            )
+        );
+        account.distributeMargin(newPositions);
+    }
+
+    function testCannotClosePositionTwice() public {
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](3);
+
+        // open position
+        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            1e18,
+            1e18,
+            false
+        );
+        // close position (same tx)
+        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            0,
+            0,
+            true // signals -> closePositionAndWithdraw()
+        );
+        // attempt to close position *again* (same tx)
+        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            0,
+            0,
+            true // signals -> closePositionAndWithdraw()
+        );
+        cheats.expectRevert(
+            abi.encodeWithSelector(
+                MarginBase.MissingMarketKey.selector,
+                ethMarketKey
             )
         );
         account.distributeMargin(newPositions);
