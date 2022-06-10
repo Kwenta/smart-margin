@@ -140,6 +140,22 @@ contract MarginAccountFactoryTest is DSTest {
         assertEq(expectedLimitPrice, actualLimitPrice);
     }
 
+    function testCommittingMargin() public {
+        assertEq(account.committedMargin(), 0);
+        address market = address(1);
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(amount);
+        placeLimitOrder(
+            market,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
+        assertEq(account.committedMargin(), amount);
+    }
+
     // Helpers
 
     function deposit(uint256 amount) internal {

@@ -35,7 +35,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
         bytes32 marketKey;
         uint128 margin;
         int128 size;
-    }   
+    }
 
     // marketKey: synthetix futures market id/key
     // marginDelta: amount of margin (in sUSD) to deposit or withdraw
@@ -51,7 +51,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
     struct Order {
         int256 margin;
         int256 size;
-        uint price;
+        uint256 price;
     }
 
     //////////////////////////////////////
@@ -67,14 +67,17 @@ contract MarginBase is MinimalProxyable, OpsReady {
     // token contract used for account margin
     IERC20 public marginAsset;
 
+    // margin locked for future events (ie. limit orders)
+    uint256 public committedMargin;
+
     // market keys that the account has active positions in
     bytes32[] public activeMarketKeys;
 
     // market keys mapped to active market positions
     mapping(bytes32 => ActiveMarketPosition) public activeMarketPositions;
 
-    // limit orders 
-    mapping(address => Order) public orders; 
+    // limit orders
+    mapping(address => Order) public orders;
 
     //////////////////////////////////////
     /////////////// ERRORS ///////////////
@@ -88,6 +91,11 @@ contract MarginBase is MinimalProxyable, OpsReady {
     /// @param withdrawSize: amount of margin asset to withdraw from market
     error InvalidWithdrawSize(int256 withdrawSize);
 
+    /// exceeds useable margin
+    /// @param available: amount of useable margin asset
+    /// @param required: amount of margin asset required
+    error InsufficientFreeMargin(uint256 available, uint256 required);
+
     //////////////////////////////////////
     //// CONSTRUCTOR / INITIALIZER ///////
     //////////////////////////////////////
@@ -95,10 +103,11 @@ contract MarginBase is MinimalProxyable, OpsReady {
     /// @notice constructor never used except for first CREATE
     constructor() MinimalProxyable() {}
 
-    function initialize(address _marginAsset, address _addressResolver, address payable _ops)
-        external
-        initOnce
-    {
+    function initialize(
+        address _marginAsset,
+        address _addressResolver,
+        address payable _ops
+    ) external initOnce {
         marginAsset = IERC20(_marginAsset);
         addressResolver = IAddressResolver(_addressResolver);
         futuresManager = IFuturesMarketManager(
@@ -120,12 +129,20 @@ contract MarginBase is MinimalProxyable, OpsReady {
 
     /// @param _amount: amount of marginAsset to deposit into marginBase account
     function deposit(uint256 _amount) external onlyOwner {
-        require(marginAsset.transferFrom(owner(), address(this), _amount), "MarginBase: deposit failed");
+        require(
+            marginAsset.transferFrom(owner(), address(this), _amount),
+            "MarginBase: deposit failed"
+        );
     }
 
     /// @param _amount: amount of marginAsset to withdraw from marginBase account
     function withdraw(uint256 _amount) external onlyOwner {
-       require(marginAsset.transfer(owner(), _amount), "MarginBase: withdraw failed");
+        if (_amount > freeMargin())
+            revert InsufficientFreeMargin(freeMargin(), _amount);
+        require(
+            marginAsset.transfer(owner(), _amount),
+            "MarginBase: withdraw failed"
+        );
     }
 
     /// @notice distribute margin across all/some positions specified via _newPositions
@@ -184,6 +201,10 @@ contract MarginBase is MinimalProxyable, OpsReady {
         return positions;
     }
 
+    function freeMargin() public view returns (uint256) {
+        return marginAsset.balanceOf(address(this)) - committedMargin;
+    }
+
     //////////////////////////////////////
     ///////// INTERNAL FUNCTIONS /////////
     //////////////////////////////////////
@@ -197,6 +218,17 @@ contract MarginBase is MinimalProxyable, OpsReady {
         returns (IFuturesMarket)
     {
         return IFuturesMarket(futuresManager.marketForKey(_marketKey));
+    }
+
+    /// @notice addressResolver fetches IFuturesMarket address for specific market
+    function exchangeRates() internal view returns (IExchangeRates) {
+        return
+            IExchangeRates(
+                addressResolver.requireAndGetAddress(
+                    "ExchangeRates",
+                    "MarginBase: Could not get ExchangeRates"
+                )
+            );
     }
 
     /// @notice deposit margin into specific market, either creating or adding
@@ -217,6 +249,8 @@ contract MarginBase is MinimalProxyable, OpsReady {
         if (_depositSize < 0) {
             revert InvalidDepositSize(_depositSize);
         }
+        if (_abs(_depositSize) > freeMargin())
+            revert InsufficientFreeMargin(freeMargin(), _abs(_depositSize));
         market.transferMargin(_depositSize);
 
         /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
@@ -280,21 +314,6 @@ contract MarginBase is MinimalProxyable, OpsReady {
         market.withdrawAllMargin();
     }
 
-    /// @notice addressResolver fetches IFuturesMarket address for specific market
-    function exchangeRates()
-        internal
-        view
-        returns (IExchangeRates)
-    {
-        return
-            IExchangeRates(
-                addressResolver.requireAndGetAddress(
-                    "ExchangeRates",
-                    "MarginBase: Could not get ExchangeRates"
-                )
-            );
-    }
-
     /// @notice used internally to update contract state for the account's active position tracking
     /// @param _marketKey: key for synthetix futures market
     /// @param _margin: amount of margin the specific market position has
@@ -340,7 +359,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
     /// @param _marketKey: key for previously active market position
     function removeActiveMarketPositon(bytes32 _marketKey) internal {
         delete activeMarketPositions[_marketKey];
-        uint numberOfActiveMarkets = activeMarketKeys.length;
+        uint256 numberOfActiveMarkets = activeMarketKeys.length;
 
         for (uint16 i = 0; i < numberOfActiveMarkets; i++) {
             // once _marketKey is encountered, swap with
@@ -360,34 +379,38 @@ contract MarginBase is MinimalProxyable, OpsReady {
     //////////// LIMIT ORDERS ////////////
     //////////////////////////////////////
 
-    function validOrder(address _market) 
-        public 
-        view 
-        returns (bool) 
-    {
+    function validOrder(address _market) public view returns (bool) {
         Order memory order = orders[_market];
         bytes32 currencyKey = IFuturesMarket(_market).baseAsset();
         // Get exchange rate for 1 unit
-        uint price = exchangeRates().effectiveValue(currencyKey, 1e18, "sUSD");
-        
-        if (order.size > 0) { // Long
+        uint256 price = exchangeRates().effectiveValue(
+            currencyKey,
+            1e18,
+            "sUSD"
+        );
+
+        if (order.size > 0) {
+            // Long
             return price <= order.price;
-        } 
-        else if (order.size < 0) { // Short
+        } else if (order.size < 0) {
+            // Short
             return price >= order.price;
-        }
-        else {
+        } else {
             revert("Order size 0");
         }
-        
     }
-    
+
     function placeOrder(
         address _market,
         int256 _marginDelta,
         int256 _sizeDelta,
-        uint _limitPrice
+        uint256 _limitPrice
     ) external onlyOwner {
+        // If more margin is desired on the position we must commit the margin
+        if (_marginDelta > 0) {
+            committedMargin += _abs(_marginDelta);
+        }
+
         orders[_market] = Order({
             margin: _marginDelta,
             size: _sizeDelta,
@@ -395,19 +418,24 @@ contract MarginBase is MinimalProxyable, OpsReady {
         });
 
         IOps(ops).createTask(
-            address(this), 
+            address(this),
             this.executeOrder.selector,
             address(this),
             abi.encodeWithSelector(this.checker.selector, _market)
         );
     }
-    
+
     function executeOrder(address _market) external onlyOps {
         require(validOrder(_market), "Order not ready for execution");
+        Order memory order = orders[_market];
+        // If margin was committed, free it
+        if (order.margin > 0) {
+            committedMargin -= _abs(order.margin);
+        }
         delete orders[_market];
         revert("Success!"); // For testing until position placing is functional
     }
-    
+
     function checker(address _market)
         external
         view
@@ -420,4 +448,10 @@ contract MarginBase is MinimalProxyable, OpsReady {
         );
     }
 
+    /*
+     * Absolute value of the input, returned as an unsigned number.
+     */
+    function _abs(int256 x) internal pure returns (uint256) {
+        return uint256(x < 0 ? -x : x);
+    }
 }
