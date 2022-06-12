@@ -8,12 +8,13 @@ import "./interfaces/IFuturesMarket.sol";
 import "./interfaces/IFuturesMarketManager.sol";
 
 /// @title MarginBase
+/// @author JaredBorders and JChiaramonte7
 /// @notice MarginBase provides users a way to open multiple positions from the same base account
 ///                    with cross-margin. Margin can be customly balanced across different positions.
 contract MarginBase is MinimalProxyable {
-    //////////////////////////////////////
-    ///////////// CONSTANTS //////////////
-    //////////////////////////////////////
+    /* ///////////////////////////////////////////
+                    Constants
+    /////////////////////////////////////////// */
 
     // tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
@@ -21,9 +22,9 @@ contract MarginBase is MinimalProxyable {
     // name for futures market manager, needed for fetching market key
     bytes32 private constant FUTURES_MANAGER = "FuturesMarketManager";
 
-    //////////////////////////////////////
-    /////////////// TYPES ////////////////
-    //////////////////////////////////////
+    /* ///////////////////////////////////////////
+                    Types
+    /////////////////////////////////////////// */
 
     // marketKey: synthetix futures market id/key
     // margin: amount of margin (in sUSD) in specific futures market
@@ -45,9 +46,9 @@ contract MarginBase is MinimalProxyable {
         bool isClosing; // if true, marginDelta nor sizeDelta are considered. simply closes position
     }
 
-    //////////////////////////////////////
-    /////////////// STATE ////////////////
-    //////////////////////////////////////
+    /* ///////////////////////////////////////////
+                    State
+    /////////////////////////////////////////// */
 
     // synthetix address resolver
     IAddressResolver private addressResolver;
@@ -64,9 +65,23 @@ contract MarginBase is MinimalProxyable {
     // market keys mapped to active market positions
     mapping(bytes32 => ActiveMarketPosition) public activeMarketPositions;
 
-    //////////////////////////////////////
-    /////////////// ERRORS ///////////////
-    //////////////////////////////////////
+    /* ///////////////////////////////////////////
+                    Events
+    /////////////////////////////////////////// */
+
+    /// @notice emitted after a successful deposit
+    /// @param user: the address that deposited into account
+    /// @param amount: amount of marginAsset to deposit into marginBase account
+    event Deposit(address indexed user, uint256 amount);
+
+    /// @notice emitted after a successful withdrawal
+    /// @param user: the address that withdrew from account
+    /// @param amount: amount of marginAsset to withdraw from marginBase account
+    event Withdraw(address indexed user, uint256 amount);
+
+    /* ///////////////////////////////////////////
+                    Errors
+    /////////////////////////////////////////// */
 
     /// deposit size was negative
     /// @param depositSize: amount of margin asset to deposit into market
@@ -80,9 +95,9 @@ contract MarginBase is MinimalProxyable {
     /// @param marketKey: key for synthetix futures market
     error MissingMarketKey(bytes32 marketKey);
 
-    //////////////////////////////////////
-    //// CONSTRUCTOR / INITIALIZER ///////
-    //////////////////////////////////////
+    /* ///////////////////////////////////////////
+                Constructor & Initializer
+    /////////////////////////////////////////// */
 
     /// @notice constructor never used except for first CREATE
     // solhint-disable-next-line
@@ -105,19 +120,69 @@ contract MarginBase is MinimalProxyable {
         _transferOwnership(msg.sender);
     }
 
-    //////////////////////////////////////
-    ///////// EXTERNAL FUNCTIONS /////////
-    //////////////////////////////////////
+    /* ///////////////////////////////////////////
+                    Views
+    /////////////////////////////////////////// */
+
+    /// @notice get number of active market positions account has
+    /// @return number of positions which are currently active for account
+    function getNumberOfActivePositions() external view returns (uint256) {
+        return activeMarketKeys.length;
+    }
+
+    /// @notice get all active market positions
+    /// @return positions which are currently active for account (ActiveMarketPosition structs)
+    function getAllActiveMarketPositions()
+        external
+        view
+        returns (ActiveMarketPosition[] memory)
+    {
+        ActiveMarketPosition[] memory positions = new ActiveMarketPosition[](
+            activeMarketKeys.length
+        );
+        for (uint16 i = 0; i < activeMarketKeys.length; i++) {
+            positions[i] = (activeMarketPositions[activeMarketKeys[i]]);
+        }
+        return positions;
+    }
+
+    /* ///////////////////////////////////////////
+            Account Deposit & Withdraw
+    /////////////////////////////////////////// */
 
     /// @param _amount: amount of marginAsset to deposit into marginBase account
     function deposit(uint256 _amount) external onlyOwner {
-        require(marginAsset.transferFrom(owner(), address(this), _amount), "MarginBase: deposit failed");
+        // don't allow deposit of zero to prevent emitting a useless event
+        require(_amount > 0, "Amount cannot be zero");
+
+        emit Deposit(msg.sender, _amount);
+
+        // transfer in margin asset from user
+        // (will revert if user does not have amount specified)
+        require(
+            marginAsset.transferFrom(owner(), address(this), _amount),
+            "MarginBase: deposit failed"
+        );
     }
 
     /// @param _amount: amount of marginAsset to withdraw from marginBase account
     function withdraw(uint256 _amount) external onlyOwner {
-       require(marginAsset.transfer(owner(), _amount), "MarginBase: withdraw failed");
+        // don't allow withdraw of zero to prevent emitting a useless event
+        require(_amount > 0, "Amount cannot be zero");
+
+        emit Withdraw(msg.sender, _amount);
+
+        // transfer out margin asset to user
+        // (will revert if account does not have amount specified)
+        require(
+            marginAsset.transfer(owner(), _amount),
+            "MarginBase: withdraw failed"
+        );
     }
+
+    /* ///////////////////////////////////////////
+                Margin Distribution
+    /////////////////////////////////////////// */
 
     /// @notice distribute margin across all/some positions specified via _newPositions
     /// @dev _newPositions may contain any number of new or existing positions
@@ -153,42 +218,9 @@ contract MarginBase is MinimalProxyable {
         }
     }
 
-    /// @notice get number of active market positions account has
-    /// @return number of positions which are currently active for account
-    function getNumberOfActivePositions() external view returns (uint256) {
-        return activeMarketKeys.length;
-    }
-
-    /// @notice get all active market positions
-    /// @return positions which are currently active for account (ActiveMarketPosition structs)
-    function getAllActiveMarketPositions()
-        external
-        view
-        returns (ActiveMarketPosition[] memory)
-    {
-        ActiveMarketPosition[] memory positions = new ActiveMarketPosition[](
-            activeMarketKeys.length
-        );
-        for (uint16 i = 0; i < activeMarketKeys.length; i++) {
-            positions[i] = (activeMarketPositions[activeMarketKeys[i]]);
-        }
-        return positions;
-    }
-
-    //////////////////////////////////////
-    ///////// INTERNAL FUNCTIONS /////////
-    //////////////////////////////////////
-
-    /// @notice addressResolver fetches IFuturesMarket address for specific market
-    /// @param _marketKey: key for synthetix futures market
-    /// @return IFuturesMarket contract interface
-    function futuresMarket(bytes32 _marketKey)
-        internal
-        view
-        returns (IFuturesMarket)
-    {
-        return IFuturesMarket(futuresManager.marketForKey(_marketKey));
-    }
+    /* ///////////////////////////////////////////
+            Internal Margin Distribution
+    /////////////////////////////////////////// */
 
     /// @notice deposit margin into specific market, either creating or adding
     ///         to a position and then updating account's active positions for user
@@ -271,6 +303,10 @@ contract MarginBase is MinimalProxyable {
         market.withdrawAllMargin();
     }
 
+    /* ///////////////////////////////////////////
+            Internal Account State Management
+    /////////////////////////////////////////// */
+
     /// @notice used internally to update contract state for the account's active position tracking
     /// @param _marketKey: key for synthetix futures market
     /// @param _margin: amount of margin the specific market position has
@@ -320,7 +356,7 @@ contract MarginBase is MinimalProxyable {
         }
 
         delete activeMarketPositions[_marketKey];
-        uint numberOfActiveMarkets = activeMarketKeys.length;
+        uint256 numberOfActiveMarkets = activeMarketKeys.length;
 
         for (uint16 i = 0; i < numberOfActiveMarkets; i++) {
             // once _marketKey is encountered, swap with
@@ -334,5 +370,20 @@ contract MarginBase is MinimalProxyable {
         }
         // remove last element (which will be _marketKey)
         activeMarketKeys.pop();
+    }
+
+    /* ///////////////////////////////////////////
+        Internal Futures Market Initialization
+    /////////////////////////////////////////// */
+
+    /// @notice addressResolver fetches IFuturesMarket address for specific market
+    /// @param _marketKey: key for synthetix futures market
+    /// @return IFuturesMarket contract interface
+    function futuresMarket(bytes32 _marketKey)
+        internal
+        view
+        returns (IFuturesMarket)
+    {
+        return IFuturesMarket(futuresManager.marketForKey(_marketKey));
     }
 }
