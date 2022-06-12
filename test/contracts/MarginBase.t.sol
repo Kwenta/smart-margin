@@ -120,7 +120,7 @@ contract MarginAccountFactoryTest is DSTest {
                 address(marketsToMock[i]),
                 abi.encodeWithSelector(
                     IFuturesMarket.transferMargin.selector,
-                    1e18
+                    1 ether
                 ),
                 abi.encode()
             );
@@ -128,7 +128,7 @@ contract MarginAccountFactoryTest is DSTest {
                 address(marketsToMock[i]),
                 abi.encodeWithSelector(
                     IFuturesMarket.transferMargin.selector,
-                    -1e10
+                    -1 ether
                 ),
                 abi.encode()
             );
@@ -138,7 +138,7 @@ contract MarginAccountFactoryTest is DSTest {
                 address(marketsToMock[i]),
                 abi.encodeWithSelector(
                     IFuturesMarket.modifyPositionWithTracking.selector,
-                    1e18
+                    1 ether
                 ),
                 abi.encode()
             );
@@ -146,7 +146,7 @@ contract MarginAccountFactoryTest is DSTest {
                 address(marketsToMock[i]),
                 abi.encodeWithSelector(
                     IFuturesMarket.modifyPositionWithTracking.selector,
-                    -1e10
+                    -1 ether
                 ),
                 abi.encode()
             );
@@ -158,7 +158,7 @@ contract MarginAccountFactoryTest is DSTest {
                     IFuturesMarket.positions.selector,
                     address(account)
                 ),
-                abi.encode(Position(0, 0, 1e18, 1e18, 1e18))
+                abi.encode(Position(0, 0, 1 ether, 1 ether, 1 ether))
             );
 
             // @mock market.withdrawAllMargin()
@@ -208,7 +208,7 @@ contract MarginAccountFactoryTest is DSTest {
      * withdraw()
      **********************************/
     function testDeposit() public {
-        uint256 amount = 10e18;
+        uint256 amount = 10 ether;
         marginAsset.mint(address(this), amount);
         marginAsset.approve(address(account), amount);
         account.deposit(amount);
@@ -216,7 +216,7 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     function testWithdrawal() public {
-        uint256 amount = 10e18;
+        uint256 amount = 10 ether;
         marginAsset.mint(address(this), amount);
         marginAsset.approve(address(account), amount);
         account.deposit(amount);
@@ -226,6 +226,10 @@ contract MarginAccountFactoryTest is DSTest {
 
     /// @dev Deposit/Withdrawal fuzz test
     function testWithdrawal(uint256 amount) public {
+        if (amount == 0) {
+            // "0" is invalid
+            amount += 1 wei;
+        }
         marginAsset.mint(address(this), amount);
         marginAsset.approve(address(account), amount);
         account.deposit(amount);
@@ -241,26 +245,26 @@ contract MarginAccountFactoryTest is DSTest {
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
             ethMarketKey,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
         newPositions[1] = MarginBase.UpdateMarketPositionSpec(
             btcMarketKey,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
         newPositions[2] = MarginBase.UpdateMarketPositionSpec(
             linkMarketKey,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
         newPositions[3] = MarginBase.UpdateMarketPositionSpec(
             uniMarketKey,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
         account.distributeMargin(newPositions);
@@ -273,8 +277,8 @@ contract MarginAccountFactoryTest is DSTest {
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
             key,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
         cheats.expectRevert();
@@ -293,14 +297,14 @@ contract MarginAccountFactoryTest is DSTest {
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
             ethMarketKey,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
         newPositions[1] = MarginBase.UpdateMarketPositionSpec(
             btcMarketKey,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
         account.distributeMargin(newPositions);
@@ -317,14 +321,14 @@ contract MarginAccountFactoryTest is DSTest {
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
             ethMarketKey,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
         newPositions[1] = MarginBase.UpdateMarketPositionSpec(
             btcMarketKey,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
         account.distributeMargin(newPositions);
@@ -345,8 +349,8 @@ contract MarginAccountFactoryTest is DSTest {
         // close position which doesn't exist
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
             ethMarketKey,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
         newPositions[1] = MarginBase.UpdateMarketPositionSpec(
@@ -357,8 +361,8 @@ contract MarginAccountFactoryTest is DSTest {
         );
         newPositions[2] = MarginBase.UpdateMarketPositionSpec(
             btcMarketKey,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
 
@@ -377,14 +381,14 @@ contract MarginAccountFactoryTest is DSTest {
         // close position which doesn't exist
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
             ethMarketKey,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
         newPositions[1] = MarginBase.UpdateMarketPositionSpec(
             uniMarketKey,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
         newPositions[2] = MarginBase.UpdateMarketPositionSpec(
@@ -395,8 +399,8 @@ contract MarginAccountFactoryTest is DSTest {
         );
         newPositions[3] = MarginBase.UpdateMarketPositionSpec(
             btcMarketKey,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
         newPositions[4] = MarginBase.UpdateMarketPositionSpec(
@@ -424,15 +428,15 @@ contract MarginAccountFactoryTest is DSTest {
         // open position
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
             ethMarketKey,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
         // update position (same tx)
         newPositions[1] = MarginBase.UpdateMarketPositionSpec(
             ethMarketKey,
-            -1e10, // reduce margin
-            -1e10, // reduce size
+            -1 ether, // reduce margin
+            -1 ether, // reduce size
             false
         );
         account.distributeMargin(newPositions);
@@ -450,8 +454,8 @@ contract MarginAccountFactoryTest is DSTest {
         // close position which doesn't exist
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
             ethMarketKey,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
         newPositions[1] = MarginBase.UpdateMarketPositionSpec(
@@ -493,8 +497,8 @@ contract MarginAccountFactoryTest is DSTest {
         // open position
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
             ethMarketKey,
-            1e18,
-            1e18,
+            1 ether,
+            1 ether,
             false
         );
         // close position (same tx)
