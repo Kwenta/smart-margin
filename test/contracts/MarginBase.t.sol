@@ -226,10 +226,7 @@ contract MarginAccountFactoryTest is DSTest {
 
     /// @dev Deposit/Withdrawal fuzz test
     function testWithdrawal(uint256 amount) public {
-        if (amount == 0) {
-            // "0" is invalid
-            amount += 1 wei;
-        }
+        cheats.assume(amount > 0);
         marginAsset.mint(address(this), amount);
         marginAsset.approve(address(account), amount);
         account.deposit(amount);
@@ -344,7 +341,7 @@ contract MarginAccountFactoryTest is DSTest {
 
     function testCanGetActivePositionsAfterClosingOne() public {
         MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](3);
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
 
         // close position which doesn't exist
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
@@ -354,22 +351,33 @@ contract MarginAccountFactoryTest is DSTest {
             false
         );
         newPositions[1] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
-            0,
-            0,
-            true // signals -> closePositionAndWithdraw()
-        );
-        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
             btcMarketKey,
             1 ether,
             1 ether,
             false
         );
+        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
+            uniMarketKey,
+            1 ether,
+            1 ether,
+            false
+        );
+        newPositions[3] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            0,
+            0,
+            true // signals -> closePositionAndWithdraw()
+        );
 
         account.distributeMargin(newPositions);
-        assertEq(account.getNumberOfActivePositions(), 1);
+        assertEq(account.getNumberOfActivePositions(), 2);
+        // @notice last added market should replace deleted market in array of market keys
         assertEq(
             account.getAllActiveMarketPositions()[0].marketKey,
+            uniMarketKey
+        );
+        assertEq(
+            account.getAllActiveMarketPositions()[1].marketKey,
             btcMarketKey
         );
     }
@@ -437,6 +445,34 @@ contract MarginAccountFactoryTest is DSTest {
             ethMarketKey,
             -1 ether, // reduce margin
             -1 ether, // reduce size
+            false
+        );
+        account.distributeMargin(newPositions);
+        assertEq(account.getNumberOfActivePositions(), 1);
+    }
+
+    function testCanOpenRecentlyClosedPosition() public {
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](3);
+
+        // open position
+        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            1 ether,
+            1 ether,
+            false
+        );
+        // update position (same tx)
+        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            0,
+            0,
+            true
+        );
+        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            1 ether,
+            1 ether,
             false
         );
         account.distributeMargin(newPositions);
