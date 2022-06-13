@@ -90,6 +90,10 @@ contract MarginBase is MinimalProxyable {
     /// @param marketKey: key for synthetix futures market
     error MissingMarketKey(bytes32 marketKey);
 
+    /// @notice limit size of new position specs passed into distribute margin
+    /// @param numberOfNewPositions: number of new position specs
+    error MaxNewPositionsExceeded(uint256 numberOfNewPositions);
+
     /// @notice market withdrawal size was positive (i.e. deposit)
     /// @param withdrawalSize: amount of margin asset to withdraw from market
     error InvalidMarketWithdrawSize(int256 withdrawalSize);
@@ -208,6 +212,11 @@ contract MarginBase is MinimalProxyable {
         external
         onlyOwner
     {
+        /// @notice limit size of new position specs passed into distribute margin
+        if (_newPositions.length > type(uint16).max) {
+            revert MaxNewPositionsExceeded(_newPositions.length);
+        }
+
         // for each new position in _newPositions, distribute margin accordingly and update state
         for (uint16 i = 0; i < _newPositions.length; i++) {
             if (_newPositions[i].isClosing) {

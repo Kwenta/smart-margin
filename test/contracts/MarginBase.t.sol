@@ -268,6 +268,44 @@ contract MarginAccountFactoryTest is DSTest {
         assertEq(account.getNumberOfActivePositions(), 4);
     }
 
+    function testDistributeMargin(uint16 numberOfNewPositions) public {
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](
+                numberOfNewPositions
+            );
+
+        for (uint16 i = 0; i < numberOfNewPositions; i++) {
+            newPositions[i] = MarginBase.UpdateMarketPositionSpec(
+                ethMarketKey,
+                1 ether,
+                1 ether,
+                false
+            );
+        }
+
+        account.distributeMargin(newPositions);
+        assertEq(
+            account.getNumberOfActivePositions(),
+            (numberOfNewPositions == 0 ? 0 : 1)
+        );
+    }
+
+    function testCannotPassMaxPositions() public {
+        uint32 max = type(uint16).max;
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](
+                max + 1
+            );
+
+        cheats.expectRevert(
+            abi.encodeWithSelector(
+                MarginBase.MaxNewPositionsExceeded.selector,
+                max + 1
+            )
+        );
+        account.distributeMargin(newPositions);
+    }
+
     function testCannotDistributeMarginWithInvalidKey() public {
         bytes32 key = "LUNA";
         MarginBase.UpdateMarketPositionSpec[]
