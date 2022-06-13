@@ -13,7 +13,7 @@ contract MarginAccountFactory is MinimalProxyFactory {
     string public version; // format: (0.1.0)
 
     /*///////////////////////////////////////////////////////////////
-                                IMMUTABLES
+                                Immutables
     ///////////////////////////////////////////////////////////////*/
 
     /// @notice MarginBase contract acting as user's account
