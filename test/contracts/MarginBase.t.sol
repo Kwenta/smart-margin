@@ -156,6 +156,102 @@ contract MarginAccountFactoryTest is DSTest {
         assertEq(account.committedMargin(), amount);
     }
 
+    // assert cannot withdraw committed margin
+    function testWithdrawingCommittedMargin() public {
+        assertEq(account.committedMargin(), 0);
+        address market = address(1);
+        uint256 originalDeposit = 10e18;
+        uint256 amountToCommit = originalDeposit;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(originalDeposit);
+        placeLimitOrder(
+            market,
+            int256(amountToCommit),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
+        cheats.expectRevert(
+            abi.encodeWithSelector(
+                MarginBase.InsufficientFreeMargin.selector,
+                originalDeposit - amountToCommit,
+                amountToCommit
+            )
+        );
+        account.withdraw(originalDeposit);
+    }
+
+    function testWithdrawingCommittedMargin(uint256 originalDeposit) public {
+        assertEq(account.committedMargin(), 0);
+        address market = address(1);
+        uint256 amountToCommit = originalDeposit;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(originalDeposit);
+
+        // the maximum margin delta is positive 2^128 because it is int256
+        cheats.assume(amountToCommit < 2**128 - 1);
+        // this is a valid case (unless we want to restrict limit orders from not changing margin)
+        cheats.assume(amountToCommit != 0);
+
+        placeLimitOrder(
+            market,
+            int256(amountToCommit),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
+        cheats.expectRevert(
+            abi.encodeWithSelector(
+                MarginBase.InsufficientFreeMargin.selector,
+                originalDeposit - amountToCommit,
+                amountToCommit
+            )
+        );
+        account.withdraw(originalDeposit);
+    }
+
+    // assert cannot use committed margin when opening new positions
+    // commented until PR #8 is merged (has mocking logic for this function)
+    /*function testDistributingCommittedMargin() public {
+        assertEq(account.committedMargin(), 0);
+        address market = address(1);
+        uint256 originalDeposit = 10e18;
+        uint256 amountToCommit = originalDeposit;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(originalDeposit);
+
+        placeLimitOrder(
+            market,
+            int256(amountToCommit),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
+
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
+        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+            "sETH",
+            1 ether,
+            1 ether,
+            false
+        );
+
+        cheats.expectRevert(
+            abi.encodeWithSelector(
+                MarginBase.InsufficientFreeMargin.selector,
+                originalDeposit - amountToCommit,
+                amountToCommit
+            )
+        );
+
+        account.distributeMargin(newPositions);
+    }*/
+
+    // assert execution uncommits margin
+
+    // test committing and uncommiting margin
+
     // Helpers
 
     function deposit(uint256 amount) internal {
