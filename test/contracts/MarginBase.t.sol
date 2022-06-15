@@ -136,7 +136,7 @@ contract MarginAccountFactoryTest is DSTest {
             orderSizeDelta,
             expectedLimitPrice
         );
-        (, , uint256 actualLimitPrice) = account.orders(market);
+        (, , uint256 actualLimitPrice, ) = account.orders(market);
         assertEq(expectedLimitPrice, actualLimitPrice);
     }
 
@@ -250,7 +250,32 @@ contract MarginAccountFactoryTest is DSTest {
 
     // assert execution uncommits margin
 
-    // test committing and uncommiting margin
+    // should 0 out committed margin
+    function testCancellingLimitOrder() public {
+        assertEq(account.committedMargin(), 0);
+        address market = address(1);
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(amount);
+        placeLimitOrder(
+            market,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
+        assertEq(account.committedMargin(), amount);
+
+        // Mock non-returning function call
+        (, , , bytes32 taskId) = account.orders(market);
+        mockCall(
+            account.ops(),
+            abi.encodeWithSelector(IOps.cancelTask.selector, taskId)
+        );
+
+        account.cancelOrder(market);
+        assertEq(account.committedMargin(), 0);
+    }
 
     // Helpers
 
@@ -269,7 +294,7 @@ contract MarginAccountFactoryTest is DSTest {
         bytes memory createTaskSelector = abi.encodePacked(
             IOps.createTask.selector
         );
-        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(true));
+        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
         account.placeOrder(market, marginDelta, sizeDelta, limitPrice);
     }
 
@@ -295,6 +320,17 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     // Utils
+
+    /// Enable mocking for high level function calls that don't return
+    /// @dev Bypass the extcodesize check for non returning function calls
+    /// https://github.com/ethereum/solidity/issues/12204
+    /// https://book.getfoundry.sh/cheatcodes/mock-call.html#description
+    function mockCall(address where, bytes memory data) internal {
+        // Fill target with bytes
+        cheats.etch(where, "0xdeadbeef");
+        // Mock target call
+        cheats.mockCall(where, data, abi.encode());
+    }
 
     function getSelector(string memory _func) internal pure returns (bytes4) {
         return bytes4(keccak256(bytes(_func)));

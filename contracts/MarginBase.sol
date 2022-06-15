@@ -52,6 +52,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
         int256 margin;
         int256 size;
         uint256 price;
+        bytes32 gelatoTaskId;
     }
 
     //////////////////////////////////////
@@ -405,24 +406,36 @@ contract MarginBase is MinimalProxyable, OpsReady {
         int256 _marginDelta,
         int256 _sizeDelta,
         uint256 _limitPrice
-    ) external onlyOwner {
+    ) external onlyOwner returns (Order memory) {
         // If more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
             committedMargin += _abs(_marginDelta);
         }
 
-        orders[_market] = Order({
-            margin: _marginDelta,
-            size: _sizeDelta,
-            price: _limitPrice
-        });
-
-        IOps(ops).createTask(
+        bytes32 taskId = IOps(ops).createTask(
             address(this),
             this.executeOrder.selector,
             address(this),
             abi.encodeWithSelector(this.checker.selector, _market)
         );
+
+        orders[_market] = Order({
+            margin: _marginDelta,
+            size: _sizeDelta,
+            price: _limitPrice,
+            gelatoTaskId: taskId
+        });
+
+        return orders[_market];
+    }
+
+    function cancelOrder(address _market) external onlyOwner {
+        Order memory order = orders[_market];
+        if (order.margin > 0) {
+            committedMargin -= _abs(order.margin);
+        }
+        IOps(ops).cancelTask(order.gelatoTaskId);
+        delete orders[_market];
     }
 
     function executeOrder(address _market) external onlyOps {
