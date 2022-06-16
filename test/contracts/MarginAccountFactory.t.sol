@@ -10,10 +10,42 @@ contract MarginAccountFactoryTest is DSTest {
     CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
     MarginAccountFactory private marginAccountFactory;
 
-    address private addressResolver = 0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C;
+    address private addressResolver =
+        0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C;
+
+    // futures market manager for mocking
+    IFuturesMarketManager private futuresManager =
+        IFuturesMarketManager(0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B);
+
+    /**
+     * Mocking AddressResolver.sol
+     *
+     * @notice mock requireAndGetAddress (which returns futuresManager address)
+     * @dev Mocked calls are in effect until clearMockedCalls is called.
+     */
+    function mockAddressResolverCalls() internal {
+        bytes32 futuresManagerKey = "FuturesMarketManager";
+
+        // @mock addressResolver.requireAndGetAddress()
+        cheats.mockCall(
+            address(addressResolver),
+            abi.encodeWithSelector(
+                IAddressResolver.requireAndGetAddress.selector,
+                futuresManagerKey,
+                "MarginBase: Could not get Futures Market Manager"
+            ),
+            abi.encode(address(futuresManager))
+        );
+    }
 
     function setUp() public {
-        marginAccountFactory = new MarginAccountFactory("0.0.0", address(0), addressResolver);
+        mockAddressResolverCalls();
+
+        marginAccountFactory = new MarginAccountFactory(
+            "0.0.0",
+            address(0),
+            addressResolver
+        );
     }
 
     function testAccountCreation() public {
@@ -25,7 +57,10 @@ contract MarginAccountFactoryTest is DSTest {
     function testAssertProxySize() public {
         address account = marginAccountFactory.newAccount();
         assertEq(account.code.length, 45); // Minimal proxy is 45 bytes
-        assertLt(account.code.length, address(marginAccountFactory.implementation()).code.length);
+        assertLt(
+            account.code.length,
+            address(marginAccountFactory.implementation()).code.length
+        );
     }
 
     function testAccountOwnerIsMsgSender() public {
