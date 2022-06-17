@@ -16,7 +16,7 @@ The repo is a mix of [Hardhat](https://hardhat.org/) & [Foundry](https://github.
 
 ## Testing
 
-### Running Foundry tests
+### Running Unit Tests
 1. Follow the [Foundry guide to working on an existing project](https://book.getfoundry.sh/projects/working-on-an-existing-project.html)
 
 2. Build project
@@ -25,10 +25,10 @@ forge build
 ```
 3. Execute unit tests
 ```
-npm run foundry-test
+npm run f-test:unit
 ```
 
-### Running hardhat tests
+### Running Integration tests
 1. Install all NPM packages
 ```
 npm install
@@ -37,7 +37,11 @@ npm install
 ```
 npx hardhat compile
 ```
-3. Execute integration tests
+3. Execute Hardhat integration tests
 ```
 npm run hh-test:integration
+```
+4. Execute Foundry integration tests
+```
+npm run f-test:integration
 ```
