@@ -30,7 +30,7 @@ contract MarginAccountFactoryTest is DSTest {
         int128 size;
     }
 
-    // futures market(s) for mocking
+    // futures market(s) for mocking: addresses match those on OE Mainnet
     IFuturesMarket private futuresMarketETH =
         IFuturesMarket(0xf86048DFf23cF130107dfB4e6386f574231a5C65);
     IFuturesMarket private futuresMarketBTC =
@@ -39,14 +39,16 @@ contract MarginAccountFactoryTest is DSTest {
         IFuturesMarket(0x1228c7D8BBc5bC53DB181bD7B1fcE765aa83bF8A);
     IFuturesMarket private futuresMarketUNI =
         IFuturesMarket(0x5Af0072617F7f2AEB0e314e2faD1DE0231Ba97cD);
-
     // futures market manager for mocking
     IFuturesMarketManager private futuresManager =
         IFuturesMarketManager(0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B);
-
     // address resolver for mocking
     IAddressResolver private addressResolver =
         IAddressResolver(0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C);
+
+    /*///////////////////////////////////////////////////////////////
+                                Mocking
+    ///////////////////////////////////////////////////////////////*/
 
     /**
      * Mocking AddressResolver.sol
@@ -55,6 +57,13 @@ contract MarginAccountFactoryTest is DSTest {
      * @dev Mocked calls are in effect until clearMockedCalls is called.
      */
     function mockAddressResolverCalls() internal {
+        /*
+         * Calls to mocked addresses may revert if there is no code on the address.
+         * This is because Solidity inserts an extcodesize check before some contract calls.
+         * To circumvent this, use the etch cheatcode if the mocked address has no code.
+         */
+        cheats.etch(address(addressResolver), new bytes(0x19));
+
         bytes32 futuresManagerKey = "FuturesMarketManager";
 
         // @mock addressResolver.requireAndGetAddress()
@@ -76,6 +85,9 @@ contract MarginAccountFactoryTest is DSTest {
      * @dev Mocked calls are in effect until clearMockedCalls is called.
      */
     function mockFuturesMarketManagerCalls() internal {
+        // use the etch cheatcode if the mocked address has no code
+        cheats.etch(address(futuresManager), new bytes(0x19));
+
         bytes32[4] memory keys = [
             ethMarketKey,
             btcMarketKey,
@@ -108,6 +120,8 @@ contract MarginAccountFactoryTest is DSTest {
      * @dev Mocked calls are in effect until clearMockedCalls is called.
      */
     function mockFuturesMarketCalls() internal {
+        bytes32 trackingCode = "KWENTA";
+
         IFuturesMarket[4] memory marketsToMock = [
             futuresMarketETH,
             futuresMarketBTC,
@@ -115,6 +129,9 @@ contract MarginAccountFactoryTest is DSTest {
             futuresMarketUNI
         ];
         for (uint16 i = 0; i < 4; i++) {
+            // use the etch cheatcode if the mocked address has no code
+            cheats.etch(address(marketsToMock[i]), new bytes(0x19));
+
             // @mock market.transferMargin()
             cheats.mockCall(
                 address(marketsToMock[i]),
@@ -138,7 +155,8 @@ contract MarginAccountFactoryTest is DSTest {
                 address(marketsToMock[i]),
                 abi.encodeWithSelector(
                     IFuturesMarket.modifyPositionWithTracking.selector,
-                    1 ether
+                    1 ether,
+                    trackingCode
                 ),
                 abi.encode()
             );
@@ -146,7 +164,8 @@ contract MarginAccountFactoryTest is DSTest {
                 address(marketsToMock[i]),
                 abi.encodeWithSelector(
                     IFuturesMarket.modifyPositionWithTracking.selector,
-                    -1 ether
+                    -1 ether,
+                    trackingCode
                 ),
                 abi.encode()
             );
@@ -179,9 +198,13 @@ contract MarginAccountFactoryTest is DSTest {
         }
     }
 
-    /********************** TESTS **********************/
+    /*///////////////////////////////////////////////////////////////
+                                Setup
+    ///////////////////////////////////////////////////////////////*/
 
     function setUp() public {
+        mockAddressResolverCalls();
+
         marginAsset = new MintableERC20(address(this), 0);
         marginAccountFactory = new MarginAccountFactory(
             "0.0.0",
@@ -190,7 +213,6 @@ contract MarginAccountFactoryTest is DSTest {
         );
         account = MarginBase(marginAccountFactory.newAccount());
 
-        mockAddressResolverCalls();
         mockFuturesMarketManagerCalls();
         mockFuturesMarketCalls();
     }
@@ -202,6 +224,10 @@ contract MarginAccountFactoryTest is DSTest {
     function testExpectedMargin() public {
         assertEq(address(account.marginAsset()), address(marginAsset));
     }
+
+    /*///////////////////////////////////////////////////////////////
+                                Unit Tests
+    ///////////////////////////////////////////////////////////////*/
 
     /**********************************
      * deposit()
@@ -268,6 +294,7 @@ contract MarginAccountFactoryTest is DSTest {
         assertEq(account.getNumberOfActivePositions(), 4);
     }
 
+    /// @dev DistributeMargin fuzz test
     function testDistributeMargin(uint16 numberOfNewPositions) public {
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](
