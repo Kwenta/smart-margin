@@ -1,76 +1,104 @@
 name: Automated Tests
 on: [push]
 env:
-  NODE_OPTIONS: --max-old-space-size=5120
+    NODE_OPTIONS: --max-old-space-size=5120
 jobs:
-  Contract:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v2
-      - name: Building on Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '16.13.1'
-      - name: Update NPM
-        run: npm install -g npm@8.1.2
-      - uses: actions/cache@v2
-        with:
-          path: '**/node_modules'
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
-      - name: Install dependencies
-        run: npm i --no-audit
-      - name: Compile contracts
-        run: npm run compile
-  Foundry_Tests:
-    runs-on: ubuntu-latest
-    env:
-      ARCHIVE_NODE_URL_L2: ${{ secrets.ARCHIVE_NODE_URL_L2 }}
-      ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v2
-      - name: Building on Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '16.13.1'
-      - name: Update NPM
-        run: npm install -g npm@8.1.2
-      - uses: actions/cache@v2
-        with:
-          path: '**/node_modules'
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
-      - name: Install dependencies
-        run: npm i --no-audit
-      - name: Compile contracts
-        run: npm run compile
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
-      - name: Run tests
-        run: forge test --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --fork-block-number 9000000 --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }}
-  Hardhat_Tests:
-    runs-on: ubuntu-latest
-    env:
-      ARCHIVE_NODE_URL_L2: ${{ secrets.ARCHIVE_NODE_URL_L2 }}
-      ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v2
-      - name: Building on Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '16.13.1'
-      - name: Update NPM
-        run: npm install -g npm@8.1.2
-      - uses: actions/cache@v2
-        with:
-          path: '**/node_modules'
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
-      - name: Install dependencies
-        run: npm i --no-audit
-      - name: Compile contracts
-        run: npm run compile
-      - name: Execute Hardhat tests
-        run: npm run hh-test:integration
+    Compile_Contracts:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check out repository code
+              uses: actions/checkout@v2
+            - name: Building on Node.js
+              uses: actions/setup-node@v2
+              with:
+                  node-version: "16.13.1"
+            - name: Update NPM
+              run: npm install -g npm@8.1.2
+            - uses: actions/cache@v2
+              with:
+                  path: "**/node_modules"
+                  key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
+            - name: Install dependencies
+              run: npm i --no-audit
+            - name: Compile contracts
+              run: npm run compile
+    Foundry_Unit_Tests:
+        runs-on: ubuntu-latest
+        env:
+            ARCHIVE_NODE_URL_L2: ${{ secrets.ARCHIVE_NODE_URL_L2 }}
+            ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+        steps:
+            - name: Check out repository code
+              uses: actions/checkout@v2
+            - name: Building on Node.js
+              uses: actions/setup-node@v2
+              with:
+                  node-version: "16.13.1"
+            - name: Update NPM
+              run: npm install -g npm@8.1.2
+            - uses: actions/cache@v2
+              with:
+                  path: "**/node_modules"
+                  key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
+            - name: Install dependencies
+              run: npm i --no-audit
+            - name: Compile contracts
+              run: npm run compile
+            - name: Install Foundry
+              uses: foundry-rs/foundry-toolchain@v1
+              with:
+                  version: nightly
+            - name: Run Foundry Unit Tests
+              run: npm run f-test:unit
+    Hardhat_Integration_Tests:
+        runs-on: ubuntu-latest
+        env:
+            ARCHIVE_NODE_URL_L2: ${{ secrets.ARCHIVE_NODE_URL_L2 }}
+            ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+        steps:
+            - name: Check out repository code
+              uses: actions/checkout@v2
+            - name: Building on Node.js
+              uses: actions/setup-node@v2
+              with:
+                  node-version: "16.13.1"
+            - name: Update NPM
+              run: npm install -g npm@8.1.2
+            - uses: actions/cache@v2
+              with:
+                  path: "**/node_modules"
+                  key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
+            - name: Install dependencies
+              run: npm i --no-audit
+            - name: Compile contracts
+              run: npm run compile
+            - name: Execute Hardhat Integration Tests
+              run: npm run hh-test:integration
+    Foundry_Integration_Tests:
+        runs-on: ubuntu-latest
+        env:
+            ARCHIVE_NODE_URL_L2: ${{ secrets.ARCHIVE_NODE_URL_L2 }}
+            ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+        steps:
+            - name: Check out repository code
+              uses: actions/checkout@v2
+            - name: Building on Node.js
+              uses: actions/setup-node@v2
+              with:
+                  node-version: "16.13.1"
+            - name: Update NPM
+              run: npm install -g npm@8.1.2
+            - uses: actions/cache@v2
+              with:
+                  path: "**/node_modules"
+                  key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
+            - name: Install dependencies
+              run: npm i --no-audit
+            - name: Compile contracts
+              run: npm run compile
+            - name: Install Foundry
+              uses: foundry-rs/foundry-toolchain@v1
+              with:
+                  version: nightly
+            - name: Execute Foundry Integration Tests
+              run: forge test --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --fork-block-number 9000000 --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }}
