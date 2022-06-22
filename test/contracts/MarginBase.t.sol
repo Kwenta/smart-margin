@@ -327,7 +327,7 @@ contract MarginAccountFactoryTest is DSTest {
     /// https://book.getfoundry.sh/cheatcodes/mock-call.html#description
     function mockCall(address where, bytes memory data) internal {
         // Fill target with bytes
-        cheats.etch(where, "0xdeadbeef");
+        cheats.etch(where, new bytes(0x19));
         // Mock target call
         cheats.mockCall(where, data, abi.encode());
     }

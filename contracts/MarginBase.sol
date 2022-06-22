@@ -150,8 +150,8 @@ contract MarginBase is MinimalProxyable, OpsReady {
     /// @dev _newPositions may contain any number of new or existing positions
     /// @dev caller can close and withdraw all margin from position if _newPositions[i].isClosing is true
     /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
-    function distributeMargin(UpdateMarketPositionSpec[] calldata _newPositions)
-        external
+    function distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
+        public
         onlyOwner
     {
         // for each new position in _newPositions, distribute margin accordingly and update state
@@ -441,12 +441,27 @@ contract MarginBase is MinimalProxyable, OpsReady {
     function executeOrder(address _market) external onlyOps {
         require(validOrder(_market), "Order not ready for execution");
         Order memory order = orders[_market];
-        // If margin was committed, free it
+
+        // delete order from orders
+        delete orders[_market];
+
+        // if margin was committed, free it
         if (order.margin > 0) {
             committedMargin -= _abs(order.margin);
         }
-        delete orders[_market];
-        revert("Success!"); // For testing until position placing is functional
+
+        // prep new position
+        bytes32 currencyKey = IFuturesMarket(_market).baseAsset();
+        MarginBase.UpdateMarketPositionSpec[] memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
+        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+            currencyKey,
+            order.margin,
+            order.size,
+            false // assume the position will be closed if the limit order is the opposite size
+        );
+
+        //execute trade
+        distributeMargin(newPositions);
     }
 
     function checker(address _market)
