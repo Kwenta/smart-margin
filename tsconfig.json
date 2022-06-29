@@ -10,7 +10,9 @@
     "include": [
         "./scripts",
         "./test",
-        "./typechain"
+        "./typechain",
+        "./deploy",
+        "./hardhat.config.ts"
     ],
     "files": [
         "./hardhat.config.ts"
