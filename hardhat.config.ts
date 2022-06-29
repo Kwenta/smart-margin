@@ -24,7 +24,10 @@ const config: HardhatUserConfig = {
     },
     networks: {
         optimistic_mainnet: {
-            url: process.env.ARCHIVE_NODE_URL_L2,
+            url:
+                process.env.ARCHIVE_NODE_URL_L2 !== undefined
+                    ? process.env.ARCHIVE_NODE_URL_L2
+                    : "",
             accounts:
                 process.env.PRIVATE_KEY !== undefined
                     ? [process.env.PRIVATE_KEY]
