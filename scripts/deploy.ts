@@ -1,30 +1,55 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// When running the script with `npx hardhat run <script>` you'll find the Hardhat
-// Runtime Environment's members available in the global scope.
-import { ethers } from "hardhat";
+import hre, { ethers } from "hardhat";
+import { Contract } from "ethers";
+
+// synthetix
+const ADDRESS_RESOLVER = "0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C";
+const SUSD_PROXY = "0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9";
+
+// cross margin
+let marginAccountFactory: Contract;
+let marginAccount: Contract;
 
 async function main() {
-  // Hardhat always runs the compile task when running scripts with its command
-  // line interface.
-  //
-  // If this script is run directly using `node` you may want to call compile
-  // manually to make sure everything is compiled
-  // await hre.run('compile');
+    const [deployer] = await ethers.getSigners();
 
-  // We get the contract to deploy
-  const Greeter = await ethers.getContractFactory("Greeter");
-  const greeter = await Greeter.deploy("Hello, Hardhat!");
+    // ========== DEPLOYMENT ========== */
+    console.log("\nBeginning deployments...");
+    deployFactory();
+}
 
-  await greeter.deployed();
+async function deployFactory() {
+    // deploy
+    marginAccountFactory = await (
+        await ethers.getContractFactory("MarginAccountFactory")
+    ).deploy("1.0.0", SUSD_PROXY, ADDRESS_RESOLVER);
 
-  console.log("Greeter deployed to:", greeter.address);
+    // save deployment
+    await saveDeployments("MarginAccountFactory", marginAccountFactory);
+    
+    // log address
+    console.log(
+        "\n✅ Deployed MarginAccountFactory at address: " +
+            marginAccountFactory.address + "\n"
+    );
+}
+
+async function saveDeployments(name: string, contract: Contract) {
+    // For hardhat-deploy plugin to save deployment artifacts
+    const { deployments } = hre;
+    const { save } = deployments;
+
+    const artifact = await deployments.getExtendedArtifact(name);
+    let deployment = {
+        address: contract.address,
+        ...artifact,
+    };
+
+    await save(name, deployment);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.
 main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
+    console.error(error);
+    process.exitCode = 1;
 });

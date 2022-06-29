@@ -39,12 +39,13 @@
     "ethereum-waffle": "^3.4.4",
     "ethers": "^5.6.5",
     "hardhat": "^2.9.3",
+    "hardhat-deploy": "^0.11.11",
     "hardhat-gas-reporter": "^1.0.8",
     "prettier": "^2.6.2",
     "prettier-plugin-solidity": "^1.0.0-beta.13",
     "solhint": "^3.3.7",
     "solidity-coverage": "^0.7.21",
-    "ts-node": "^10.7.0",
+    "ts-node": "^10.8.1",
     "typechain": "^5.2.0",
     "typescript": "^4.6.4"
   }
