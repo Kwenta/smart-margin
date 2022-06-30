@@ -3,11 +3,13 @@ pragma solidity 0.8.13;
 
 import "ds-test/test.sol";
 import "./interfaces/CheatCodes.sol";
+import "../../contracts/MarginBaseSettings.sol";
 import "../../contracts/MarginAccountFactory.sol";
 import "../../contracts/MarginBase.sol";
 
 contract MarginAccountFactoryTest is DSTest {
     CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
+    MarginBaseSettings private marginBaseSettings;
     MarginAccountFactory private marginAccountFactory;
 
     address private addressResolver =
@@ -41,10 +43,15 @@ contract MarginAccountFactoryTest is DSTest {
     function setUp() public {
         mockAddressResolverCalls();
 
+        /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
+        uint256 distributionFee = 5; // 5 BPS
+        marginBaseSettings = new MarginBaseSettings(distributionFee);
+
         marginAccountFactory = new MarginAccountFactory(
             "0.0.0",
             address(0),
-            addressResolver
+            addressResolver,
+            address(marginBaseSettings)
         );
     }
 

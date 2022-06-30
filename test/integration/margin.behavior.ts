@@ -124,6 +124,9 @@ const MINT_AMOUNT = ethers.BigNumber.from("100000000000000000000000"); // == $10
 const ACCOUNT_AMOUNT = ethers.BigNumber.from("10000000000000000000000"); // == $10_000 sUSD
 const TEST_VALUE = ethers.BigNumber.from("1000000000000000000000"); // == $1_000 sUSD
 
+// denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
+const distributionFee = 5;
+
 // synthetix
 const ADDRESS_RESOLVER = "0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C";
 
@@ -139,6 +142,7 @@ const MARKET_KEY_sLINK = ethers.utils.formatBytes32String("sLINK");
 const MARKET_KEY_sUNI = ethers.utils.formatBytes32String("sUNI");
 
 // cross margin
+let marginBaseSettings: Contract;
 let marginAccountFactory: Contract;
 let marginAccount: Contract;
 
@@ -179,9 +183,14 @@ describe("Integration: Test Cross Margin", () => {
     });
 
     it("Should deploy MarginAccountFactory contract", async () => {
+        marginBaseSettings = await (
+            await ethers.getContractFactory("MarginBaseSettings")
+        ).deploy(distributionFee);
+        expect(marginBaseSettings.address).to.exist;
+        
         marginAccountFactory = await (
             await ethers.getContractFactory("MarginAccountFactory")
-        ).deploy("1.0.0", SUSD_PROXY, ADDRESS_RESOLVER);
+        ).deploy("1.0.0", SUSD_PROXY, ADDRESS_RESOLVER, marginBaseSettings.address);
         expect(marginAccountFactory.address).to.exist;
     });
 

@@ -6,6 +6,7 @@ import "./interfaces/CheatCodes.sol";
 import "../../contracts/interfaces/IFuturesMarket.sol";
 import "../../contracts/interfaces/IFuturesMarketManager.sol";
 import "../../contracts/interfaces/IAddressResolver.sol";
+import "../../contracts/MarginBaseSettings.sol";
 import "../../contracts/MarginAccountFactory.sol";
 import "../../contracts/MarginBase.sol";
 import "./utils/MintableERC20.sol";
@@ -13,6 +14,7 @@ import "./utils/MintableERC20.sol";
 contract MarginAccountFactoryTest is DSTest {
     CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
     MintableERC20 private marginAsset;
+    MarginBaseSettings private marginBaseSettings;
     MarginAccountFactory private marginAccountFactory;
     MarginBase private account;
 
@@ -205,11 +207,16 @@ contract MarginAccountFactoryTest is DSTest {
     function setUp() public {
         mockAddressResolverCalls();
 
+        /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
+        uint256 distributionFee = 5; // 5 BPS
+        marginBaseSettings = new MarginBaseSettings(distributionFee);
+
         marginAsset = new MintableERC20(address(this), 0);
         marginAccountFactory = new MarginAccountFactory(
             "0.0.0",
             address(marginAsset),
-            address(addressResolver)
+            address(addressResolver),
+            address(marginBaseSettings)
         );
         account = MarginBase(marginAccountFactory.newAccount());
 
