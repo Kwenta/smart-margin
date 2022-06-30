@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IAddressResolver.sol";
 import "./interfaces/IFuturesMarket.sol";
 import "./interfaces/IFuturesMarketManager.sol";
+import "./MarginBaseSettings.sol";
 
 /// @title Kwenta MarginBase Account
 /// @author JaredBorders and JChiaramonte7
@@ -49,6 +50,9 @@ contract MarginBase is MinimalProxyable {
     /*///////////////////////////////////////////////////////////////
                                 State
     ///////////////////////////////////////////////////////////////*/
+
+    /// @notice settings for MarginBase account
+    MarginBaseSettings public marginBaseSettings;
 
     /// @notice synthetix address resolver
     IAddressResolver private addressResolver;
@@ -113,10 +117,12 @@ contract MarginBase is MinimalProxyable {
     /// @notice initialize contract (only once) and transfer ownership to caller
     /// @param _marginAsset: token contract address used for account margin
     /// @param _addressResolver: contract address for synthetix address resolver
-    function initialize(address _marginAsset, address _addressResolver)
-        external
-        initOnce
-    {
+    /// @param _marginBaseSettings: contract address for MarginBase account settings
+    function initialize(
+        address _marginAsset,
+        address _addressResolver,
+        address _marginBaseSettings
+    ) external initOnce {
         addressResolver = IAddressResolver(_addressResolver);
         futuresManager = IFuturesMarketManager(
             addressResolver.requireAndGetAddress(
@@ -125,6 +131,9 @@ contract MarginBase is MinimalProxyable {
             )
         );
         marginAsset = IERC20(_marginAsset);
+
+        /// @dev MarginBaseSettings must exist prior to MarginBase account creation
+        marginBaseSettings = MarginBaseSettings(_marginBaseSettings);
 
         /// @dev the Ownable constructor is never called when we create minimal proxies
         _transferOwnership(msg.sender);
@@ -161,10 +170,7 @@ contract MarginBase is MinimalProxyable {
     ///////////////////////////////////////////////////////////////*/
 
     /// @param _amount: amount of marginAsset to deposit into marginBase account
-    function deposit(uint256 _amount)
-        external
-        onlyOwner
-    {   
+    function deposit(uint256 _amount) external onlyOwner {
         /// @notice amount deposited into account cannot be zero
         if (_amount == 0) {
             revert AmountCantBeZero();
@@ -181,10 +187,7 @@ contract MarginBase is MinimalProxyable {
     }
 
     /// @param _amount: amount of marginAsset to withdraw from marginBase account
-    function withdraw(uint256 _amount)
-        external
-        onlyOwner
-    {
+    function withdraw(uint256 _amount) external onlyOwner {
         /// @notice amount withdrawn from account cannot be zero
         if (_amount == 0) {
             revert AmountCantBeZero();
@@ -241,6 +244,9 @@ contract MarginBase is MinimalProxyable {
                 // margin deposited into the market
             }
         }
+
+        // impose fee
+        // @TODO
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -396,6 +402,12 @@ contract MarginBase is MinimalProxyable {
         }
         // remove last element (which will be _marketKey)
         activeMarketKeys.pop();
+    }
+
+    /// @notice absolute value of the input, returned as an unsigned number
+    /// @param x: signed number
+    function _abs(int256 x) internal pure returns (uint256) {
+        return uint256(x < 0 ? -x : x);
     }
 
     /*///////////////////////////////////////////////////////////////
