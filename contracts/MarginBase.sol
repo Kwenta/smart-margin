@@ -220,8 +220,14 @@ contract MarginBase is MinimalProxyable {
             revert MaxNewPositionsExceeded(_newPositions.length);
         }
 
+        /// @notice initialize variable for calculating fee
+        uint256 totalMarginDelta = 0;
+
         // for each new position in _newPositions, distribute margin accordingly and update state
         for (uint16 i = 0; i < _newPositions.length; i++) {
+            // add new positions margin to totalMarginDelta
+            totalMarginDelta += _abs(_newPositions[i].marginDelta);
+
             if (_newPositions[i].isClosing) {
                 /// @notice close position and transfer margin back to account
                 closePositionAndWithdraw(_newPositions[i].marketKey);
@@ -245,8 +251,11 @@ contract MarginBase is MinimalProxyable {
             }
         }
 
-        // impose fee
-        // @TODO
+        // impose fee: send fee to Kwenta's treasury
+        require(
+            marginAsset.transfer(marginBaseSettings.treasury(), totalMarginDelta),
+            "MarginBase: unable to pay fee"
+        );
     }
 
     /*///////////////////////////////////////////////////////////////

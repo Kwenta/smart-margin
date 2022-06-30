@@ -22,6 +22,9 @@ contract MarginBaseSettings is Ownable {
     /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
     uint256 public distributionFee;
 
+    // @notice Kwenta's Treasury Address
+    address public treasury;
+
     /*///////////////////////////////////////////////////////////////
                                 Events
     ///////////////////////////////////////////////////////////////*/
@@ -30,15 +33,21 @@ contract MarginBaseSettings is Ownable {
     /// @param _distributionFee: fee denoted in BPS
     event DistributionFeeChanged(uint256 _distributionFee);
 
+    /// @notice emitted after changing treasury address
+    /// @param _treasury: new treasury address
+    event TreasuryAddressChanged(address _treasury);
+
     /*///////////////////////////////////////////////////////////////
                         Constructor
     ///////////////////////////////////////////////////////////////*/
 
     /// @notice set initial fee imposed on calls to MarginBase.distributeMargin()
     /// @param _distributionFee: fee denoted in BPS
-    constructor(uint256 _distributionFee) {
+    constructor(uint256 _distributionFee, address _treasury) {
         require(_distributionFee < MAX_BPS, "Invalid Fee");
         distributionFee = _distributionFee;
+        require(_treasury != address(0), "Invalid Address");
+        treasury = _treasury;
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -51,5 +60,13 @@ contract MarginBaseSettings is Ownable {
         require(_distributionFee < MAX_BPS, "Invalid Fee");
         distributionFee = _distributionFee;
         emit DistributionFeeChanged(_distributionFee);
+    }
+
+    /// @notice set new treasury address
+    /// @param _treasury: new treasury address
+    function setTreasury(address _treasury) external onlyOwner {
+        require(_treasury != address(0), "Invalid Address");
+        treasury = _treasury;
+        emit TreasuryAddressChanged(_treasury);
     }
 }
