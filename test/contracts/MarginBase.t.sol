@@ -24,6 +24,8 @@ contract MarginAccountFactoryTest is DSTest {
     bytes32 private linkMarketKey = "sLINK";
     bytes32 private uniMarketKey = "sUNI";
 
+    uint256 private constant INITIAL_MARGIN_ASSET_SUPPLY = 1000000 ether;
+
     struct Position {
         uint64 id;
         uint64 lastFundingIndex;
@@ -47,6 +49,9 @@ contract MarginAccountFactoryTest is DSTest {
     // address resolver for mocking
     IAddressResolver private addressResolver =
         IAddressResolver(0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C);
+    // kwenta treasury address on OE Mainnet
+    address private constant KWENTA_TREASURY =
+        0x82d2242257115351899894eF384f779b5ba8c695;
 
     /*///////////////////////////////////////////////////////////////
                                 Mocking
@@ -209,9 +214,16 @@ contract MarginAccountFactoryTest is DSTest {
 
         /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
         uint256 distributionFee = 5; // 5 BPS
-        marginBaseSettings = new MarginBaseSettings(distributionFee);
+        marginBaseSettings = new MarginBaseSettings(
+            distributionFee,
+            KWENTA_TREASURY
+        );
 
-        marginAsset = new MintableERC20(address(this), 0);
+        marginAsset = new MintableERC20(
+            address(this),
+            INITIAL_MARGIN_ASSET_SUPPLY
+        );
+
         marginAccountFactory = new MarginAccountFactory(
             "0.0.0",
             address(marginAsset),
@@ -219,6 +231,8 @@ contract MarginAccountFactoryTest is DSTest {
             address(marginBaseSettings)
         );
         account = MarginBase(marginAccountFactory.newAccount());
+
+        marginAsset.transfer(address(account), INITIAL_MARGIN_ASSET_SUPPLY);
 
         mockFuturesMarketManagerCalls();
         mockFuturesMarketCalls();
@@ -239,13 +253,19 @@ contract MarginAccountFactoryTest is DSTest {
     /**********************************
      * deposit()
      * withdraw()
+     *
+     * @notice INITIAL_MARGIN_ASSET_SUPPLY was transferred to account in setup()
+     * so that following tests do not fail when sending fee to kwenta treasury
      **********************************/
     function testDeposit() public {
         uint256 amount = 10 ether;
         marginAsset.mint(address(this), amount);
         marginAsset.approve(address(account), amount);
         account.deposit(amount);
-        assertEq(marginAsset.balanceOf(address(account)), amount);
+        assertEq(
+            marginAsset.balanceOf(address(account)),
+            (amount + INITIAL_MARGIN_ASSET_SUPPLY)
+        );
     }
 
     function testWithdrawal() public {
@@ -254,17 +274,24 @@ contract MarginAccountFactoryTest is DSTest {
         marginAsset.approve(address(account), amount);
         account.deposit(amount);
         account.withdraw(amount);
-        assertEq(marginAsset.balanceOf(address(account)), 0);
+        assertEq(
+            marginAsset.balanceOf(address(account)),
+            INITIAL_MARGIN_ASSET_SUPPLY
+        );
     }
 
     /// @dev Deposit/Withdrawal fuzz test
     function testWithdrawal(uint256 amount) public {
         cheats.assume(amount > 0);
+        cheats.assume(amount <= 10000000 ether); // 10_000_000
         marginAsset.mint(address(this), amount);
         marginAsset.approve(address(account), amount);
         account.deposit(amount);
         account.withdraw(amount);
-        assertEq(marginAsset.balanceOf(address(account)), 0);
+        assertEq(
+            marginAsset.balanceOf(address(account)),
+            INITIAL_MARGIN_ASSET_SUPPLY
+        );
     }
 
     /**********************************

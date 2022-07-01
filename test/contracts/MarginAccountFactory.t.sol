@@ -15,6 +15,9 @@ contract MarginAccountFactoryTest is DSTest {
     address private addressResolver =
         0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C;
 
+    address private constant KWENTA_TREASURY =
+        0x82d2242257115351899894eF384f779b5ba8c695;
+
     // futures market manager for mocking
     IFuturesMarketManager private futuresManager =
         IFuturesMarketManager(0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B);
@@ -45,7 +48,10 @@ contract MarginAccountFactoryTest is DSTest {
 
         /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
         uint256 distributionFee = 5; // 5 BPS
-        marginBaseSettings = new MarginBaseSettings(distributionFee);
+        marginBaseSettings = new MarginBaseSettings(
+            distributionFee,
+            KWENTA_TREASURY
+        );
 
         marginAccountFactory = new MarginAccountFactory(
             "0.0.0",

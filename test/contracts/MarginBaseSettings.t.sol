@@ -11,10 +11,18 @@ contract MarginBaseSettingsTest is DSTest {
     CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
     MarginBaseSettings private marginBaseSettings;
 
+    address private constant KWENTA_TREASURY =
+        0x82d2242257115351899894eF384f779b5ba8c695;
+    address private constant RANDOM_ADDRESS =
+        0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B;
+
     function setUp() public {
         /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
         uint256 distributionFee = 5; // 5 BPS
-        marginBaseSettings = new MarginBaseSettings(distributionFee);
+        marginBaseSettings = new MarginBaseSettings(
+            distributionFee,
+            KWENTA_TREASURY
+        );
     }
 
     function testSettingsOwnerIsDeployer() public {
@@ -30,7 +38,17 @@ contract MarginBaseSettingsTest is DSTest {
 
     function testFailSetDistributionFeeIfNotOwner(uint256 x) public {
         cheats.assume(x < 10_000);
-        marginBaseSettings.transferOwnership(0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B); // not a zero address
+        marginBaseSettings.transferOwnership(RANDOM_ADDRESS); // not a zero address
         marginBaseSettings.setDistributionFee(x);
+    }
+
+    function testSettingTreasuryAddress() public {
+        marginBaseSettings.setTreasury(RANDOM_ADDRESS);
+        assertTrue(marginBaseSettings.treasury() == RANDOM_ADDRESS);
+    }
+
+    function testFailSettingTreasuryAddressIfNotOwner() public {
+        marginBaseSettings.transferOwnership(RANDOM_ADDRESS); // not a zero address
+        marginBaseSettings.setTreasury(RANDOM_ADDRESS);
     }
 }
