@@ -9,7 +9,7 @@ import "./interfaces/IFuturesMarketManager.sol";
 import "./MarginBaseSettings.sol";
 
 /// @title Kwenta MarginBase Account
-/// @author JaredBorders and JChiaramonte7
+/// @author JaredBorders (jaredborders@proton.me) and JChiaramonte7 (@TODO)
 /// @notice Flexible, minimalist, and gas-optimized cross-margin enabled account
 /// for managing perpetual futures positions
 contract MarginBase is MinimalProxyable {
@@ -17,11 +17,14 @@ contract MarginBase is MinimalProxyable {
                                 Constants
     ///////////////////////////////////////////////////////////////*/
 
-    // tracking code used when modifying positions
+    /// @notice tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
 
-    // name for futures market manager, needed for fetching market key
+    /// @notice name for futures market manager, needed for fetching market key
     bytes32 private constant FUTURES_MANAGER = "FuturesMarketManager";
+
+    /// @notice max BPS
+    uint256 private constant MAX_BPS = 10000;
 
     /*///////////////////////////////////////////////////////////////
                                 Types
@@ -220,12 +223,13 @@ contract MarginBase is MinimalProxyable {
             revert MaxNewPositionsExceeded(_newPositions.length);
         }
 
-        /// @notice initialize variable for calculating fee
+        /// @notice initialize variable for calculating fee based on margin delta
+        /// @dev margin delta: total margin deposited/withdrawn across ALL new positions
         uint256 totalMarginDelta = 0;
 
         // for each new position in _newPositions, distribute margin accordingly and update state
         for (uint16 i = 0; i < _newPositions.length; i++) {
-            // add new positions margin to totalMarginDelta
+            // add new position's margin to totalMarginDelta
             totalMarginDelta += _abs(_newPositions[i].marginDelta);
 
             if (_newPositions[i].isClosing) {
@@ -251,11 +255,17 @@ contract MarginBase is MinimalProxyable {
             }
         }
 
-        // impose fee: send fee to Kwenta's treasury
-        require(
-            marginAsset.transfer(marginBaseSettings.treasury(), totalMarginDelta),
-            "MarginBase: unable to pay fee"
-        );
+        /// @notice impose fee: send fee to Kwenta's treasury IF margin was deposited/withdrawn
+        if (totalMarginDelta > 0) {
+            require(
+                marginAsset.transfer(
+                    marginBaseSettings.treasury(),
+                    (totalMarginDelta * marginBaseSettings.distributionFee()) /
+                        MAX_BPS
+                ),
+                "MarginBase: unable to pay fee"
+            );
+        }
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -292,6 +302,8 @@ contract MarginBase is MinimalProxyable {
         // fetch new position data from Synthetix
         (, , uint128 margin, , int128 size) = market.positions(address(this));
 
+        // @TODO: Calculate and Impose Fee Here
+
         // update state for given open market position
         updateActiveMarketPosition(_marketKey, margin, size, market);
     }
@@ -326,6 +338,8 @@ contract MarginBase is MinimalProxyable {
         // fetch new position data from Synthetix
         (, , uint128 margin, , int128 size) = market.positions(address(this));
 
+        // @TODO: Calculate and Impose Fee Here
+
         // update state for given open market position
         updateActiveMarketPosition(_marketKey, margin, size, market);
     }
@@ -338,6 +352,10 @@ contract MarginBase is MinimalProxyable {
 
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
+
+        // @TODO: Calculate and Impose Fee Here
+        // fetch position data from Synthetix
+        //(, , uint128 margin, , int128 size) = market.positions(address(this));
 
         // close market position
         market.closePosition();
@@ -413,12 +431,6 @@ contract MarginBase is MinimalProxyable {
         activeMarketKeys.pop();
     }
 
-    /// @notice absolute value of the input, returned as an unsigned number
-    /// @param x: signed number
-    function _abs(int256 x) internal pure returns (uint256) {
-        return uint256(x < 0 ? -x : x);
-    }
-
     /*///////////////////////////////////////////////////////////////
                 Internal Futures Market Initialization
     ///////////////////////////////////////////////////////////////*/
@@ -432,5 +444,15 @@ contract MarginBase is MinimalProxyable {
         returns (IFuturesMarket)
     {
         return IFuturesMarket(futuresManager.marketForKey(_marketKey));
+    }
+
+    /*///////////////////////////////////////////////////////////////
+                    Utility Functions
+    ///////////////////////////////////////////////////////////////*/
+
+    /// @notice absolute value of the input, returned as an unsigned number
+    /// @param x: signed number
+    function _abs(int256 x) internal pure returns (uint256) {
+        return uint256(x < 0 ? -x : x);
     }
 }
