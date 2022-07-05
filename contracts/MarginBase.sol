@@ -9,7 +9,7 @@ import "./interfaces/IFuturesMarketManager.sol";
 import "./MarginBaseSettings.sol";
 
 /// @title Kwenta MarginBase Account
-/// @author JaredBorders (jaredborders@proton.me) and JChiaramonte7 (@TODO)
+/// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice Flexible, minimalist, and gas-optimized cross-margin enabled account
 /// for managing perpetual futures positions
 contract MarginBase is MinimalProxyable {
@@ -210,6 +210,10 @@ contract MarginBase is MinimalProxyable {
                             Margin Distribution
     ///////////////////////////////////////////////////////////////*/
 
+    /// @notice tracking variable for calculating fee(s) based on margin delta
+    /// @dev margin delta: total margin deposited/withdrawn across ALL new positions
+    uint256 private totalMarginDelta;
+
     /// @notice distribute margin across all/some positions specified via _newPositions
     /// @dev _newPositions may contain any number of new or existing positions
     /// @dev caller can close and withdraw all margin from position if _newPositions[i].isClosing is true
@@ -223,15 +227,11 @@ contract MarginBase is MinimalProxyable {
             revert MaxNewPositionsExceeded(_newPositions.length);
         }
 
-        /// @notice initialize variable for calculating fee based on margin delta
-        /// @dev margin delta: total margin deposited/withdrawn across ALL new positions
-        uint256 totalMarginDelta = 0;
+        /// @notice set totalMarginDelta to 0 and begin tracking fees for current call to distributeMargin()
+        totalMarginDelta = 0;
 
         // for each new position in _newPositions, distribute margin accordingly and update state
         for (uint16 i = 0; i < _newPositions.length; i++) {
-            // add new position's margin to totalMarginDelta
-            totalMarginDelta += _abs(_newPositions[i].marginDelta);
-
             if (_newPositions[i].isClosing) {
                 /// @notice close position and transfer margin back to account
                 closePositionAndWithdraw(_newPositions[i].marketKey);
@@ -286,6 +286,11 @@ contract MarginBase is MinimalProxyable {
             revert InvalidMarketDepositSize(_depositSize);
         }
 
+        /// @notice calculate fee based on _depositSize
+        /// @dev fee is imposed prior to opening position
+        /// @dev add new position's margin to totalMarginDelta
+        totalMarginDelta += _abs(_depositSize);
+
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
 
@@ -301,8 +306,6 @@ contract MarginBase is MinimalProxyable {
 
         // fetch new position data from Synthetix
         (, , uint128 margin, , int128 size) = market.positions(address(this));
-
-        // @TODO: Calculate and Impose Fee Here
 
         // update state for given open market position
         updateActiveMarketPosition(_marketKey, margin, size, market);
@@ -322,6 +325,11 @@ contract MarginBase is MinimalProxyable {
             revert InvalidMarketWithdrawSize(_withdrawalSize);
         }
 
+        /// @notice calculate fee based on _withdrawalSize
+        /// @dev fee is imposed prior to opening position
+        /// @dev add new position's margin to totalMarginDelta
+        totalMarginDelta += _abs(_withdrawalSize);
+
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
 
@@ -338,8 +346,6 @@ contract MarginBase is MinimalProxyable {
         // fetch new position data from Synthetix
         (, , uint128 margin, , int128 size) = market.positions(address(this));
 
-        // @TODO: Calculate and Impose Fee Here
-
         // update state for given open market position
         updateActiveMarketPosition(_marketKey, margin, size, market);
     }
@@ -353,9 +359,13 @@ contract MarginBase is MinimalProxyable {
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
 
-        // @TODO: Calculate and Impose Fee Here
         // fetch position data from Synthetix
-        //(, , uint128 margin, , int128 size) = market.positions(address(this));
+        (, , uint128 margin, ,) = market.positions(address(this));
+
+        /// @notice calculate fee based on margin in market being closed
+        /// @dev fee is imposed prior to opening position
+        /// @dev add new position's margin to totalMarginDelta
+        totalMarginDelta += margin;
 
         // close market position
         market.closePosition();
@@ -369,10 +379,10 @@ contract MarginBase is MinimalProxyable {
     ///////////////////////////////////////////////////////////////*/
 
     /// @notice used internally to update contract state for the account's active position tracking
+    /// @dev if _size becomes 0, remove position from account state and withdraw margin (only non-"internal" logic in below code)
     /// @param _marketKey: key for synthetix futures market
     /// @param _margin: amount of margin the specific market position has
     /// @param _size: represents size of position (i.e. accounts for leverage)
-    /// @dev if _size becomes 0, remove position from account state and withdraw margin
     function updateActiveMarketPosition(
         bytes32 _marketKey,
         uint128 _margin,

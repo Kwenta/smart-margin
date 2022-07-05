@@ -6,7 +6,7 @@ import "./MarginBase.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title Kwenta MarginBase Factory
-/// @author JaredBorders and JChiaramonte7
+/// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice Factory which enables deploying a MarginBase account for any user 
 contract MarginAccountFactory is MinimalProxyFactory {
     

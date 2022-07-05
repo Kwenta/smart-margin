@@ -4,7 +4,7 @@ pragma solidity 0.8.13;
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @title Kwenta Settings for MarginBase Accounts
-/// @author JaredBorders
+/// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice Contract (owned by the deployer) for controlling the settings of MarginBase account(s)
 /// @dev This contract will require deployment prior to MarginBase account creation
 contract MarginBaseSettings is Ownable {
@@ -13,7 +13,7 @@ contract MarginBaseSettings is Ownable {
     ///////////////////////////////////////////////////////////////*/
 
     /// @notice decimals calculations
-    uint256 private constant MAX_BPS = 10_000;
+    uint256 private constant MAX_BPS = 10000;
 
     /*///////////////////////////////////////////////////////////////
                         Settings
@@ -43,15 +43,15 @@ contract MarginBaseSettings is Ownable {
     event TreasuryAddressChanged(address treasury);
 
     /// @notice emitted after a successful distribution fee change
-    /// @param fee: fee denoted in BPS
+    /// @param distributionFee: fee denoted in BPS
     event DistributionFeeChanged(uint256 distributionFee);
 
     /// @notice emitted after a successful limit order fee change
-    /// @param fee: fee denoted in BPS
+    /// @param limitOrderFee: fee denoted in BPS
     event LimitOrderFeeChanged(uint256 limitOrderFee);
 
     /// @notice emitted after a successful stop loss fee change
-    /// @param fee: fee denoted in BPS
+    /// @param stopLossFee: fee denoted in BPS
     event StopLossFeeChanged(uint256 stopLossFee);
 
     /*///////////////////////////////////////////////////////////////
