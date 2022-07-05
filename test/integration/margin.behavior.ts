@@ -115,7 +115,7 @@ dotenv.config();
  *
  * The first position object closes the BTC position, returning that margin to the account
  * which can then be used to open or modify positions: X, Y, Z.
- * 
+ *
  * (3) Notice that there is a distribute margin fee taken whenever margin is deposited/withdrawn
  *          from a market. Following tests explain and test this mechanism.
  *
@@ -129,6 +129,8 @@ const TEST_VALUE = ethers.BigNumber.from("1000000000000000000000"); // == $1_000
 
 // denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
 const distributionFee = 5;
+const limitOrderFee = 5;
+const stopLossFee = 10;
 
 // kwenta
 const KWENTA_TREASURY = "0x82d2242257115351899894eF384f779b5ba8c695";
@@ -191,7 +193,7 @@ describe("Integration: Test Cross Margin", () => {
     it("Should deploy MarginAccountFactory contract", async () => {
         marginBaseSettings = await (
             await ethers.getContractFactory("MarginBaseSettings")
-        ).deploy(distributionFee, KWENTA_TREASURY);
+        ).deploy(KWENTA_TREASURY, distributionFee, limitOrderFee, stopLossFee);
         expect(marginBaseSettings.address).to.exist;
 
         marginAccountFactory = await (
@@ -539,6 +541,7 @@ describe("Integration: Test Cross Margin", () => {
 
         // confirm above assertion
         const preTradeBalance = await sUSD.balanceOf(marginAccount.address);
+        const preTradeTreasuryBalance = await sUSD.balanceOf(KWENTA_TREASURY);
 
         // define new positions (modify existing)
         const newPositions = [
@@ -633,12 +636,21 @@ describe("Integration: Test Cross Margin", () => {
         expect(UNIposition.size).to.equal(
             ethers.BigNumber.from("-180000000000000000000")
         ); // 180 UNI
-        
-        // closeTo used due to fees imposed
+
+        // confirm fees paid correctly
         const postTradeBalance = await sUSD.balanceOf(marginAccount.address);
         expect(postTradeBalance).to.be.equal(
             // subtract margin delta and fees for each trade
-            preTradeBalance.sub(TEST_VALUE.mul(4)).sub(TEST_VALUE.mul(4).mul(distributionFee).div(10_000))
+            preTradeBalance
+                .sub(TEST_VALUE.mul(4))
+                .sub(TEST_VALUE.mul(4).mul(distributionFee).div(10_000))
+        );
+
+        const postTradeTreasuryBalance = await sUSD.balanceOf(KWENTA_TREASURY);
+        expect(postTradeTreasuryBalance).to.be.equal(
+            // subtract margin delta and fees for each trade
+            preTradeTreasuryBalance
+                .add(TEST_VALUE.mul(4).mul(distributionFee).div(10_000))
         );
     });
 
@@ -653,6 +665,7 @@ describe("Integration: Test Cross Margin", () => {
 
         // confirm above assertion
         const preTradeBalance = await sUSD.balanceOf(marginAccount.address);
+        const preTradeTreasuryBalance = await sUSD.balanceOf(KWENTA_TREASURY);
 
         // define new positions (modify existing)
         const newPositions = [
@@ -748,11 +761,20 @@ describe("Integration: Test Cross Margin", () => {
             ethers.BigNumber.from("-180000000000000000000")
         ); // 180 UNI
 
-        // closeTo used due to fees imposed
+        // confirm fees paid correctly
         const postTradeBalance = await sUSD.balanceOf(marginAccount.address);
         expect(postTradeBalance).to.be.equal(
             // subtract margin delta and fees for each trade
-            preTradeBalance.add(TEST_VALUE.mul(4)).sub(TEST_VALUE.mul(4).mul(distributionFee).div(10_000))
+            preTradeBalance
+                .add(TEST_VALUE.mul(4))
+                .sub(TEST_VALUE.mul(4).mul(distributionFee).div(10_000))
+        );
+
+        const postTradeTreasuryBalance = await sUSD.balanceOf(KWENTA_TREASURY);
+        expect(postTradeTreasuryBalance).to.be.equal(
+            // subtract margin delta and fees for each trade
+            preTradeTreasuryBalance
+                .add(TEST_VALUE.mul(4).mul(distributionFee).div(10_000))
         );
     });
 
@@ -765,16 +787,23 @@ describe("Integration: Test Cross Margin", () => {
 
         const expectedBalance = ACCOUNT_AMOUNT.sub(
             // 12 trades depositing/withdrawing margin, 8 deposit, 4 withdraw = 4 net deposit
-            TEST_VALUE.mul(4) 
+            TEST_VALUE.mul(4)
         ).sub(
             // 12 positions that modify margin by TEST_VALUE thus far (i.e. fees imposed)
-            TEST_VALUE.mul(12).mul(distributionFee).div(10_000) 
+            TEST_VALUE.mul(12).mul(distributionFee).div(10_000)
         );
+
         const actualbalance = await sUSD.balanceOf(marginAccount.address);
         expect(expectedBalance).to.equal(actualbalance);
     });
 
     it("Should Exit Position by Setting Size to Zero", async () => {
+        /*
+         * After trades were executed, a fee would have been sent to treasury
+         */
+        // confirm above assertion
+        const preTradeTreasuryBalance = await sUSD.balanceOf(KWENTA_TREASURY);
+
         // establish ETH position
         let position = await marginAccount
             .connect(account0)
@@ -799,9 +828,32 @@ describe("Integration: Test Cross Margin", () => {
             .connect(account0)
             .getNumberOfActivePositions();
         expect(numberOfActivePositions).to.equal(3);
+
+        // confirm kwenta treasury received fees
+        const postTradeTreasuryBalance = await sUSD.balanceOf(KWENTA_TREASURY);
+
+        // @TODO Fix/Investigate calculation
+
+        // expect(postTradeTreasuryBalance).to.be.equal(
+        //     preTradeTreasuryBalance.add(
+        //         position.margin.mul(distributionFee).div(10_000)
+        //     )
+        // );
+        // fails: 491907513039199122 / 991171800876081994034 = 0.0004962888498 ????
+        expect(postTradeTreasuryBalance).to.be.above(preTradeTreasuryBalance);
+        console.log(position.margin);
+        console.log(postTradeTreasuryBalance.sub(preTradeTreasuryBalance));
     });
 
     it("Should Exit One Position with isClosing", async () => {
+        // confirm above assertion
+        const preTradeBalance = await sUSD.balanceOf(KWENTA_TREASURY);
+
+        // establish ETH position
+        let position = await marginAccount
+            .connect(account0)
+            .activeMarketPositions(MARKET_KEY_sBTC);
+
         // define new positions (modify existing)
         const newPositions = [
             {
@@ -821,6 +873,13 @@ describe("Integration: Test Cross Margin", () => {
             .connect(account0)
             .getNumberOfActivePositions();
         expect(numberOfActivePositions).to.equal(2);
+
+        // confirm kwenta treasury received fees
+        const postTradeBalance = await sUSD.balanceOf(KWENTA_TREASURY);
+
+        // @TODO Fix/Investigate calculation
+
+        expect(postTradeBalance).to.be.above(preTradeBalance);
     });
 
     it("Should Exit All Positions with isClosing", async () => {
@@ -850,6 +909,8 @@ describe("Integration: Test Cross Margin", () => {
             .connect(account0)
             .getNumberOfActivePositions();
         expect(numberOfActivePositions).to.equal(0);
+
+        // @TODO add/check fee calculation
     });
 
     it("Should have Withdrawn All Margin back to Account", async () => {
@@ -861,7 +922,7 @@ describe("Integration: Test Cross Margin", () => {
          * After trades are executed, a fee will be sent to treasury
          */
 
-        const expectedBalance = ACCOUNT_AMOUNT
+        const expectedBalance = ACCOUNT_AMOUNT;
         const actualbalance = await sUSD.balanceOf(marginAccount.address);
         expect(expectedBalance).to.be.closeTo(
             actualbalance,

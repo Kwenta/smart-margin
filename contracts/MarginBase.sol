@@ -207,6 +207,12 @@ contract MarginBase is MinimalProxyable {
     }
 
     /*///////////////////////////////////////////////////////////////
+                    Account Deposit & Open Position
+    ///////////////////////////////////////////////////////////////*/
+
+    // @TODO https://github.com/Kwenta/margin-manager/issues/12
+
+    /*///////////////////////////////////////////////////////////////
                             Margin Distribution
     ///////////////////////////////////////////////////////////////*/
 
@@ -287,7 +293,6 @@ contract MarginBase is MinimalProxyable {
         }
 
         /// @notice calculate fee based on _depositSize
-        /// @dev fee is imposed prior to opening position
         /// @dev add new position's margin to totalMarginDelta
         totalMarginDelta += _abs(_depositSize);
 
@@ -326,7 +331,6 @@ contract MarginBase is MinimalProxyable {
         }
 
         /// @notice calculate fee based on _withdrawalSize
-        /// @dev fee is imposed prior to opening position
         /// @dev add new position's margin to totalMarginDelta
         totalMarginDelta += _abs(_withdrawalSize);
 
@@ -363,8 +367,7 @@ contract MarginBase is MinimalProxyable {
         (, , uint128 margin, ,) = market.positions(address(this));
 
         /// @notice calculate fee based on margin in market being closed
-        /// @dev fee is imposed prior to opening position
-        /// @dev add new position's margin to totalMarginDelta
+        /// @dev add fee to totalMarginDelta
         totalMarginDelta += margin;
 
         // close market position
@@ -395,6 +398,10 @@ contract MarginBase is MinimalProxyable {
         if (_size == 0) {
             // update state (remove market)
             removeActiveMarketPositon(_marketKey);
+
+            /// @notice calculate fee based on margin in market being closed
+            /// @dev add fee to totalMarginDelta
+            totalMarginDelta += _margin;
 
             // withdraw margin back to this account
             market.withdrawAllMargin();
@@ -431,13 +438,14 @@ contract MarginBase is MinimalProxyable {
             // once _marketKey is encountered, swap with
             // last element in array and exit for-loop
             if (activeMarketKeys[i] == _marketKey) {
+                /// @dev effectively removes _marketKey from activeMarketKeys
                 activeMarketKeys[i] = activeMarketKeys[
                     numberOfActiveMarkets - 1
                 ];
                 break;
             }
         }
-        // remove last element (which will be _marketKey)
+        // remove last element now that it has been copied 
         activeMarketKeys.pop();
     }
 

@@ -48,9 +48,13 @@ contract MarginAccountFactoryTest is DSTest {
 
         /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
         uint256 distributionFee = 5; // 5 BPS
+        uint256 limitOrderFee = 5; // 5 BPS
+        uint256 stopLossFee = 10; // 10 BPS
         marginBaseSettings = new MarginBaseSettings(
+            KWENTA_TREASURY,
             distributionFee,
-            KWENTA_TREASURY
+            limitOrderFee,
+            stopLossFee
         );
 
         marginAccountFactory = new MarginAccountFactory(
