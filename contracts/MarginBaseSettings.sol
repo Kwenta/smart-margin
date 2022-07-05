@@ -74,7 +74,7 @@ contract MarginBaseSettings is Ownable {
     error InvalidStopLossFee(uint256 fee);
 
     /*///////////////////////////////////////////////////////////////
-                        Constructor
+                            Constructor
     ///////////////////////////////////////////////////////////////*/
 
     /// @notice set initial fee imposed on calls to MarginBase.distributeMargin()
@@ -106,7 +106,7 @@ contract MarginBaseSettings is Ownable {
     }
 
     /*///////////////////////////////////////////////////////////////
-                        Setters
+                                Setters
     ///////////////////////////////////////////////////////////////*/
 
     /// @notice set new treasury address
@@ -133,7 +133,7 @@ contract MarginBaseSettings is Ownable {
         emit DistributionFeeChanged(distributionFee);
     }
 
-    /// @notice set new limit order Fee fee
+    /// @notice set new limit order fee
     /// @param _limitOrderFee: fee denoted in BPS
     function setLimitOrderFee(uint256 _limitOrderFee) external onlyOwner {
         /// @notice ensure valid fee
@@ -153,7 +153,7 @@ contract MarginBaseSettings is Ownable {
 
         /// @notice set fee
         stopLossFee = _stopLossFee;
-        
+
         emit StopLossFeeChanged(stopLossFee);
     }
 }
