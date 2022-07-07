@@ -50,9 +50,10 @@ contract MarginBase is MinimalProxyable, OpsReady {
     }
 
     struct Order {
-        int256 margin;
-        int256 size;
-        uint256 price;
+        bytes32 marketKey;
+        int256 marginDelta; // positive indicates deposit, negative withdraw
+        int256 sizeDelta;
+        uint256 desiredPrice;
         bytes32 gelatoTaskId;
     }
 
@@ -80,7 +81,10 @@ contract MarginBase is MinimalProxyable, OpsReady {
     mapping(bytes32 => ActiveMarketPosition) public activeMarketPositions;
 
     // limit orders
-    mapping(address => Order) public orders;
+    mapping(uint256 => Order) public orders;
+
+    // sequentially id orders
+    uint256 public orderId;
 
     /*///////////////////////////////////////////////////////////////
                                 Events
@@ -466,9 +470,10 @@ contract MarginBase is MinimalProxyable, OpsReady {
                             Limit Orders
     ///////////////////////////////////////////////////////////////*/
 
-    function validOrder(address _market) public view returns (bool) {
-        Order memory order = orders[_market];
-        bytes32 currencyKey = IFuturesMarket(_market).baseAsset();
+    function validOrder(uint256 _orderId) public view returns (bool) {
+        Order memory order = orders[_orderId];
+
+        bytes32 currencyKey = futuresMarket(order.marketKey).baseAsset();
         // Get exchange rate for 1 unit
         uint256 price = exchangeRates().effectiveValue(
             currencyKey,
@@ -476,23 +481,23 @@ contract MarginBase is MinimalProxyable, OpsReady {
             "sUSD"
         );
 
-        if (order.size > 0) {
+        if (order.sizeDelta > 0) {
             // Long
-            return price <= order.price;
-        } else if (order.size < 0) {
+            return price <= order.desiredPrice;
+        } else if (order.sizeDelta < 0) {
             // Short
-            return price >= order.price;
+            return price >= order.desiredPrice;
         } else {
             revert("Order size 0");
         }
     }
 
     function placeOrder(
-        address _market,
+        bytes32 _marketKey,
         int256 _marginDelta,
         int256 _sizeDelta,
         uint256 _limitPrice
-    ) external onlyOwner returns (Order memory) {
+    ) external onlyOwner returns (uint256) {
         // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
             // ensure margin doesn't exceed max
@@ -505,54 +510,54 @@ contract MarginBase is MinimalProxyable, OpsReady {
             address(this),
             this.executeOrder.selector,
             address(this),
-            abi.encodeWithSelector(this.checker.selector, _market)
+            abi.encodeWithSelector(this.checker.selector, orderId)
         );
 
-        orders[_market] = Order({
-            margin: _marginDelta,
-            size: _sizeDelta,
-            price: _limitPrice,
+        orders[orderId] = Order({
+            marketKey: _marketKey,
+            marginDelta: _marginDelta,
+            sizeDelta: _sizeDelta,
+            desiredPrice: _limitPrice,
             gelatoTaskId: taskId
         });
 
-        return orders[_market];
+        return orderId++;
     }
 
-    function cancelOrder(address _market) external onlyOwner {
-        Order memory order = orders[_market];
+    function cancelOrder(uint256 _orderId) external onlyOwner {
+        Order memory order = orders[_orderId];
 
         // if margin was committed, free it
-        if (order.margin > 0) {
-            committedMargin -= _abs(order.margin);
+        if (order.marginDelta > 0) {
+            committedMargin -= _abs(order.marginDelta);
         }
         IOps(ops).cancelTask(order.gelatoTaskId);
 
         // delete order from orders
-        delete orders[_market];
+        delete orders[_orderId];
     }
 
-    function executeOrder(address _market) external onlyOps {
-        require(validOrder(_market), "Order not ready for execution");
-        Order memory order = orders[_market];
+    function executeOrder(uint256 _orderId) external onlyOps {
+        require(validOrder(_orderId), "Order not ready for execution");
+        Order memory order = orders[_orderId];
 
         // if margin was committed, free it
-        if (order.margin > 0) {
-            committedMargin -= _abs(order.margin);
+        if (order.marginDelta > 0) {
+            committedMargin -= _abs(order.marginDelta);
         }
 
         // prep new position
-        bytes32 currencyKey = IFuturesMarket(_market).baseAsset();
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
-            "sETH",
-            order.margin,
-            order.size,
+            order.marketKey,
+            order.marginDelta,
+            order.sizeDelta,
             false // assume the position will be closed if the limit order is the opposite size
         );
 
         // delete order from orders
-        delete orders[_market];
+        delete orders[_orderId];
 
         // execute trade
         _distributeMargin(newPositions);
@@ -562,15 +567,15 @@ contract MarginBase is MinimalProxyable, OpsReady {
         _transfer(fee, feeToken);
     }
 
-    function checker(address _market)
+    function checker(uint256 _orderId)
         external
         view
         returns (bool canExec, bytes memory execPayload)
     {
-        canExec = validOrder(_market);
+        canExec = validOrder(_orderId);
         execPayload = abi.encodeWithSelector(
             this.executeOrder.selector,
-            _market
+            _orderId
         );
     }
 

@@ -46,10 +46,8 @@ contract MarginAccountFactoryTest is DSTest {
     IAddressResolver private addressResolver =
         IAddressResolver(0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C);
 
-    IOps private constant gelatoOps =
-        IOps(0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c);
-    address private constant gelato =
-        0x01051113D81D7d6DA508462F2ad6d7fD96cF42Ef;
+    IOps private gelatoOps = IOps(0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c);
+    address private gelato = 0x01051113D81D7d6DA508462F2ad6d7fD96cF42Ef;
 
     /*///////////////////////////////////////////////////////////////
                                 Mocking
@@ -203,12 +201,10 @@ contract MarginAccountFactoryTest is DSTest {
         }
     }
 
-    function mockExternalCallsForPrice(address market, uint256 mockedPrice)
-        internal
-    {
+    function mockExternalCallsForEthPrice(uint256 mockedPrice) internal {
         address exchangeRates = address(2);
         cheats.mockCall(
-            market,
+            address(futuresMarketETH),
             abi.encodePacked(IFuturesMarket.baseAsset.selector),
             abi.encode("sSYNTH")
         );
@@ -271,16 +267,21 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     function placeLimitOrder(
-        address market,
+        bytes32 marketKey,
         int256 marginDelta,
         int256 sizeDelta,
         uint256 limitPrice
-    ) internal {
+    ) internal returns (uint256 orderId) {
         bytes memory createTaskSelector = abi.encodePacked(
             IOps.createTask.selector
         );
         cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
-        account.placeOrder(market, marginDelta, sizeDelta, limitPrice);
+        orderId = account.placeOrder(
+            marketKey,
+            marginDelta,
+            sizeDelta,
+            limitPrice
+        );
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -332,7 +333,6 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     function testLimitValid() public {
-        address market = address(1);
         uint256 amount = 10e18;
         int256 orderSizeDelta = 1e18;
         uint256 expectedLimitPrice = 3e18;
@@ -340,21 +340,20 @@ contract MarginAccountFactoryTest is DSTest {
 
         // Setup
         deposit(amount);
-        placeLimitOrder(
-            market,
+        uint256 orderId = placeLimitOrder(
+            ethMarketKey,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
         );
 
-        mockExternalCallsForPrice(market, currentPrice);
-        assertTrue(account.validOrder(market));
+        mockExternalCallsForEthPrice(currentPrice);
+        assertTrue(account.validOrder(orderId));
     }
 
     /// @notice These orders should ALWAYS be valid
     /// @dev Limit order validity fuzz test
     function testLimitValid(uint256 currentPrice) public {
-        address market = address(1);
         uint256 amount = 10e18;
         int256 orderSizeDelta = 1e18;
         uint256 expectedLimitPrice = 3e18;
@@ -364,21 +363,20 @@ contract MarginAccountFactoryTest is DSTest {
 
         // Setup
         deposit(amount);
-        placeLimitOrder(
-            market,
+        uint256 orderId = placeLimitOrder(
+            ethMarketKey,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
         );
 
-        mockExternalCallsForPrice(market, currentPrice);
-        assertTrue(account.validOrder(market));
+        mockExternalCallsForEthPrice(currentPrice);
+        assertTrue(account.validOrder(orderId));
     }
 
     /// @notice These orders should ALWAYS be valid
     /// @dev Limit order validity fuzz test
     function testLimitInvalid(uint256 currentPrice) public {
-        address market = address(1);
         uint256 amount = 10e18;
         int256 orderSizeDelta = 1e18;
         uint256 expectedLimitPrice = 3e18;
@@ -388,42 +386,40 @@ contract MarginAccountFactoryTest is DSTest {
 
         // Setup
         deposit(amount);
-        placeLimitOrder(
-            market,
+        uint256 orderId = placeLimitOrder(
+            ethMarketKey,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
         );
 
-        mockExternalCallsForPrice(market, currentPrice);
-        assertTrue(!account.validOrder(market));
+        mockExternalCallsForEthPrice(currentPrice);
+        assertTrue(!account.validOrder(orderId));
     }
 
     function testPlaceOrder() public {
-        address market = address(1);
         uint256 amount = 10e18;
         int256 orderSizeDelta = 1e18;
         uint256 expectedLimitPrice = 3e18;
         deposit(amount);
-        placeLimitOrder(
-            market,
+        uint256 orderId = placeLimitOrder(
+            ethMarketKey,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
         );
-        (, , uint256 actualLimitPrice, ) = account.orders(market);
+        (, , , uint256 actualLimitPrice, ) = account.orders(orderId);
         assertEq(expectedLimitPrice, actualLimitPrice);
     }
 
     function testCommittingMargin() public {
         assertEq(account.committedMargin(), 0);
-        address market = address(1);
         uint256 amount = 10e18;
         int256 orderSizeDelta = 1e18;
         uint256 expectedLimitPrice = 3e18;
         deposit(amount);
         placeLimitOrder(
-            market,
+            ethMarketKey,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
@@ -434,14 +430,13 @@ contract MarginAccountFactoryTest is DSTest {
     // assert cannot withdraw committed margin
     function testWithdrawingCommittedMargin() public {
         assertEq(account.committedMargin(), 0);
-        address market = address(1);
         uint256 originalDeposit = 10e18;
         uint256 amountToCommit = originalDeposit;
         int256 orderSizeDelta = 1e18;
         uint256 expectedLimitPrice = 3e18;
         deposit(originalDeposit);
         placeLimitOrder(
-            market,
+            ethMarketKey,
             int256(amountToCommit),
             orderSizeDelta,
             expectedLimitPrice
@@ -459,7 +454,6 @@ contract MarginAccountFactoryTest is DSTest {
     function testWithdrawingCommittedMargin(uint256 originalDeposit) public {
         cheats.assume(originalDeposit > 0);
         assertEq(account.committedMargin(), 0);
-        address market = address(1);
         uint256 amountToCommit = originalDeposit;
         int256 orderSizeDelta = 1e18;
         uint256 expectedLimitPrice = 3e18;
@@ -471,7 +465,7 @@ contract MarginAccountFactoryTest is DSTest {
         cheats.assume(amountToCommit != 0);
 
         placeLimitOrder(
-            market,
+            ethMarketKey,
             int256(amountToCommit),
             orderSizeDelta,
             expectedLimitPrice
@@ -489,7 +483,6 @@ contract MarginAccountFactoryTest is DSTest {
     // assert cannot use committed margin when opening new positions
     function testDistributingCommittedMargin() public {
         assertEq(account.committedMargin(), 0);
-        address market = address(1);
         uint256 originalDeposit = 10e18;
         uint256 amountToCommit = originalDeposit;
         int256 firstOrderSizeDelta = 1e18;
@@ -497,7 +490,7 @@ contract MarginAccountFactoryTest is DSTest {
         deposit(originalDeposit);
 
         placeLimitOrder(
-            market,
+            ethMarketKey,
             int256(amountToCommit),
             firstOrderSizeDelta,
             expectedLimitPrice
@@ -528,7 +521,6 @@ contract MarginAccountFactoryTest is DSTest {
     // assert successful execution frees committed margin
     function testExecutionUncommitsMargin() public {
         assertEq(account.committedMargin(), 0);
-        address market = address(1);
         uint256 originalDeposit = 10e18;
         uint256 amountToCommit = originalDeposit;
         int256 orderSizeDelta = 1e18;
@@ -536,15 +528,15 @@ contract MarginAccountFactoryTest is DSTest {
         uint256 fee = 1;
         deposit(originalDeposit);
 
-        placeLimitOrder(
-            market,
+        uint256 orderId = placeLimitOrder(
+            ethMarketKey,
             int256(amountToCommit),
             orderSizeDelta,
             limitPrice
         );
 
         // make limit order condition
-        mockExternalCallsForPrice(market, limitPrice);
+        mockExternalCallsForEthPrice(limitPrice);
 
         // mock gelato fee details
         cheats.mockCall(
@@ -565,7 +557,7 @@ contract MarginAccountFactoryTest is DSTest {
 
         // call as ops
         cheats.prank(address(gelatoOps));
-        account.executeOrder(market);
+        account.executeOrder(orderId);
 
         assertEq(account.committedMargin(), 0);
     }
@@ -573,7 +565,6 @@ contract MarginAccountFactoryTest is DSTest {
     // assert fee transfer to gelato is called
     function testFeeTransfer() public {
         assertEq(account.committedMargin(), 0);
-        address market = address(1);
         uint256 originalDeposit = 10e18;
         uint256 amountToCommit = originalDeposit;
         int256 orderSizeDelta = 1e18;
@@ -581,15 +572,15 @@ contract MarginAccountFactoryTest is DSTest {
         uint256 fee = 1;
         deposit(originalDeposit);
 
-        placeLimitOrder(
-            market,
+        uint256 orderId = placeLimitOrder(
+            ethMarketKey,
             int256(amountToCommit),
             orderSizeDelta,
             limitPrice
         );
 
         // make limit order condition
-        mockExternalCallsForPrice(market, limitPrice);
+        mockExternalCallsForEthPrice(limitPrice);
 
         // mock gelato fee details
         cheats.mockCall(
@@ -613,19 +604,18 @@ contract MarginAccountFactoryTest is DSTest {
 
         // call as ops
         cheats.prank(address(gelatoOps));
-        account.executeOrder(market);
+        account.executeOrder(orderId);
     }
 
     // should 0 out committed margin
     function testCancellingLimitOrder() public {
         assertEq(account.committedMargin(), 0);
-        address market = address(1);
         uint256 amount = 10e18;
         int256 orderSizeDelta = 1e18;
         uint256 expectedLimitPrice = 3e18;
         deposit(amount);
-        placeLimitOrder(
-            market,
+        uint256 orderId = placeLimitOrder(
+            ethMarketKey,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
@@ -633,13 +623,13 @@ contract MarginAccountFactoryTest is DSTest {
         assertEq(account.committedMargin(), amount);
 
         // Mock non-returning function call
-        (, , , bytes32 taskId) = account.orders(market);
+        (, , , , bytes32 taskId) = account.orders(orderId);
         mockCall(
             account.ops(),
             abi.encodeWithSelector(IOps.cancelTask.selector, taskId)
         );
 
-        account.cancelOrder(market);
+        account.cancelOrder(orderId);
         assertEq(account.committedMargin(), 0);
     }
 
