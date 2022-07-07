@@ -493,8 +493,11 @@ contract MarginBase is MinimalProxyable, OpsReady {
         int256 _sizeDelta,
         uint256 _limitPrice
     ) external onlyOwner returns (Order memory) {
-        // If more margin is desired on the position we must commit the margin
+        // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
+            // ensure margin doesn't exceed max
+            if (_abs(_marginDelta) > freeMargin())
+                revert InsufficientFreeMargin(freeMargin(), _abs(_marginDelta));
             committedMargin += _abs(_marginDelta);
         }
 

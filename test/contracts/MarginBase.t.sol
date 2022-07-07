@@ -487,44 +487,88 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     // assert cannot use committed margin when opening new positions
-    // commented until PR #8 is merged (has mocking logic for this function)
-    /*function testDistributingCommittedMargin() public {
+    function testDistributingCommittedMargin() public {
         assertEq(account.committedMargin(), 0);
         address market = address(1);
         uint256 originalDeposit = 10e18;
         uint256 amountToCommit = originalDeposit;
-        int256 orderSizeDelta = 1e18;
+        int256 firstOrderSizeDelta = 1e18;
         uint256 expectedLimitPrice = 3e18;
         deposit(originalDeposit);
 
         placeLimitOrder(
             market,
             int256(amountToCommit),
-            orderSizeDelta,
+            firstOrderSizeDelta,
             expectedLimitPrice
         );
 
+        int256 secondOrderMarginDelta = 1e18;
+        int256 secondOrderSizeDelta = 1e18;
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
             "sETH",
-            1 ether,
-            1 ether,
+            secondOrderMarginDelta,
+            secondOrderSizeDelta,
             false
         );
 
         cheats.expectRevert(
             abi.encodeWithSelector(
                 MarginBase.InsufficientFreeMargin.selector,
-                originalDeposit - amountToCommit,
-                amountToCommit
+                originalDeposit - amountToCommit, // free margin
+                secondOrderMarginDelta // amount attempting to use
             )
         );
 
         account.distributeMargin(newPositions);
-    }*/
+    }
 
-    // assert successful execution withdraws commited margin
+    // assert successful execution frees committed margin
+    function testExecutionUncommitsMargin() public {
+        assertEq(account.committedMargin(), 0);
+        address market = address(1);
+        uint256 originalDeposit = 10e18;
+        uint256 amountToCommit = originalDeposit;
+        int256 orderSizeDelta = 1e18;
+        uint256 limitPrice = 3e18;
+        uint256 fee = 1;
+        deposit(originalDeposit);
+
+        placeLimitOrder(
+            market,
+            int256(amountToCommit),
+            orderSizeDelta,
+            limitPrice
+        );
+
+        // make limit order condition
+        mockExternalCallsForPrice(market, limitPrice);
+
+        // mock gelato fee details
+        cheats.mockCall(
+            account.ops(),
+            abi.encodePacked(IOps.getFeeDetails.selector),
+            abi.encode(fee, account.ETH())
+        );
+
+        // mock gelato address getter
+        cheats.mockCall(
+            account.ops(),
+            abi.encodePacked(IOps.gelato.selector),
+            abi.encode(gelato)
+        );
+
+        // provide account with fee balance
+        cheats.deal(address(account), fee);
+
+        // call as ops
+        cheats.prank(address(gelatoOps));
+        account.executeOrder(market);
+
+        assertEq(account.committedMargin(), 0);
+    }
 
     // assert fee transfer to gelato is called
     function testFeeTransfer() public {
