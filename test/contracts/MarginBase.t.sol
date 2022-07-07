@@ -46,6 +46,11 @@ contract MarginAccountFactoryTest is DSTest {
     IAddressResolver private addressResolver =
         IAddressResolver(0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C);
 
+    IOps private constant gelatoOps =
+        IOps(0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c);
+    address private constant gelato =
+        0x01051113D81D7d6DA508462F2ad6d7fD96cF42Ef;
+
     /*///////////////////////////////////////////////////////////////
                                 Mocking
     ///////////////////////////////////////////////////////////////*/
@@ -219,10 +224,10 @@ contract MarginAccountFactoryTest is DSTest {
         );
     }
 
-    function mockMarginBalance(uint amount) internal {
+    function mockMarginBalance(uint256 amount) internal {
         cheats.mockCall(
-            address(marginAsset), 
-            abi.encodePacked(IERC20.balanceOf.selector), 
+            address(marginAsset),
+            abi.encodePacked(IERC20.balanceOf.selector),
             abi.encode(amount)
         );
     }
@@ -239,7 +244,7 @@ contract MarginAccountFactoryTest is DSTest {
             "0.0.0",
             address(marginAsset),
             address(addressResolver),
-            payable(address(0))
+            payable(address(gelatoOps))
         );
         account = MarginBase(marginAccountFactory.newAccount());
 
@@ -519,7 +524,53 @@ contract MarginAccountFactoryTest is DSTest {
         account.distributeMargin(newPositions);
     }*/
 
-    // assert execution uncommits margin
+    // assert successful execution withdraws commited margin
+
+    // assert fee transfer to gelato is called
+    function testFeeTransfer() public {
+        assertEq(account.committedMargin(), 0);
+        address market = address(1);
+        uint256 originalDeposit = 10e18;
+        uint256 amountToCommit = originalDeposit;
+        int256 orderSizeDelta = 1e18;
+        uint256 limitPrice = 3e18;
+        uint256 fee = 1;
+        deposit(originalDeposit);
+
+        placeLimitOrder(
+            market,
+            int256(amountToCommit),
+            orderSizeDelta,
+            limitPrice
+        );
+
+        // make limit order condition
+        mockExternalCallsForPrice(market, limitPrice);
+
+        // mock gelato fee details
+        cheats.mockCall(
+            account.ops(),
+            abi.encodePacked(IOps.getFeeDetails.selector),
+            abi.encode(fee, account.ETH())
+        );
+
+        // mock gelato address getter
+        cheats.mockCall(
+            account.ops(),
+            abi.encodePacked(IOps.gelato.selector),
+            abi.encode(gelato)
+        );
+
+        // provide account with fee balance
+        cheats.deal(address(account), fee);
+
+        // expect a call w/ empty calldata to gelato (payment through callvalue)
+        cheats.expectCall(gelato, "");
+
+        // call as ops
+        cheats.prank(address(gelatoOps));
+        account.executeOrder(market);
+    }
 
     // should 0 out committed margin
     function testCancellingLimitOrder() public {

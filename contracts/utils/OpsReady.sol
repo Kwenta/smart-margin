@@ -17,6 +17,8 @@ interface IOps {
     ) external returns (bytes32 task);
 
     function cancelTask(bytes32 _taskId) external;
+
+    function getFeeDetails() external view returns (uint256, address);
 }
 
 abstract contract OpsReady {

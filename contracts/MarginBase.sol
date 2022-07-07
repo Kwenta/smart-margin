@@ -140,10 +140,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
         address _marginAsset,
         address _addressResolver,
         address payable _ops
-    ) 
-        external 
-        initOnce 
-    {
+    ) external initOnce {
         marginAsset = IERC20(_marginAsset);
         addressResolver = IAddressResolver(_addressResolver);
         futuresManager = IFuturesMarketManager(
@@ -196,10 +193,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
     ///////////////////////////////////////////////////////////////*/
 
     /// @param _amount: amount of marginAsset to deposit into marginBase account
-    function deposit(uint256 _amount)
-        external
-        onlyOwner
-    {   
+    function deposit(uint256 _amount) external onlyOwner {
         /// @notice amount deposited into account cannot be zero
         if (_amount == 0) {
             revert AmountCantBeZero();
@@ -216,10 +210,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
     }
 
     /// @param _amount: amount of marginAsset to withdraw from marginBase account
-    function withdraw(uint256 _amount)
-        external
-        onlyOwner
-    {
+    function withdraw(uint256 _amount) external onlyOwner {
         /// @notice amount withdrawn from account cannot be zero
         if (_amount == 0) {
             revert AmountCantBeZero();
@@ -247,8 +238,14 @@ contract MarginBase is MinimalProxyable, OpsReady {
     /// @dev caller can close and withdraw all margin from position if _newPositions[i].isClosing is true
     /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
     function distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
-        public
+        external
         onlyOwner
+    {
+        _distributeMargin(_newPositions);
+    }
+
+    function _distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
+        internal
     {
         /// @notice limit size of new position specs passed into distribute margin
         if (_newPositions.length > type(uint16).max) {
@@ -520,19 +517,20 @@ contract MarginBase is MinimalProxyable, OpsReady {
 
     function cancelOrder(address _market) external onlyOwner {
         Order memory order = orders[_market];
+
+        // if margin was committed, free it
         if (order.margin > 0) {
             committedMargin -= _abs(order.margin);
         }
         IOps(ops).cancelTask(order.gelatoTaskId);
+
+        // delete order from orders
         delete orders[_market];
     }
 
     function executeOrder(address _market) external onlyOps {
         require(validOrder(_market), "Order not ready for execution");
         Order memory order = orders[_market];
-
-        // delete order from orders
-        delete orders[_market];
 
         // if margin was committed, free it
         if (order.margin > 0) {
@@ -541,16 +539,24 @@ contract MarginBase is MinimalProxyable, OpsReady {
 
         // prep new position
         bytes32 currencyKey = IFuturesMarket(_market).baseAsset();
-        MarginBase.UpdateMarketPositionSpec[] memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
-            currencyKey,
+            "sETH",
             order.margin,
             order.size,
             false // assume the position will be closed if the limit order is the opposite size
         );
 
-        //execute trade
-        distributeMargin(newPositions);
+        // delete order from orders
+        delete orders[_market];
+
+        // execute trade
+        _distributeMargin(newPositions);
+
+        // pay fee
+        (uint256 fee, address feeToken) = IOps(ops).getFeeDetails();
+        _transfer(fee, feeToken);
     }
 
     function checker(address _market)
