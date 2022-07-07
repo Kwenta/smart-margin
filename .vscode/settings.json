@@ -1,6 +1,6 @@
 {
   "solidity.packageDefaultDependenciesContractsDirectory": "",
-  "solidity.packageDefaultDependenciesDirectory": "",
+  "solidity.packageDefaultDependenciesDirectory": "node_modules",
   "solidity.compileUsingRemoteVersion": "v0.8.13+commit.abaa5c0e",
   "slither.solcPath": "",
   "slither.hiddenDetectors": [
