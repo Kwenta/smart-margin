@@ -494,7 +494,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
         }
     }
 
-    /// @notice addressResolver fetches IFuturesMarket address for specific market
+    /// @notice register a limit order internally and with gelato
     /// @param _marketKey: synthetix futures market id/key
     /// @param _marginDelta: amount of margin (in sUSD) to deposit or withdraw
     /// @param _sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
