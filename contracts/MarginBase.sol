@@ -72,6 +72,10 @@ contract MarginBase is MinimalProxyable {
     /// @notice market keys mapped to active market positions
     mapping(bytes32 => ActiveMarketPosition) public activeMarketPositions;
 
+    /// @notice tracking variable for calculating fee(s) based on margin delta
+    /// @dev margin delta: total margin deposited/withdrawn across ALL new positions
+    uint256 private totalMarginDelta;
+
     /*///////////////////////////////////////////////////////////////
                                 Events
     ///////////////////////////////////////////////////////////////*/
@@ -216,10 +220,6 @@ contract MarginBase is MinimalProxyable {
                             Margin Distribution
     ///////////////////////////////////////////////////////////////*/
 
-    /// @notice tracking variable for calculating fee(s) based on margin delta
-    /// @dev margin delta: total margin deposited/withdrawn across ALL new positions
-    uint256 private totalMarginDelta;
-
     /// @notice distribute margin across all/some positions specified via _newPositions
     /// @dev _newPositions may contain any number of new or existing positions
     /// @dev caller can close and withdraw all margin from position if _newPositions[i].isClosing is true
@@ -363,15 +363,15 @@ contract MarginBase is MinimalProxyable {
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
 
+        // close market position
+        market.closePosition();
+
         // fetch position data from Synthetix
         (, , uint128 margin, ,) = market.positions(address(this));
 
         /// @notice calculate fee based on margin in market being closed
         /// @dev add fee to totalMarginDelta
         totalMarginDelta += margin;
-
-        // close market position
-        market.closePosition();
 
         // withdraw margin back to this account
         market.withdrawAllMargin();

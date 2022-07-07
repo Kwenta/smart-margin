@@ -126,6 +126,7 @@ dotenv.config();
 const MINT_AMOUNT = ethers.BigNumber.from("100000000000000000000000"); // == $100_000 sUSD
 const ACCOUNT_AMOUNT = ethers.BigNumber.from("100000000000000000000000"); // == $100_000 sUSD
 const TEST_VALUE = ethers.BigNumber.from("1000000000000000000000"); // == $1_000 sUSD
+const MAX_BPS = 10_000;
 
 // denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
 const distributionFee = 5;
@@ -308,7 +309,7 @@ describe("Integration: Test Cross Margin", () => {
         expect(fee).to.equal(distributionFee);
 
         // calculate fee imposed on trade above
-        const expectedFee = TEST_VALUE.mul(fee).div(10_000); // TEST_VALUE * 0.05% = $0.5 or 500000000000000000 wei
+        const expectedFee = TEST_VALUE.mul(fee).div(MAX_BPS); // TEST_VALUE * 0.05% = $0.5 or 500000000000000000 wei
 
         // determine sUSD in MarginBase account
         const IERC20ABI = (
@@ -408,7 +409,7 @@ describe("Integration: Test Cross Margin", () => {
         expect(fee).to.equal(distributionFee);
 
         // calculate fee imposed on (4) trade(s) above
-        const expectedFee = TEST_VALUE.mul(4).mul(fee).div(10_000); // TEST_VALUE * 0.05% = $0.5 or 500000000000000000 wei
+        const expectedFee = TEST_VALUE.mul(4).mul(fee).div(MAX_BPS); // TEST_VALUE * 0.05% = $0.5 or 500000000000000000 wei
 
         // determine sUSD in MarginBase account
         const IERC20ABI = (
@@ -643,14 +644,15 @@ describe("Integration: Test Cross Margin", () => {
             // subtract margin delta and fees for each trade
             preTradeBalance
                 .sub(TEST_VALUE.mul(4))
-                .sub(TEST_VALUE.mul(4).mul(distributionFee).div(10_000))
+                .sub(TEST_VALUE.mul(4).mul(distributionFee).div(MAX_BPS))
         );
 
         const postTradeTreasuryBalance = await sUSD.balanceOf(KWENTA_TREASURY);
         expect(postTradeTreasuryBalance).to.be.equal(
             // subtract margin delta and fees for each trade
-            preTradeTreasuryBalance
-                .add(TEST_VALUE.mul(4).mul(distributionFee).div(10_000))
+            preTradeTreasuryBalance.add(
+                TEST_VALUE.mul(4).mul(distributionFee).div(MAX_BPS)
+            )
         );
     });
 
@@ -767,14 +769,15 @@ describe("Integration: Test Cross Margin", () => {
             // subtract margin delta and fees for each trade
             preTradeBalance
                 .add(TEST_VALUE.mul(4))
-                .sub(TEST_VALUE.mul(4).mul(distributionFee).div(10_000))
+                .sub(TEST_VALUE.mul(4).mul(distributionFee).div(MAX_BPS))
         );
 
         const postTradeTreasuryBalance = await sUSD.balanceOf(KWENTA_TREASURY);
         expect(postTradeTreasuryBalance).to.be.equal(
             // subtract margin delta and fees for each trade
-            preTradeTreasuryBalance
-                .add(TEST_VALUE.mul(4).mul(distributionFee).div(10_000))
+            preTradeTreasuryBalance.add(
+                TEST_VALUE.mul(4).mul(distributionFee).div(MAX_BPS)
+            )
         );
     });
 
@@ -790,7 +793,7 @@ describe("Integration: Test Cross Margin", () => {
             TEST_VALUE.mul(4)
         ).sub(
             // 12 positions that modify margin by TEST_VALUE thus far (i.e. fees imposed)
-            TEST_VALUE.mul(12).mul(distributionFee).div(10_000)
+            TEST_VALUE.mul(12).mul(distributionFee).div(MAX_BPS)
         );
 
         const actualbalance = await sUSD.balanceOf(marginAccount.address);
@@ -802,6 +805,9 @@ describe("Integration: Test Cross Margin", () => {
          * After trades were executed, a fee would have been sent to treasury
          */
         // confirm above assertion
+        const preTradeAccountBalance = await sUSD.balanceOf(
+            marginAccount.address
+        );
         const preTradeTreasuryBalance = await sUSD.balanceOf(KWENTA_TREASURY);
 
         // establish ETH position
@@ -814,7 +820,13 @@ describe("Integration: Test Cross Margin", () => {
             {
                 // modify size in position to 0
                 marketKey: MARKET_KEY_sETH,
-                marginDelta: 0,
+                // @notice if marginDelta is not 0 and sizeDelta results in closing a position,
+                // a fee WILL still be imposed on margin deposited or withdrawn
+                // in addition to fee charged when closing a position and withdrawing
+                // all remaining margin.
+                // It does not make sense to do so, but highlighting that the above is
+                // possible is important.
+                marginDelta: 0, 
                 sizeDelta: position.size.mul(-1), // opposite size
                 isClosing: false, // position is active (i.e. not closed)
             },
@@ -830,29 +842,45 @@ describe("Integration: Test Cross Margin", () => {
         expect(numberOfActivePositions).to.equal(3);
 
         // confirm kwenta treasury received fees
+        const postTradeAccountBalance = await sUSD.balanceOf(
+            marginAccount.address
+        );
         const postTradeTreasuryBalance = await sUSD.balanceOf(KWENTA_TREASURY);
 
-        // @TODO Fix/Investigate calculation
+        // confirm trade changed account balance
+        expect(postTradeAccountBalance).to.be.above(preTradeAccountBalance);
 
-        // expect(postTradeTreasuryBalance).to.be.equal(
-        //     preTradeTreasuryBalance.add(
-        //         position.margin.mul(distributionFee).div(10_000)
-        //     )
-        // );
-        // fails: 491907513039199122 / 991171800876081994034 = 0.0004962888498 ????
-        expect(postTradeTreasuryBalance).to.be.above(preTradeTreasuryBalance);
-        console.log(position.margin);
-        console.log(postTradeTreasuryBalance.sub(preTradeTreasuryBalance));
+        // totalMarginMoved will be the difference between post and pre trade
+        // account balance PLUS fee paid to treasury (fee = 5 BPS)
+        //
+        // in other words: totalMarginMoved = marginLeftPostFee + fee
+        // and: marginLeftPostFee / totalMarginMoved = (MAX_BPS - distributionFee) / MAX_BPS
+        // and: fee = totalMarginMoved * (distributionFee / MAX_BPS)
+        const marginLeftPostFee = postTradeAccountBalance.sub(
+            preTradeAccountBalance
+        );
+
+        // a / ((b + c) / d) == (a * d) / (b + c)
+        const totalMarginMoved = marginLeftPostFee
+            .mul(MAX_BPS)
+            .div(MAX_BPS - distributionFee);
+        const fee = totalMarginMoved.mul(distributionFee).div(MAX_BPS);
+
+        // confirm correct fee paid to treasury
+        expect(
+            postTradeTreasuryBalance.sub(preTradeTreasuryBalance)
+        ).to.be.equal(fee);
     });
 
     it("Should Exit One Position with isClosing", async () => {
+        /*
+         * After trades were executed, a fee would have been sent to treasury
+         */
         // confirm above assertion
-        const preTradeBalance = await sUSD.balanceOf(KWENTA_TREASURY);
-
-        // establish ETH position
-        let position = await marginAccount
-            .connect(account0)
-            .activeMarketPositions(MARKET_KEY_sBTC);
+        const preTradeAccountBalance = await sUSD.balanceOf(
+            marginAccount.address
+        );
+        const preTradeTreasuryBalance = await sUSD.balanceOf(KWENTA_TREASURY);
 
         // define new positions (modify existing)
         const newPositions = [
@@ -875,14 +903,46 @@ describe("Integration: Test Cross Margin", () => {
         expect(numberOfActivePositions).to.equal(2);
 
         // confirm kwenta treasury received fees
-        const postTradeBalance = await sUSD.balanceOf(KWENTA_TREASURY);
+        const postTradeAccountBalance = await sUSD.balanceOf(
+            marginAccount.address
+        );
+        const postTradeTreasuryBalance = await sUSD.balanceOf(KWENTA_TREASURY);
 
-        // @TODO Fix/Investigate calculation
+        // confirm trade changed account balance
+        expect(postTradeAccountBalance).to.be.above(preTradeAccountBalance);
 
-        expect(postTradeBalance).to.be.above(preTradeBalance);
+        // totalMarginMoved will be the difference between post and pre trade
+        // account balance PLUS fee paid to treasury (fee = 5 BPS)
+        //
+        // in other words: totalMarginMoved = marginLeftPostFee + fee
+        // and: marginLeftPostFee / totalMarginMoved = (MAX_BPS - distributionFee) / MAX_BPS
+        // and: fee = totalMarginMoved * (distributionFee / MAX_BPS)
+        const marginLeftPostFee = postTradeAccountBalance.sub(
+            preTradeAccountBalance
+        );
+
+        // a / ((b + c) / d) == (a * d) / (b + c)
+        const totalMarginMoved = marginLeftPostFee
+            .mul(MAX_BPS)
+            .div(MAX_BPS - distributionFee);
+        const fee = totalMarginMoved.mul(distributionFee).div(MAX_BPS);
+        
+        // confirm correct fee paid to treasury
+        expect(
+            postTradeTreasuryBalance.sub(preTradeTreasuryBalance)
+        ).to.be.equal(fee);
     });
 
     it("Should Exit All Positions with isClosing", async () => {
+        /*
+         * After trades were executed, a fee would have been sent to treasury
+         */
+        // confirm above assertion
+        const preTradeAccountBalance = await sUSD.balanceOf(
+            marginAccount.address
+        );
+        const preTradeTreasuryBalance = await sUSD.balanceOf(KWENTA_TREASURY);
+
         // define new positions (modify existing)
         const newPositions = [
             {
@@ -910,7 +970,35 @@ describe("Integration: Test Cross Margin", () => {
             .getNumberOfActivePositions();
         expect(numberOfActivePositions).to.equal(0);
 
-        // @TODO add/check fee calculation
+        // confirm kwenta treasury received fees
+        const postTradeAccountBalance = await sUSD.balanceOf(
+            marginAccount.address
+        );
+        const postTradeTreasuryBalance = await sUSD.balanceOf(KWENTA_TREASURY);
+
+        // confirm trade changed account balance
+        expect(postTradeAccountBalance).to.be.above(preTradeAccountBalance);
+
+        // totalMarginMoved will be the difference between post and pre trade
+        // account balance PLUS fee paid to treasury (fee = 5 BPS)
+        //
+        // in other words: totalMarginMoved = marginLeftPostFee + fee
+        // and: marginLeftPostFee / totalMarginMoved = (MAX_BPS - distributionFee) / MAX_BPS
+        // and: fee = totalMarginMoved * (distributionFee / MAX_BPS)
+        const marginLeftPostFee = postTradeAccountBalance.sub(
+            preTradeAccountBalance
+        );
+
+        // a / ((b + c) / d) == (a * d) / (b + c)
+        const totalMarginMoved = marginLeftPostFee
+            .mul(MAX_BPS)
+            .div(MAX_BPS - distributionFee);
+        const fee = totalMarginMoved.mul(distributionFee).div(MAX_BPS);
+        
+        // confirm correct fee paid to treasury
+        expect(
+            postTradeTreasuryBalance.sub(preTradeTreasuryBalance)
+        ).to.be.equal(fee);
     });
 
     it("Should have Withdrawn All Margin back to Account", async () => {
