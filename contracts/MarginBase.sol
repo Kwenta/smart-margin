@@ -470,6 +470,8 @@ contract MarginBase is MinimalProxyable, OpsReady {
                             Limit Orders
     ///////////////////////////////////////////////////////////////*/
 
+    /// @notice limit order logic condition checker
+    /// @param _orderId: key for an active order
     function validOrder(uint256 _orderId) public view returns (bool) {
         Order memory order = orders[_orderId];
 
@@ -492,6 +494,12 @@ contract MarginBase is MinimalProxyable, OpsReady {
         }
     }
 
+    /// @notice addressResolver fetches IFuturesMarket address for specific market
+    /// @param _marketKey: synthetix futures market id/key
+    /// @param _marginDelta: amount of margin (in sUSD) to deposit or withdraw
+    /// @param _sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
+    /// @param _limitPrice: expected limit order price
+    /// @return orderId contract interface
     function placeOrder(
         bytes32 _marketKey,
         int256 _marginDelta,
@@ -524,6 +532,8 @@ contract MarginBase is MinimalProxyable, OpsReady {
         return orderId++;
     }
 
+    /// @notice cancel a gelato queued order
+    /// @param _orderId: key for an active order
     function cancelOrder(uint256 _orderId) external onlyOwner {
         Order memory order = orders[_orderId];
 
@@ -537,6 +547,9 @@ contract MarginBase is MinimalProxyable, OpsReady {
         delete orders[_orderId];
     }
 
+    /// @notice execute a gelato queued order
+    /// @notice only keepers can trigger this function
+    /// @param _orderId: key for an active order
     function executeOrder(uint256 _orderId) external onlyOps {
         require(validOrder(_orderId), "Order not ready for execution");
         Order memory order = orders[_orderId];
@@ -567,6 +580,8 @@ contract MarginBase is MinimalProxyable, OpsReady {
         _transfer(fee, feeToken);
     }
 
+    /// @notice signal to a keeper that an order is valid/invalid for execution
+    /// @param _orderId: key for an active order
     function checker(uint256 _orderId)
         external
         view
