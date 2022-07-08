@@ -43,16 +43,16 @@ contract MarginBaseSettings is Ownable {
     event TreasuryAddressChanged(address treasury);
 
     /// @notice emitted after a successful distribution fee change
-    /// @param distributionFee: fee denoted in BPS
-    event DistributionFeeChanged(uint256 distributionFee);
+    /// @param fee: fee denoted in BPS
+    event DistributionFeeChanged(uint256 fee);
 
     /// @notice emitted after a successful limit order fee change
-    /// @param limitOrderFee: fee denoted in BPS
-    event LimitOrderFeeChanged(uint256 limitOrderFee);
+    /// @param fee: fee denoted in BPS
+    event LimitOrderFeeChanged(uint256 fee);
 
     /// @notice emitted after a successful stop loss fee change
-    /// @param stopLossFee: fee denoted in BPS
-    event StopLossFeeChanged(uint256 stopLossFee);
+    /// @param fee: fee denoted in BPS
+    event StopLossFeeChanged(uint256 fee);
 
     /*///////////////////////////////////////////////////////////////
                                 Errors
@@ -122,37 +122,37 @@ contract MarginBaseSettings is Ownable {
     }
 
     /// @notice set new distribution fee
-    /// @param _distributionFee: fee denoted in BPS
-    function setDistributionFee(uint256 _distributionFee) external onlyOwner {
+    /// @param _fee: fee denoted in BPS
+    function setDistributionFee(uint256 _fee) external onlyOwner {
         /// @notice ensure valid fee
-        if (_distributionFee >= MAX_BPS) { revert InvalidDistributionFee(_distributionFee); }
+        if (_fee >= MAX_BPS) { revert InvalidDistributionFee(_fee); }
 
         /// @notice set fee
-        distributionFee = _distributionFee;
+        distributionFee = _fee;
 
         emit DistributionFeeChanged(distributionFee);
     }
 
     /// @notice set new limit order fee
-    /// @param _limitOrderFee: fee denoted in BPS
-    function setLimitOrderFee(uint256 _limitOrderFee) external onlyOwner {
+    /// @param _fee: fee denoted in BPS
+    function setLimitOrderFee(uint256 _fee) external onlyOwner {
         /// @notice ensure valid fee
-        if (_limitOrderFee >= MAX_BPS) { revert InvalidLimitOrderFee(_limitOrderFee); }
+        if (_fee >= MAX_BPS) { revert InvalidLimitOrderFee(_fee); }
 
         /// @notice set fee
-        limitOrderFee = _limitOrderFee;
+        limitOrderFee = _fee;
 
         emit LimitOrderFeeChanged(limitOrderFee);
     }
 
     /// @notice set new stop loss fee
-    /// @param _stopLossFee: fee denoted in BPS
-    function setStopLossFee(uint256 _stopLossFee) external onlyOwner {
+    /// @param _fee: fee denoted in BPS
+    function setStopLossFee(uint256 _fee) external onlyOwner {
         /// @notice ensure valid fee
-        if (_stopLossFee >= MAX_BPS) { revert InvalidStopLossFee(_stopLossFee); }
+        if (_fee >= MAX_BPS) { revert InvalidStopLossFee(_fee); }
 
         /// @notice set fee
-        stopLossFee = _stopLossFee;
+        stopLossFee = _fee;
 
         emit StopLossFeeChanged(stopLossFee);
     }
