@@ -24,6 +24,9 @@ contract MarginAccountFactoryTest is DSTest {
     bytes32 private linkMarketKey = "sLINK";
     bytes32 private uniMarketKey = "sUNI";
 
+    /// @notice max BPS
+    uint256 private constant MAX_BPS = 10000;
+
     uint256 private constant INITIAL_MARGIN_ASSET_SUPPLY = 1000000 ether;
 
     struct Position {
@@ -43,6 +46,7 @@ contract MarginAccountFactoryTest is DSTest {
         IFuturesMarket(0x1228c7D8BBc5bC53DB181bD7B1fcE765aa83bF8A);
     IFuturesMarket private futuresMarketUNI =
         IFuturesMarket(0x5Af0072617F7f2AEB0e314e2faD1DE0231Ba97cD);
+
     // futures market manager for mocking
     IFuturesMarketManager private futuresManager =
         IFuturesMarketManager(0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B);
@@ -299,7 +303,7 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     /**********************************
-     * testDistributeMargin()
+     * distributeMargin()
      **********************************/
     function testDistributeMargin() public {
         MarginBase.UpdateMarketPositionSpec[]
@@ -664,6 +668,42 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     /**********************************
-     * @TODO test fees
+     * distribution fees
      **********************************/
+
+    function testFeeDistribution() public {
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
+        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            1 ether,
+            1 ether,
+            false
+        );
+        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+            btcMarketKey,
+            1 ether,
+            1 ether,
+            false
+        );
+        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
+            linkMarketKey,
+            1 ether,
+            1 ether,
+            false
+        );
+        newPositions[3] = MarginBase.UpdateMarketPositionSpec(
+            uniMarketKey,
+            1 ether,
+            1 ether,
+            false
+        );
+        account.distributeMargin(newPositions);
+
+        uint256 totalMarginMoved = 4 * (1 ether);
+        uint256 expectedFee = (totalMarginMoved *
+            marginBaseSettings.distributionFee()) / MAX_BPS;
+
+        assertEq(marginAsset.balanceOf(KWENTA_TREASURY), expectedFee);
+    }
 }
