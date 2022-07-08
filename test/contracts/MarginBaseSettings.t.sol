@@ -33,18 +33,9 @@ contract MarginBaseSettingsTest is DSTest {
         assertEq(marginBaseSettings.owner(), address(this));
     }
 
-    /// @dev fuzz test
-    function testSettingDistributionFee(uint256 x) public {
-        cheats.assume(x < 10_000);
-        marginBaseSettings.setDistributionFee(x);
-        assertTrue(marginBaseSettings.distributionFee() == x);
-    }
-
-    function testFailSetDistributionFeeIfNotOwner(uint256 x) public {
-        cheats.assume(x < 10_000);
-        marginBaseSettings.transferOwnership(RANDOM_ADDRESS); // not a zero address
-        marginBaseSettings.setDistributionFee(x);
-    }
+    /**********************************
+     * setTreasury
+     **********************************/
 
     function testSettingTreasuryAddress() public {
         marginBaseSettings.setTreasury(RANDOM_ADDRESS);
@@ -56,5 +47,85 @@ contract MarginBaseSettingsTest is DSTest {
         marginBaseSettings.setTreasury(RANDOM_ADDRESS);
     }
 
-    // @TODO fuzz test other fees
+    function testShouldFailSettingTreasuryAddressToZero() public {
+        cheats.expectRevert(
+            abi.encodeWithSelector(MarginBaseSettings.ZeroAddress.selector)
+        );
+        marginBaseSettings.setTreasury(address(0));
+    }
+
+    /**********************************
+     * Set Distribution Fee
+     **********************************/
+
+    /// @dev fuzz test
+    function testSettingDistributionFee(uint256 x) public {
+        if (x >= 10_000) {
+            cheats.expectRevert(
+                abi.encodeWithSelector(
+                    MarginBaseSettings.InvalidDistributionFee.selector,
+                    x
+                )
+            );
+            marginBaseSettings.setDistributionFee(x);
+            return;
+        }
+        marginBaseSettings.setDistributionFee(x);
+        assertTrue(marginBaseSettings.distributionFee() == x);
+    }
+
+    function testFailSetDistributionFeeIfNotOwner() public {
+        marginBaseSettings.transferOwnership(RANDOM_ADDRESS); // not a zero address
+        marginBaseSettings.setDistributionFee(1 ether);
+    }
+
+    /**********************************
+     * Set Limit Order Fee
+     **********************************/
+
+    /// @dev fuzz test
+    function testSettingLimitOrderFee(uint256 x) public {
+        if (x >= 10_000) {
+            cheats.expectRevert(
+                abi.encodeWithSelector(
+                    MarginBaseSettings.InvalidLimitOrderFee.selector,
+                    x
+                )
+            );
+            marginBaseSettings.setLimitOrderFee(x);
+            return;
+        }
+        marginBaseSettings.setLimitOrderFee(x);
+        assertTrue(marginBaseSettings.limitOrderFee() == x);
+    }
+
+    function testFailSetLimitOrderFeeIfNotOwner() public {
+        marginBaseSettings.transferOwnership(RANDOM_ADDRESS); // not a zero address
+        marginBaseSettings.setLimitOrderFee(1 ether);
+    }
+
+    /**********************************
+     * Set Stop Loss Fee
+     **********************************/
+
+    /// @dev fuzz test
+    function testSettingStopLossFee(uint256 x) public {
+        if (x >= 10_000) {
+            cheats.expectRevert(
+                abi.encodeWithSelector(
+                    MarginBaseSettings.InvalidStopLossFee.selector,
+                    x
+                )
+            );
+            marginBaseSettings.setStopLossFee(x);
+            return;
+        }
+        marginBaseSettings.setStopLossFee(x);
+        assertTrue(marginBaseSettings.stopLossFee() == x);
+    }
+
+    function testFailSetStopLossFeeIfNotOwner() public {
+        marginBaseSettings.transferOwnership(RANDOM_ADDRESS); // not a zero address
+        marginBaseSettings.setStopLossFee(1 ether);
+    }
 }

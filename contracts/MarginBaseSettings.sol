@@ -149,7 +149,7 @@ contract MarginBaseSettings is Ownable {
     /// @param _stopLossFee: fee denoted in BPS
     function setStopLossFee(uint256 _stopLossFee) external onlyOwner {
         /// @notice ensure valid fee
-        require(_stopLossFee < MAX_BPS, "Invalid Fee");
+        if (_stopLossFee >= MAX_BPS) { revert InvalidStopLossFee(_stopLossFee); }
 
         /// @notice set fee
         stopLossFee = _stopLossFee;
