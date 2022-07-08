@@ -105,14 +105,6 @@ contract MarginBase is MinimalProxyable {
     /// @param numberOfNewPositions: number of new position specs
     error MaxNewPositionsExceeded(uint256 numberOfNewPositions);
 
-    /// @notice market withdrawal size was positive (i.e. deposit)
-    /// @param withdrawalSize: amount of margin asset to withdraw from market
-    error InvalidMarketWithdrawSize(int256 withdrawalSize);
-
-    /// @notice market deposit size was negative (i.e. withdraw)
-    /// @param depositSize: amount of margin asset to deposit into market
-    error InvalidMarketDepositSize(int256 depositSize);
-
     /*///////////////////////////////////////////////////////////////
                         Constructor & Initializer
     ///////////////////////////////////////////////////////////////*/
@@ -279,6 +271,8 @@ contract MarginBase is MinimalProxyable {
     ///////////////////////////////////////////////////////////////*/
 
     /// @notice deposit margin into specific market, creating/adding to a position
+    /// @dev _depositSize can NEVER be negative
+    /// @dev both _depositSize and _sizeDelta could be zero (i.e. market position goes unchanged)
     /// @param _depositSize: size of deposit in sUSD
     /// @param _sizeDelta: size and position type (long//short) denoted in market synth (ex: sETH)
     /// @param _marketKey: synthetix futures market id/key
@@ -287,21 +281,21 @@ contract MarginBase is MinimalProxyable {
         int256 _sizeDelta,
         bytes32 _marketKey
     ) internal {
-        // _depositSize must be positive or zero (i.e. not a withdraw)
-        if (_depositSize < 0) {
-            revert InvalidMarketDepositSize(_depositSize);
-        }
-
-        /// @notice calculate fee based on _depositSize
-        /// @dev add new position's margin to totalMarginDelta
-        totalMarginDelta += _abs(_depositSize);
-
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
 
-        /// @notice alter the amount of margin in specific market position
-        /// @dev positive input triggers a deposit; a negative one, a withdrawal
-        market.transferMargin(_depositSize);
+        /// @dev if _depositSize is not 0, then we must:
+        /// (1) impose correct fee
+        /// (2) transfer _depositSize (new margin) into the market
+        if (_depositSize > 0) {
+            /// @notice calculate fee based on _depositSize
+            /// @dev add new position's margin to totalMarginDelta
+            totalMarginDelta += _abs(_depositSize);
+
+            /// @notice alter the amount of margin in specific market position
+            /// @dev positive input triggers a deposit; a negative one, a withdrawal
+            market.transferMargin(_depositSize);
+        }
 
         /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
         if (_sizeDelta != 0) {
@@ -317,6 +311,8 @@ contract MarginBase is MinimalProxyable {
     }
 
     /// @notice modify active position and withdraw marginAsset from market into this account
+    /// @dev _withdrawalSize can NEVER be positive NOR zero
+    /// @dev _sizeDelta could be zero
     /// @param _withdrawalSize: size of sUSD to withdraw from market into account
     /// @param _sizeDelta: size and position type (long//short) denoted in market synth (ex: sETH)
     /// @param _marketKey: synthetix futures market id/key
@@ -325,17 +321,12 @@ contract MarginBase is MinimalProxyable {
         int256 _sizeDelta,
         bytes32 _marketKey
     ) internal {
-        // _withdrawalSize must be negative or zero (i.e. not a deposit)
-        if (_withdrawalSize > 0) {
-            revert InvalidMarketWithdrawSize(_withdrawalSize);
-        }
+         // define market via _marketKey
+        IFuturesMarket market = futuresMarket(_marketKey);
 
         /// @notice calculate fee based on _withdrawalSize
         /// @dev add new position's margin to totalMarginDelta
         totalMarginDelta += _abs(_withdrawalSize);
-
-        // define market via _marketKey
-        IFuturesMarket market = futuresMarket(_marketKey);
 
         /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
         if (_sizeDelta != 0) {
@@ -367,7 +358,7 @@ contract MarginBase is MinimalProxyable {
         market.closePosition();
 
         // fetch position data from Synthetix
-        (, , uint128 margin, ,) = market.positions(address(this));
+        (, , uint128 margin, , ) = market.positions(address(this));
 
         /// @notice calculate fee based on margin in market being closed
         /// @dev add fee to totalMarginDelta
@@ -445,7 +436,7 @@ contract MarginBase is MinimalProxyable {
                 break;
             }
         }
-        // remove last element now that it has been copied 
+        // remove last element now that it has been copied
         activeMarketKeys.pop();
     }
 
