@@ -11,7 +11,7 @@ import "../../contracts/MarginAccountFactory.sol";
 import "../../contracts/MarginBase.sol";
 import "./utils/MintableERC20.sol";
 
-contract MarginAccountFactoryTest is DSTest {
+contract MarginBaseTest is DSTest {
     CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
     MintableERC20 private marginAsset;
     MarginBaseSettings private marginBaseSettings;
