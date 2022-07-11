@@ -24,6 +24,8 @@ contract MarginAccountFactory is MinimalProxyFactory {
 
     /// @notice synthetix address resolver
     address public immutable addressResolver;
+
+    /// @notice gelato ops
     address payable public immutable ops;
 
     /*///////////////////////////////////////////////////////////////
@@ -40,6 +42,7 @@ contract MarginAccountFactory is MinimalProxyFactory {
     /// @param _version: version of contract
     /// @param _marginAsset: token contract address used for account margin
     /// @param _addressResolver: contract address for synthetix address resolver
+    /// @param _ops: contract address for gelato ops -- must be payable
     constructor(
         string memory _version,
         address _marginAsset,

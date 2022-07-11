@@ -25,6 +25,9 @@ contract MarginBase is MinimalProxyable, OpsReady {
     // name for futures market manager, needed for fetching market key
     bytes32 private constant FUTURES_MANAGER = "FuturesMarketManager";
 
+    // constant for sUSD currency key
+    bytes32 private constant SUSD = "sUSD";
+
     /*///////////////////////////////////////////////////////////////
                                 Types
     ///////////////////////////////////////////////////////////////*/
@@ -49,6 +52,11 @@ contract MarginBase is MinimalProxyable, OpsReady {
         bool isClosing; // if true, marginDelta nor sizeDelta are considered. simply closes position
     }
 
+    // marketKey: synthetix futures market id/key
+    // marginDelta: amount of margin (in sUSD) to deposit or withdraw
+    // sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
+    // desiredPrice: limit or stop price desired
+    // gelatoTaskId: unqiue taskId from gelato necessary for cancelling orders
     struct Order {
         bytes32 marketKey;
         int256 marginDelta; // positive indicates deposit, negative withdraw
@@ -70,20 +78,19 @@ contract MarginBase is MinimalProxyable, OpsReady {
     /// @notice token contract used for account margin
     IERC20 public marginAsset;
 
-    // margin locked for future events (ie. limit orders)
+    /// @notice margin locked for future events (ie. limit orders)
     uint256 public committedMargin;
 
-    // market keys that the account has active positions in
     /// @notice market keys that the account has active positions in
     bytes32[] public activeMarketKeys;
 
     /// @notice market keys mapped to active market positions
     mapping(bytes32 => ActiveMarketPosition) public activeMarketPositions;
 
-    // limit orders
+    /// @notice limit orders
     mapping(uint256 => Order) public orders;
 
-    // sequentially id orders
+    /// @notice sequentially id orders
     uint256 public orderId;
 
     /*///////////////////////////////////////////////////////////////
@@ -123,7 +130,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
     /// @param depositSize: amount of margin asset to deposit into market
     error InvalidMarketDepositSize(int256 depositSize);
 
-    /// exceeds useable margin
+    /// @notice exceeds useable margin
     /// @param available: amount of useable margin asset
     /// @param required: amount of margin asset required
     error InsufficientFreeMargin(uint256 available, uint256 required);
@@ -220,8 +227,10 @@ contract MarginBase is MinimalProxyable, OpsReady {
             revert AmountCantBeZero();
         }
 
-        if (_amount > freeMargin())
+        // make sure committed margin isn't withdrawn
+        if (_amount > freeMargin()) {
             revert InsufficientFreeMargin(freeMargin(), _amount);
+        }
 
         // transfer out margin asset to user
         // (will revert if account does not have amount specified)
@@ -303,8 +312,10 @@ contract MarginBase is MinimalProxyable, OpsReady {
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
 
-        if (_abs(_depositSize) > freeMargin())
+        // make sure committed margin isn't deposited
+        if (_abs(_depositSize) > freeMargin()) {
             revert InsufficientFreeMargin(freeMargin(), _abs(_depositSize));
+        }
 
         /// @notice alter the amount of margin in specific market position
         /// @dev positive input triggers a deposit; a negative one, a withdrawal
@@ -477,11 +488,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
 
         bytes32 currencyKey = futuresMarket(order.marketKey).baseAsset();
         // Get exchange rate for 1 unit
-        uint256 price = exchangeRates().effectiveValue(
-            currencyKey,
-            1e18,
-            "sUSD"
-        );
+        uint256 price = exchangeRates().effectiveValue(currencyKey, 1e18, SUSD);
 
         if (order.sizeDelta > 0) {
             // Long
@@ -509,16 +516,17 @@ contract MarginBase is MinimalProxyable, OpsReady {
         // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
             // ensure margin doesn't exceed max
-            if (_abs(_marginDelta) > freeMargin())
+            if (_abs(_marginDelta) > freeMargin()) {
                 revert InsufficientFreeMargin(freeMargin(), _abs(_marginDelta));
+            }
             committedMargin += _abs(_marginDelta);
         }
 
         bytes32 taskId = IOps(ops).createTask(
-            address(this),
-            this.executeOrder.selector,
-            address(this),
-            abi.encodeWithSelector(this.checker.selector, orderId)
+            address(this), // execution function address
+            this.executeOrder.selector, // execution function selector
+            address(this), // checker (resolver) address
+            abi.encodeWithSelector(this.checker.selector, orderId) // checker (resolver) calldata
         );
 
         orders[orderId] = Order({
@@ -582,12 +590,15 @@ contract MarginBase is MinimalProxyable, OpsReady {
 
     /// @notice signal to a keeper that an order is valid/invalid for execution
     /// @param _orderId: key for an active order
+    /// @return canExec boolean that signals to keeper an order can be executed
+    /// @return execPayload calldata for executing an order
     function checker(uint256 _orderId)
         external
         view
         returns (bool canExec, bytes memory execPayload)
     {
         canExec = validOrder(_orderId);
+        // calldata for execute func
         execPayload = abi.encodeWithSelector(
             this.executeOrder.selector,
             _orderId
@@ -595,6 +606,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
     }
 
     /// @notice Absolute value of the input, returned as an unsigned number.
+    /// @param x: signed number
     function _abs(int256 x) internal pure returns (uint256) {
         return uint256(x < 0 ? -x : x);
     }
