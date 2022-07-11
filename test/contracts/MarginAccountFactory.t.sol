@@ -44,7 +44,8 @@ contract MarginAccountFactoryTest is DSTest {
         marginAccountFactory = new MarginAccountFactory(
             "0.0.0",
             address(0),
-            addressResolver
+            addressResolver,
+            payable(address(0))
         );
     }
 

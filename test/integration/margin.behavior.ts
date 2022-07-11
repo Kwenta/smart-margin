@@ -138,6 +138,9 @@ const MARKET_KEY_sBTC = ethers.utils.formatBytes32String("sBTC");
 const MARKET_KEY_sLINK = ethers.utils.formatBytes32String("sLINK");
 const MARKET_KEY_sUNI = ethers.utils.formatBytes32String("sUNI");
 
+// gelato
+const GELATO_OPS = "0xB3f5503f93d5Ef84b06993a1975B9D21B962892F";
+
 // cross margin
 let marginAccountFactory: Contract;
 let marginAccount: Contract;
@@ -181,7 +184,7 @@ describe("Integration: Test Cross Margin", () => {
     it("Should deploy MarginAccountFactory contract", async () => {
         marginAccountFactory = await (
             await ethers.getContractFactory("MarginAccountFactory")
-        ).deploy("1.0.0", SUSD_PROXY, ADDRESS_RESOLVER);
+        ).deploy("1.0.0", SUSD_PROXY, ADDRESS_RESOLVER, GELATO_OPS);
         expect(marginAccountFactory.address).to.exist;
     });
 

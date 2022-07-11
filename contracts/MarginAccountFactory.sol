@@ -25,6 +25,9 @@ contract MarginAccountFactory is MinimalProxyFactory {
     /// @notice synthetix address resolver
     address public immutable addressResolver;
 
+    /// @notice gelato ops
+    address payable public immutable ops;
+
     /*///////////////////////////////////////////////////////////////
                                 Events
     ///////////////////////////////////////////////////////////////*/
@@ -39,15 +42,18 @@ contract MarginAccountFactory is MinimalProxyFactory {
     /// @param _version: version of contract
     /// @param _marginAsset: token contract address used for account margin
     /// @param _addressResolver: contract address for synthetix address resolver
+    /// @param _ops: contract address for gelato ops -- must be payable
     constructor(
         string memory _version,
         address _marginAsset,
-        address _addressResolver
+        address _addressResolver,
+        address payable _ops
     ) {
         version = _version;
         implementation = new MarginBase();
         marginAsset = IERC20(_marginAsset);
         addressResolver = _addressResolver;
+        ops = _ops;
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -61,7 +67,7 @@ contract MarginAccountFactory is MinimalProxyFactory {
         MarginBase account = MarginBase(
             _cloneAsMinimalProxy(address(implementation), "Creation failure")
         );
-        account.initialize(address(marginAsset), addressResolver);
+        account.initialize(address(marginAsset), addressResolver, ops);
         account.transferOwnership(msg.sender);
 
         emit NewAccount(msg.sender, address(account));
