@@ -27,8 +27,6 @@ contract MarginBaseTest is DSTest {
     /// @notice max BPS
     uint256 private constant MAX_BPS = 10000;
 
-    uint256 private constant INITIAL_MARGIN_ASSET_SUPPLY = 1000000 ether;
-
     struct Position {
         uint64 id;
         uint64 lastFundingIndex;
@@ -257,10 +255,7 @@ contract MarginBaseTest is DSTest {
             stopLossFee
         );
 
-        marginAsset = new MintableERC20(
-            address(this),
-            INITIAL_MARGIN_ASSET_SUPPLY
-        );
+        marginAsset = new MintableERC20(address(this), 0);
 
         marginAccountFactory = new MarginAccountFactory(
             "0.0.0",
@@ -270,8 +265,6 @@ contract MarginBaseTest is DSTest {
             payable(address(gelatoOps))
         );
         account = MarginBase(marginAccountFactory.newAccount());
-
-        marginAsset.transfer(address(account), INITIAL_MARGIN_ASSET_SUPPLY);
 
         mockFuturesMarketManagerCalls();
         mockFuturesMarketCalls();
@@ -339,27 +332,18 @@ contract MarginBaseTest is DSTest {
     /**********************************
      * deposit()
      * withdraw()
-     *
-     * @notice INITIAL_MARGIN_ASSET_SUPPLY was transferred to account in setup()
-     * so that following tests do not fail when sending fee to kwenta treasury
      **********************************/
     function testDeposit() public {
         uint256 amount = 10 ether;
         deposit(amount);
-        assertEq(
-            marginAsset.balanceOf(address(account)),
-            (amount + INITIAL_MARGIN_ASSET_SUPPLY)
-        );
+        assertEq(marginAsset.balanceOf(address(account)), (amount));
     }
 
     function testWithdrawal() public {
         uint256 amount = 10 ether;
         deposit(amount);
         account.withdraw(amount);
-        assertEq(
-            marginAsset.balanceOf(address(account)),
-            INITIAL_MARGIN_ASSET_SUPPLY
-        );
+        assertEq(marginAsset.balanceOf(address(account)), 0);
     }
 
     /// @dev Deposit/Withdrawal fuzz test
@@ -368,10 +352,7 @@ contract MarginBaseTest is DSTest {
         cheats.assume(amount <= 10000000 ether); // 10_000_000
         deposit(amount);
         account.withdraw(amount);
-        assertEq(
-            marginAsset.balanceOf(address(account)),
-            INITIAL_MARGIN_ASSET_SUPPLY
-        );
+        assertEq(marginAsset.balanceOf(address(account)), 0);
     }
 
     function testLimitValid() public {
@@ -679,7 +660,7 @@ contract MarginBaseTest is DSTest {
      * distributeMargin()
      **********************************/
     function testDistributeMargin() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
@@ -713,7 +694,7 @@ contract MarginBaseTest is DSTest {
 
     /// @dev DistributeMargin fuzz test
     function testDistributeMargin(uint16 numberOfNewPositions) public {
-        mockMarginBalance(1 ether);
+        deposit(65536 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](
@@ -774,7 +755,7 @@ contract MarginBaseTest is DSTest {
     }
 
     function testGetNumberOfActivePositions() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
@@ -800,7 +781,7 @@ contract MarginBaseTest is DSTest {
      *         so they're not tested here (and are in-fact mocked above)
      **********************************/
     function testCanGetActivePositions() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
@@ -828,7 +809,7 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCanGetActivePositionsAfterClosingOne() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
@@ -873,7 +854,7 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCanGetActivePositionsAfterClosingTwo() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](5);
@@ -922,7 +903,7 @@ contract MarginBaseTest is DSTest {
      * updateActiveMarketPosition()
      **********************************/
     function testCanUpdatePosition() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
@@ -946,7 +927,7 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCanOpenRecentlyClosedPosition() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](3);
@@ -980,7 +961,7 @@ contract MarginBaseTest is DSTest {
      * removeActiveMarketPositon()
      **********************************/
     function testCanRemovePosition() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
@@ -1025,7 +1006,7 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCannotClosePositionTwice() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](3);
@@ -1065,6 +1046,8 @@ contract MarginBaseTest is DSTest {
      **********************************/
 
     function testFeeDistribution() public {
+        deposit(10 ether);
+
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
