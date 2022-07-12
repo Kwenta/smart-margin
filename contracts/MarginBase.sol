@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.13;
 
-import "./utils/MinimalProxyable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IAddressResolver.sol";
 import "./interfaces/IFuturesMarket.sol";
 import "./interfaces/IFuturesMarketManager.sol";
+import "./interfaces/IExchangeRates.sol";
+import "./utils/OpsReady.sol";
+import "./utils/MinimalProxyable.sol";
 import "./MarginBaseSettings.sol";
 
 /// @title Kwenta MarginBase Account
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice Flexible, minimalist, and gas-optimized cross-margin enabled account
 /// for managing perpetual futures positions
-contract MarginBase is MinimalProxyable {
+contract MarginBase is MinimalProxyable, OpsReady {
     /*///////////////////////////////////////////////////////////////
                                 Constants
     ///////////////////////////////////////////////////////////////*/
@@ -25,6 +27,9 @@ contract MarginBase is MinimalProxyable {
 
     /// @notice max BPS
     uint256 private constant MAX_BPS = 10000;
+
+    // constant for sUSD currency key
+    bytes32 private constant SUSD = "sUSD";
 
     /*///////////////////////////////////////////////////////////////
                                 Types
@@ -50,6 +55,19 @@ contract MarginBase is MinimalProxyable {
         bool isClosing; // if true, marginDelta nor sizeDelta are considered. simply closes position
     }
 
+    // marketKey: synthetix futures market id/key
+    // marginDelta: amount of margin (in sUSD) to deposit or withdraw
+    // sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
+    // desiredPrice: limit or stop price desired
+    // gelatoTaskId: unqiue taskId from gelato necessary for cancelling orders
+    struct Order {
+        bytes32 marketKey;
+        int256 marginDelta; // positive indicates deposit, negative withdraw
+        int256 sizeDelta;
+        uint256 desiredPrice;
+        bytes32 gelatoTaskId;
+    }
+
     /*///////////////////////////////////////////////////////////////
                                 State
     ///////////////////////////////////////////////////////////////*/
@@ -66,11 +84,20 @@ contract MarginBase is MinimalProxyable {
     /// @notice token contract used for account margin
     IERC20 public marginAsset;
 
+    /// @notice margin locked for future events (ie. limit orders)
+    uint256 public committedMargin;
+
     /// @notice market keys that the account has active positions in
     bytes32[] public activeMarketKeys;
 
     /// @notice market keys mapped to active market positions
     mapping(bytes32 => ActiveMarketPosition) public activeMarketPositions;
+
+    /// @notice limit orders
+    mapping(uint256 => Order) public orders;
+
+    /// @notice sequentially id orders
+    uint256 public orderId;
 
     /*///////////////////////////////////////////////////////////////
                                 Events
@@ -101,6 +128,11 @@ contract MarginBase is MinimalProxyable {
     /// @param numberOfNewPositions: number of new position specs
     error MaxNewPositionsExceeded(uint256 numberOfNewPositions);
 
+    /// @notice exceeds useable margin
+    /// @param available: amount of useable margin asset
+    /// @param required: amount of margin asset required
+    error InsufficientFreeMargin(uint256 available, uint256 required);
+
     /*///////////////////////////////////////////////////////////////
                         Constructor & Initializer
     ///////////////////////////////////////////////////////////////*/
@@ -113,11 +145,14 @@ contract MarginBase is MinimalProxyable {
     /// @param _marginAsset: token contract address used for account margin
     /// @param _addressResolver: contract address for synthetix address resolver
     /// @param _marginBaseSettings: contract address for MarginBase account settings
+    /// @param _ops: gelato ops address
     function initialize(
         address _marginAsset,
         address _addressResolver,
-        address _marginBaseSettings
+        address _marginBaseSettings,
+        address payable _ops
     ) external initOnce {
+        marginAsset = IERC20(_marginAsset);
         addressResolver = IAddressResolver(_addressResolver);
         futuresManager = IFuturesMarketManager(
             addressResolver.requireAndGetAddress(
@@ -132,6 +167,8 @@ contract MarginBase is MinimalProxyable {
 
         /// @dev the Ownable constructor is never called when we create minimal proxies
         _transferOwnership(msg.sender);
+
+        ops = _ops;
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -158,6 +195,11 @@ contract MarginBase is MinimalProxyable {
             positions[i] = (activeMarketPositions[activeMarketKeys[i]]);
         }
         return positions;
+    }
+
+    /// @notice the current withdrawable or usable balance
+    function freeMargin() public view returns (uint256) {
+        return marginAsset.balanceOf(address(this)) - committedMargin;
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -188,6 +230,11 @@ contract MarginBase is MinimalProxyable {
             revert AmountCantBeZero();
         }
 
+        // make sure committed margin isn't withdrawn
+        if (_amount > freeMargin()) {
+            revert InsufficientFreeMargin(freeMargin(), _amount);
+        }
+
         // transfer out margin asset to user
         // (will revert if account does not have amount specified)
         require(
@@ -206,9 +253,15 @@ contract MarginBase is MinimalProxyable {
     /// @dev _newPositions may contain any number of new or existing positions
     /// @dev caller can close and withdraw all margin from position if _newPositions[i].isClosing is true
     /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
-    function distributeMargin(UpdateMarketPositionSpec[] calldata _newPositions)
+    function distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
         external
         onlyOwner
+    {
+        _distributeMargin(_newPositions);
+    }
+
+    function _distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
+        internal
     {
         /// @notice limit size of new position specs passed into distribute margin
         if (_newPositions.length > type(uint16).max) {
@@ -286,6 +339,11 @@ contract MarginBase is MinimalProxyable {
         if (_depositSize > 0) {
             /// @notice marginMoved used to calculate fee based on _depositSize
             marginMoved = _abs(_depositSize);
+
+            // make sure committed margin isn't deposited
+            if (marginMoved > freeMargin()) {
+                revert InsufficientFreeMargin(freeMargin(), marginMoved);
+            }
 
             /// @notice alter the amount of margin in specific market position
             /// @dev positive input triggers a deposit; a negative one, a withdrawal
@@ -440,7 +498,7 @@ contract MarginBase is MinimalProxyable {
     }
 
     /*///////////////////////////////////////////////////////////////
-                Internal Futures Market Initialization
+                        Internal Getter Utilities
     ///////////////////////////////////////////////////////////////*/
 
     /// @notice addressResolver fetches IFuturesMarket address for specific market
@@ -454,11 +512,150 @@ contract MarginBase is MinimalProxyable {
         return IFuturesMarket(futuresManager.marketForKey(_marketKey));
     }
 
+    /// @notice exchangeRates() fetches current ExchangeRates contract
+    function exchangeRates() internal view returns (IExchangeRates) {
+        return
+            IExchangeRates(
+                addressResolver.requireAndGetAddress(
+                    "ExchangeRates",
+                    "MarginBase: Could not get ExchangeRates"
+                )
+            );
+    }
+
+    /*///////////////////////////////////////////////////////////////
+                            Limit Orders
+    ///////////////////////////////////////////////////////////////*/
+
+    /// @notice limit order logic condition checker
+    /// @param _orderId: key for an active order
+    function validOrder(uint256 _orderId) public view returns (bool) {
+        Order memory order = orders[_orderId];
+
+        bytes32 currencyKey = futuresMarket(order.marketKey).baseAsset();
+        // Get exchange rate for 1 unit
+        uint256 price = exchangeRates().effectiveValue(currencyKey, 1e18, SUSD);
+
+        if (order.sizeDelta > 0) {
+            // Long
+            return price <= order.desiredPrice;
+        } else if (order.sizeDelta < 0) {
+            // Short
+            return price >= order.desiredPrice;
+        } else {
+            revert("Order size 0");
+        }
+    }
+
+    /// @notice register a limit order internally and with gelato
+    /// @param _marketKey: synthetix futures market id/key
+    /// @param _marginDelta: amount of margin (in sUSD) to deposit or withdraw
+    /// @param _sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
+    /// @param _limitPrice: expected limit order price
+    /// @return orderId contract interface
+    function placeOrder(
+        bytes32 _marketKey,
+        int256 _marginDelta,
+        int256 _sizeDelta,
+        uint256 _limitPrice
+    ) external onlyOwner returns (uint256) {
+        // if more margin is desired on the position we must commit the margin
+        if (_marginDelta > 0) {
+            // ensure margin doesn't exceed max
+            if (_abs(_marginDelta) > freeMargin()) {
+                revert InsufficientFreeMargin(freeMargin(), _abs(_marginDelta));
+            }
+            committedMargin += _abs(_marginDelta);
+        }
+
+        bytes32 taskId = IOps(ops).createTask(
+            address(this), // execution function address
+            this.executeOrder.selector, // execution function selector
+            address(this), // checker (resolver) address
+            abi.encodeWithSelector(this.checker.selector, orderId) // checker (resolver) calldata
+        );
+
+        orders[orderId] = Order({
+            marketKey: _marketKey,
+            marginDelta: _marginDelta,
+            sizeDelta: _sizeDelta,
+            desiredPrice: _limitPrice,
+            gelatoTaskId: taskId
+        });
+
+        return orderId++;
+    }
+
+    /// @notice cancel a gelato queued order
+    /// @param _orderId: key for an active order
+    function cancelOrder(uint256 _orderId) external onlyOwner {
+        Order memory order = orders[_orderId];
+
+        // if margin was committed, free it
+        if (order.marginDelta > 0) {
+            committedMargin -= _abs(order.marginDelta);
+        }
+        IOps(ops).cancelTask(order.gelatoTaskId);
+
+        // delete order from orders
+        delete orders[_orderId];
+    }
+
+    /// @notice execute a gelato queued order
+    /// @notice only keepers can trigger this function
+    /// @param _orderId: key for an active order
+    function executeOrder(uint256 _orderId) external onlyOps {
+        require(validOrder(_orderId), "Order not ready for execution");
+        Order memory order = orders[_orderId];
+
+        // if margin was committed, free it
+        if (order.marginDelta > 0) {
+            committedMargin -= _abs(order.marginDelta);
+        }
+
+        // prep new position
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
+        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+            order.marketKey,
+            order.marginDelta,
+            order.sizeDelta,
+            false // assume the position will be closed if the limit order is the opposite size
+        );
+
+        // delete order from orders
+        delete orders[_orderId];
+
+        // execute trade
+        _distributeMargin(newPositions);
+
+        // pay fee
+        (uint256 fee, address feeToken) = IOps(ops).getFeeDetails();
+        _transfer(fee, feeToken);
+    }
+
+    /// @notice signal to a keeper that an order is valid/invalid for execution
+    /// @param _orderId: key for an active order
+    /// @return canExec boolean that signals to keeper an order can be executed
+    /// @return execPayload calldata for executing an order
+    function checker(uint256 _orderId)
+        external
+        view
+        returns (bool canExec, bytes memory execPayload)
+    {
+        canExec = validOrder(_orderId);
+        // calldata for execute func
+        execPayload = abi.encodeWithSelector(
+            this.executeOrder.selector,
+            _orderId
+        );
+    }
+
     /*///////////////////////////////////////////////////////////////
                     Utility Functions
     ///////////////////////////////////////////////////////////////*/
 
-    /// @notice absolute value of the input, returned as an unsigned number
+    /// @notice Absolute value of the input, returned as an unsigned number.
     /// @param x: signed number
     function _abs(int256 x) internal pure returns (uint256) {
         return uint256(x < 0 ? -x : x);

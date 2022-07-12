@@ -57,6 +57,9 @@ contract MarginBaseTest is DSTest {
     address private constant KWENTA_TREASURY =
         0x82d2242257115351899894eF384f779b5ba8c695;
 
+    IOps private gelatoOps = IOps(0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c);
+    address private gelato = 0x01051113D81D7d6DA508462F2ad6d7fD96cF42Ef;
+
     /*///////////////////////////////////////////////////////////////
                                 Mocking
     ///////////////////////////////////////////////////////////////*/
@@ -209,6 +212,33 @@ contract MarginBaseTest is DSTest {
         }
     }
 
+    function mockExternalCallsForEthPrice(uint256 mockedPrice) internal {
+        address exchangeRates = address(2);
+        cheats.mockCall(
+            address(futuresMarketETH),
+            abi.encodePacked(IFuturesMarket.baseAsset.selector),
+            abi.encode("sSYNTH")
+        );
+        cheats.mockCall(
+            address(addressResolver),
+            abi.encodePacked(IAddressResolver.requireAndGetAddress.selector),
+            abi.encode(exchangeRates)
+        );
+        cheats.mockCall(
+            exchangeRates,
+            abi.encodePacked(IExchangeRates.effectiveValue.selector),
+            abi.encode(mockedPrice)
+        );
+    }
+
+    function mockMarginBalance(uint256 amount) internal {
+        cheats.mockCall(
+            address(marginAsset),
+            abi.encodePacked(IERC20.balanceOf.selector),
+            abi.encode(amount)
+        );
+    }
+
     /*///////////////////////////////////////////////////////////////
                                 Setup
     ///////////////////////////////////////////////////////////////*/
@@ -236,7 +266,8 @@ contract MarginBaseTest is DSTest {
             "0.0.0",
             address(marginAsset),
             address(addressResolver),
-            address(marginBaseSettings)
+            address(marginBaseSettings),
+            payable(address(gelatoOps))
         );
         account = MarginBase(marginAccountFactory.newAccount());
 
@@ -255,6 +286,53 @@ contract MarginBaseTest is DSTest {
     }
 
     /*///////////////////////////////////////////////////////////////
+                                Helpers
+    ///////////////////////////////////////////////////////////////*/
+
+    function deposit(uint256 amount) internal {
+        marginAsset.mint(address(this), amount);
+        marginAsset.approve(address(account), amount);
+        account.deposit(amount);
+    }
+
+    function placeLimitOrder(
+        bytes32 marketKey,
+        int256 marginDelta,
+        int256 sizeDelta,
+        uint256 limitPrice
+    ) internal returns (uint256 orderId) {
+        bytes memory createTaskSelector = abi.encodePacked(
+            IOps.createTask.selector
+        );
+        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        orderId = account.placeOrder(
+            marketKey,
+            marginDelta,
+            sizeDelta,
+            limitPrice
+        );
+    }
+
+    /*///////////////////////////////////////////////////////////////
+                                Utils
+    ///////////////////////////////////////////////////////////////*/
+
+    /// Enable mocking for high level function calls that don't return
+    /// @dev Bypass the extcodesize check for non returning function calls
+    /// https://github.com/ethereum/solidity/issues/12204
+    /// https://book.getfoundry.sh/cheatcodes/mock-call.html#description
+    function mockCall(address where, bytes memory data) internal {
+        // Fill target with bytes
+        cheats.etch(where, new bytes(0x19));
+        // Mock target call
+        cheats.mockCall(where, data, abi.encode());
+    }
+
+    function getSelector(string memory _func) internal pure returns (bytes4) {
+        return bytes4(keccak256(bytes(_func)));
+    }
+
+    /*///////////////////////////////////////////////////////////////
                                 Unit Tests
     ///////////////////////////////////////////////////////////////*/
 
@@ -267,9 +345,7 @@ contract MarginBaseTest is DSTest {
      **********************************/
     function testDeposit() public {
         uint256 amount = 10 ether;
-        marginAsset.mint(address(this), amount);
-        marginAsset.approve(address(account), amount);
-        account.deposit(amount);
+        deposit(amount);
         assertEq(
             marginAsset.balanceOf(address(account)),
             (amount + INITIAL_MARGIN_ASSET_SUPPLY)
@@ -278,9 +354,7 @@ contract MarginBaseTest is DSTest {
 
     function testWithdrawal() public {
         uint256 amount = 10 ether;
-        marginAsset.mint(address(this), amount);
-        marginAsset.approve(address(account), amount);
-        account.deposit(amount);
+        deposit(amount);
         account.withdraw(amount);
         assertEq(
             marginAsset.balanceOf(address(account)),
@@ -292,9 +366,7 @@ contract MarginBaseTest is DSTest {
     function testWithdrawal(uint256 amount) public {
         cheats.assume(amount > 0);
         cheats.assume(amount <= 10000000 ether); // 10_000_000
-        marginAsset.mint(address(this), amount);
-        marginAsset.approve(address(account), amount);
-        account.deposit(amount);
+        deposit(amount);
         account.withdraw(amount);
         assertEq(
             marginAsset.balanceOf(address(account)),
@@ -302,10 +374,313 @@ contract MarginBaseTest is DSTest {
         );
     }
 
+    function testLimitValid() public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        uint256 currentPrice = 2e18;
+
+        // Setup
+        deposit(amount);
+        uint256 orderId = placeLimitOrder(
+            ethMarketKey,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
+
+        mockExternalCallsForEthPrice(currentPrice);
+        assertTrue(account.validOrder(orderId));
+    }
+
+    /// @notice These orders should ALWAYS be valid
+    /// @dev Limit order validity fuzz test
+    function testLimitValid(uint256 currentPrice) public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+
+        // Toss out fuzz runs greater than limit price
+        cheats.assume(currentPrice <= expectedLimitPrice);
+
+        // Setup
+        deposit(amount);
+        uint256 orderId = placeLimitOrder(
+            ethMarketKey,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
+
+        mockExternalCallsForEthPrice(currentPrice);
+        assertTrue(account.validOrder(orderId));
+    }
+
+    /// @notice These orders should ALWAYS be valid
+    /// @dev Limit order validity fuzz test
+    function testLimitInvalid(uint256 currentPrice) public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+
+        // Toss out fuzz runs less than limit price
+        cheats.assume(currentPrice > expectedLimitPrice);
+
+        // Setup
+        deposit(amount);
+        uint256 orderId = placeLimitOrder(
+            ethMarketKey,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
+
+        mockExternalCallsForEthPrice(currentPrice);
+        assertTrue(!account.validOrder(orderId));
+    }
+
+    function testPlaceOrder() public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(amount);
+        uint256 orderId = placeLimitOrder(
+            ethMarketKey,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
+        (, , , uint256 actualLimitPrice, ) = account.orders(orderId);
+        assertEq(expectedLimitPrice, actualLimitPrice);
+    }
+
+    function testCommittingMargin() public {
+        assertEq(account.committedMargin(), 0);
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(amount);
+        placeLimitOrder(
+            ethMarketKey,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
+        assertEq(account.committedMargin(), amount);
+    }
+
+    // assert cannot withdraw committed margin
+    function testWithdrawingCommittedMargin() public {
+        assertEq(account.committedMargin(), 0);
+        uint256 originalDeposit = 10e18;
+        uint256 amountToCommit = originalDeposit;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(originalDeposit);
+        placeLimitOrder(
+            ethMarketKey,
+            int256(amountToCommit),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
+        cheats.expectRevert(
+            abi.encodeWithSelector(
+                MarginBase.InsufficientFreeMargin.selector,
+                originalDeposit - amountToCommit,
+                amountToCommit
+            )
+        );
+        account.withdraw(originalDeposit);
+    }
+
+    function testWithdrawingCommittedMargin(uint256 originalDeposit) public {
+        cheats.assume(originalDeposit > 0);
+        assertEq(account.committedMargin(), 0);
+        uint256 amountToCommit = originalDeposit;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(originalDeposit);
+
+        // the maximum margin delta is positive 2^128 because it is int256
+        cheats.assume(amountToCommit < 2**128 - 1);
+        // this is a valid case (unless we want to restrict limit orders from not changing margin)
+        cheats.assume(amountToCommit != 0);
+
+        placeLimitOrder(
+            ethMarketKey,
+            int256(amountToCommit),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
+        cheats.expectRevert(
+            abi.encodeWithSelector(
+                MarginBase.InsufficientFreeMargin.selector,
+                originalDeposit - amountToCommit,
+                amountToCommit
+            )
+        );
+        account.withdraw(originalDeposit);
+    }
+
+    // assert cannot use committed margin when opening new positions
+    function testDistributingCommittedMargin() public {
+        assertEq(account.committedMargin(), 0);
+        uint256 originalDeposit = 10e18;
+        uint256 amountToCommit = originalDeposit;
+        int256 firstOrderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(originalDeposit);
+
+        placeLimitOrder(
+            ethMarketKey,
+            int256(amountToCommit),
+            firstOrderSizeDelta,
+            expectedLimitPrice
+        );
+
+        int256 secondOrderMarginDelta = 1e18;
+        int256 secondOrderSizeDelta = 1e18;
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
+        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+            "sETH",
+            secondOrderMarginDelta,
+            secondOrderSizeDelta,
+            false
+        );
+
+        cheats.expectRevert(
+            abi.encodeWithSelector(
+                MarginBase.InsufficientFreeMargin.selector,
+                originalDeposit - amountToCommit, // free margin
+                secondOrderMarginDelta // amount attempting to use
+            )
+        );
+
+        account.distributeMargin(newPositions);
+    }
+
+    // assert successful execution frees committed margin
+    function testExecutionUncommitsMargin() public {
+        assertEq(account.committedMargin(), 0);
+        uint256 originalDeposit = 10e18;
+        uint256 amountToCommit = originalDeposit;
+        int256 orderSizeDelta = 1e18;
+        uint256 limitPrice = 3e18;
+        uint256 fee = 1;
+        deposit(originalDeposit);
+
+        uint256 orderId = placeLimitOrder(
+            ethMarketKey,
+            int256(amountToCommit),
+            orderSizeDelta,
+            limitPrice
+        );
+
+        // make limit order condition
+        mockExternalCallsForEthPrice(limitPrice);
+
+        // mock gelato fee details
+        cheats.mockCall(
+            account.ops(),
+            abi.encodePacked(IOps.getFeeDetails.selector),
+            abi.encode(fee, account.ETH())
+        );
+
+        // mock gelato address getter
+        cheats.mockCall(
+            account.ops(),
+            abi.encodePacked(IOps.gelato.selector),
+            abi.encode(gelato)
+        );
+
+        // provide account with fee balance
+        cheats.deal(address(account), fee);
+
+        // call as ops
+        cheats.prank(address(gelatoOps));
+        account.executeOrder(orderId);
+
+        assertEq(account.committedMargin(), 0);
+    }
+
+    // assert fee transfer to gelato is called
+    function testFeeTransfer() public {
+        assertEq(account.committedMargin(), 0);
+        uint256 originalDeposit = 10e18;
+        uint256 amountToCommit = originalDeposit;
+        int256 orderSizeDelta = 1e18;
+        uint256 limitPrice = 3e18;
+        uint256 fee = 1;
+        deposit(originalDeposit);
+
+        uint256 orderId = placeLimitOrder(
+            ethMarketKey,
+            int256(amountToCommit),
+            orderSizeDelta,
+            limitPrice
+        );
+
+        // make limit order condition
+        mockExternalCallsForEthPrice(limitPrice);
+
+        // mock gelato fee details
+        cheats.mockCall(
+            account.ops(),
+            abi.encodePacked(IOps.getFeeDetails.selector),
+            abi.encode(fee, account.ETH())
+        );
+
+        // mock gelato address getter
+        cheats.mockCall(
+            account.ops(),
+            abi.encodePacked(IOps.gelato.selector),
+            abi.encode(gelato)
+        );
+
+        // provide account with fee balance
+        cheats.deal(address(account), fee);
+
+        // expect a call w/ empty calldata to gelato (payment through callvalue)
+        cheats.expectCall(gelato, "");
+
+        // call as ops
+        cheats.prank(address(gelatoOps));
+        account.executeOrder(orderId);
+    }
+
+    // should 0 out committed margin
+    function testCancellingLimitOrder() public {
+        assertEq(account.committedMargin(), 0);
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(amount);
+        uint256 orderId = placeLimitOrder(
+            ethMarketKey,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice
+        );
+        assertEq(account.committedMargin(), amount);
+
+        // Mock non-returning function call
+        (, , , , bytes32 taskId) = account.orders(orderId);
+        mockCall(
+            account.ops(),
+            abi.encodeWithSelector(IOps.cancelTask.selector, taskId)
+        );
+
+        account.cancelOrder(orderId);
+        assertEq(account.committedMargin(), 0);
+    }
+
     /**********************************
      * distributeMargin()
      **********************************/
     function testDistributeMargin() public {
+        mockMarginBalance(1 ether);
+
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
@@ -338,6 +713,8 @@ contract MarginBaseTest is DSTest {
 
     /// @dev DistributeMargin fuzz test
     function testDistributeMargin(uint16 numberOfNewPositions) public {
+        mockMarginBalance(1 ether);
+
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](
                 numberOfNewPositions
@@ -397,6 +774,8 @@ contract MarginBaseTest is DSTest {
     }
 
     function testGetNumberOfActivePositions() public {
+        mockMarginBalance(1 ether);
+
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
@@ -421,6 +800,8 @@ contract MarginBaseTest is DSTest {
      *         so they're not tested here (and are in-fact mocked above)
      **********************************/
     function testCanGetActivePositions() public {
+        mockMarginBalance(1 ether);
+
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
         newPositions[0] = MarginBase.UpdateMarketPositionSpec(
@@ -447,6 +828,8 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCanGetActivePositionsAfterClosingOne() public {
+        mockMarginBalance(1 ether);
+
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
 
@@ -490,6 +873,8 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCanGetActivePositionsAfterClosingTwo() public {
+        mockMarginBalance(1 ether);
+
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](5);
 
@@ -537,6 +922,8 @@ contract MarginBaseTest is DSTest {
      * updateActiveMarketPosition()
      **********************************/
     function testCanUpdatePosition() public {
+        mockMarginBalance(1 ether);
+
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
 
@@ -559,6 +946,8 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCanOpenRecentlyClosedPosition() public {
+        mockMarginBalance(1 ether);
+
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](3);
 
@@ -591,6 +980,8 @@ contract MarginBaseTest is DSTest {
      * removeActiveMarketPositon()
      **********************************/
     function testCanRemovePosition() public {
+        mockMarginBalance(1 ether);
+
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
 
@@ -634,6 +1025,8 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCannotClosePositionTwice() public {
+        mockMarginBalance(1 ether);
+
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](3);
 

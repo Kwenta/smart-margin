@@ -61,7 +61,8 @@ contract MarginAccountFactoryTest is DSTest {
             "0.0.0",
             address(0),
             addressResolver,
-            address(marginBaseSettings)
+            address(marginBaseSettings),
+            payable(address(0))
         );
     }
 

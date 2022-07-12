@@ -150,6 +150,9 @@ const MARKET_KEY_sBTC = ethers.utils.formatBytes32String("sBTC");
 const MARKET_KEY_sLINK = ethers.utils.formatBytes32String("sLINK");
 const MARKET_KEY_sUNI = ethers.utils.formatBytes32String("sUNI");
 
+// gelato
+const GELATO_OPS = "0xB3f5503f93d5Ef84b06993a1975B9D21B962892F";
+
 // cross margin
 let marginBaseSettings: Contract;
 let marginAccountFactory: Contract;
@@ -203,7 +206,8 @@ describe("Integration: Test Cross Margin", () => {
             "1.0.0",
             SUSD_PROXY,
             ADDRESS_RESOLVER,
-            marginBaseSettings.address
+            marginBaseSettings.address,
+            GELATO_OPS
         );
         expect(marginAccountFactory.address).to.exist;
     });
