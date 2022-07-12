@@ -6,13 +6,15 @@ import "./interfaces/CheatCodes.sol";
 import "../../contracts/interfaces/IFuturesMarket.sol";
 import "../../contracts/interfaces/IFuturesMarketManager.sol";
 import "../../contracts/interfaces/IAddressResolver.sol";
+import "../../contracts/MarginBaseSettings.sol";
 import "../../contracts/MarginAccountFactory.sol";
 import "../../contracts/MarginBase.sol";
 import "./utils/MintableERC20.sol";
 
-contract MarginAccountFactoryTest is DSTest {
+contract MarginBaseTest is DSTest {
     CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
     MintableERC20 private marginAsset;
+    MarginBaseSettings private marginBaseSettings;
     MarginAccountFactory private marginAccountFactory;
     MarginBase private account;
 
@@ -21,6 +23,9 @@ contract MarginAccountFactoryTest is DSTest {
     bytes32 private btcMarketKey = "sBTC";
     bytes32 private linkMarketKey = "sLINK";
     bytes32 private uniMarketKey = "sUNI";
+
+    /// @notice max BPS
+    uint256 private constant MAX_BPS = 10000;
 
     struct Position {
         uint64 id;
@@ -39,12 +44,16 @@ contract MarginAccountFactoryTest is DSTest {
         IFuturesMarket(0x1228c7D8BBc5bC53DB181bD7B1fcE765aa83bF8A);
     IFuturesMarket private futuresMarketUNI =
         IFuturesMarket(0x5Af0072617F7f2AEB0e314e2faD1DE0231Ba97cD);
+
     // futures market manager for mocking
     IFuturesMarketManager private futuresManager =
         IFuturesMarketManager(0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B);
     // address resolver for mocking
     IAddressResolver private addressResolver =
         IAddressResolver(0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C);
+    // kwenta treasury address on OE Mainnet
+    address private constant KWENTA_TREASURY =
+        0x82d2242257115351899894eF384f779b5ba8c695;
 
     IOps private gelatoOps = IOps(0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c);
     address private gelato = 0x01051113D81D7d6DA508462F2ad6d7fD96cF42Ef;
@@ -235,11 +244,24 @@ contract MarginAccountFactoryTest is DSTest {
     function setUp() public {
         mockAddressResolverCalls();
 
+        /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
+        uint256 distributionFee = 5; // 5 BPS
+        uint256 limitOrderFee = 5; // 5 BPS
+        uint256 stopLossFee = 10; // 10 BPS
+        marginBaseSettings = new MarginBaseSettings(
+            KWENTA_TREASURY,
+            distributionFee,
+            limitOrderFee,
+            stopLossFee
+        );
+
         marginAsset = new MintableERC20(address(this), 0);
+
         marginAccountFactory = new MarginAccountFactory(
             "0.0.0",
             address(marginAsset),
             address(addressResolver),
+            address(marginBaseSettings),
             payable(address(gelatoOps))
         );
         account = MarginBase(marginAccountFactory.newAccount());
@@ -314,7 +336,7 @@ contract MarginAccountFactoryTest is DSTest {
     function testDeposit() public {
         uint256 amount = 10 ether;
         deposit(amount);
-        assertEq(marginAsset.balanceOf(address(account)), amount);
+        assertEq(marginAsset.balanceOf(address(account)), (amount));
     }
 
     function testWithdrawal() public {
@@ -327,6 +349,7 @@ contract MarginAccountFactoryTest is DSTest {
     /// @dev Deposit/Withdrawal fuzz test
     function testWithdrawal(uint256 amount) public {
         cheats.assume(amount > 0);
+        cheats.assume(amount <= 10000000 ether); // 10_000_000
         deposit(amount);
         account.withdraw(amount);
         assertEq(marginAsset.balanceOf(address(account)), 0);
@@ -634,10 +657,10 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     /**********************************
-     * testDistributeMargin()
+     * distributeMargin()
      **********************************/
     function testDistributeMargin() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
@@ -671,7 +694,7 @@ contract MarginAccountFactoryTest is DSTest {
 
     /// @dev DistributeMargin fuzz test
     function testDistributeMargin(uint16 numberOfNewPositions) public {
-        mockMarginBalance(1 ether);
+        deposit(65536 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](
@@ -732,7 +755,7 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     function testGetNumberOfActivePositions() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
@@ -758,7 +781,7 @@ contract MarginAccountFactoryTest is DSTest {
      *         so they're not tested here (and are in-fact mocked above)
      **********************************/
     function testCanGetActivePositions() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
@@ -786,7 +809,7 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     function testCanGetActivePositionsAfterClosingOne() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
@@ -831,7 +854,7 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     function testCanGetActivePositionsAfterClosingTwo() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](5);
@@ -880,7 +903,7 @@ contract MarginAccountFactoryTest is DSTest {
      * updateActiveMarketPosition()
      **********************************/
     function testCanUpdatePosition() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
@@ -904,7 +927,7 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     function testCanOpenRecentlyClosedPosition() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](3);
@@ -938,7 +961,7 @@ contract MarginAccountFactoryTest is DSTest {
      * removeActiveMarketPositon()
      **********************************/
     function testCanRemovePosition() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
@@ -983,7 +1006,7 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     function testCannotClosePositionTwice() public {
-        mockMarginBalance(1 ether);
+        deposit(10 ether);
 
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](3);
@@ -1016,5 +1039,47 @@ contract MarginAccountFactoryTest is DSTest {
             )
         );
         account.distributeMargin(newPositions);
+    }
+
+    /**********************************
+     * distribution fees
+     **********************************/
+
+    function testFeeDistribution() public {
+        deposit(10 ether);
+
+        MarginBase.UpdateMarketPositionSpec[]
+            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
+        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+            ethMarketKey,
+            1 ether,
+            1 ether,
+            false
+        );
+        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+            btcMarketKey,
+            1 ether,
+            1 ether,
+            false
+        );
+        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
+            linkMarketKey,
+            1 ether,
+            1 ether,
+            false
+        );
+        newPositions[3] = MarginBase.UpdateMarketPositionSpec(
+            uniMarketKey,
+            1 ether,
+            1 ether,
+            false
+        );
+        account.distributeMargin(newPositions);
+
+        uint256 totalMarginMoved = 4 * (1 ether);
+        uint256 expectedFee = (totalMarginMoved *
+            marginBaseSettings.distributionFee()) / MAX_BPS;
+
+        assertEq(marginAsset.balanceOf(KWENTA_TREASURY), expectedFee);
     }
 }

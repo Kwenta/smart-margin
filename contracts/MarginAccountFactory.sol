@@ -6,7 +6,7 @@ import "./MarginBase.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title Kwenta MarginBase Factory
-/// @author JaredBorders and JChiaramonte7
+/// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice Factory which enables deploying a MarginBase account for any user 
 contract MarginAccountFactory is MinimalProxyFactory {
     
@@ -25,6 +25,9 @@ contract MarginAccountFactory is MinimalProxyFactory {
     /// @notice synthetix address resolver
     address public immutable addressResolver;
 
+    /// @notice settings for MarginBase accounts
+    address public marginBaseSettings;
+    
     /// @notice gelato ops
     address payable public immutable ops;
 
@@ -42,17 +45,23 @@ contract MarginAccountFactory is MinimalProxyFactory {
     /// @param _version: version of contract
     /// @param _marginAsset: token contract address used for account margin
     /// @param _addressResolver: contract address for synthetix address resolver
+    /// @param _marginBaseSettings: contract address for MarginBase account settings
     /// @param _ops: contract address for gelato ops -- must be payable
     constructor(
         string memory _version,
         address _marginAsset,
         address _addressResolver,
+        address _marginBaseSettings,
         address payable _ops
     ) {
         version = _version;
         implementation = new MarginBase();
         marginAsset = IERC20(_marginAsset);
         addressResolver = _addressResolver;
+
+        /// @dev MarginBaseSettings must exist prior to MarginAccountFactory
+        marginBaseSettings = _marginBaseSettings;
+
         ops = _ops;
     }
 
@@ -67,7 +76,7 @@ contract MarginAccountFactory is MinimalProxyFactory {
         MarginBase account = MarginBase(
             _cloneAsMinimalProxy(address(implementation), "Creation failure")
         );
-        account.initialize(address(marginAsset), addressResolver, ops);
+        account.initialize(address(marginAsset), addressResolver, marginBaseSettings, ops);
         account.transferOwnership(msg.sender);
 
         emit NewAccount(msg.sender, address(account));

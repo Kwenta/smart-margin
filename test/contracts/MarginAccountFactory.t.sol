@@ -3,15 +3,20 @@ pragma solidity 0.8.13;
 
 import "ds-test/test.sol";
 import "./interfaces/CheatCodes.sol";
+import "../../contracts/MarginBaseSettings.sol";
 import "../../contracts/MarginAccountFactory.sol";
 import "../../contracts/MarginBase.sol";
 
 contract MarginAccountFactoryTest is DSTest {
     CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
+    MarginBaseSettings private marginBaseSettings;
     MarginAccountFactory private marginAccountFactory;
 
     address private addressResolver =
         0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C;
+
+    address private constant KWENTA_TREASURY =
+        0x82d2242257115351899894eF384f779b5ba8c695;
 
     // futures market manager for mocking
     IFuturesMarketManager private futuresManager =
@@ -41,10 +46,22 @@ contract MarginAccountFactoryTest is DSTest {
     function setUp() public {
         mockAddressResolverCalls();
 
+        /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
+        uint256 distributionFee = 5; // 5 BPS
+        uint256 limitOrderFee = 5; // 5 BPS
+        uint256 stopLossFee = 10; // 10 BPS
+        marginBaseSettings = new MarginBaseSettings(
+            KWENTA_TREASURY,
+            distributionFee,
+            limitOrderFee,
+            stopLossFee
+        );
+
         marginAccountFactory = new MarginAccountFactory(
             "0.0.0",
             address(0),
             addressResolver,
+            address(marginBaseSettings),
             payable(address(0))
         );
     }

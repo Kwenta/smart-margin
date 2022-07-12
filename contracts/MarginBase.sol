@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.13;
 
-import "./utils/MinimalProxyable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IAddressResolver.sol";
 import "./interfaces/IFuturesMarket.sol";
 import "./interfaces/IFuturesMarketManager.sol";
+import "./interfaces/IExchangeRates.sol";
 import "./utils/OpsReady.sol";
 import "./utils/MinimalProxyable.sol";
-import "./interfaces/IExchangeRates.sol";
+import "./MarginBaseSettings.sol";
 
 /// @title Kwenta MarginBase Account
-/// @author JaredBorders and JChiaramonte7
+/// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice Flexible, minimalist, and gas-optimized cross-margin enabled account
 /// for managing perpetual futures positions
 contract MarginBase is MinimalProxyable, OpsReady {
@@ -19,11 +19,14 @@ contract MarginBase is MinimalProxyable, OpsReady {
                                 Constants
     ///////////////////////////////////////////////////////////////*/
 
-    // tracking code used when modifying positions
+    /// @notice tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
 
-    // name for futures market manager, needed for fetching market key
+    /// @notice name for futures market manager, needed for fetching market key
     bytes32 private constant FUTURES_MANAGER = "FuturesMarketManager";
+
+    /// @notice max BPS
+    uint256 private constant MAX_BPS = 10000;
 
     // constant for sUSD currency key
     bytes32 private constant SUSD = "sUSD";
@@ -68,6 +71,9 @@ contract MarginBase is MinimalProxyable, OpsReady {
     /*///////////////////////////////////////////////////////////////
                                 State
     ///////////////////////////////////////////////////////////////*/
+
+    /// @notice settings for MarginBase account
+    MarginBaseSettings public marginBaseSettings;
 
     /// @notice synthetix address resolver
     IAddressResolver private addressResolver;
@@ -122,14 +128,6 @@ contract MarginBase is MinimalProxyable, OpsReady {
     /// @param numberOfNewPositions: number of new position specs
     error MaxNewPositionsExceeded(uint256 numberOfNewPositions);
 
-    /// @notice market withdrawal size was positive (i.e. deposit)
-    /// @param withdrawalSize: amount of margin asset to withdraw from market
-    error InvalidMarketWithdrawSize(int256 withdrawalSize);
-
-    /// @notice market deposit size was negative (i.e. withdraw)
-    /// @param depositSize: amount of margin asset to deposit into market
-    error InvalidMarketDepositSize(int256 depositSize);
-
     /// @notice exceeds useable margin
     /// @param available: amount of useable margin asset
     /// @param required: amount of margin asset required
@@ -146,10 +144,12 @@ contract MarginBase is MinimalProxyable, OpsReady {
     /// @notice initialize contract (only once) and transfer ownership to caller
     /// @param _marginAsset: token contract address used for account margin
     /// @param _addressResolver: contract address for synthetix address resolver
+    /// @param _marginBaseSettings: contract address for MarginBase account settings
     /// @param _ops: gelato ops address
     function initialize(
         address _marginAsset,
         address _addressResolver,
+        address _marginBaseSettings,
         address payable _ops
     ) external initOnce {
         marginAsset = IERC20(_marginAsset);
@@ -161,6 +161,9 @@ contract MarginBase is MinimalProxyable, OpsReady {
             )
         );
         marginAsset = IERC20(_marginAsset);
+
+        /// @dev MarginBaseSettings must exist prior to MarginBase account creation
+        marginBaseSettings = MarginBaseSettings(_marginBaseSettings);
 
         /// @dev the Ownable constructor is never called when we create minimal proxies
         _transferOwnership(msg.sender);
@@ -265,14 +268,20 @@ contract MarginBase is MinimalProxyable, OpsReady {
             revert MaxNewPositionsExceeded(_newPositions.length);
         }
 
+        /// @notice tracking variable for calculating fee(s) based on margin delta
+        /// @dev margin delta: total margin deposited/withdrawn across ALL new positions
+        uint256 totalMarginDelta = 0;
+
         // for each new position in _newPositions, distribute margin accordingly and update state
         for (uint16 i = 0; i < _newPositions.length; i++) {
             if (_newPositions[i].isClosing) {
                 /// @notice close position and transfer margin back to account
-                closePositionAndWithdraw(_newPositions[i].marketKey);
+                totalMarginDelta += closePositionAndWithdraw(
+                    _newPositions[i].marketKey
+                );
             } else if (_newPositions[i].marginDelta < 0) {
                 /// @notice remove margin from market and potentially adjust size
-                modifyPositionForMarketAndWithdraw(
+                totalMarginDelta += modifyPositionForMarketAndWithdraw(
                     _newPositions[i].marginDelta,
                     _newPositions[i].sizeDelta,
                     _newPositions[i].marketKey
@@ -280,7 +289,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
             } else {
                 /// @dev marginDelta >= 0
                 /// @notice deposit margin into market and potentially adjust size
-                depositAndModifyPositionForMarket(
+                totalMarginDelta += depositAndModifyPositionForMarket(
                     _newPositions[i].marginDelta,
                     _newPositions[i].sizeDelta,
                     _newPositions[i].marketKey
@@ -289,37 +298,57 @@ contract MarginBase is MinimalProxyable, OpsReady {
                 // margin deposited into the market
             }
         }
+
+        /// @notice impose fee: send fee to Kwenta's treasury IF margin was deposited/withdrawn
+        if (totalMarginDelta > 0) {
+            require(
+                marginAsset.transfer(
+                    marginBaseSettings.treasury(),
+                    (totalMarginDelta * marginBaseSettings.distributionFee()) /
+                        MAX_BPS
+                ),
+                "MarginBase: unable to pay fee"
+            );
+        }
     }
+
+    // @TODO https://github.com/Kwenta/margin-manager/issues/12
 
     /*///////////////////////////////////////////////////////////////
                     Internal Margin Distribution
     ///////////////////////////////////////////////////////////////*/
 
     /// @notice deposit margin into specific market, creating/adding to a position
+    /// @dev _depositSize can NEVER be negative
+    /// @dev both _depositSize and _sizeDelta could be zero (i.e. market position goes unchanged)
     /// @param _depositSize: size of deposit in sUSD
     /// @param _sizeDelta: size and position type (long//short) denoted in market synth (ex: sETH)
     /// @param _marketKey: synthetix futures market id/key
+    /// @return marginMoved total margin moved in function call 
     function depositAndModifyPositionForMarket(
         int256 _depositSize,
         int256 _sizeDelta,
         bytes32 _marketKey
-    ) internal {
-        // _depositSize must be positive or zero (i.e. not a withdraw)
-        if (_depositSize < 0) {
-            revert InvalidMarketDepositSize(_depositSize);
-        }
-
+    ) internal returns (uint256 marginMoved) {
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
 
-        // make sure committed margin isn't deposited
-        if (_abs(_depositSize) > freeMargin()) {
-            revert InsufficientFreeMargin(freeMargin(), _abs(_depositSize));
-        }
+        /// @dev if _depositSize is not 0, then we must:
+        /// (1) impose correct fee
+        /// (2) transfer _depositSize (new margin) into the market
+        if (_depositSize > 0) {
+            /// @notice marginMoved used to calculate fee based on _depositSize
+            marginMoved = _abs(_depositSize);
 
-        /// @notice alter the amount of margin in specific market position
-        /// @dev positive input triggers a deposit; a negative one, a withdrawal
-        market.transferMargin(_depositSize);
+            // make sure committed margin isn't deposited
+            if (marginMoved > freeMargin()) {
+                revert InsufficientFreeMargin(freeMargin(), marginMoved);
+            }
+
+            /// @notice alter the amount of margin in specific market position
+            /// @dev positive input triggers a deposit; a negative one, a withdrawal
+            market.transferMargin(_depositSize);
+        }
 
         /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
         if (_sizeDelta != 0) {
@@ -331,25 +360,26 @@ contract MarginBase is MinimalProxyable, OpsReady {
         (, , uint128 margin, , int128 size) = market.positions(address(this));
 
         // update state for given open market position
-        updateActiveMarketPosition(_marketKey, margin, size, market);
+        marginMoved += updateActiveMarketPosition(_marketKey, margin, size, market);
     }
 
     /// @notice modify active position and withdraw marginAsset from market into this account
+    /// @dev _withdrawalSize can NEVER be positive NOR zero
+    /// @dev _sizeDelta could be zero
     /// @param _withdrawalSize: size of sUSD to withdraw from market into account
     /// @param _sizeDelta: size and position type (long//short) denoted in market synth (ex: sETH)
     /// @param _marketKey: synthetix futures market id/key
+    /// @return marginMoved total margin moved in function call
     function modifyPositionForMarketAndWithdraw(
         int256 _withdrawalSize,
         int256 _sizeDelta,
         bytes32 _marketKey
-    ) internal {
-        // _withdrawalSize must be negative or zero (i.e. not a deposit)
-        if (_withdrawalSize > 0) {
-            revert InvalidMarketWithdrawSize(_withdrawalSize);
-        }
-
+    ) internal returns (uint256 marginMoved) {
         // define market via _marketKey
         IFuturesMarket market = futuresMarket(_marketKey);
+
+        /// @notice marginMoved used to calculate fee based on _withdrawalSize
+        marginMoved = _abs(_withdrawalSize);
 
         /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
         if (_sizeDelta != 0) {
@@ -365,12 +395,16 @@ contract MarginBase is MinimalProxyable, OpsReady {
         (, , uint128 margin, , int128 size) = market.positions(address(this));
 
         // update state for given open market position
-        updateActiveMarketPosition(_marketKey, margin, size, market);
+        marginMoved += updateActiveMarketPosition(_marketKey, margin, size, market);
     }
 
     /// @notice closes futures position and withdraws all margin in that market back to this account
     /// @param _marketKey: synthetix futures market id/key
-    function closePositionAndWithdraw(bytes32 _marketKey) internal {
+    /// @return marginMoved total margin moved in function call
+    function closePositionAndWithdraw(bytes32 _marketKey)
+        internal
+        returns (uint256 marginMoved)
+    {
         // update state (remove market)
         removeActiveMarketPositon(_marketKey);
 
@@ -379,6 +413,12 @@ contract MarginBase is MinimalProxyable, OpsReady {
 
         // close market position
         market.closePosition();
+
+        // fetch position data from Synthetix
+        (, , uint128 margin, , ) = market.positions(address(this));
+
+        /// @notice marginMoved used to calculate fee based on margin in market being closed
+        marginMoved = margin;
 
         // withdraw margin back to this account
         market.withdrawAllMargin();
@@ -389,16 +429,18 @@ contract MarginBase is MinimalProxyable, OpsReady {
     ///////////////////////////////////////////////////////////////*/
 
     /// @notice used internally to update contract state for the account's active position tracking
+    /// @dev parameters are generated and passed to this function via Synthetix Futures' contracts
+    /// @dev if _size becomes 0, remove position from account state and withdraw margin (only non-"internal" logic in below code)
     /// @param _marketKey: key for synthetix futures market
     /// @param _margin: amount of margin the specific market position has
     /// @param _size: represents size of position (i.e. accounts for leverage)
-    /// @dev if _size becomes 0, remove position from account state and withdraw margin
+    /// @return marginMoved total margin moved in function call
     function updateActiveMarketPosition(
         bytes32 _marketKey,
         uint128 _margin,
         int128 _size,
         IFuturesMarket market
-    ) internal {
+    ) internal returns (uint256 marginMoved) {
         // if position size is 0, position is effectively closed on
         // FuturesMarket but margin is still in contract, thus it must
         // be withdrawn back to this account
@@ -406,9 +448,12 @@ contract MarginBase is MinimalProxyable, OpsReady {
             // update state (remove market)
             removeActiveMarketPositon(_marketKey);
 
+            /// @notice marginMoved used to calculate fee based on margin in market being closed
+            marginMoved = _margin;
+
             // withdraw margin back to this account
             market.withdrawAllMargin();
-            return;
+            return marginMoved;
         }
 
         ActiveMarketPosition memory newPosition = ActiveMarketPosition(
@@ -441,13 +486,14 @@ contract MarginBase is MinimalProxyable, OpsReady {
             // once _marketKey is encountered, swap with
             // last element in array and exit for-loop
             if (activeMarketKeys[i] == _marketKey) {
+                /// @dev effectively removes _marketKey from activeMarketKeys
                 activeMarketKeys[i] = activeMarketKeys[
                     numberOfActiveMarkets - 1
                 ];
                 break;
             }
         }
-        // remove last element (which will be _marketKey)
+        // remove last element now that it has been copied
         activeMarketKeys.pop();
     }
 
@@ -604,6 +650,10 @@ contract MarginBase is MinimalProxyable, OpsReady {
             _orderId
         );
     }
+
+    /*///////////////////////////////////////////////////////////////
+                    Utility Functions
+    ///////////////////////////////////////////////////////////////*/
 
     /// @notice Absolute value of the input, returned as an unsigned number.
     /// @param x: signed number
