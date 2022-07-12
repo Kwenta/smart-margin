@@ -195,14 +195,21 @@ describe("Integration: Test Cross Margin", () => {
     });
 
     it("Should deploy MarginAccountFactory contract", async () => {
-        marginBaseSettings = await (
-            await ethers.getContractFactory("MarginBaseSettings")
-        ).deploy(KWENTA_TREASURY, distributionFee, limitOrderFee, stopLossFee);
+        const MarginBaseSettings = await ethers.getContractFactory(
+            "MarginBaseSettings"
+        );
+        marginBaseSettings = await MarginBaseSettings.deploy(
+            KWENTA_TREASURY,
+            distributionFee,
+            limitOrderFee,
+            stopLossFee
+        );
         expect(marginBaseSettings.address).to.exist;
 
-        marginAccountFactory = await (
-            await ethers.getContractFactory("MarginAccountFactory")
-        ).deploy(
+        const MarginAccountFactory = await ethers.getContractFactory(
+            "MarginAccountFactory"
+        );
+        marginAccountFactory = await MarginAccountFactory.deploy(
             "1.0.0",
             SUSD_PROXY,
             ADDRESS_RESOLVER,
