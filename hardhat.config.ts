@@ -33,7 +33,9 @@ const config: HardhatUserConfig = {
             chainId: 31337,
         },
         "optimistic-kovan": {
-            url: process.env.ARCHIVE_NODE_URL_KOVAN_L2,
+            url: process.env.ARCHIVE_NODE_URL_KOVAN_L2
+                ? process.env.ARCHIVE_NODE_URL_KOVAN_L2
+                : "",
             accounts: process.env.DEPLOYER_PRIVATE_KEY
                 ? [process.env.DEPLOYER_PRIVATE_KEY]
                 : undefined,
@@ -44,7 +46,9 @@ const config: HardhatUserConfig = {
             },
         },
         "optimistic-mainnet": {
-            url: process.env.ARCHIVE_NODE_URL_L2,
+            url: process.env.ARCHIVE_NODE_URL_L2
+                ? process.env.ARCHIVE_NODE_URL_L2
+                : "",
             accounts: process.env.DEPLOYER_PRIVATE_KEY
                 ? [process.env.DEPLOYER_PRIVATE_KEY]
                 : undefined,
