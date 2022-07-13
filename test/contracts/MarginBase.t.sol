@@ -6,6 +6,7 @@ import "./interfaces/CheatCodes.sol";
 import "../../contracts/interfaces/IFuturesMarket.sol";
 import "../../contracts/interfaces/IFuturesMarketManager.sol";
 import "../../contracts/interfaces/IAddressResolver.sol";
+import "../../contracts/interfaces/IMarginBaseTypes.sol";
 import "../../contracts/MarginBaseSettings.sol";
 import "../../contracts/MarginAccountFactory.sol";
 import "../../contracts/MarginBase.sol";
@@ -521,9 +522,9 @@ contract MarginBaseTest is DSTest {
 
         int256 secondOrderMarginDelta = 1e18;
         int256 secondOrderSizeDelta = 1e18;
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](4);
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
             "sETH",
             secondOrderMarginDelta,
             secondOrderSizeDelta,
@@ -662,27 +663,27 @@ contract MarginBaseTest is DSTest {
     function testDistributeMargin() public {
         deposit(10 ether);
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](4);
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             1 ether,
             1 ether,
             false
         );
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
             btcMarketKey,
             1 ether,
             1 ether,
             false
         );
-        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
             linkMarketKey,
             1 ether,
             1 ether,
             false
         );
-        newPositions[3] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[3] = IMarginBaseTypes.UpdateMarketPositionSpec(
             uniMarketKey,
             1 ether,
             1 ether,
@@ -696,13 +697,13 @@ contract MarginBaseTest is DSTest {
     function testDistributeMargin(uint16 numberOfNewPositions) public {
         deposit(65536 ether);
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
                 numberOfNewPositions
             );
 
         for (uint16 i = 0; i < numberOfNewPositions; i++) {
-            newPositions[i] = MarginBase.UpdateMarketPositionSpec(
+            newPositions[i] = IMarginBaseTypes.UpdateMarketPositionSpec(
                 ethMarketKey,
                 1 ether,
                 1 ether,
@@ -719,8 +720,8 @@ contract MarginBaseTest is DSTest {
 
     function testCannotPassMaxPositions() public {
         uint32 max = type(uint16).max;
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
                 max + 1
             );
 
@@ -735,9 +736,9 @@ contract MarginBaseTest is DSTest {
 
     function testCannotDistributeMarginWithInvalidKey() public {
         bytes32 key = "LUNA";
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](1);
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
             key,
             1 ether,
             1 ether,
@@ -757,15 +758,15 @@ contract MarginBaseTest is DSTest {
     function testGetNumberOfActivePositions() public {
         deposit(10 ether);
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](2);
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             1 ether,
             1 ether,
             false
         );
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
             btcMarketKey,
             1 ether,
             1 ether,
@@ -783,15 +784,15 @@ contract MarginBaseTest is DSTest {
     function testCanGetActivePositions() public {
         deposit(10 ether);
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](2);
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             1 ether,
             1 ether,
             false
         );
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
             btcMarketKey,
             1 ether,
             1 ether,
@@ -811,29 +812,29 @@ contract MarginBaseTest is DSTest {
     function testCanGetActivePositionsAfterClosingOne() public {
         deposit(10 ether);
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](4);
 
         // close position which doesn't exist
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             1 ether,
             1 ether,
             false
         );
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
             btcMarketKey,
             1 ether,
             1 ether,
             false
         );
-        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
             uniMarketKey,
             1 ether,
             1 ether,
             false
         );
-        newPositions[3] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[3] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             0,
             0,
@@ -856,35 +857,35 @@ contract MarginBaseTest is DSTest {
     function testCanGetActivePositionsAfterClosingTwo() public {
         deposit(10 ether);
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](5);
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](5);
 
         // close position which doesn't exist
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             1 ether,
             1 ether,
             false
         );
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
             uniMarketKey,
             1 ether,
             1 ether,
             false
         );
-        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             0,
             0,
             true // signals -> closePositionAndWithdraw()
         );
-        newPositions[3] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[3] = IMarginBaseTypes.UpdateMarketPositionSpec(
             btcMarketKey,
             1 ether,
             1 ether,
             false
         );
-        newPositions[4] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[4] = IMarginBaseTypes.UpdateMarketPositionSpec(
             btcMarketKey,
             0,
             0,
@@ -905,18 +906,18 @@ contract MarginBaseTest is DSTest {
     function testCanUpdatePosition() public {
         deposit(10 ether);
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](2);
 
         // open position
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             1 ether,
             1 ether,
             false
         );
         // update position (same tx)
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             -1 ether, // reduce margin
             -1 ether, // reduce size
@@ -929,24 +930,24 @@ contract MarginBaseTest is DSTest {
     function testCanOpenRecentlyClosedPosition() public {
         deposit(10 ether);
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](3);
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](3);
 
         // open position
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             1 ether,
             1 ether,
             false
         );
         // update position (same tx)
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             0,
             0,
             true
         );
-        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             1 ether,
             1 ether,
@@ -963,17 +964,17 @@ contract MarginBaseTest is DSTest {
     function testCanRemovePosition() public {
         deposit(10 ether);
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](2);
 
         // close position which doesn't exist
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             1 ether,
             1 ether,
             false
         );
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             0,
             0,
@@ -986,11 +987,11 @@ contract MarginBaseTest is DSTest {
 
     function testCannotRemoveNonexistentPosition() public {
         bytes32 aaveMarketKey = "sAAVE";
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](1);
 
         // close position which doesn't exist
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
             aaveMarketKey,
             0,
             0,
@@ -1008,25 +1009,25 @@ contract MarginBaseTest is DSTest {
     function testCannotClosePositionTwice() public {
         deposit(10 ether);
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](3);
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](3);
 
         // open position
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             1 ether,
             1 ether,
             false
         );
         // close position (same tx)
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             0,
             0,
             true // signals -> closePositionAndWithdraw()
         );
         // attempt to close position *again* (same tx)
-        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             0,
             0,
@@ -1048,27 +1049,27 @@ contract MarginBaseTest is DSTest {
     function testFeeDistribution() public {
         deposit(10 ether);
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](4);
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ethMarketKey,
             1 ether,
             1 ether,
             false
         );
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
             btcMarketKey,
             1 ether,
             1 ether,
             false
         );
-        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
             linkMarketKey,
             1 ether,
             1 ether,
             false
         );
-        newPositions[3] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[3] = IMarginBaseTypes.UpdateMarketPositionSpec(
             uniMarketKey,
             1 ether,
             1 ether,

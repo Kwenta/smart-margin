@@ -6,6 +6,7 @@ import "./interfaces/IAddressResolver.sol";
 import "./interfaces/IFuturesMarket.sol";
 import "./interfaces/IFuturesMarketManager.sol";
 import "./interfaces/IExchangeRates.sol";
+import "./interfaces/IMarginBaseTypes.sol";
 import "./utils/OpsReady.sol";
 import "./utils/MinimalProxyable.sol";
 import "./MarginBaseSettings.sol";
@@ -14,7 +15,7 @@ import "./MarginBaseSettings.sol";
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice Flexible, minimalist, and gas-optimized cross-margin enabled account
 /// for managing perpetual futures positions
-contract MarginBase is MinimalProxyable, OpsReady {
+contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
     /*///////////////////////////////////////////////////////////////
                                 Constants
     ///////////////////////////////////////////////////////////////*/
@@ -30,43 +31,6 @@ contract MarginBase is MinimalProxyable, OpsReady {
 
     // constant for sUSD currency key
     bytes32 private constant SUSD = "sUSD";
-
-    /*///////////////////////////////////////////////////////////////
-                                Types
-    ///////////////////////////////////////////////////////////////*/
-
-    // marketKey: synthetix futures market id/key
-    // margin: amount of margin (in sUSD) in specific futures market
-    // size: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
-    struct ActiveMarketPosition {
-        bytes32 marketKey;
-        uint128 margin;
-        int128 size;
-    }
-
-    // marketKey: synthetix futures market id/key
-    // marginDelta: amount of margin (in sUSD) to deposit or withdraw
-    // sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
-    // isClosing: indicates if position needs to be closed
-    struct UpdateMarketPositionSpec {
-        bytes32 marketKey;
-        int256 marginDelta; // positive indicates deposit, negative withdraw
-        int256 sizeDelta;
-        bool isClosing; // if true, marginDelta nor sizeDelta are considered. simply closes position
-    }
-
-    // marketKey: synthetix futures market id/key
-    // marginDelta: amount of margin (in sUSD) to deposit or withdraw
-    // sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
-    // desiredPrice: limit or stop price desired
-    // gelatoTaskId: unqiue taskId from gelato necessary for cancelling orders
-    struct Order {
-        bytes32 marketKey;
-        int256 marginDelta; // positive indicates deposit, negative withdraw
-        int256 sizeDelta;
-        uint256 desiredPrice;
-        bytes32 gelatoTaskId;
-    }
 
     /*///////////////////////////////////////////////////////////////
                                 State
@@ -616,7 +580,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
         // prep new position
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+        newPositions[0] = UpdateMarketPositionSpec(
             order.marketKey,
             order.marginDelta,
             order.sizeDelta,
