@@ -27,6 +27,11 @@ contract MarginBaseSettings is Ownable {
     uint256 public distributionFee;
 
     /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
+    /// @dev fee imposed on all trades 
+    /// @dev trades: defined as changes made to IMarginBaseTypes.ActiveMarketPosition.size
+    uint256 public tradeFee;
+
+    /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
     /// @dev fee imposed on limit orders
     uint256 public limitOrderFee;
 
@@ -46,6 +51,10 @@ contract MarginBaseSettings is Ownable {
     /// @param fee: fee denoted in BPS
     event DistributionFeeChanged(uint256 fee);
 
+    /// @notice emitted after a successful trade fee change
+    /// @param fee: fee denoted in BPS
+    event TradeFeeChanged(uint256 fee);
+
     /// @notice emitted after a successful limit order fee change
     /// @param fee: fee denoted in BPS
     event LimitOrderFeeChanged(uint256 fee);
@@ -61,17 +70,9 @@ contract MarginBaseSettings is Ownable {
     /// @notice zero address cannot be used
     error ZeroAddress();
 
-    /// @notice invalid distribution fee
+    /// @notice invalid fee (fee >= MAX_BPS)
     /// @param fee: fee denoted in BPS
-    error InvalidDistributionFee(uint256 fee);
-
-    /// @notice invalid limit order fee
-    /// @param fee: fee denoted in BPS
-    error InvalidLimitOrderFee(uint256 fee);
-
-    /// @notice invalid stop loss fee
-    /// @param fee: fee denoted in BPS
-    error InvalidStopLossFee(uint256 fee);
+    error InvalidFee(uint256 fee);
 
     /*///////////////////////////////////////////////////////////////
                             Constructor
@@ -80,11 +81,13 @@ contract MarginBaseSettings is Ownable {
     /// @notice set initial fee imposed on calls to MarginBase.distributeMargin()
     /// @param _treasury: Kwenta's Treasury Address
     /// @param _distributionFee: fee denoted in BPS
+    /// @param _tradeFee: fee denoted in BPS
     /// @param _limitOrderFee: fee denoted in BPS
     /// @param _stopLossFee: fee denoted in BPS
     constructor(
         address _treasury,
         uint256 _distributionFee,
+        uint256 _tradeFee,
         uint256 _limitOrderFee,
         uint256 _stopLossFee
     ) {
@@ -95,12 +98,14 @@ contract MarginBaseSettings is Ownable {
         treasury = _treasury;
 
         /// @notice ensure valid fees
-        if (_distributionFee >= MAX_BPS) { revert InvalidDistributionFee(_distributionFee); }
-        if (_limitOrderFee >= MAX_BPS) { revert InvalidLimitOrderFee(_limitOrderFee); }
-        if (_stopLossFee >= MAX_BPS) { revert InvalidStopLossFee(_stopLossFee); }
+        if (_distributionFee >= MAX_BPS) { revert InvalidFee(_distributionFee); }
+        if (_tradeFee >= MAX_BPS) { revert InvalidFee(_tradeFee); }
+        if (_limitOrderFee >= MAX_BPS) { revert InvalidFee(_limitOrderFee); }
+        if (_stopLossFee >= MAX_BPS) { revert InvalidFee(_stopLossFee); }
 
         /// @notice set initial fees
         distributionFee = _distributionFee;
+        tradeFee = _tradeFee;
         limitOrderFee = _limitOrderFee;
         stopLossFee = _stopLossFee;
     }
@@ -125,35 +130,47 @@ contract MarginBaseSettings is Ownable {
     /// @param _fee: fee denoted in BPS
     function setDistributionFee(uint256 _fee) external onlyOwner {
         /// @notice ensure valid fee
-        if (_fee >= MAX_BPS) { revert InvalidDistributionFee(_fee); }
+        if (_fee >= MAX_BPS) { revert InvalidFee(_fee); }
 
         /// @notice set fee
         distributionFee = _fee;
 
-        emit DistributionFeeChanged(distributionFee);
+        emit DistributionFeeChanged(_fee);
+    }
+
+    /// @notice set new trade fee
+    /// @param _fee: fee denoted in BPS
+    function setTradeFee(uint256 _fee) external onlyOwner {
+        /// @notice ensure valid fee
+        if (_fee >= MAX_BPS) { revert InvalidFee(_fee); }
+
+        /// @notice set fee
+        tradeFee = _fee;
+
+        emit TradeFeeChanged(_fee);
     }
 
     /// @notice set new limit order fee
     /// @param _fee: fee denoted in BPS
     function setLimitOrderFee(uint256 _fee) external onlyOwner {
         /// @notice ensure valid fee
-        if (_fee >= MAX_BPS) { revert InvalidLimitOrderFee(_fee); }
+        if (_fee >= MAX_BPS) { revert InvalidFee(_fee); }
 
         /// @notice set fee
         limitOrderFee = _fee;
 
-        emit LimitOrderFeeChanged(limitOrderFee);
+        emit LimitOrderFeeChanged(_fee);
     }
 
     /// @notice set new stop loss fee
     /// @param _fee: fee denoted in BPS
     function setStopLossFee(uint256 _fee) external onlyOwner {
         /// @notice ensure valid fee
-        if (_fee >= MAX_BPS) { revert InvalidStopLossFee(_fee); }
+        if (_fee >= MAX_BPS) { revert InvalidFee(_fee); }
 
         /// @notice set fee
         stopLossFee = _fee;
 
-        emit StopLossFeeChanged(stopLossFee);
+        emit StopLossFeeChanged(_fee);
     }
 }
