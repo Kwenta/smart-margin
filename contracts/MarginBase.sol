@@ -288,7 +288,7 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
     /// @param _depositSize: size of deposit in sUSD
     /// @param _sizeDelta: size and position type (long//short) denoted in market synth (ex: sETH)
     /// @param _marketKey: synthetix futures market id/key
-    /// @return marginMoved total margin moved in function call 
+    /// @return marginMoved total margin moved in function call
     function depositAndModifyPositionForMarket(
         int256 _depositSize,
         int256 _sizeDelta,
@@ -324,7 +324,12 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
         (, , uint128 margin, , int128 size) = market.positions(address(this));
 
         // update state for given open market position
-        marginMoved += updateActiveMarketPosition(_marketKey, margin, size, market);
+        marginMoved += updateActiveMarketPosition(
+            _marketKey,
+            margin,
+            size,
+            market
+        );
     }
 
     /// @notice modify active position and withdraw marginAsset from market into this account
@@ -359,7 +364,12 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
         (, , uint128 margin, , int128 size) = market.positions(address(this));
 
         // update state for given open market position
-        marginMoved += updateActiveMarketPosition(_marketKey, margin, size, market);
+        marginMoved += updateActiveMarketPosition(
+            _marketKey,
+            margin,
+            size,
+            market
+        );
     }
 
     /// @notice closes futures position and withdraws all margin in that market back to this account
@@ -459,32 +469,6 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
         }
         // remove last element now that it has been copied
         activeMarketKeys.pop();
-    }
-
-    /*///////////////////////////////////////////////////////////////
-                        Internal Getter Utilities
-    ///////////////////////////////////////////////////////////////*/
-
-    /// @notice addressResolver fetches IFuturesMarket address for specific market
-    /// @param _marketKey: key for synthetix futures market
-    /// @return IFuturesMarket contract interface
-    function futuresMarket(bytes32 _marketKey)
-        internal
-        view
-        returns (IFuturesMarket)
-    {
-        return IFuturesMarket(futuresManager.marketForKey(_marketKey));
-    }
-
-    /// @notice exchangeRates() fetches current ExchangeRates contract
-    function exchangeRates() internal view returns (IExchangeRates) {
-        return
-            IExchangeRates(
-                addressResolver.requireAndGetAddress(
-                    "ExchangeRates",
-                    "MarginBase: Could not get ExchangeRates"
-                )
-            );
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -616,7 +600,33 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
     }
 
     /*///////////////////////////////////////////////////////////////
-                    Utility Functions
+                        Internal Getter Utilities
+    ///////////////////////////////////////////////////////////////*/
+
+    /// @notice addressResolver fetches IFuturesMarket address for specific market
+    /// @param _marketKey: key for synthetix futures market
+    /// @return IFuturesMarket contract interface
+    function futuresMarket(bytes32 _marketKey)
+        internal
+        view
+        returns (IFuturesMarket)
+    {
+        return IFuturesMarket(futuresManager.marketForKey(_marketKey));
+    }
+
+    /// @notice exchangeRates() fetches current ExchangeRates contract
+    function exchangeRates() internal view returns (IExchangeRates) {
+        return
+            IExchangeRates(
+                addressResolver.requireAndGetAddress(
+                    "ExchangeRates",
+                    "MarginBase: Could not get ExchangeRates"
+                )
+            );
+    }
+
+    /*///////////////////////////////////////////////////////////////
+                            Utility Functions
     ///////////////////////////////////////////////////////////////*/
 
     /// @notice Absolute value of the input, returned as an unsigned number.
