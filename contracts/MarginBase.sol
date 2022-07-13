@@ -133,6 +133,15 @@ contract MarginBase is MinimalProxyable, OpsReady {
     /// @param required: amount of margin asset required
     error InsufficientFreeMargin(uint256 available, uint256 required);
 
+    /// @notice size cannot be zero when placing a limit/stop order
+    error SizeCannotBeZero();
+
+    /// @notice cannot execute invalid order
+    error OrderInvalid();
+
+    /// @notice call to transfer ETH on withdrawal fails
+    error EthWithdrawalFailed();
+
     /*///////////////////////////////////////////////////////////////
                         Constructor & Initializer
     ///////////////////////////////////////////////////////////////*/
@@ -245,6 +254,15 @@ contract MarginBase is MinimalProxyable, OpsReady {
         emit Withdraw(msg.sender, _amount);
     }
 
+    /// @notice allow users to withdraw ETH deposited for keeper fees
+    /// @param _amount: amount to withdraw
+    function withdrawEth(uint256 _amount) external onlyOwner {
+        (bool success, ) = payable(owner()).call{value: _amount}("");
+        if (!success) {
+            revert EthWithdrawalFailed();
+        }
+    }
+
     /*///////////////////////////////////////////////////////////////
                             Margin Distribution
     ///////////////////////////////////////////////////////////////*/
@@ -324,7 +342,7 @@ contract MarginBase is MinimalProxyable, OpsReady {
     /// @param _depositSize: size of deposit in sUSD
     /// @param _sizeDelta: size and position type (long//short) denoted in market synth (ex: sETH)
     /// @param _marketKey: synthetix futures market id/key
-    /// @return marginMoved total margin moved in function call 
+    /// @return marginMoved total margin moved in function call
     function depositAndModifyPositionForMarket(
         int256 _depositSize,
         int256 _sizeDelta,
@@ -360,7 +378,12 @@ contract MarginBase is MinimalProxyable, OpsReady {
         (, , uint128 margin, , int128 size) = market.positions(address(this));
 
         // update state for given open market position
-        marginMoved += updateActiveMarketPosition(_marketKey, margin, size, market);
+        marginMoved += updateActiveMarketPosition(
+            _marketKey,
+            margin,
+            size,
+            market
+        );
     }
 
     /// @notice modify active position and withdraw marginAsset from market into this account
@@ -395,7 +418,12 @@ contract MarginBase is MinimalProxyable, OpsReady {
         (, , uint128 margin, , int128 size) = market.positions(address(this));
 
         // update state for given open market position
-        marginMoved += updateActiveMarketPosition(_marketKey, margin, size, market);
+        marginMoved += updateActiveMarketPosition(
+            _marketKey,
+            margin,
+            size,
+            market
+        );
     }
 
     /// @notice closes futures position and withdraws all margin in that market back to this account
@@ -542,8 +570,6 @@ contract MarginBase is MinimalProxyable, OpsReady {
         } else if (order.sizeDelta < 0) {
             // Short
             return price >= order.desiredPrice;
-        } else {
-            revert("Order size 0");
         }
     }
 
@@ -558,7 +584,10 @@ contract MarginBase is MinimalProxyable, OpsReady {
         int256 _marginDelta,
         int256 _sizeDelta,
         uint256 _limitPrice
-    ) external onlyOwner returns (uint256) {
+    ) external payable onlyOwner returns (uint256) {
+        if (_sizeDelta == 0) {
+            revert SizeCannotBeZero();
+        }
         // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
             // ensure margin doesn't exceed max
@@ -605,7 +634,9 @@ contract MarginBase is MinimalProxyable, OpsReady {
     /// @notice only keepers can trigger this function
     /// @param _orderId: key for an active order
     function executeOrder(uint256 _orderId) external onlyOps {
-        require(validOrder(_orderId), "Order not ready for execution");
+        if (!validOrder(_orderId)) {
+            revert OrderInvalid();
+        }
         Order memory order = orders[_orderId];
 
         // if margin was committed, free it

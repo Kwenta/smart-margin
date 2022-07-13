@@ -241,6 +241,9 @@ contract MarginBaseTest is DSTest {
                                 Setup
     ///////////////////////////////////////////////////////////////*/
 
+    /// @dev enable payments to this contract
+    receive() external payable {}
+
     function setUp() public {
         mockAddressResolverCalls();
 
@@ -353,6 +356,21 @@ contract MarginBaseTest is DSTest {
         deposit(amount);
         account.withdraw(amount);
         assertEq(marginAsset.balanceOf(address(account)), 0);
+    }
+
+    function testEthDepositWithdrawal() public payable {
+        uint256 amount = 1 ether;
+        cheats.deal(address(this), amount);
+
+        // Deposit
+        bytes memory createTaskSelector = abi.encodePacked(
+            IOps.createTask.selector
+        );
+        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        account.placeOrder{value: amount}(ethMarketKey, 0, 1, 0);
+
+        // Withdraw
+        account.withdrawEth(amount);
     }
 
     function testLimitValid() public {
