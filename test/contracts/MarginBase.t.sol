@@ -20,10 +20,10 @@ contract MarginBaseTest is DSTest {
     MarginBase private account;
 
     // market keys
-    bytes32 private ethMarketKey = "sETH";
-    bytes32 private btcMarketKey = "sBTC";
-    bytes32 private linkMarketKey = "sLINK";
-    bytes32 private uniMarketKey = "sUNI";
+    bytes32 private constant ETH_MARKET_KEY = "sETH";
+    bytes32 private constant BTC_MARKET_KEY = "sBTC";
+    bytes32 private constant LINK_MARKET_KEY = "sLINK";
+    bytes32 private constant UNI_MARKET_KEY = "sUNI";
 
     /// @notice max BPS
     uint256 private constant MAX_BPS = 10000;
@@ -102,10 +102,10 @@ contract MarginBaseTest is DSTest {
         cheats.etch(address(futuresManager), new bytes(0x19));
 
         bytes32[4] memory keys = [
-            ethMarketKey,
-            btcMarketKey,
-            linkMarketKey,
-            uniMarketKey
+            ETH_MARKET_KEY,
+            BTC_MARKET_KEY,
+            LINK_MARKET_KEY,
+            UNI_MARKET_KEY
         ];
         IFuturesMarket[4] memory marketsToMock = [
             futuresMarketETH,
@@ -365,7 +365,7 @@ contract MarginBaseTest is DSTest {
         // Setup
         deposit(amount);
         uint256 orderId = placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
@@ -388,7 +388,7 @@ contract MarginBaseTest is DSTest {
         // Setup
         deposit(amount);
         uint256 orderId = placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
@@ -411,7 +411,7 @@ contract MarginBaseTest is DSTest {
         // Setup
         deposit(amount);
         uint256 orderId = placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
@@ -427,7 +427,7 @@ contract MarginBaseTest is DSTest {
         uint256 expectedLimitPrice = 3e18;
         deposit(amount);
         uint256 orderId = placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
@@ -443,7 +443,7 @@ contract MarginBaseTest is DSTest {
         uint256 expectedLimitPrice = 3e18;
         deposit(amount);
         placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
@@ -460,7 +460,7 @@ contract MarginBaseTest is DSTest {
         uint256 expectedLimitPrice = 3e18;
         deposit(originalDeposit);
         placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amountToCommit),
             orderSizeDelta,
             expectedLimitPrice
@@ -489,7 +489,7 @@ contract MarginBaseTest is DSTest {
         cheats.assume(amountToCommit != 0);
 
         placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amountToCommit),
             orderSizeDelta,
             expectedLimitPrice
@@ -514,7 +514,7 @@ contract MarginBaseTest is DSTest {
         deposit(originalDeposit);
 
         placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amountToCommit),
             firstOrderSizeDelta,
             expectedLimitPrice
@@ -553,7 +553,7 @@ contract MarginBaseTest is DSTest {
         deposit(originalDeposit);
 
         uint256 orderId = placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amountToCommit),
             orderSizeDelta,
             limitPrice
@@ -597,7 +597,7 @@ contract MarginBaseTest is DSTest {
         deposit(originalDeposit);
 
         uint256 orderId = placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amountToCommit),
             orderSizeDelta,
             limitPrice
@@ -639,7 +639,7 @@ contract MarginBaseTest is DSTest {
         uint256 expectedLimitPrice = 3e18;
         deposit(amount);
         uint256 orderId = placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
@@ -666,25 +666,25 @@ contract MarginBaseTest is DSTest {
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](4);
         newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            btcMarketKey,
+            BTC_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            linkMarketKey,
+            LINK_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         newPositions[3] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            uniMarketKey,
+            UNI_MARKET_KEY,
             1 ether,
             1 ether,
             false
@@ -704,7 +704,7 @@ contract MarginBaseTest is DSTest {
 
         for (uint16 i = 0; i < numberOfNewPositions; i++) {
             newPositions[i] = IMarginBaseTypes.UpdateMarketPositionSpec(
-                ethMarketKey,
+                ETH_MARKET_KEY,
                 1 ether,
                 1 ether,
                 false
@@ -761,13 +761,13 @@ contract MarginBaseTest is DSTest {
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](2);
         newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            btcMarketKey,
+            BTC_MARKET_KEY,
             1 ether,
             1 ether,
             false
@@ -787,13 +787,13 @@ contract MarginBaseTest is DSTest {
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](2);
         newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            btcMarketKey,
+            BTC_MARKET_KEY,
             1 ether,
             1 ether,
             false
@@ -801,11 +801,11 @@ contract MarginBaseTest is DSTest {
         account.distributeMargin(newPositions);
         assertEq(
             account.getAllActiveMarketPositions()[0].marketKey,
-            ethMarketKey
+            ETH_MARKET_KEY
         );
         assertEq(
             account.getAllActiveMarketPositions()[1].marketKey,
-            btcMarketKey
+            BTC_MARKET_KEY
         );
     }
 
@@ -817,25 +817,25 @@ contract MarginBaseTest is DSTest {
 
         // close position which doesn't exist
         newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            btcMarketKey,
+            BTC_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            uniMarketKey,
+            UNI_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         newPositions[3] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             0,
             0,
             true // signals -> closePositionAndWithdraw()
@@ -846,11 +846,11 @@ contract MarginBaseTest is DSTest {
         // @notice last added market should replace deleted market in array of market keys
         assertEq(
             account.getAllActiveMarketPositions()[0].marketKey,
-            uniMarketKey
+            UNI_MARKET_KEY
         );
         assertEq(
             account.getAllActiveMarketPositions()[1].marketKey,
-            btcMarketKey
+            BTC_MARKET_KEY
         );
     }
 
@@ -862,31 +862,31 @@ contract MarginBaseTest is DSTest {
 
         // close position which doesn't exist
         newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            uniMarketKey,
+            UNI_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             0,
             0,
             true // signals -> closePositionAndWithdraw()
         );
         newPositions[3] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            btcMarketKey,
+            BTC_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         newPositions[4] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            btcMarketKey,
+            BTC_MARKET_KEY,
             0,
             0,
             true // signals -> closePositionAndWithdraw()
@@ -896,7 +896,7 @@ contract MarginBaseTest is DSTest {
         assertEq(account.getNumberOfActivePositions(), 1);
         assertEq(
             account.getAllActiveMarketPositions()[0].marketKey,
-            uniMarketKey
+            UNI_MARKET_KEY
         );
     }
 
@@ -911,14 +911,14 @@ contract MarginBaseTest is DSTest {
 
         // open position
         newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         // update position (same tx)
         newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             -1 ether, // reduce margin
             -1 ether, // reduce size
             false
@@ -935,20 +935,20 @@ contract MarginBaseTest is DSTest {
 
         // open position
         newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         // update position (same tx)
         newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             0,
             0,
             true
         );
         newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             1 ether,
             1 ether,
             false
@@ -969,13 +969,13 @@ contract MarginBaseTest is DSTest {
 
         // close position which doesn't exist
         newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             0,
             0,
             true // signals -> closePositionAndWithdraw()
@@ -1014,21 +1014,21 @@ contract MarginBaseTest is DSTest {
 
         // open position
         newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         // close position (same tx)
         newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             0,
             0,
             true // signals -> closePositionAndWithdraw()
         );
         // attempt to close position *again* (same tx)
         newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             0,
             0,
             true // signals -> closePositionAndWithdraw()
@@ -1036,7 +1036,7 @@ contract MarginBaseTest is DSTest {
         cheats.expectRevert(
             abi.encodeWithSelector(
                 MarginBase.MissingMarketKey.selector,
-                ethMarketKey
+                ETH_MARKET_KEY
             )
         );
         account.distributeMargin(newPositions);
@@ -1052,25 +1052,25 @@ contract MarginBaseTest is DSTest {
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](4);
         newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            btcMarketKey,
+            BTC_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            linkMarketKey,
+            LINK_MARKET_KEY,
             1 ether,
             1 ether,
             false
         );
         newPositions[3] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            uniMarketKey,
+            UNI_MARKET_KEY,
             1 ether,
             1 ether,
             false
