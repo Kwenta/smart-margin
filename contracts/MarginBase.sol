@@ -169,9 +169,12 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
         ActiveMarketPosition[] memory positions = new ActiveMarketPosition[](
             activeMarketKeys.length
         );
+
+        // there should never be more than 65535 activeMarketKeys
         for (uint16 i = 0; i < activeMarketKeys.length; i++) {
             positions[i] = (activeMarketPositions[activeMarketKeys[i]]);
         }
+
         return positions;
     }
 
@@ -232,7 +235,7 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
         internal
     {
         /// @notice limit size of new position specs passed into distribute margin
-        if (_newPositions.length > type(uint16).max) {
+        if (_newPositions.length > type(uint8).max) {
             revert MaxNewPositionsExceeded(_newPositions.length);
         }
 
@@ -240,7 +243,7 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
         uint256 fee = 0;
 
         // for each new position in _newPositions, distribute margin accordingly and update state
-        for (uint16 i = 0; i < _newPositions.length; i++) {
+        for (uint8 i = 0; i < _newPositions.length; i++) {
             // define market via _marketKey
             IFuturesMarket market = futuresMarket(_newPositions[i].marketKey);
 
@@ -271,7 +274,8 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
             }
         }
 
-        /// @notice impose fee: send fee to Kwenta's treasury
+        /// @notice impose fee
+        /// @dev send fee to Kwenta's treasury
         if (fee > 0) {
             require(
                 marginAsset.transfer(

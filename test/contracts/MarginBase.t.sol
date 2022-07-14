@@ -25,6 +25,12 @@ contract MarginBaseTest is DSTest {
     bytes32 private constant LINK_MARKET_KEY = "sLINK";
     bytes32 private constant UNI_MARKET_KEY = "sUNI";
 
+    // settings
+    /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
+    uint256 private constant TRADE_FEE = 5; // 5 BPS
+    uint256 private constant LIMIT_ORDER_FEE = 5; // 5 BPS
+    uint256 private constant STOP_LOSS_FEE = 10; // 10 BPS
+
     /// @notice max BPS
     uint256 private constant MAX_BPS = 10000;
 
@@ -211,10 +217,17 @@ contract MarginBaseTest is DSTest {
         }
     }
 
-    function mockExternalCallsForEthPrice(uint256 mockedPrice) internal {
+    /**
+     * Mocking ExchangeRates.sol
+     *
+     * @param mockedMarket market to mock
+     * @param mockedPrice price to return when effectiveValue() called
+     * @dev Mocked calls are in effect until clearMockedCalls is called.
+     */
+    function mockExchangeRates(IFuturesMarket mockedMarket, uint256 mockedPrice) internal {
         address exchangeRates = address(2);
         cheats.mockCall(
-            address(futuresMarketETH),
+            address(mockedMarket),
             abi.encodePacked(IFuturesMarket.baseAsset.selector),
             abi.encode("sSYNTH")
         );
@@ -230,6 +243,11 @@ contract MarginBaseTest is DSTest {
         );
     }
 
+    /**
+     * Mocking MintableERC20.sol
+     *
+     * @dev Mocked calls are in effect until clearMockedCalls is called.
+     */
     function mockMarginBalance(uint256 amount) internal {
         cheats.mockCall(
             address(marginAsset),
@@ -245,15 +263,11 @@ contract MarginBaseTest is DSTest {
     function setUp() public {
         mockAddressResolverCalls();
 
-        /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
-        uint256 tradeFee = 5; // 5 BPS
-        uint256 limitOrderFee = 5; // 5 BPS
-        uint256 stopLossFee = 10; // 10 BPS
         marginBaseSettings = new MarginBaseSettings(
             KWENTA_TREASURY,
-            tradeFee,
-            limitOrderFee,
-            stopLossFee
+            TRADE_FEE,
+            LIMIT_ORDER_FEE,
+            STOP_LOSS_FEE
         );
 
         marginAsset = new MintableERC20(address(this), 0);
@@ -305,6 +319,13 @@ contract MarginBaseTest is DSTest {
             sizeDelta,
             limitPrice
         );
+    }
+
+    function mockExchangeRatesForDistributionTests() internal {
+        mockExchangeRates(futuresMarketETH, 1 ether);
+        mockExchangeRates(futuresMarketBTC, 1 ether);
+        mockExchangeRates(futuresMarketLINK, 1 ether);
+        mockExchangeRates(futuresMarketUNI, 1 ether);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -371,7 +392,7 @@ contract MarginBaseTest is DSTest {
             expectedLimitPrice
         );
 
-        mockExternalCallsForEthPrice(currentPrice);
+        mockExchangeRates(futuresMarketETH, currentPrice);
         assertTrue(account.validOrder(orderId));
     }
 
@@ -394,7 +415,7 @@ contract MarginBaseTest is DSTest {
             expectedLimitPrice
         );
 
-        mockExternalCallsForEthPrice(currentPrice);
+        mockExchangeRates(futuresMarketETH, currentPrice);
         assertTrue(account.validOrder(orderId));
     }
 
@@ -417,7 +438,7 @@ contract MarginBaseTest is DSTest {
             expectedLimitPrice
         );
 
-        mockExternalCallsForEthPrice(currentPrice);
+        mockExchangeRates(futuresMarketETH, currentPrice);
         assertTrue(!account.validOrder(orderId));
     }
 
@@ -561,7 +582,7 @@ contract MarginBaseTest is DSTest {
         );
 
         // make limit order condition
-        mockExternalCallsForEthPrice(limitPrice);
+        mockExchangeRates(futuresMarketETH, limitPrice);
 
         // mock gelato fee details
         cheats.mockCall(
@@ -605,7 +626,7 @@ contract MarginBaseTest is DSTest {
         );
 
         // make limit order condition
-        mockExternalCallsForEthPrice(limitPrice);
+        mockExchangeRates(futuresMarketETH, limitPrice);
 
         // mock gelato fee details
         cheats.mockCall(
@@ -662,7 +683,8 @@ contract MarginBaseTest is DSTest {
      * distributeMargin()
      **********************************/
     function testDistributeMargin() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
@@ -693,8 +715,9 @@ contract MarginBaseTest is DSTest {
     }
 
     /// @dev DistributeMargin fuzz test
-    function testDistributeMargin(uint16 numberOfNewPositions) public {
-        deposit(65536 ether);
+    function testDistributeMargin(uint8 numberOfNewPositions) public {
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
@@ -717,6 +740,8 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCannotPassMaxPositions() public {
+        mockExchangeRatesForDistributionTests();
+
         uint32 max = type(uint16).max;
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
@@ -733,6 +758,8 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCannotDistributeMarginWithInvalidKey() public {
+        mockExchangeRatesForDistributionTests();
+
         bytes32 key = "LUNA";
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
@@ -755,7 +782,8 @@ contract MarginBaseTest is DSTest {
     }
 
     function testGetNumberOfActivePositions() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
@@ -781,7 +809,8 @@ contract MarginBaseTest is DSTest {
      *         so they're not tested here (and are in-fact mocked above)
      **********************************/
     function testCanGetActivePositions() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
@@ -809,7 +838,8 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCanGetActivePositionsAfterClosingOne() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
@@ -872,7 +902,9 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCanGetActivePositionsAfterClosingTwo() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
+        
         // open 3 positions
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
@@ -943,7 +975,8 @@ contract MarginBaseTest is DSTest {
      * updateActiveMarketPosition()
      **********************************/
     function testCanUpdatePosition() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
@@ -967,7 +1000,8 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCanOpenRecentlyClosedPosition() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
@@ -1000,7 +1034,8 @@ contract MarginBaseTest is DSTest {
      * removeActiveMarketPositon()
      **********************************/
     function testCanRemovePosition() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
@@ -1044,6 +1079,8 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCannotRemoveNonexistentPosition() public {
+        mockExchangeRatesForDistributionTests();
+
         // @mock market.positions()
         // update mocking so size returned from Synthetix Futures contracts is "0"
         cheats.mockCall(
@@ -1076,7 +1113,8 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCannotClosePositionTwice() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
@@ -1138,12 +1176,12 @@ contract MarginBaseTest is DSTest {
     }
 
     /**********************************
-     * distribution fees
-     * @TODO
+     * trade fees
      **********************************/
 
-    function testFeeDistribution() public {
-        deposit(10 ether);
+    function testTradeFee() public {
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
@@ -1171,8 +1209,64 @@ contract MarginBaseTest is DSTest {
         );
         account.distributeMargin(newPositions);
 
-        uint256 totalMarginMoved = 4 * (1 ether);
-        uint256 expectedFee = (totalMarginMoved *
+        /*
+         * @dev mockExchangeRatesForDistributionTests()
+         * results in the exchange rates for all baseAssets
+         * being 1e18 (1 eth == 1 btc == 1 link == 1 uni == 1 usd)
+         * 
+         * the purpose of these tests isnt ensuring exchange rates are correct.
+         * the above mocking allows for isolated fee calculation tests
+         *
+         * If each trade size is 1 USD, then even 255 (max) trades would
+         * result in less than 1 USD in fees (assuming tradeFee == 5)
+         * so do not be alarmed:
+         * ex:
+         * (255 * 5) / 10_000 = 0.1275
+         */
+
+        uint256 totalSizeDelta = 4 * (1 ether);
+        uint256 expectedFee = (totalSizeDelta *
+            marginBaseSettings.tradeFee()) / MAX_BPS;
+
+        assertEq(marginAsset.balanceOf(KWENTA_TREASURY), expectedFee);
+    }
+
+    function testTradeFeeMaxPositions() public {
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
+
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                255
+            );
+
+        for (uint8 i = 0; i < 255; i++) {
+            newPositions[i] = IMarginBaseTypes.UpdateMarketPositionSpec(
+                ETH_MARKET_KEY,
+                1 ether,
+                1 ether
+            );
+        }
+
+        account.distributeMargin(newPositions);
+
+        /*
+         * @dev mockExchangeRatesForDistributionTests()
+         * results in the exchange rates for all baseAssets
+         * being 1e18 (1 eth == 1 btc == 1 link == 1 uni == 1 usd)
+         * 
+         * the purpose of these tests isnt ensuring exchange rates are correct.
+         * the above mocking allows for isolated fee calculation tests
+         *
+         * If each trade size is 1 USD, then even 255 (max) trades would
+         * result in less than 1 USD in fees (assuming tradeFee == 5)
+         * so do not be alarmed:
+         * ex:
+         * (255 * 5) / 10_000 = 0.1275
+         */
+        
+        uint256 totalSizeDelta = 255 * (1 ether);
+        uint256 expectedFee = (totalSizeDelta *
             marginBaseSettings.tradeFee()) / MAX_BPS;
 
         assertEq(marginAsset.balanceOf(KWENTA_TREASURY), expectedFee);
