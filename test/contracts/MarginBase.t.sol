@@ -6,6 +6,7 @@ import "./interfaces/CheatCodes.sol";
 import "../../contracts/interfaces/IFuturesMarket.sol";
 import "../../contracts/interfaces/IFuturesMarketManager.sol";
 import "../../contracts/interfaces/IAddressResolver.sol";
+import "../../contracts/interfaces/IMarginBaseTypes.sol";
 import "../../contracts/MarginBaseSettings.sol";
 import "../../contracts/MarginAccountFactory.sol";
 import "../../contracts/MarginBase.sol";
@@ -19,10 +20,16 @@ contract MarginBaseTest is DSTest {
     MarginBase private account;
 
     // market keys
-    bytes32 private ethMarketKey = "sETH";
-    bytes32 private btcMarketKey = "sBTC";
-    bytes32 private linkMarketKey = "sLINK";
-    bytes32 private uniMarketKey = "sUNI";
+    bytes32 private constant ETH_MARKET_KEY = "sETH";
+    bytes32 private constant BTC_MARKET_KEY = "sBTC";
+    bytes32 private constant LINK_MARKET_KEY = "sLINK";
+    bytes32 private constant UNI_MARKET_KEY = "sUNI";
+
+    // settings
+    /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
+    uint256 private constant TRADE_FEE = 5; // 5 BPS
+    uint256 private constant LIMIT_ORDER_FEE = 5; // 5 BPS
+    uint256 private constant STOP_LOSS_FEE = 10; // 10 BPS
 
     /// @notice max BPS
     uint256 private constant MAX_BPS = 10000;
@@ -101,10 +108,10 @@ contract MarginBaseTest is DSTest {
         cheats.etch(address(futuresManager), new bytes(0x19));
 
         bytes32[4] memory keys = [
-            ethMarketKey,
-            btcMarketKey,
-            linkMarketKey,
-            uniMarketKey
+            ETH_MARKET_KEY,
+            BTC_MARKET_KEY,
+            LINK_MARKET_KEY,
+            UNI_MARKET_KEY
         ];
         IFuturesMarket[4] memory marketsToMock = [
             futuresMarketETH,
@@ -210,10 +217,17 @@ contract MarginBaseTest is DSTest {
         }
     }
 
-    function mockExternalCallsForEthPrice(uint256 mockedPrice) internal {
+    /**
+     * Mocking ExchangeRates.sol
+     *
+     * @param mockedMarket market to mock
+     * @param mockedPrice price to return when effectiveValue() called
+     * @dev Mocked calls are in effect until clearMockedCalls is called.
+     */
+    function mockExchangeRates(IFuturesMarket mockedMarket, uint256 mockedPrice) internal {
         address exchangeRates = address(2);
         cheats.mockCall(
-            address(futuresMarketETH),
+            address(mockedMarket),
             abi.encodePacked(IFuturesMarket.baseAsset.selector),
             abi.encode("sSYNTH")
         );
@@ -229,6 +243,11 @@ contract MarginBaseTest is DSTest {
         );
     }
 
+    /**
+     * Mocking MintableERC20.sol
+     *
+     * @dev Mocked calls are in effect until clearMockedCalls is called.
+     */
     function mockMarginBalance(uint256 amount) internal {
         cheats.mockCall(
             address(marginAsset),
@@ -247,15 +266,11 @@ contract MarginBaseTest is DSTest {
     function setUp() public {
         mockAddressResolverCalls();
 
-        /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
-        uint256 distributionFee = 5; // 5 BPS
-        uint256 limitOrderFee = 5; // 5 BPS
-        uint256 stopLossFee = 10; // 10 BPS
         marginBaseSettings = new MarginBaseSettings(
             KWENTA_TREASURY,
-            distributionFee,
-            limitOrderFee,
-            stopLossFee
+            TRADE_FEE,
+            LIMIT_ORDER_FEE,
+            STOP_LOSS_FEE
         );
 
         marginAsset = new MintableERC20(address(this), 0);
@@ -307,6 +322,13 @@ contract MarginBaseTest is DSTest {
             sizeDelta,
             limitPrice
         );
+    }
+
+    function mockExchangeRatesForDistributionTests() internal {
+        mockExchangeRates(futuresMarketETH, 1 ether);
+        mockExchangeRates(futuresMarketBTC, 1 ether);
+        mockExchangeRates(futuresMarketLINK, 1 ether);
+        mockExchangeRates(futuresMarketUNI, 1 ether);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -367,7 +389,7 @@ contract MarginBaseTest is DSTest {
             IOps.createTask.selector
         );
         cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
-        account.placeOrder{value: amount}(ethMarketKey, 0, 1, 0);
+        account.placeOrder{value: amount}(ETH_MARKET_KEY, 0, 1, 0);
 
         // Withdraw
         account.withdrawEth(amount);
@@ -382,13 +404,13 @@ contract MarginBaseTest is DSTest {
         // Setup
         deposit(amount);
         uint256 orderId = placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
         );
 
-        mockExternalCallsForEthPrice(currentPrice);
+        mockExchangeRates(futuresMarketETH, currentPrice);
         assertTrue(account.validOrder(orderId));
     }
 
@@ -405,13 +427,13 @@ contract MarginBaseTest is DSTest {
         // Setup
         deposit(amount);
         uint256 orderId = placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
         );
 
-        mockExternalCallsForEthPrice(currentPrice);
+        mockExchangeRates(futuresMarketETH, currentPrice);
         assertTrue(account.validOrder(orderId));
     }
 
@@ -428,13 +450,13 @@ contract MarginBaseTest is DSTest {
         // Setup
         deposit(amount);
         uint256 orderId = placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
         );
 
-        mockExternalCallsForEthPrice(currentPrice);
+        mockExchangeRates(futuresMarketETH, currentPrice);
         assertTrue(!account.validOrder(orderId));
     }
 
@@ -444,7 +466,7 @@ contract MarginBaseTest is DSTest {
         uint256 expectedLimitPrice = 3e18;
         deposit(amount);
         uint256 orderId = placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
@@ -460,7 +482,7 @@ contract MarginBaseTest is DSTest {
         uint256 expectedLimitPrice = 3e18;
         deposit(amount);
         placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
@@ -477,7 +499,7 @@ contract MarginBaseTest is DSTest {
         uint256 expectedLimitPrice = 3e18;
         deposit(originalDeposit);
         placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amountToCommit),
             orderSizeDelta,
             expectedLimitPrice
@@ -506,7 +528,7 @@ contract MarginBaseTest is DSTest {
         cheats.assume(amountToCommit != 0);
 
         placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amountToCommit),
             orderSizeDelta,
             expectedLimitPrice
@@ -531,7 +553,7 @@ contract MarginBaseTest is DSTest {
         deposit(originalDeposit);
 
         placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amountToCommit),
             firstOrderSizeDelta,
             expectedLimitPrice
@@ -539,13 +561,14 @@ contract MarginBaseTest is DSTest {
 
         int256 secondOrderMarginDelta = 1e18;
         int256 secondOrderSizeDelta = 1e18;
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                4
+            );
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
             "sETH",
             secondOrderMarginDelta,
-            secondOrderSizeDelta,
-            false
+            secondOrderSizeDelta
         );
 
         cheats.expectRevert(
@@ -570,14 +593,14 @@ contract MarginBaseTest is DSTest {
         deposit(originalDeposit);
 
         uint256 orderId = placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amountToCommit),
             orderSizeDelta,
             limitPrice
         );
 
         // make limit order condition
-        mockExternalCallsForEthPrice(limitPrice);
+        mockExchangeRates(futuresMarketETH, limitPrice);
 
         // mock gelato fee details
         cheats.mockCall(
@@ -614,14 +637,14 @@ contract MarginBaseTest is DSTest {
         deposit(originalDeposit);
 
         uint256 orderId = placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amountToCommit),
             orderSizeDelta,
             limitPrice
         );
 
         // make limit order condition
-        mockExternalCallsForEthPrice(limitPrice);
+        mockExchangeRates(futuresMarketETH, limitPrice);
 
         // mock gelato fee details
         cheats.mockCall(
@@ -656,7 +679,7 @@ contract MarginBaseTest is DSTest {
         uint256 expectedLimitPrice = 3e18;
         deposit(amount);
         uint256 orderId = placeLimitOrder(
-            ethMarketKey,
+            ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
             expectedLimitPrice
@@ -678,53 +701,52 @@ contract MarginBaseTest is DSTest {
      * distributeMargin()
      **********************************/
     function testDistributeMargin() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                4
+            );
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
-            btcMarketKey,
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            BTC_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
-        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
-            linkMarketKey,
+        newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            LINK_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
-        newPositions[3] = MarginBase.UpdateMarketPositionSpec(
-            uniMarketKey,
+        newPositions[3] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            UNI_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
         account.distributeMargin(newPositions);
         assertEq(account.getNumberOfActivePositions(), 4);
     }
 
     /// @dev DistributeMargin fuzz test
-    function testDistributeMargin(uint16 numberOfNewPositions) public {
-        deposit(65536 ether);
+    function testDistributeMargin(uint8 numberOfNewPositions) public {
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
                 numberOfNewPositions
             );
 
         for (uint16 i = 0; i < numberOfNewPositions; i++) {
-            newPositions[i] = MarginBase.UpdateMarketPositionSpec(
-                ethMarketKey,
+            newPositions[i] = IMarginBaseTypes.UpdateMarketPositionSpec(
+                ETH_MARKET_KEY,
                 1 ether,
-                1 ether,
-                false
+                1 ether
             );
         }
 
@@ -736,9 +758,11 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCannotPassMaxPositions() public {
+        mockExchangeRatesForDistributionTests();
+
         uint32 max = type(uint16).max;
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
                 max + 1
             );
 
@@ -752,14 +776,17 @@ contract MarginBaseTest is DSTest {
     }
 
     function testCannotDistributeMarginWithInvalidKey() public {
+        mockExchangeRatesForDistributionTests();
+
         bytes32 key = "LUNA";
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                1
+            );
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
             key,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
         cheats.expectRevert();
         account.distributeMargin(newPositions);
@@ -773,21 +800,22 @@ contract MarginBaseTest is DSTest {
     }
 
     function testGetNumberOfActivePositions() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                2
+            );
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
-            btcMarketKey,
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            BTC_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
         account.distributeMargin(newPositions);
         assertEq(account.getNumberOfActivePositions(), 2);
@@ -799,121 +827,165 @@ contract MarginBaseTest is DSTest {
      *         so they're not tested here (and are in-fact mocked above)
      **********************************/
     function testCanGetActivePositions() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                2
+            );
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
-            btcMarketKey,
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            BTC_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
         account.distributeMargin(newPositions);
         assertEq(
             account.getAllActiveMarketPositions()[0].marketKey,
-            ethMarketKey
+            ETH_MARKET_KEY
         );
         assertEq(
             account.getAllActiveMarketPositions()[1].marketKey,
-            btcMarketKey
+            BTC_MARKET_KEY
         );
     }
 
     function testCanGetActivePositionsAfterClosingOne() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                3
+            );
 
         // close position which doesn't exist
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
-            btcMarketKey,
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            BTC_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
-        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
-            uniMarketKey,
+        newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            UNI_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
-        );
-        newPositions[3] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
-            0,
-            0,
-            true // signals -> closePositionAndWithdraw()
+            1 ether
         );
 
         account.distributeMargin(newPositions);
+
+        // @mock market.positions()
+        // update mocking so size returned from Synthetix Futures contracts is "0"
+        cheats.mockCall(
+            address(futuresMarketETH),
+            abi.encodeWithSelector(
+                IFuturesMarket.positions.selector,
+                address(account)
+            ),
+            abi.encode(Position(0, 0, 1 ether, 1 ether, 0)) // size = 0
+        );
+
+        // modify positions so size is 0
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions2 = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                1
+            );
+        newPositions2[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
+            0,
+            -1 ether
+        );
+
+        account.distributeMargin(newPositions2);
+
         assertEq(account.getNumberOfActivePositions(), 2);
         // @notice last added market should replace deleted market in array of market keys
         assertEq(
             account.getAllActiveMarketPositions()[0].marketKey,
-            uniMarketKey
+            UNI_MARKET_KEY
         );
         assertEq(
             account.getAllActiveMarketPositions()[1].marketKey,
-            btcMarketKey
+            BTC_MARKET_KEY
         );
     }
 
     function testCanGetActivePositionsAfterClosingTwo() public {
-        deposit(10 ether);
-
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](5);
-
-        // close position which doesn't exist
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
+        
+        // open 3 positions
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                3
+            );
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
-            uniMarketKey,
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            UNI_MARKET_KEY,
             1 ether,
+            1 ether
+        );
+        newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            BTC_MARKET_KEY,
             1 ether,
-            false
+            1 ether
         );
-        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
-            0,
-            0,
-            true // signals -> closePositionAndWithdraw()
-        );
-        newPositions[3] = MarginBase.UpdateMarketPositionSpec(
-            btcMarketKey,
-            1 ether,
-            1 ether,
-            false
-        );
-        newPositions[4] = MarginBase.UpdateMarketPositionSpec(
-            btcMarketKey,
-            0,
-            0,
-            true // signals -> closePositionAndWithdraw()
-        );
-
         account.distributeMargin(newPositions);
+
+        // @mock market.positions()
+        // update mocking so size returned from Synthetix Futures contracts is "0"
+        cheats.mockCall(
+            address(futuresMarketETH),
+            abi.encodeWithSelector(
+                IFuturesMarket.positions.selector,
+                address(account)
+            ),
+            abi.encode(Position(0, 0, 1 ether, 1 ether, 0)) // size = 0
+        );
+        cheats.mockCall(
+            address(futuresMarketBTC),
+            abi.encodeWithSelector(
+                IFuturesMarket.positions.selector,
+                address(account)
+            ),
+            abi.encode(Position(0, 0, 1 ether, 1 ether, 0)) // size = 0
+        );
+
+        // modify positions so size is 0
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions2 = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                2
+            );
+        newPositions2[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
+            0,
+            -1 ether
+        );
+        newPositions2[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            BTC_MARKET_KEY,
+            0,
+            -1 ether
+        );
+
+        account.distributeMargin(newPositions2);
+
         assertEq(account.getNumberOfActivePositions(), 1);
         assertEq(
             account.getAllActiveMarketPositions()[0].marketKey,
-            uniMarketKey
+            UNI_MARKET_KEY
         );
     }
 
@@ -921,54 +993,55 @@ contract MarginBaseTest is DSTest {
      * updateActiveMarketPosition()
      **********************************/
     function testCanUpdatePosition() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                2
+            );
 
         // open position
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
         // update position (same tx)
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
             -1 ether, // reduce margin
-            -1 ether, // reduce size
-            false
+            -1 ether // reduce size
         );
         account.distributeMargin(newPositions);
         assertEq(account.getNumberOfActivePositions(), 1);
     }
 
     function testCanOpenRecentlyClosedPosition() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](3);
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                3
+            );
 
         // open position
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
         // update position (same tx)
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
             0,
-            0,
-            true
+            0
         );
-        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
+        newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
         account.distributeMargin(newPositions);
         assertEq(account.getNumberOfActivePositions(), 1);
@@ -979,124 +1052,240 @@ contract MarginBaseTest is DSTest {
      * removeActiveMarketPositon()
      **********************************/
     function testCanRemovePosition() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](2);
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                1
+            );
 
         // close position which doesn't exist
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
-        );
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
-            0,
-            0,
-            true // signals -> closePositionAndWithdraw()
+            1 ether
         );
 
         account.distributeMargin(newPositions);
+
+        // @mock market.positions()
+        // update mocking so size returned from Synthetix Futures contracts is "0"
+        cheats.mockCall(
+            address(futuresMarketETH),
+            abi.encodeWithSelector(
+                IFuturesMarket.positions.selector,
+                address(account)
+            ),
+            abi.encode(Position(0, 0, 1 ether, 1 ether, 0)) // size = 0
+        );
+
+        // modify positions so size is 0
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions2 = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                1
+            );
+        newPositions2[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
+            0,
+            -1 ether
+        );
+
+        account.distributeMargin(newPositions2);
+
         assertEq(account.getNumberOfActivePositions(), 0);
     }
 
     function testCannotRemoveNonexistentPosition() public {
-        bytes32 aaveMarketKey = "sAAVE";
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
+        mockExchangeRatesForDistributionTests();
 
-        // close position which doesn't exist
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
-            aaveMarketKey,
-            0,
-            0,
-            true // signals -> closePositionAndWithdraw()
+        // @mock market.positions()
+        // update mocking so size returned from Synthetix Futures contracts is "0"
+        cheats.mockCall(
+            address(futuresMarketETH),
+            abi.encodeWithSelector(
+                IFuturesMarket.positions.selector,
+                address(account)
+            ),
+            abi.encode(Position(0, 0, 1 ether, 1 ether, 0)) // size = 0
         );
+
+        // modify positions so size is 0
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                1
+            );
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
+            0,
+            -1 ether
+        );
+
         cheats.expectRevert(
             abi.encodeWithSelector(
                 MarginBase.MissingMarketKey.selector,
-                aaveMarketKey
+                ETH_MARKET_KEY
             )
         );
         account.distributeMargin(newPositions);
     }
 
     function testCannotClosePositionTwice() public {
-        deposit(10 ether);
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](3);
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                1
+            );
 
         // open position
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
-        // close position (same tx)
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
-            0,
-            0,
-            true // signals -> closePositionAndWithdraw()
+
+        account.distributeMargin(newPositions);
+
+        // @mock market.positions()
+        // update mocking so size returned from Synthetix Futures contracts is "0"
+        cheats.mockCall(
+            address(futuresMarketETH),
+            abi.encodeWithSelector(
+                IFuturesMarket.positions.selector,
+                address(account)
+            ),
+            abi.encode(Position(0, 0, 1 ether, 1 ether, 0)) // size = 0
         );
-        // attempt to close position *again* (same tx)
-        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
+
+        // modify positions so size is 0
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions2 = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                1
+            );
+        newPositions2[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
             0,
-            0,
-            true // signals -> closePositionAndWithdraw()
+            -1 ether
         );
+
+        account.distributeMargin(newPositions2);
+
+        // modify positions so size is 0 (again)
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions3 = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                1
+            );
+
+        newPositions3[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
+            0,
+            -1 ether
+        );
+
         cheats.expectRevert(
             abi.encodeWithSelector(
                 MarginBase.MissingMarketKey.selector,
-                ethMarketKey
+                ETH_MARKET_KEY
             )
         );
-        account.distributeMargin(newPositions);
+        account.distributeMargin(newPositions3);
     }
 
     /**********************************
-     * distribution fees
+     * trade fees
      **********************************/
 
-    function testFeeDistribution() public {
-        deposit(10 ether);
+    function testTradeFee() public {
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
 
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](4);
-        newPositions[0] = MarginBase.UpdateMarketPositionSpec(
-            ethMarketKey,
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                4
+            );
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
-        newPositions[1] = MarginBase.UpdateMarketPositionSpec(
-            btcMarketKey,
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            BTC_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
-        newPositions[2] = MarginBase.UpdateMarketPositionSpec(
-            linkMarketKey,
+        newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            LINK_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
-        newPositions[3] = MarginBase.UpdateMarketPositionSpec(
-            uniMarketKey,
+        newPositions[3] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            UNI_MARKET_KEY,
             1 ether,
-            1 ether,
-            false
+            1 ether
         );
         account.distributeMargin(newPositions);
 
-        uint256 totalMarginMoved = 4 * (1 ether);
-        uint256 expectedFee = (totalMarginMoved *
-            marginBaseSettings.distributionFee()) / MAX_BPS;
+        /*
+         * @dev mockExchangeRatesForDistributionTests()
+         * results in the exchange rates for all baseAssets
+         * being 1e18 (1 eth == 1 btc == 1 link == 1 uni == 1 usd)
+         * 
+         * the purpose of these tests isnt ensuring exchange rates are correct.
+         * the above mocking allows for isolated fee calculation tests
+         *
+         * If each trade size is 1 USD, then even 255 (max) trades would
+         * result in less than 1 USD in fees (assuming tradeFee == 5)
+         * so do not be alarmed:
+         * ex:
+         * (255 * 5) / 10_000 = 0.1275
+         */
+
+        uint256 totalSizeDelta = 4 * (1 ether);
+        uint256 expectedFee = (totalSizeDelta *
+            marginBaseSettings.tradeFee()) / MAX_BPS;
+
+        assertEq(marginAsset.balanceOf(KWENTA_TREASURY), expectedFee);
+    }
+
+    function testTradeFeeMaxPositions() public {
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
+
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                255
+            );
+
+        for (uint8 i = 0; i < 255; i++) {
+            newPositions[i] = IMarginBaseTypes.UpdateMarketPositionSpec(
+                ETH_MARKET_KEY,
+                1 ether,
+                1 ether
+            );
+        }
+
+        account.distributeMargin(newPositions);
+
+        /*
+         * @dev mockExchangeRatesForDistributionTests()
+         * results in the exchange rates for all baseAssets
+         * being 1e18 (1 eth == 1 btc == 1 link == 1 uni == 1 usd)
+         * 
+         * the purpose of these tests isnt ensuring exchange rates are correct.
+         * the above mocking allows for isolated fee calculation tests
+         *
+         * If each trade size is 1 USD, then even 255 (max) trades would
+         * result in less than 1 USD in fees (assuming tradeFee == 5)
+         * so do not be alarmed:
+         * ex:
+         * (255 * 5) / 10_000 = 0.1275
+         */
+        
+        uint256 totalSizeDelta = 255 * (1 ether);
+        uint256 expectedFee = (totalSizeDelta *
+            marginBaseSettings.tradeFee()) / MAX_BPS;
 
         assertEq(marginAsset.balanceOf(KWENTA_TREASURY), expectedFee);
     }
