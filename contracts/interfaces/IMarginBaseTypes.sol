@@ -21,12 +21,10 @@ interface IMarginBaseTypes {
     // marketKey: synthetix futures market id/key
     // marginDelta: amount of margin (in sUSD) to deposit or withdraw
     // sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
-    // isClosing: indicates if position needs to be closed
     struct UpdateMarketPositionSpec {
         bytes32 marketKey;
         int256 marginDelta; // positive indicates deposit, negative withdraw
         int256 sizeDelta;
-        bool isClosing; // if true, marginDelta nor sizeDelta are considered. simply closes position
     }
 
     // marketKey: synthetix futures market id/key

@@ -219,7 +219,7 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
 
     /// @notice distribute margin across all/some positions specified via _newPositions
     /// @dev _newPositions may contain any number of new or existing positions
-    /// @dev caller can close and withdraw all margin from position if _newPositions[i].isClosing is true
+    /// @dev close and withdraw all margin from position if resulting position size is zero post trade
     /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
     function distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
         external
@@ -412,9 +412,6 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
         // internally update state (remove market)
         removeActiveMarketPositon(_marketKey);
 
-        // @TODO: check if position is closed and if this is required
-        _market.closePosition();
-
         // withdraw margin back to this account
         _market.withdrawAllMargin();
     }
@@ -571,8 +568,7 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
         newPositions[0] = UpdateMarketPositionSpec(
             order.marketKey,
             order.marginDelta,
-            order.sizeDelta,
-            false // assume the position will be closed if the limit order is the opposite size
+            order.sizeDelta
         );
 
         // delete order from orders
