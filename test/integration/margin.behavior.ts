@@ -705,7 +705,10 @@ describe("Integration: Test Cross Margin", () => {
 
         const actualbalance = await sUSD.balanceOf(marginAccount.address);
         const expectedBalance = ACCOUNT_AMOUNT.sub(TEST_VALUE.mul(4));
-        expect(expectedBalance).to.equal(actualbalance);
+        expect(expectedBalance).to.be.closeTo(
+            actualbalance,
+            actualbalance.mul(tradeFee).div(10_000) // take into account tradeFee imposed
+        );
     });
 
     it("Should Exit Position by Setting Size to Zero", async () => {
@@ -737,7 +740,6 @@ describe("Integration: Test Cross Margin", () => {
         // confirm kwenta treasury received fees
         // @TODO: calculate fees
     });
-
 
     it.skip("Should have Withdrawn All Margin back to Account", async () => {
         /**

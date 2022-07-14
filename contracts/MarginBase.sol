@@ -294,19 +294,26 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
     /// @param _sizeDelta: size and position type (long/short) denoted in market synth (ex: sETH)
     /// @param _marketKey: synthetix futures market id/key
     /// @param _market: synthetix futures market
-    /// @return fee imposed for trade *in sUSD*
+    /// @return sizeDeltaInUSD _sizeDelta *in sUSD*
     function modifyPositionForMarket(
         int256 _sizeDelta,
         bytes32 _marketKey,
         IFuturesMarket _market
-    ) internal returns (uint256 fee) {
-        // @TODO calculate fee
-        fee = 0;
+    ) internal returns (uint256 sizeDeltaInUSD) {
+        /// @notice _sizeDelta is measured in the underlying base asset of the market
+        /// @dev fee will be measured in sUSD, thus exchange rate is needed
+        sizeDeltaInUSD = exchangeRates().effectiveValue(
+            _market.baseAsset(),
+            _abs(_sizeDelta),
+            SUSD
+        );
 
         // modify position in specific market with KWENTA tracking code
         _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
 
-        // execute necessary state updates
+        /// @notice execute necessary state updates
+        /// @dev must come after modifyPositionWithTracking() due to reliance on fetching
+        /// futures market data from Synthetix to update interal state
         fetchPositionAndUpdate(_marketKey, _market);
     }
 
@@ -317,13 +324,13 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
     /// @param _sizeDelta: size and position type (long/short) denoted in market synth (ex: sETH)
     /// @param _marketKey: synthetix futures market id/key
     /// @param _market: synthetix futures market
-    /// @return fee imposed for trade *in sUSD*
+    /// @return sizeDeltaInUSD _sizeDelta *in sUSD*
     function depositAndModifyPositionForMarket(
         int256 _depositSize,
         int256 _sizeDelta,
         bytes32 _marketKey,
         IFuturesMarket _market
-    ) internal returns (uint256 fee) {
+    ) internal returns (uint256 sizeDeltaInUSD) {
         /// @dev ensure trade doesn't spend margin which is not available
         uint256 absDepositSize = _abs(_depositSize);
         if (absDepositSize > freeMargin()) {
@@ -336,14 +343,21 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
 
         /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
         if (_sizeDelta != 0) {
-            // @TODO calculate fee
-            fee = 0;
+            /// @notice _sizeDelta is measured in the underlying base asset of the market
+            /// @dev fee will be measured in sUSD, thus exchange rate is needed
+            sizeDeltaInUSD = exchangeRates().effectiveValue(
+                _market.baseAsset(),
+                _abs(_sizeDelta),
+                SUSD
+            );
 
             // modify position in specific market with KWENTA tracking code
             _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
         }
 
-        // execute necessary state updates
+        /// @notice execute necessary state updates
+        /// @dev must come after modifyPositionWithTracking() due to reliance on fetching
+        /// futures market data from Synthetix to update interal state
         fetchPositionAndUpdate(_marketKey, _market);
     }
 
@@ -354,17 +368,22 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
     /// @param _sizeDelta: size and position type (long//short) denoted in market synth (ex: sETH)
     /// @param _marketKey: synthetix futures market id/key
     /// @param _market: synthetix futures market
-    /// @return fee imposed for trade *in sUSD*
+    /// @return sizeDeltaInUSD _sizeDelta *in sUSD*
     function modifyPositionForMarketAndWithdraw(
         int256 _withdrawalSize,
         int256 _sizeDelta,
         bytes32 _marketKey,
         IFuturesMarket _market
-    ) internal returns (uint256 fee) {
+    ) internal returns (uint256 sizeDeltaInUSD) {
         /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
         if (_sizeDelta != 0) {
-            // @TODO calculate fee
-            fee = 0;
+            /// @notice _sizeDelta is measured in the underlying base asset of the market
+            /// @dev fee will be measured in sUSD, thus exchange rate is needed
+            sizeDeltaInUSD = exchangeRates().effectiveValue(
+                _market.baseAsset(),
+                _abs(_sizeDelta),
+                SUSD
+            );
 
             // modify position in specific market with KWENTA tracking code
             _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
@@ -374,7 +393,9 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
         /// @dev positive input triggers a deposit; a negative one, a withdrawal
         _market.transferMargin(_withdrawalSize);
 
-        // execute necessary state updates
+        /// @notice execute necessary state updates
+        /// @dev must come after modifyPositionWithTracking() due to reliance on fetching
+        /// futures market data from Synthetix to update interal state
         fetchPositionAndUpdate(_marketKey, _market);
     }
 
@@ -392,9 +413,10 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
         // FuturesMarket but margin is still in contract, thus it must
         // be withdrawn back to this account
         if (size == 0) {
+            /// @dev closePositionAndWithdraw() will update internal state
             closePositionAndWithdraw(_marketKey, _market);
 
-            // no need to proceed in function; early exit
+            // no need to proceed in function; early exit.
             return;
         }
 
