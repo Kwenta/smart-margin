@@ -240,7 +240,7 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
         }
 
         /// @notice tracking variable for calculating fee(s)
-        uint256 fee = 0;
+        uint256 totalSizeDeltaInUSD = 0;
 
         // for each new position in _newPositions, distribute margin accordingly and update state
         for (uint8 i = 0; i < _newPositions.length; i++) {
@@ -249,7 +249,7 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
 
             if (_newPositions[i].marginDelta < 0) {
                 /// @notice remove margin from market and potentially adjust position size
-                fee += modifyPositionForMarketAndWithdraw(
+                totalSizeDeltaInUSD += modifyPositionForMarketAndWithdraw(
                     _newPositions[i].marginDelta,
                     _newPositions[i].sizeDelta,
                     _newPositions[i].marketKey,
@@ -257,7 +257,7 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
                 );
             } else if (_newPositions[i].marginDelta > 0) {
                 /// @notice deposit margin into market and potentially adjust position size
-                fee += depositAndModifyPositionForMarket(
+                totalSizeDeltaInUSD += depositAndModifyPositionForMarket(
                     _newPositions[i].marginDelta,
                     _newPositions[i].sizeDelta,
                     _newPositions[i].marketKey,
@@ -266,7 +266,7 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
             } else if (_newPositions[i].sizeDelta != 0) {
                 /// @notice adjust position size
                 /// @notice no margin deposited nor withdrawn from market
-                fee += modifyPositionForMarket(
+                totalSizeDeltaInUSD += modifyPositionForMarket(
                     _newPositions[i].sizeDelta,
                     _newPositions[i].marketKey,
                     market
@@ -276,11 +276,11 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
 
         /// @notice impose fee
         /// @dev send fee to Kwenta's treasury
-        if (fee > 0) {
+        if (totalSizeDeltaInUSD > 0) {
             require(
                 marginAsset.transfer(
                     marginBaseSettings.treasury(),
-                    (fee * marginBaseSettings.tradeFee()) / MAX_BPS
+                    (totalSizeDeltaInUSD * marginBaseSettings.tradeFee()) / MAX_BPS
                 ),
                 "MarginBase: unable to pay fee"
             );
