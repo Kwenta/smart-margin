@@ -83,10 +83,10 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
 
     /// @notice helpful modifier to check non-zero values
     /// @param value: value to check if zero
-    modifier notZero(uint256 value) {
+    modifier notZero(uint256 value, bytes32 valueName) {
         /// @notice value cannot be zero
         if (value == 0) {
-            revert AmountCantBeZero();
+            revert ValueCannotBeZero(valueName);
         }
         _;
     }
@@ -96,7 +96,8 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
     ///////////////////////////////////////////////////////////////*/
 
     /// @notice amount deposited/withdrawn into/from account cannot be zero
-    error AmountCantBeZero();
+    /// @param valueName: name of the variable that cannot be zero
+    error ValueCannotBeZero(bytes32 valueName);
 
     /// @notice position with given marketKey does not exist
     /// @param marketKey: key for synthetix futures market
@@ -110,6 +111,12 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
     /// @param available: amount of useable margin asset
     /// @param required: amount of margin asset required
     error InsufficientFreeMargin(uint256 available, uint256 required);
+
+    /// @notice cannot execute invalid order
+    error OrderInvalid();
+
+    /// @notice call to transfer ETH on withdrawal fails
+    error EthWithdrawalFailed();
 
     /*///////////////////////////////////////////////////////////////
                         Constructor & Initializer
@@ -188,7 +195,11 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
     ///////////////////////////////////////////////////////////////*/
 
     /// @param _amount: amount of marginAsset to deposit into marginBase account
-    function deposit(uint256 _amount) external notZero(_amount) onlyOwner {
+    function deposit(uint256 _amount)
+        external
+        notZero(_amount, "_amount")
+        onlyOwner
+    {
         // transfer in margin asset from user
         // (will revert if user does not have amount specified)
         require(
@@ -200,7 +211,11 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
     }
 
     /// @param _amount: amount of marginAsset to withdraw from marginBase account
-    function withdraw(uint256 _amount) external notZero(_amount) onlyOwner {
+    function withdraw(uint256 _amount)
+        external
+        notZero(_amount, "_amount")
+        onlyOwner
+    {
         // make sure committed margin isn't withdrawn
         if (_amount > freeMargin()) {
             revert InsufficientFreeMargin(freeMargin(), _amount);
@@ -214,6 +229,15 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
         );
 
         emit Withdraw(msg.sender, _amount);
+    }
+
+    /// @notice allow users to withdraw ETH deposited for keeper fees
+    /// @param _amount: amount to withdraw
+    function withdrawEth(uint256 _amount) external onlyOwner {
+        (bool success, ) = payable(owner()).call{value: _amount}("");
+        if (!success) {
+            revert EthWithdrawalFailed();
+        }
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -280,7 +304,8 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
             require(
                 marginAsset.transfer(
                     marginBaseSettings.treasury(),
-                    (totalSizeDeltaInUSD * marginBaseSettings.tradeFee()) / MAX_BPS
+                    (totalSizeDeltaInUSD * marginBaseSettings.tradeFee()) /
+                        MAX_BPS
                 ),
                 "MarginBase: unable to pay fee"
             );
@@ -517,8 +542,6 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
         } else if (order.sizeDelta < 0) {
             // Short
             return price >= order.desiredPrice;
-        } else {
-            revert("Order size 0");
         }
     }
 
@@ -533,7 +556,13 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
         int256 _marginDelta,
         int256 _sizeDelta,
         uint256 _limitPrice
-    ) external onlyOwner returns (uint256) {
+    )
+        external
+        payable
+        notZero(_abs(_sizeDelta), "_sizeDelta")
+        onlyOwner
+        returns (uint256)
+    {
         // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
             // ensure margin doesn't exceed max
@@ -580,7 +609,9 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
     /// @notice only keepers can trigger this function
     /// @param _orderId: key for an active order
     function executeOrder(uint256 _orderId) external onlyOps {
-        require(validOrder(_orderId), "Order not ready for execution");
+        if (!validOrder(_orderId)) {
+            revert OrderInvalid();
+        }
         Order memory order = orders[_orderId];
 
         // if margin was committed, free it
