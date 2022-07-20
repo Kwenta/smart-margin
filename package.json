@@ -52,6 +52,7 @@
   },
   "dependencies": {
     "hardhat-deploy": "^0.11.11",
-    "hardhat-deploy-ethers": "^0.3.0-beta.13"
+    "hardhat-deploy-ethers": "^0.3.0-beta.13",
+    "hardhat-interact": "github:JChiaramonte7/hardhat-interact#master-build"
   }
 }

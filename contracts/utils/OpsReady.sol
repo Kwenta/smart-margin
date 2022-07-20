@@ -9,11 +9,12 @@ import {
 interface IOps {
     function gelato() external view returns (address payable);
     
-    function createTask(
+    function createTaskNoPrepayment(
         address _execAddress,
         bytes4 _execSelector,
         address _resolverAddress,
-        bytes calldata _resolverData
+        bytes calldata _resolverData,
+        address _feeToken
     ) external returns (bytes32 task);
 
     function cancelTask(bytes32 _taskId) external;

@@ -572,11 +572,12 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
             committedMargin += _abs(_marginDelta);
         }
 
-        bytes32 taskId = IOps(ops).createTask(
+        bytes32 taskId = IOps(ops).createTaskNoPrepayment(
             address(this), // execution function address
             this.executeOrder.selector, // execution function selector
             address(this), // checker (resolver) address
-            abi.encodeWithSelector(this.checker.selector, orderId) // checker (resolver) calldata
+            abi.encodeWithSelector(this.checker.selector, orderId), // checker (resolver) calldata
+            ETH // payment token
         );
 
         orders[orderId] = Order({
