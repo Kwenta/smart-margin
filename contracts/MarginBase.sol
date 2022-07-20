@@ -576,7 +576,7 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
             address(this), // execution function address
             this.executeOrder.selector, // execution function selector
             address(this), // checker (resolver) address
-            abi.encodeWithSelector(this.checker.selector, orderId), // checker (resolver) calldata,
+            abi.encodeWithSelector(this.checker.selector, orderId), // checker (resolver) calldata
             ETH // payment token
         );
 
