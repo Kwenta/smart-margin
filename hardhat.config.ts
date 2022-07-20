@@ -28,6 +28,7 @@ const config: HardhatUserConfig = {
     },
     paths: {
         sources: "contracts",
+        artifacts: "artifacts",
     },
     networks: {
         localhost: {
