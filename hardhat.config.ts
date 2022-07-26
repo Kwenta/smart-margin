@@ -8,6 +8,7 @@ import "hardhat-gas-reporter";
 import "solidity-coverage";
 import "hardhat-deploy";
 import "hardhat-deploy-ethers";
+import "hardhat-interact";
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ const config: HardhatUserConfig = {
     },
     paths: {
         sources: "contracts",
+        artifacts: "artifacts",
     },
     networks: {
         localhost: {

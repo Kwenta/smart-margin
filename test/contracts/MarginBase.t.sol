@@ -224,7 +224,9 @@ contract MarginBaseTest is DSTest {
      * @param mockedPrice price to return when effectiveValue() called
      * @dev Mocked calls are in effect until clearMockedCalls is called.
      */
-    function mockExchangeRates(IFuturesMarket mockedMarket, uint256 mockedPrice) internal {
+    function mockExchangeRates(IFuturesMarket mockedMarket, uint256 mockedPrice)
+        internal
+    {
         address exchangeRates = address(2);
         cheats.mockCall(
             address(mockedMarket),
@@ -313,7 +315,7 @@ contract MarginBaseTest is DSTest {
         uint256 limitPrice
     ) internal returns (uint256 orderId) {
         bytes memory createTaskSelector = abi.encodePacked(
-            IOps.createTask.selector
+            IOps.createTaskNoPrepayment.selector
         );
         cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
         orderId = account.placeOrder(
@@ -386,7 +388,7 @@ contract MarginBaseTest is DSTest {
 
         // Deposit
         bytes memory createTaskSelector = abi.encodePacked(
-            IOps.createTask.selector
+            IOps.createTaskNoPrepayment.selector
         );
         cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
         account.placeOrder{value: amount}(ETH_MARKET_KEY, 0, 1, 0);
@@ -922,7 +924,7 @@ contract MarginBaseTest is DSTest {
     function testCanGetActivePositionsAfterClosingTwo() public {
         deposit(1 ether);
         mockExchangeRatesForDistributionTests();
-        
+
         // open 3 positions
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
@@ -1231,7 +1233,7 @@ contract MarginBaseTest is DSTest {
          * @dev mockExchangeRatesForDistributionTests()
          * results in the exchange rates for all baseAssets
          * being 1e18 (1 eth == 1 btc == 1 link == 1 uni == 1 usd)
-         * 
+         *
          * the purpose of these tests isnt ensuring exchange rates are correct.
          * the above mocking allows for isolated fee calculation tests
          *
@@ -1243,8 +1245,8 @@ contract MarginBaseTest is DSTest {
          */
 
         uint256 totalSizeDelta = 4 * (1 ether);
-        uint256 expectedFee = (totalSizeDelta *
-            marginBaseSettings.tradeFee()) / MAX_BPS;
+        uint256 expectedFee = (totalSizeDelta * marginBaseSettings.tradeFee()) /
+            MAX_BPS;
 
         assertEq(marginAsset.balanceOf(KWENTA_TREASURY), expectedFee);
     }
@@ -1272,7 +1274,7 @@ contract MarginBaseTest is DSTest {
          * @dev mockExchangeRatesForDistributionTests()
          * results in the exchange rates for all baseAssets
          * being 1e18 (1 eth == 1 btc == 1 link == 1 uni == 1 usd)
-         * 
+         *
          * the purpose of these tests isnt ensuring exchange rates are correct.
          * the above mocking allows for isolated fee calculation tests
          *
@@ -1282,10 +1284,10 @@ contract MarginBaseTest is DSTest {
          * ex:
          * (255 * 5) / 10_000 = 0.1275
          */
-        
+
         uint256 totalSizeDelta = 255 * (1 ether);
-        uint256 expectedFee = (totalSizeDelta *
-            marginBaseSettings.tradeFee()) / MAX_BPS;
+        uint256 expectedFee = (totalSizeDelta * marginBaseSettings.tradeFee()) /
+            MAX_BPS;
 
         assertEq(marginAsset.balanceOf(KWENTA_TREASURY), expectedFee);
     }
