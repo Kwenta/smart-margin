@@ -1,5 +1,5 @@
 {
-  "name": "cross-margin-manager",
+  "name": "@kwenta/cross-margin-manager",
   "version": "1.0.0",
   "scripts": {
     "compile": "npx hardhat compile",
