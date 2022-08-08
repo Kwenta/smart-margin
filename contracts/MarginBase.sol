@@ -29,7 +29,7 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
     /// @notice max BPS
     uint256 private constant MAX_BPS = 10000;
 
-    // constant for sUSD currency key
+    /// @notice constant for sUSD currency key
     bytes32 private constant SUSD = "sUSD";
 
     /*///////////////////////////////////////////////////////////////
@@ -196,7 +196,7 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
 
     /// @param _amount: amount of marginAsset to deposit into marginBase account
     function deposit(uint256 _amount)
-        external
+        public
         notZero(_amount, "_amount")
         onlyOwner
     {
@@ -255,9 +255,9 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
         _distributeMargin(_newPositions);
     }
 
-    function _distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
-        internal
-    {
+    function _distributeMargin(
+        UpdateMarketPositionSpec[] memory _newPositions
+    ) internal {
         /// @notice limit size of new position specs passed into distribute margin
         if (_newPositions.length > type(uint8).max) {
             revert MaxNewPositionsExceeded(_newPositions.length);
@@ -312,7 +312,17 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
         }
     }
 
-    // @TODO https://github.com/Kwenta/margin-manager/issues/12
+    /// @notice accept a deposit amount and open new
+    /// futures market position(s) all in a single tx
+    /// @param _amount: amount of marginAsset to deposit into marginBase account
+    /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
+    function depositAndDistribute(
+        uint256 _amount,
+        UpdateMarketPositionSpec[] memory _newPositions
+    ) external onlyOwner {
+        deposit(_amount);
+        _distributeMargin(_newPositions);
+    }
 
     /*///////////////////////////////////////////////////////////////
                     Internal Margin Distribution
