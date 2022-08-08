@@ -553,6 +553,9 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
             // Short
             return price >= order.desiredPrice;
         }
+
+        // sizeDelta == 0
+        return false;
     }
 
     /// @notice register a limit order internally and with gelato
