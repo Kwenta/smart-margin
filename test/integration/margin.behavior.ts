@@ -160,6 +160,7 @@ let marginAccount: Contract;
 
 // test accounts
 let account0: SignerWithAddress;
+let account1: SignerWithAddress;
 
 const forkAtBlock = async (block: number) => {
     await network.provider.request({
@@ -179,7 +180,7 @@ describe("Integration: Test Cross Margin", () => {
     before("Fork and Mint sUSD to Test Account", async () => {
         forkAtBlock(9000000);
 
-        [account0] = await ethers.getSigners();
+        [account0, account1] = await ethers.getSigners();
 
         // mint account0 $100_000 sUSD
         await mintToAccountSUSD(account0.address, MINT_AMOUNT);
@@ -806,5 +807,25 @@ describe("Integration: Test Cross Margin", () => {
             .getNumberOfActivePositions();
 
         expect(postPositionsCount).to.equal(prePositionsCount.add(1));
+    });
+
+    it("Only Owner Can Call depositAndDistribute()", async () => {
+        // define new positions
+        const newPosition = [
+            {
+                // open ~1x LONG position in ETH-PERP Market
+                marketKey: MARKET_KEY_sETH,
+                marginDelta: TEST_VALUE, // $1_000 sUSD
+                sizeDelta: ethers.BigNumber.from("500000000000000000"),
+                isClosing: false, // position is active (i.e. not closed)
+            },
+        ];
+
+        // execute trade
+        const tx = marginAccount
+            .connect(account1)
+            .depositAndDistribute(TEST_VALUE, newPosition);
+
+        await expect(tx).to.be.revertedWith("Ownable: caller is not the owner")
     });
 });
