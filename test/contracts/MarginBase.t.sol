@@ -803,7 +803,7 @@ contract MarginBaseTest is DSTest {
 
         IMarginBaseTypes.UpdateMarketPositionSpec[]
             memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
-                4
+                2
             );
         newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
             ETH_MARKET_KEY,
@@ -815,22 +815,35 @@ contract MarginBaseTest is DSTest {
             1 ether,
             1 ether
         );
-        newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            LINK_MARKET_KEY,
-            1 ether,
-            1 ether
-        );
-        newPositions[3] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            UNI_MARKET_KEY,
-            1 ether,
-            1 ether
-        );
 
         marginAsset.mint(address(this), amount);
         marginAsset.approve(address(account), amount);
 
         account.depositAndDistribute(amount, newPositions);
-        assertEq(account.getNumberOfActivePositions(), 4);
+        assertEq(account.getNumberOfActivePositions(), 2);
+    }
+
+    function testCannotDepositAndDistributeAsNonOwner() public {
+        uint256 amount = 5 ether;
+        mockExchangeRatesForDistributionTests();
+
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                1
+            );
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
+            1 ether,
+            1 ether
+        );
+
+        address nonOwnerEOA = 0x6e1768574dC439aE6ffCd2b0A0f218105f2612c6;
+        marginAsset.mint(nonOwnerEOA, amount);
+        marginAsset.approve(nonOwnerEOA, amount);
+        
+        cheats.expectRevert(abi.encodePacked("Ownable: caller is not the owner"));
+        cheats.prank(nonOwnerEOA); // non-owner calling depositAndDistribute()
+        account.depositAndDistribute(amount, newPositions);
     }
 
     /**********************************
