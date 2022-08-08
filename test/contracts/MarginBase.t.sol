@@ -795,6 +795,45 @@ contract MarginBaseTest is DSTest {
     }
 
     /**********************************
+     * depositAndDistribute()
+     **********************************/
+    function testDepositAndDistribute() public {
+        uint256 amount = 5 ether;
+        mockExchangeRatesForDistributionTests();
+
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                4
+            );
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
+            1 ether,
+            1 ether
+        );
+        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            BTC_MARKET_KEY,
+            1 ether,
+            1 ether
+        );
+        newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            LINK_MARKET_KEY,
+            1 ether,
+            1 ether
+        );
+        newPositions[3] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            UNI_MARKET_KEY,
+            1 ether,
+            1 ether
+        );
+
+        marginAsset.mint(address(this), amount);
+        marginAsset.approve(address(account), amount);
+
+        account.depositAndDistribute(amount, newPositions);
+        assertEq(account.getNumberOfActivePositions(), 4);
+    }
+
+    /**********************************
      * getNumberOfActivePositions()
      **********************************/
     function testGetNumberOfActivePositionsReturnsZero() public {
