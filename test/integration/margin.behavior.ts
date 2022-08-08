@@ -808,24 +808,4 @@ describe("Integration: Test Cross Margin", () => {
 
         expect(postPositionsCount).to.equal(prePositionsCount.add(1));
     });
-
-    it("Only Owner Can Call depositAndDistribute()", async () => {
-        // define new positions
-        const newPosition = [
-            {
-                // open ~1x LONG position in ETH-PERP Market
-                marketKey: MARKET_KEY_sETH,
-                marginDelta: TEST_VALUE, // $1_000 sUSD
-                sizeDelta: ethers.BigNumber.from("500000000000000000"),
-                isClosing: false, // position is active (i.e. not closed)
-            },
-        ];
-
-        // execute trade
-        const tx = marginAccount
-            .connect(account1)
-            .depositAndDistribute(TEST_VALUE, newPosition);
-
-        await expect(tx).to.be.revertedWith("Ownable: caller is not the owner")
-    });
 });
