@@ -123,7 +123,7 @@ dotenv.config();
  */
 
 // constants
-const MINT_AMOUNT = ethers.BigNumber.from("100000000000000000000000"); // == $100_000 sUSD
+const MINT_AMOUNT = ethers.BigNumber.from("110000000000000000000000"); // == $110_000 sUSD
 const ACCOUNT_AMOUNT = ethers.BigNumber.from("100000000000000000000000"); // == $100_000 sUSD
 const TEST_VALUE = ethers.BigNumber.from("1000000000000000000000"); // == $1_000 sUSD
 const MAX_BPS = 10_000;
@@ -160,6 +160,7 @@ let marginAccount: Contract;
 
 // test accounts
 let account0: SignerWithAddress;
+let account1: SignerWithAddress;
 
 const forkAtBlock = async (block: number) => {
     await network.provider.request({
@@ -179,7 +180,7 @@ describe("Integration: Test Cross Margin", () => {
     before("Fork and Mint sUSD to Test Account", async () => {
         forkAtBlock(9000000);
 
-        [account0] = await ethers.getSigners();
+        [account0, account1] = await ethers.getSigners();
 
         // mint account0 $100_000 sUSD
         await mintToAccountSUSD(account0.address, MINT_AMOUNT);
@@ -773,5 +774,38 @@ describe("Integration: Test Cross Margin", () => {
         expect(eoaBalance).to.equal(
             MINT_AMOUNT.sub(ACCOUNT_AMOUNT).add(accountBalance)
         );
+    });
+
+    it("Should Deposit and Open Single Position in One Tx", async () => {
+        // define new positions
+        const newPosition = [
+            {
+                // open ~1x LONG position in ETH-PERP Market
+                marketKey: MARKET_KEY_sETH,
+                marginDelta: TEST_VALUE, // $1_000 sUSD
+                sizeDelta: ethers.BigNumber.from("500000000000000000"),
+                isClosing: false, // position is active (i.e. not closed)
+            },
+        ];
+
+        // confirm number of open positions
+        const prePositionsCount = await marginAccount
+            .connect(account0)
+            .getNumberOfActivePositions();
+
+        // approve allowance for marginAccount to spend
+        await sUSD.connect(account0).approve(marginAccount.address, TEST_VALUE);
+
+        // execute trade
+        await marginAccount
+            .connect(account0)
+            .depositAndDistribute(TEST_VALUE, newPosition);
+
+        // confirm number of open positions
+        const postPositionsCount = await marginAccount
+            .connect(account0)
+            .getNumberOfActivePositions();
+
+        expect(postPositionsCount).to.equal(prePositionsCount.add(1));
     });
 });
