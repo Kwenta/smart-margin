@@ -808,4 +808,8 @@ describe("Integration: Test Cross Margin", () => {
 
         expect(postPositionsCount).to.equal(prePositionsCount.add(1));
     });
+
+    // @TODO simulate a situation where a position has been liquidated and a user 
+    // passes in a newActivePosition that specifies that same market
+    // @TODO do this after hh refactor
 });
