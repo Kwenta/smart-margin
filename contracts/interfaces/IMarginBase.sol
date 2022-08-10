@@ -32,4 +32,7 @@ interface IMarginBase is IMarginBaseTypes {
     function placeOrder(bytes32 _marketKey, int256 _marginDelta, int256 _sizeDelta, uint256 _limitPrice) external payable returns (uint256);
     function cancelOrder(uint256 _orderId) external;
     function checker(uint256 _orderId) external view returns (bool canExec, bytes memory execPayload);
+
+    // Utility
+    function rescueERC20(address tokenAddress, uint256 tokenAmount) external;
 }
