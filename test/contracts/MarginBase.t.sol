@@ -218,10 +218,10 @@ contract MarginBaseTest is DSTest {
     }
 
     /**
-     * Mocking ExchangeRates.sol
+     * Mocking sUSD Exchange Rate
      *
      * @param mockedMarket market to mock
-     * @param mockedPrice price to return when effectiveValue() called
+     * @param mockedPrice price to return when assetPrice() called
      * @dev Mocked calls are in effect until clearMockedCalls is called.
      */
     function mockExchangeRates(IFuturesMarket mockedMarket, uint256 mockedPrice)
@@ -238,10 +238,11 @@ contract MarginBaseTest is DSTest {
             abi.encodePacked(IAddressResolver.requireAndGetAddress.selector),
             abi.encode(exchangeRates)
         );
+        // @mock market.assetPrice()
         cheats.mockCall(
-            exchangeRates,
-            abi.encodePacked(IExchangeRates.effectiveValue.selector),
-            abi.encode(mockedPrice)
+            address(mockedMarket),
+            abi.encodeWithSelector(IFuturesMarket.assetPrice.selector),
+            abi.encode(mockedPrice, false)
         );
     }
 

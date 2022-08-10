@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IAddressResolver.sol";
 import "./interfaces/IFuturesMarket.sol";
 import "./interfaces/IFuturesMarketManager.sol";
-import "./interfaces/IExchangeRates.sol";
 import "./interfaces/IMarginBaseTypes.sol";
 import "./interfaces/IMarginBase.sol";
 import "./utils/OpsReady.sol";
@@ -264,9 +263,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         _distributeMargin(_newPositions);
     }
 
-    function _distributeMargin(
-        UpdateMarketPositionSpec[] memory _newPositions
-    ) internal {
+    function _distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
+        internal
+    {
         /// @notice limit size of new position specs passed into distribute margin
         if (_newPositions.length > type(uint8).max) {
             revert MaxNewPositionsExceeded(_newPositions.length);
