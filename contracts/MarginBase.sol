@@ -235,6 +235,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice allow users to withdraw ETH deposited for keeper fees
     /// @param _amount: amount to withdraw
     function withdrawEth(uint256 _amount) external onlyOwner {
+        // solhint-disable-next-line
         (bool success, ) = payable(owner()).call{value: _amount}("");
         if (!success) {
             revert EthWithdrawalFailed();
@@ -271,6 +272,28 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         for (uint8 i = 0; i < _newPositions.length; i++) {
             // define market via _marketKey
             IFuturesMarket market = futuresMarket(_newPositions[i].marketKey);
+
+            // @TODO OPTION 1
+
+            /// @notice determine if this position is being modified or created
+            /// @dev if size is 0, then position is being created
+            /// @dev if size is NOT 0, then contract needs to ensure position has not been liquidated
+            if (activeMarketPositions[_newPositions[i].marketKey].size != 0) {
+                /// @notice update position here to ensure internal accounting is up-to-date moving forward
+                /// @dev if position has been liquidated, this contract will effectively create a new position
+                /// as specified by _newPositions[i]
+                /// @dev pulling 
+                (, , , ,int128 size) = market.positions(address(this));
+                if (size == 0) {
+                    // update internal state for given open market position
+                    updateActiveMarketPosition(_newPositions[i].marketKey, 0, 0);
+                }
+            }
+
+            // @TODO OPTION 2
+
+            fetchPositionAndUpdate(_newPositions[i].marketKey, market);
+            
 
             if (_newPositions[i].marginDelta < 0) {
                 /// @notice remove margin from market and potentially adjust position size
