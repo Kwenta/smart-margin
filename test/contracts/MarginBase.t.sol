@@ -840,8 +840,10 @@ contract MarginBaseTest is DSTest {
         address nonOwnerEOA = 0x6e1768574dC439aE6ffCd2b0A0f218105f2612c6;
         marginAsset.mint(nonOwnerEOA, amount);
         marginAsset.approve(nonOwnerEOA, amount);
-        
-        cheats.expectRevert(abi.encodePacked("Ownable: caller is not the owner"));
+
+        cheats.expectRevert(
+            abi.encodePacked("Ownable: caller is not the owner")
+        );
         cheats.prank(nonOwnerEOA); // non-owner calling depositAndDistribute()
         account.depositAndDistribute(amount, newPositions);
     }
@@ -1342,5 +1344,27 @@ contract MarginBaseTest is DSTest {
             MAX_BPS;
 
         assertEq(marginAsset.balanceOf(KWENTA_TREASURY), expectedFee);
+    }
+
+    /**********************************
+     * rescueERC20
+     **********************************/
+
+    function testCanRescueToken() public {
+        MintableERC20 token = new MintableERC20(address(this), 1 ether);
+        token.transfer(address(account), 1 ether);
+        assertEq(token.balanceOf(address(this)), 0);
+        account.rescueERC20(address(token), 1 ether);
+        assertEq(token.balanceOf(address(this)), 1 ether);
+    }
+
+    function testCantRescueMarginAssetToken() public {
+        marginAsset.mint(address(this), 1 ether);
+        marginAsset.transfer(address(account), 1 ether);
+        assertEq(marginAsset.balanceOf(address(this)), 0);
+        cheats.expectRevert(
+            abi.encodeWithSelector(MarginBase.CannotRescueMarginAsset.selector)
+        );
+        account.rescueERC20(address(marginAsset), 1 ether);
     }
 }
