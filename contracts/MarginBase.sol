@@ -24,9 +24,6 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
 
-    /// @notice name for futures market manager, needed for fetching market key
-    bytes32 private constant FUTURES_MANAGER = "FuturesMarketManager";
-
     /// @notice max BPS
     uint256 private constant MAX_BPS = 10000;
 
@@ -39,9 +36,6 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
 
     // @notice synthetix address resolver
     IAddressResolver private addressResolver;
-
-    /// @notice synthetix futures market manager
-    IFuturesMarketManager private futuresManager;
 
     /// @notice settings for MarginBase account
     MarginBaseSettings public marginBaseSettings;
@@ -140,12 +134,6 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     ) external initOnce {
         marginAsset = IERC20(_marginAsset);
         addressResolver = IAddressResolver(_addressResolver);
-        futuresManager = IFuturesMarketManager(
-            addressResolver.requireAndGetAddress(
-                FUTURES_MANAGER,
-                "MarginBase: Could not get Futures Market Manager"
-            )
-        );
         marginAsset = IERC20(_marginAsset);
 
         /// @dev MarginBaseSettings must exist prior to MarginBase account creation
@@ -256,9 +244,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         _distributeMargin(_newPositions);
     }
 
-    function _distributeMargin(
-        UpdateMarketPositionSpec[] memory _newPositions
-    ) internal {
+    function _distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
+        internal
+    {
         /// @notice limit size of new position specs passed into distribute margin
         if (_newPositions.length > type(uint8).max) {
             revert MaxNewPositionsExceeded(_newPositions.length);
@@ -683,16 +671,29 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         view
         returns (IFuturesMarket)
     {
-        return IFuturesMarket(futuresManager.marketForKey(_marketKey));
+        return IFuturesMarket(futuresManager().marketForKey(_marketKey));
     }
 
     /// @notice exchangeRates() fetches current ExchangeRates contract
+    /// @return IExchangeRates contract interface
     function exchangeRates() internal view returns (IExchangeRates) {
         return
             IExchangeRates(
                 addressResolver.requireAndGetAddress(
                     "ExchangeRates",
                     "MarginBase: Could not get ExchangeRates"
+                )
+            );
+    }
+
+    /// @notice futuresManager() fetches current FuturesMarketManager contract
+    /// @return IFuturesMarketManager contract interface
+    function futuresManager() internal view returns (IFuturesMarketManager) {
+        return
+            IFuturesMarketManager(
+                addressResolver.requireAndGetAddress(
+                    "FuturesMarketManager",
+                    "MarginBase: Could not get Futures Market Manager"
                 )
             );
     }
