@@ -7,6 +7,7 @@ import "./interfaces/IFuturesMarket.sol";
 import "./interfaces/IFuturesMarketManager.sol";
 import "./interfaces/IExchangeRates.sol";
 import "./interfaces/IMarginBaseTypes.sol";
+import "./interfaces/IMarginBase.sol";
 import "./utils/OpsReady.sol";
 import "./utils/MinimalProxyable.sol";
 import "./MarginBaseSettings.sol";
@@ -15,7 +16,7 @@ import "./MarginBaseSettings.sol";
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice Flexible, minimalist, and gas-optimized cross-margin enabled account
 /// for managing perpetual futures positions
-contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
+contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /*///////////////////////////////////////////////////////////////
                                 Constants
     ///////////////////////////////////////////////////////////////*/
@@ -36,14 +37,14 @@ contract MarginBase is MinimalProxyable, OpsReady, IMarginBaseTypes {
                                 State
     ///////////////////////////////////////////////////////////////*/
 
-    /// @notice settings for MarginBase account
-    MarginBaseSettings public marginBaseSettings;
-
-    /// @notice synthetix address resolver
+    // @notice synthetix address resolver
     IAddressResolver private addressResolver;
 
     /// @notice synthetix futures market manager
     IFuturesMarketManager private futuresManager;
+
+    /// @notice settings for MarginBase account
+    MarginBaseSettings public marginBaseSettings;
 
     /// @notice token contract used for account margin
     IERC20 public marginAsset;
