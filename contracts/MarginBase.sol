@@ -256,9 +256,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         _distributeMargin(_newPositions);
     }
 
-    function _distributeMargin(
-        UpdateMarketPositionSpec[] memory _newPositions
-    ) internal {
+    function _distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
+        internal
+    {
         /// @notice limit size of new position specs passed into distribute margin
         if (_newPositions.length > type(uint8).max) {
             revert MaxNewPositionsExceeded(_newPositions.length);
@@ -492,11 +492,11 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         uint128 _margin,
         int128 _size
     ) internal {
-        ActiveMarketPosition memory newPosition = ActiveMarketPosition(
-            _marketKey,
-            _margin,
-            _size
-        );
+        ActiveMarketPosition memory newPosition = ActiveMarketPosition({
+            marketKey: _marketKey,
+            margin: _margin,
+            size: _size
+        });
 
         // check if this is updating a position or creating one
         if (activeMarketPositions[_marketKey].marketKey == 0) {
@@ -637,11 +637,11 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         // prep new position
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
-        newPositions[0] = UpdateMarketPositionSpec(
-            order.marketKey,
-            order.marginDelta,
-            order.sizeDelta
-        );
+        newPositions[0] = UpdateMarketPositionSpec({
+            marketKey: order.marketKey,
+            marginDelta: order.marginDelta,
+            sizeDelta: order.sizeDelta
+        });
 
         // delete order from orders
         delete orders[_orderId];
