@@ -349,7 +349,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     ) internal returns (uint256 sizeDeltaInUSD) {
         /// @notice _sizeDelta is measured in the underlying base asset of the market
         /// @dev fee will be measured in sUSD, thus exchange rate is needed
-        sizeDeltaInUSD = (sUSDRate(_market) * _abs(_sizeDelta)) / 1 ether;
+        sizeDeltaInUSD = (sUSDRate(_market) * _abs(_sizeDelta)) / 1e18;
 
         // modify position in specific market with KWENTA tracking code
         _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
@@ -388,7 +388,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         if (_sizeDelta != 0) {
             /// @notice _sizeDelta is measured in the underlying base asset of the market
             /// @dev fee will be measured in sUSD, thus exchange rate is needed
-            sizeDeltaInUSD = (sUSDRate(_market) * _abs(_sizeDelta)) / 1 ether;
+            sizeDeltaInUSD = (sUSDRate(_market) * _abs(_sizeDelta)) / 1e18;
 
             // modify position in specific market with KWENTA tracking code
             _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
@@ -418,7 +418,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         if (_sizeDelta != 0) {
             /// @notice _sizeDelta is measured in the underlying base asset of the market
             /// @dev fee will be measured in sUSD, thus exchange rate is needed
-            sizeDeltaInUSD = (sUSDRate(_market) * _abs(_sizeDelta)) / 1 ether;
+            sizeDeltaInUSD = (sUSDRate(_market) * _abs(_sizeDelta)) / 1e18;
 
             // modify position in specific market with KWENTA tracking code
             _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
