@@ -108,6 +108,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param numberOfNewPositions: number of new position specs
     error MaxNewPositionsExceeded(uint256 numberOfNewPositions);
 
+    /// @notice currently no active position in market; size must be non-zero
+    error InvalidSizeDelta();
+
     /// @notice exceeds useable margin
     /// @param available: amount of useable margin asset
     /// @param required: amount of margin asset required
@@ -257,9 +260,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         _distributeMargin(_newPositions);
     }
 
-    function _distributeMargin(
-        UpdateMarketPositionSpec[] memory _newPositions
-    ) internal {
+    function _distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
+        internal
+    {
         /// @notice limit size of new position specs passed into distribute margin
         if (_newPositions.length > type(uint8).max) {
             revert MaxNewPositionsExceeded(_newPositions.length);
@@ -273,27 +276,23 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             // define market via _marketKey
             IFuturesMarket market = futuresMarket(_newPositions[i].marketKey);
 
-            // @TODO OPTION 1
-
-            /// @notice determine if this position is being modified or created
-            /// @dev if size is 0, then position is being created
-            /// @dev if size is NOT 0, then contract needs to ensure position has not been liquidated
+            /// @notice (if it exists) update position here to ensure internal
+            /// accounting is up-to-date moving forward
+            /// @dev if position has been liquidated, this contract will
+            /// effectively create a new position as specified by _newPositions[i]
             if (activeMarketPositions[_newPositions[i].marketKey].size != 0) {
-                /// @notice update position here to ensure internal accounting is up-to-date moving forward
-                /// @dev if position has been liquidated, this contract will effectively create a new position
-                /// as specified by _newPositions[i]
-                /// @dev pulling 
-                (, , , ,int128 size) = market.positions(address(this));
-                if (size == 0) {
-                    // update internal state for given open market position
-                    updateActiveMarketPosition(_newPositions[i].marketKey, 0, 0);
-                }
+                fetchPositionAndUpdate(_newPositions[i].marketKey, market);
             }
 
-            // @TODO OPTION 2
-
-            fetchPositionAndUpdate(_newPositions[i].marketKey, market);
-            
+            /// @notice if new position in market, ensure size > 0 to prevent
+            /// wasting gas to reach error: "MissingMarketKey"
+            /// @dev this second check is due to above logic potentially changing internal state
+            if (
+                activeMarketPositions[_newPositions[i].marketKey].size == 0 &&
+                _newPositions[i].sizeDelta == 0
+            ) {
+                revert InvalidSizeDelta();
+            }
 
             if (_newPositions[i].marginDelta < 0) {
                 /// @notice remove margin from market and potentially adjust position size
@@ -498,6 +497,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         removeActiveMarketPositon(_marketKey);
 
         // withdraw margin back to this account
+        /// @dev will not revert even if position had been liquidated
         _market.withdrawAllMargin();
     }
 
