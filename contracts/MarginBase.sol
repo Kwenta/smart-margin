@@ -135,6 +135,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     constructor() MinimalProxyable() {}
 
     /// @notice initialize contract (only once) and transfer ownership to caller
+    /// @dev ensure resolver and sUSD addresses are set to their proxies and not implementations
     /// @param _marginAsset: token contract address used for account margin
     /// @param _addressResolver: contract address for synthetix address resolver
     /// @param _marginBaseSettings: contract address for MarginBase account settings
