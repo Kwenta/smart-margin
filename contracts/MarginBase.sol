@@ -77,6 +77,11 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param amount: amount of marginAsset to withdraw from marginBase account
     event Withdraw(address indexed user, uint256 amount);
 
+    /// @notice emitted when tokens are rescued from this contract
+    /// @param token: address of token recovered
+    /// @param amount: amount of token recovered
+    event Rescued(address token, uint256 amount);
+
     /*///////////////////////////////////////////////////////////////
                                 Modifiers
     ///////////////////////////////////////////////////////////////*/
@@ -125,6 +130,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     ///      3. if there is no valid stored rate, w.r.t. to previous 3 oracle rates
     ///      4. Price is zero
     error InvalidPrice();
+
+    /// @notice cannot rescue underlying margin asset token
+    error CannotRescueMarginAsset();
 
     /*///////////////////////////////////////////////////////////////
                         Constructor & Initializer
@@ -699,5 +707,19 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param x: signed number
     function _abs(int256 x) internal pure returns (uint256) {
         return uint256(x < 0 ? -x : x);
+    }
+
+    /// @notice added to support recovering trapped erc20 tokens
+    /// @param tokenAddress: address of token to be recovered
+    /// @param tokenAmount: amount of token to be recovered
+    function rescueERC20(address tokenAddress, uint256 tokenAmount)
+        external
+        onlyOwner
+    {
+        if (tokenAddress == address(marginAsset)) {
+            revert CannotRescueMarginAsset();
+        }
+        IERC20(tokenAddress).transfer(owner(), tokenAmount);
+        emit Rescued(tokenAddress, tokenAmount);
     }
 }
