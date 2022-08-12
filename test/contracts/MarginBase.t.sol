@@ -19,6 +19,9 @@ contract MarginBaseTest is DSTest {
     MarginAccountFactory private marginAccountFactory;
     MarginBase private account;
 
+    // test address
+    address private nonOwnerEOA = 0x6e1768574dC439aE6ffCd2b0A0f218105f2612c6;
+
     // market keys
     bytes32 private constant ETH_MARKET_KEY = "sETH";
     bytes32 private constant BTC_MARKET_KEY = "sBTC";
@@ -837,7 +840,6 @@ contract MarginBaseTest is DSTest {
             1 ether
         );
 
-        address nonOwnerEOA = 0x6e1768574dC439aE6ffCd2b0A0f218105f2612c6;
         marginAsset.mint(nonOwnerEOA, amount);
         marginAsset.approve(nonOwnerEOA, amount);
 
@@ -1366,5 +1368,15 @@ contract MarginBaseTest is DSTest {
             abi.encodeWithSelector(MarginBase.CannotRescueMarginAsset.selector)
         );
         account.rescueERC20(address(marginAsset), 1 ether);
+    }
+
+    function testCantRescueTokenIfNotOwner() public {
+        MintableERC20 token = new MintableERC20(address(this), 1 ether);
+        token.transfer(address(account), 1 ether);
+        cheats.expectRevert(
+            abi.encodePacked("Ownable: caller is not the owner")
+        );
+        cheats.prank(nonOwnerEOA); // non-owner calling rescueERC20()
+        account.rescueERC20(address(token), 1 ether);        
     }
 }
