@@ -284,16 +284,6 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                 fetchPositionAndUpdate(_newPositions[i].marketKey, market);
             }
 
-            /// @notice if new position in market, ensure size > 0 to prevent
-            /// wasting gas to reach error: "MissingMarketKey"
-            /// @dev this second check is due to above logic potentially changing internal state
-            if (
-                activeMarketPositions[_newPositions[i].marketKey].size == 0 &&
-                _newPositions[i].sizeDelta == 0
-            ) {
-                revert InvalidSizeDelta();
-            }
-
             if (_newPositions[i].marginDelta < 0) {
                 /// @notice remove margin from market and potentially adjust position size
                 totalSizeDeltaInUSD += modifyPositionForMarketAndWithdraw(

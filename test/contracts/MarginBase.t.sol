@@ -973,21 +973,30 @@ contract MarginBaseTest is DSTest {
      * closePositionAndWithdraw()
      * removeActiveMarketPositon()
      **********************************/
+
+    /**
+     * When calling IFuturesMarket.positions(), our contract learns 
+     * whether or not a position is active.
+     * 
+     * Two scenarios are possible:
+     * (1) An external call to futures contracts has altered the position 
+     *     so that the size becomes zero (i.e. closing the position)
+     * (2) The position was liquidated, thus size is zero
+     * 
+     * Notice in both, size is zero...
+
+     * While testing, we mock IFuturesMarket.positions() to return 0. 
+     * However, in our contract, we make two calls to that function to determine 
+     * whether the position was liquidated (first check) and finally whether 
+     * our actions closed the position (second check).
+
+     * Since both checks rely on the same function call and occur 
+     * in the same tx, AND they check for the same thing (is size zero), 
+     * we can thus never have the first check return a non-zero value 
+     * (the position wasn't liquidated) and the second check return zero.
+     */
     function testCanRemovePosition() public {
-        /**
-         * @notice due to the logic steps:
-         * (1) updating internal accounting
-         * (2) execute trade
-         * (3) updating internal accounting
-         *
-         * mocking IFuturesMarket.positions() to return zero
-         * triggers the contract to think the position was liquidated, therefore,
-         * eventually failing at step (3) when IFuturesMarket.positions() returns
-         * zero *again* despite that not being possible in a real environment.
-         * Thus, the best unit test to cover closePositionAndWithdraw(), removeActiveMarketPositon(),
-         * and liquidation functionality is the following:
-         */
-        deposit(1 ether);
+        deposit(2 ether);
         mockExchangeRatesForDistributionTests();
 
         IMarginBaseTypes.UpdateMarketPositionSpec[]
@@ -1003,12 +1012,6 @@ contract MarginBaseTest is DSTest {
         // open position in ETH Market
         account.distributeMargin(newPositions);
 
-        // @mock market.positions()
-        // update mocking so size returned from Synthetix Futures contracts is "0"
-        // @notice this will trigger contract to think the position was liquidated
-        // later when distributeMargin() is called again
-        // @notice despite this, the contract will still go through the following steps
-        // which we intended to test: closePositionAndWithdraw(), removeActiveMarketPositon()
         cheats.mockCall(
             address(futuresMarketETH),
             abi.encodeWithSelector(
@@ -1022,23 +1025,32 @@ contract MarginBaseTest is DSTest {
             memory newPositions2 = new IMarginBaseTypes.UpdateMarketPositionSpec[](
                 1
             );
-        newPositions2[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
-            ETH_MARKET_KEY,
-            0,
-            0
-        );
+        newPositions2[0] = IMarginBaseTypes.UpdateMarketPositionSpec({
+            marketKey: ETH_MARKET_KEY,
+            marginDelta: 1 ether,
+            sizeDelta: 0
+        });
 
-        // IF closePositionAndWithdraw() and removeActiveMarketPositon() function properly
-        // calling distributeMargin() will revert with error: InvalidSizeDelta
-        // due to the position having been liquidated
-        // (i.e. size == 0  for a "new" position since old one was removed causes revert).
+        // ETH Position was effectively liquidated since 
+        // IFuturesMarket.positions(futuresMarketETH) will return zero.
+        // Thus, our contract will update state via removing ETH position from internal accounting.
         //
-        // If call is NOT reverted when size of
-        // newPositions2[0] is zero, then (1) position was not removed and (2)
-        // considered active (size == 0 for an active position IS acceptable)
-
+        // Since newPositions2 is attempting to inject non-zero margin and 
+        // sizeDelta is 0, "normally" this would be a no-op......
+        // but since IFuturesMarket.positions(futuresMarketETH) will return zero regardless,
+        // we expect fetchPositionAndUpdate() called at the end of depositAndModifyPositionForMarket()
+        // to eventually lead to closePositionAndWithdraw() since size is 0...
+        // that prevents the usual updateActiveMarketPosition() from being called in fetchPositionAndUpdate()
+        // resulting in that position never becoming active and when tried to remove, failing with
+        // error: MissingMarketKey()
+        //
+        // I encourage anyone reading this to slowly walkthrough the function calls 
+        // via the command:  npm run f-test:unit -- -vvvvv
         cheats.expectRevert(
-            abi.encodeWithSelector(MarginBase.InvalidSizeDelta.selector)
+            abi.encodeWithSelector(
+                MarginBase.MissingMarketKey.selector,
+                ETH_MARKET_KEY
+            )
         );
         account.distributeMargin(newPositions2);
     }
