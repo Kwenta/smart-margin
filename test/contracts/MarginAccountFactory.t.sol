@@ -13,7 +13,7 @@ contract MarginAccountFactoryTest is DSTest {
     MarginAccountFactory private marginAccountFactory;
 
     address private addressResolver =
-        0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C;
+        0x1Cb059b7e74fD21665968C908806143E744D5F30;
 
     address private constant KWENTA_TREASURY =
         0x82d2242257115351899894eF384f779b5ba8c695;

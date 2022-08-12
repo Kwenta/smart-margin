@@ -136,8 +136,8 @@ const stopLossFee = 10;
 // kwenta
 const KWENTA_TREASURY = "0x82d2242257115351899894eF384f779b5ba8c695";
 
-// synthetix
-const ADDRESS_RESOLVER = "0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C";
+// synthetix (ReadProxyAddressResolver)
+const ADDRESS_RESOLVER = "0x1Cb059b7e74fD21665968C908806143E744D5F30";
 
 // synthetix: proxy
 const SUSD_PROXY = "0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9";

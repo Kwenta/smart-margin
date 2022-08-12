@@ -57,7 +57,7 @@ contract MarginBaseTest is DSTest {
         IFuturesMarketManager(0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B);
     // address resolver for mocking
     IAddressResolver private addressResolver =
-        IAddressResolver(0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C);
+        IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
     // kwenta treasury address on OE Mainnet
     address private constant KWENTA_TREASURY =
         0x82d2242257115351899894eF384f779b5ba8c695;
