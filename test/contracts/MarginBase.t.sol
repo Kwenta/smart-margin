@@ -218,10 +218,10 @@ contract MarginBaseTest is DSTest {
     }
 
     /**
-     * Mocking ExchangeRates.sol
+     * Mocking sUSD Exchange Rate
      *
      * @param mockedMarket market to mock
-     * @param mockedPrice price to return when effectiveValue() called
+     * @param mockedPrice price to return when assetPrice() called
      * @dev Mocked calls are in effect until clearMockedCalls is called.
      */
     function mockExchangeRates(IFuturesMarket mockedMarket, uint256 mockedPrice)
@@ -238,10 +238,11 @@ contract MarginBaseTest is DSTest {
             abi.encodePacked(IAddressResolver.requireAndGetAddress.selector),
             abi.encode(exchangeRates)
         );
+        // @mock market.assetPrice()
         cheats.mockCall(
-            exchangeRates,
-            abi.encodePacked(IExchangeRates.effectiveValue.selector),
-            abi.encode(mockedPrice)
+            address(mockedMarket),
+            abi.encodeWithSelector(IFuturesMarket.assetPrice.selector),
+            abi.encode(mockedPrice, false)
         );
     }
 
@@ -840,8 +841,10 @@ contract MarginBaseTest is DSTest {
         address nonOwnerEOA = 0x6e1768574dC439aE6ffCd2b0A0f218105f2612c6;
         marginAsset.mint(nonOwnerEOA, amount);
         marginAsset.approve(nonOwnerEOA, amount);
-        
-        cheats.expectRevert(abi.encodePacked("Ownable: caller is not the owner"));
+
+        cheats.expectRevert(
+            abi.encodePacked("Ownable: caller is not the owner")
+        );
         cheats.prank(nonOwnerEOA); // non-owner calling depositAndDistribute()
         account.depositAndDistribute(amount, newPositions);
     }
@@ -1342,5 +1345,38 @@ contract MarginBaseTest is DSTest {
             MAX_BPS;
 
         assertEq(marginAsset.balanceOf(KWENTA_TREASURY), expectedFee);
+    }
+
+    /**********************************
+     * sUSDRate() -> error InvalidPrice()
+     **********************************/
+    function testInvalidPrice() public {
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
+
+        // update: @mock market.assetPrice()
+        cheats.mockCall(
+            address(futuresMarketETH),
+            abi.encodeWithSelector(IFuturesMarket.assetPrice.selector),
+            abi.encode(ETH_MARKET_KEY, true) // invalid == true
+        );
+
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                1
+            );
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
+            1 ether,
+            1 ether
+        );
+
+        marginAsset.mint(address(this), 1 ether);
+        marginAsset.approve(address(account), 1 ether);
+
+        cheats.expectRevert(
+            abi.encodeWithSelector(MarginBase.InvalidPrice.selector)
+        );
+        account.depositAndDistribute(1 ether, newPositions);
     }
 }
