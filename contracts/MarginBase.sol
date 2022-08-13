@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 import "./interfaces/IAddressResolver.sol";
 import "./interfaces/IFuturesMarket.sol";
 import "./interfaces/IFuturesMarketManager.sol";
-import "./interfaces/IExchangeRates.sol";
 import "./interfaces/IMarginBaseTypes.sol";
 import "./interfaces/IMarginBase.sol";
 import "./utils/OpsReady.sol";
@@ -84,6 +83,11 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param amount: amount of marginAsset to withdraw from marginBase account
     event Withdraw(address indexed user, uint256 amount);
 
+    /// @notice emitted when tokens are rescued from this contract
+    /// @param token: address of token recovered
+    /// @param amount: amount of token recovered
+    event Rescued(address token, uint256 amount);
+
     /*///////////////////////////////////////////////////////////////
                                 Modifiers
     ///////////////////////////////////////////////////////////////*/
@@ -121,6 +125,17 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice call to transfer ETH on withdrawal fails
     error EthWithdrawalFailed();
 
+    /// @notice base price from the oracle was invalid
+    /// @dev Rate can be invalid either due to:
+    ///      1. Returned as invalid from ExchangeRates - due to being stale or flagged by oracle
+    ///      2. Out of deviation bounds w.r.t. to previously stored rate
+    ///      3. if there is no valid stored rate, w.r.t. to previous 3 oracle rates
+    ///      4. Price is zero
+    error InvalidPrice();
+
+    /// @notice cannot rescue underlying margin asset token
+    error CannotRescueMarginAsset();
+
     /*///////////////////////////////////////////////////////////////
                         Constructor & Initializer
     ///////////////////////////////////////////////////////////////*/
@@ -130,6 +145,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     constructor() MinimalProxyable() {}
 
     /// @notice initialize contract (only once) and transfer ownership to caller
+    /// @dev ensure resolver and sUSD addresses are set to their proxies and not implementations
     /// @param _marginAsset: token contract address used for account margin
     /// @param _addressResolver: contract address for synthetix address resolver
     /// @param _marginBaseSettings: contract address for MarginBase account settings
@@ -376,11 +392,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     {
         /// @notice _sizeDelta is measured in the underlying base asset of the market
         /// @dev fee will be measured in sUSD, thus exchange rate is needed
-        sizeDeltaInUSD = exchangeRates().effectiveValue(
-            _market.baseAsset(),
-            _abs(_sizeDelta),
-            SUSD
-        );
+        sizeDeltaInUSD = (sUSDRate(_market) * _abs(_sizeDelta)) / 1e18;
 
         // modify position in specific market with KWENTA tracking code
         _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
@@ -412,11 +424,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         if (_sizeDelta != 0) {
             /// @notice _sizeDelta is measured in the underlying base asset of the market
             /// @dev fee will be measured in sUSD, thus exchange rate is needed
-            sizeDeltaInUSD = exchangeRates().effectiveValue(
-                _market.baseAsset(),
-                _abs(_sizeDelta),
-                SUSD
-            );
+            sizeDeltaInUSD = (sUSDRate(_market) * _abs(_sizeDelta)) / 1e18;
 
             // modify position in specific market with KWENTA tracking code
             _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
@@ -439,11 +447,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         if (_sizeDelta != 0) {
             /// @notice _sizeDelta is measured in the underlying base asset of the market
             /// @dev fee will be measured in sUSD, thus exchange rate is needed
-            sizeDeltaInUSD = exchangeRates().effectiveValue(
-                _market.baseAsset(),
-                _abs(_sizeDelta),
-                SUSD
-            );
+            sizeDeltaInUSD = (sUSDRate(_market) * _abs(_sizeDelta)) / 1e18;
 
             // modify position in specific market with KWENTA tracking code
             _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
@@ -497,9 +501,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     function validOrder(uint256 _orderId) public view returns (bool) {
         Order memory order = orders[_orderId];
 
-        bytes32 currencyKey = futuresMarket(order.marketKey).baseAsset();
-        // Get exchange rate for 1 unit
-        uint256 price = exchangeRates().effectiveValue(currencyKey, 1e18, SUSD);
+        uint256 price = sUSDRate(futuresMarket(order.marketKey));
 
         if (order.sizeDelta > 0) {
             // Long
@@ -591,11 +593,11 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         // prep new position
         MarginBase.UpdateMarketPositionSpec[]
             memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
-        newPositions[0] = UpdateMarketPositionSpec(
-            order.marketKey,
-            order.marginDelta,
-            order.sizeDelta
-        );
+        newPositions[0] = UpdateMarketPositionSpec({
+            marketKey: order.marketKey,
+            marginDelta: order.marginDelta,
+            sizeDelta: order.sizeDelta
+        });
 
         // delete order from orders
         delete orders[_orderId];
@@ -640,15 +642,15 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         return IFuturesMarket(futuresManager.marketForKey(_marketKey));
     }
 
-    /// @notice exchangeRates() fetches current ExchangeRates contract
-    function exchangeRates() internal view returns (IExchangeRates) {
-        return
-            IExchangeRates(
-                addressResolver.requireAndGetAddress(
-                    "ExchangeRates",
-                    "MarginBase: Could not get ExchangeRates"
-                )
-            );
+    /// @notice get exchange rate of underlying market asset in terms of sUSD
+    /// @param market: synthetix futures market
+    /// @return price in sUSD
+    function sUSDRate(IFuturesMarket market) internal view returns (uint256) {
+        (uint256 price, bool invalid) = market.assetPrice();
+        if (invalid) {
+            revert InvalidPrice();
+        }
+        return price;
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -659,5 +661,19 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param x: signed number
     function _abs(int256 x) internal pure returns (uint256) {
         return uint256(x < 0 ? -x : x);
+    }
+
+    /// @notice added to support recovering trapped erc20 tokens
+    /// @param tokenAddress: address of token to be recovered
+    /// @param tokenAmount: amount of token to be recovered
+    function rescueERC20(address tokenAddress, uint256 tokenAmount)
+        external
+        onlyOwner
+    {
+        if (tokenAddress == address(marginAsset)) {
+            revert CannotRescueMarginAsset();
+        }
+        IERC20(tokenAddress).transfer(owner(), tokenAmount);
+        emit Rescued(tokenAddress, tokenAmount);
     }
 }

@@ -19,6 +19,9 @@ contract MarginBaseTest is DSTest {
     MarginAccountFactory private marginAccountFactory;
     MarginBase private account;
 
+    // test address
+    address private nonOwnerEOA = 0x6e1768574dC439aE6ffCd2b0A0f218105f2612c6;
+
     // market keys
     bytes32 private constant ETH_MARKET_KEY = "sETH";
     bytes32 private constant BTC_MARKET_KEY = "sBTC";
@@ -57,7 +60,7 @@ contract MarginBaseTest is DSTest {
         IFuturesMarketManager(0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B);
     // address resolver for mocking
     IAddressResolver private addressResolver =
-        IAddressResolver(0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C);
+        IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
     // kwenta treasury address on OE Mainnet
     address private constant KWENTA_TREASURY =
         0x82d2242257115351899894eF384f779b5ba8c695;
@@ -218,10 +221,10 @@ contract MarginBaseTest is DSTest {
     }
 
     /**
-     * Mocking ExchangeRates.sol
+     * Mocking sUSD Exchange Rate
      *
      * @param mockedMarket market to mock
-     * @param mockedPrice price to return when effectiveValue() called
+     * @param mockedPrice price to return when assetPrice() called
      * @dev Mocked calls are in effect until clearMockedCalls is called.
      */
     function mockExchangeRates(IFuturesMarket mockedMarket, uint256 mockedPrice)
@@ -238,10 +241,11 @@ contract MarginBaseTest is DSTest {
             abi.encodePacked(IAddressResolver.requireAndGetAddress.selector),
             abi.encode(exchangeRates)
         );
+        // @mock market.assetPrice()
         cheats.mockCall(
-            exchangeRates,
-            abi.encodePacked(IExchangeRates.effectiveValue.selector),
-            abi.encode(mockedPrice)
+            address(mockedMarket),
+            abi.encodeWithSelector(IFuturesMarket.assetPrice.selector),
+            abi.encode(mockedPrice, false)
         );
     }
 
@@ -837,7 +841,6 @@ contract MarginBaseTest is DSTest {
             1 ether
         );
 
-        address nonOwnerEOA = 0x6e1768574dC439aE6ffCd2b0A0f218105f2612c6;
         marginAsset.mint(nonOwnerEOA, amount);
         marginAsset.approve(nonOwnerEOA, amount);
 
@@ -1184,5 +1187,70 @@ contract MarginBaseTest is DSTest {
             MAX_BPS;
 
         assertEq(marginAsset.balanceOf(KWENTA_TREASURY), expectedFee);
+    }
+
+    /**********************************
+     * sUSDRate() -> error InvalidPrice()
+     **********************************/
+    function testInvalidPrice() public {
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
+
+        // update: @mock market.assetPrice()
+        cheats.mockCall(
+            address(futuresMarketETH),
+            abi.encodeWithSelector(IFuturesMarket.assetPrice.selector),
+            abi.encode(ETH_MARKET_KEY, true) // invalid == true
+        );
+
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                1
+            );
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
+            1 ether,
+            1 ether
+        );
+
+        marginAsset.mint(address(this), 1 ether);
+        marginAsset.approve(address(account), 1 ether);
+
+        cheats.expectRevert(
+            abi.encodeWithSelector(MarginBase.InvalidPrice.selector)
+        );
+        account.depositAndDistribute(1 ether, newPositions);
+    }
+
+    /**********************************
+     * rescueERC20
+     **********************************/
+
+    function testCanRescueToken() public {
+        MintableERC20 token = new MintableERC20(address(this), 1 ether);
+        token.transfer(address(account), 1 ether);
+        assertEq(token.balanceOf(address(this)), 0);
+        account.rescueERC20(address(token), 1 ether);
+        assertEq(token.balanceOf(address(this)), 1 ether);
+    }
+
+    function testCantRescueMarginAssetToken() public {
+        marginAsset.mint(address(this), 1 ether);
+        marginAsset.transfer(address(account), 1 ether);
+        assertEq(marginAsset.balanceOf(address(this)), 0);
+        cheats.expectRevert(
+            abi.encodeWithSelector(MarginBase.CannotRescueMarginAsset.selector)
+        );
+        account.rescueERC20(address(marginAsset), 1 ether);
+    }
+
+    function testCantRescueTokenIfNotOwner() public {
+        MintableERC20 token = new MintableERC20(address(this), 1 ether);
+        token.transfer(address(account), 1 ether);
+        cheats.expectRevert(
+            abi.encodePacked("Ownable: caller is not the owner")
+        );
+        cheats.prank(nonOwnerEOA); // non-owner calling rescueERC20()
+        account.rescueERC20(address(token), 1 ether);        
     }
 }

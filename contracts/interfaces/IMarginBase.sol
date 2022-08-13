@@ -61,4 +61,7 @@ interface IMarginBase is IMarginBaseTypes {
         external
         view
         returns (bool canExec, bytes memory execPayload);
+
+    // Utility
+    function rescueERC20(address tokenAddress, uint256 tokenAmount) external;
 }
