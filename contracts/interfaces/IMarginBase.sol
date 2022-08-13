@@ -12,9 +12,14 @@ interface IMarginBase is IMarginBaseTypes {
 
     function getNumberOfInternalPositions() external view returns (uint256);
 
+    function freeMargin() external view returns (uint256);
+
+    /*///////////////////////////////////////////////////////////////
+                                Mutative
+    ///////////////////////////////////////////////////////////////*/
+
     function getPosition(bytes32 _marketKey)
         external
-        view
         returns (
             uint64 id,
             uint64 fundingIndex,
@@ -22,12 +27,6 @@ interface IMarginBase is IMarginBaseTypes {
             uint128 lastPrice,
             int128 size
         );
-
-    function freeMargin() external view returns (uint256);
-
-    /*///////////////////////////////////////////////////////////////
-                                Mutative
-    ///////////////////////////////////////////////////////////////*/
 
     // Account Deposit & Withdraw
     function deposit(uint256 _amount) external;

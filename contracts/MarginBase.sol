@@ -185,11 +185,17 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         return activeMarketKeys.length;
     }
 
+    /// @notice the current withdrawable or usable balance
+    function freeMargin() public view returns (uint256) {
+        return marginAsset.balanceOf(address(this)) - committedMargin;
+    }
+
     /// @notice get up-to-date position data from Synthetix
+    /// @dev if position was liquidated, update internal accounting
+    /// @dev not technically a view function (see above)
     /// @param _marketKey: key for synthetix futures market
     function getPosition(bytes32 _marketKey)
         external
-        view
         returns (
             uint64 id,
             uint64 fundingIndex,
@@ -199,12 +205,16 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         )
     {
         // fetch position data from Synthetix
-        return futuresMarket(_marketKey).positions(address(this));
-    }
+        (id, fundingIndex, margin, lastPrice, size) = futuresMarket(_marketKey)
+            .positions(address(this));
 
-    /// @notice the current withdrawable or usable balance
-    function freeMargin() public view returns (uint256) {
-        return marginAsset.balanceOf(address(this)) - committedMargin;
+        /// @dev check if position exists internally
+        if (markets.get(uint256(_marketKey))) {
+            if (size == 0) {
+                // position was liquidated; remove it
+                removeMarketKey(_marketKey);
+            }
+        }
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -312,7 +322,10 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                 if (size == 0) {
                     // position was liquidated; remove it
                     removeMarketKey(marketKey);
-                } else if (size - sizeDelta == 0) {
+
+                    // continue to next newPosition
+                    continue;
+                } else if (size + sizeDelta == 0) {
                     // position will be closed; remove it
                     removeMarketKey(marketKey);
 
@@ -323,41 +336,44 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                     // continue to next newPosition
                     continue;
                 }
+            } else if (sizeDelta == 0) {
+                // position does not exist internally thus sizeDelta must be non-zero
+                revert("MarginBase: sizeDelta must be non-zero");
             }
 
             /// @notice execute trade
             /// @dev following trades will not result in position being closed
             /// @dev following trades may either modify or create a position
             if (marginDelta < 0) {
-                // update internal accounting
-                addMarketKey(marketKey);
-
                 // remove margin from market and potentially adjust position size
                 totalSizeDeltaInUSD += modifyPositionForMarketAndWithdraw(
                     marginDelta,
                     sizeDelta,
                     market
                 );
-            } else if (marginDelta > 0) {
+
                 // update internal accounting
                 addMarketKey(marketKey);
-
+            } else if (marginDelta > 0) {
                 // deposit margin into market and potentially adjust position size
                 totalSizeDeltaInUSD += depositAndModifyPositionForMarket(
                     marginDelta,
                     sizeDelta,
                     market
                 );
-            } else if (sizeDelta != 0) {
+
                 // update internal accounting
                 addMarketKey(marketKey);
-
+            } else if (sizeDelta != 0) {
                 /// @notice adjust position size
                 /// @notice no margin deposited nor withdrawn from market
                 totalSizeDeltaInUSD += modifyPositionForMarket(
                     sizeDelta,
                     market
                 );
+
+                // update internal accounting
+                addMarketKey(marketKey);
             }
         }
 
@@ -463,12 +479,14 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice add marketKey to activeMarketKeys
     /// @param _marketKey to add
     function addMarketKey(bytes32 _marketKey) internal {
-        // add to array
-        marketKeyIndex[_marketKey] = activeMarketKeys.length;
-        activeMarketKeys.push(_marketKey);
+        if (!markets.get(uint256(_marketKey))) {
+            // add to array
+            marketKeyIndex[_marketKey] = activeMarketKeys.length;
+            activeMarketKeys.push(_marketKey);
 
-        // add to bitmap
-        markets.setTo(uint256(_marketKey), true);
+            // add to bitmap
+            markets.setTo(uint256(_marketKey), true);
+        }
     }
 
     /// @notice remove index from activeMarketKeys
