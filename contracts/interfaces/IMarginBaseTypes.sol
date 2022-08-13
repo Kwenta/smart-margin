@@ -10,18 +10,9 @@ interface IMarginBaseTypes {
     ///////////////////////////////////////////////////////////////*/
 
     // marketKey: synthetix futures market id/key
-    // margin: amount of margin (in sUSD) in specific futures market
-    // size: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
-    struct ActiveMarketPosition {
-        bytes32 marketKey;
-        uint128 margin;
-        int128 size;
-    }
-
-    // marketKey: synthetix futures market id/key
     // marginDelta: amount of margin (in sUSD) to deposit or withdraw
     // sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
-    struct UpdateMarketPositionSpec {
+    struct NewPosition {
         bytes32 marketKey;
         int256 marginDelta; // positive indicates deposit, negative withdraw
         int256 sizeDelta;

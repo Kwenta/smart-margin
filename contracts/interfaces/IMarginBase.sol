@@ -37,12 +37,12 @@ interface IMarginBase is IMarginBaseTypes {
     function withdrawEth(uint256 _amount) external;
 
     // Margin Distribution
-    function distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
+    function distributeMargin(NewPosition[] memory _newPositions)
         external;
 
     function depositAndDistribute(
         uint256 _amount,
-        UpdateMarketPositionSpec[] memory _newPositions
+        NewPosition[] memory _newPositions
     ) external;
 
     // Limit Orders

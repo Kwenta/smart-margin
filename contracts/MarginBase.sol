@@ -265,10 +265,10 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice accept a deposit amount and open new
     /// futures market position(s) all in a single tx
     /// @param _amount: amount of marginAsset to deposit into marginBase account
-    /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
+    /// @param _newPositions: an array of NewPosition's used to modify active market positions
     function depositAndDistribute(
         uint256 _amount,
-        UpdateMarketPositionSpec[] memory _newPositions
+        NewPosition[] memory _newPositions
     ) external onlyOwner {
         deposit(_amount);
         _distributeMargin(_newPositions);
@@ -277,17 +277,15 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice distribute margin across all/some positions specified via _newPositions
     /// @dev _newPositions may contain any number of new or existing positions
     /// @dev close and withdraw all margin from position if resulting position size is zero post trade
-    /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
-    function distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
+    /// @param _newPositions: an array of NewPosition's used to modify active market positions
+    function distributeMargin(NewPosition[] memory _newPositions)
         external
         onlyOwner
     {
         _distributeMargin(_newPositions);
     }
 
-    function _distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
-        internal
-    {
+    function _distributeMargin(NewPosition[] memory _newPositions) internal {
         /// @notice limit size of new position specs passed into distribute margin
         if (_newPositions.length > type(uint8).max) {
             revert MaxNewPositionsExceeded(_newPositions.length);
@@ -591,9 +589,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         }
 
         // prep new position
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
-        newPositions[0] = UpdateMarketPositionSpec({
+        MarginBase.NewPosition[]
+            memory newPositions = new MarginBase.NewPosition[](1);
+        newPositions[0] = NewPosition({
             marketKey: order.marketKey,
             marginDelta: order.marginDelta,
             sizeDelta: order.sizeDelta

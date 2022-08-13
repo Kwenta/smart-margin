@@ -567,11 +567,11 @@ contract MarginBaseTest is DSTest {
 
         int256 secondOrderMarginDelta = 1e18;
         int256 secondOrderSizeDelta = 1e18;
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions = new IMarginBaseTypes.NewPosition[](
                 4
             );
-        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.NewPosition(
             "sETH",
             secondOrderMarginDelta,
             secondOrderSizeDelta
@@ -710,26 +710,26 @@ contract MarginBaseTest is DSTest {
         deposit(1 ether);
         mockExchangeRatesForDistributionTests();
 
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions = new IMarginBaseTypes.NewPosition[](
                 4
             );
-        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.NewPosition(
             ETH_MARKET_KEY,
             1 ether,
             1 ether
         );
-        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.NewPosition(
             BTC_MARKET_KEY,
             1 ether,
             1 ether
         );
-        newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[2] = IMarginBaseTypes.NewPosition(
             LINK_MARKET_KEY,
             1 ether,
             1 ether
         );
-        newPositions[3] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[3] = IMarginBaseTypes.NewPosition(
             UNI_MARKET_KEY,
             1 ether,
             1 ether
@@ -743,13 +743,13 @@ contract MarginBaseTest is DSTest {
         deposit(1 ether);
         mockExchangeRatesForDistributionTests();
 
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions = new IMarginBaseTypes.NewPosition[](
                 numberOfNewPositions
             );
 
         for (uint16 i = 0; i < numberOfNewPositions; i++) {
-            newPositions[i] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            newPositions[i] = IMarginBaseTypes.NewPosition(
                 ETH_MARKET_KEY,
                 1 ether,
                 1 ether
@@ -767,8 +767,8 @@ contract MarginBaseTest is DSTest {
         mockExchangeRatesForDistributionTests();
 
         uint32 max = type(uint16).max;
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions = new IMarginBaseTypes.NewPosition[](
                 max + 1
             );
 
@@ -785,11 +785,11 @@ contract MarginBaseTest is DSTest {
         mockExchangeRatesForDistributionTests();
 
         bytes32 key = "LUNA";
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions = new IMarginBaseTypes.NewPosition[](
                 1
             );
-        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.NewPosition(
             key,
             1 ether,
             1 ether
@@ -805,16 +805,16 @@ contract MarginBaseTest is DSTest {
         uint256 amount = 5 ether;
         mockExchangeRatesForDistributionTests();
 
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions = new IMarginBaseTypes.NewPosition[](
                 2
             );
-        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.NewPosition(
             ETH_MARKET_KEY,
             1 ether,
             1 ether
         );
-        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.NewPosition(
             BTC_MARKET_KEY,
             1 ether,
             1 ether
@@ -831,11 +831,11 @@ contract MarginBaseTest is DSTest {
         uint256 amount = 5 ether;
         mockExchangeRatesForDistributionTests();
 
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions = new IMarginBaseTypes.NewPosition[](
                 1
             );
-        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.NewPosition(
             ETH_MARKET_KEY,
             1 ether,
             1 ether
@@ -862,16 +862,16 @@ contract MarginBaseTest is DSTest {
         deposit(1 ether);
         mockExchangeRatesForDistributionTests();
 
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions = new IMarginBaseTypes.NewPosition[](
                 2
             );
-        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.NewPosition(
             ETH_MARKET_KEY,
             1 ether,
             1 ether
         );
-        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.NewPosition(
             BTC_MARKET_KEY,
             1 ether,
             1 ether
@@ -889,16 +889,16 @@ contract MarginBaseTest is DSTest {
         deposit(1 ether);
         mockExchangeRatesForDistributionTests();
 
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions = new IMarginBaseTypes.NewPosition[](
                 2
             );
-        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.NewPosition(
             ETH_MARKET_KEY,
             1 ether,
             1 ether
         );
-        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.NewPosition(
             BTC_MARKET_KEY,
             1 ether,
             1 ether
@@ -921,19 +921,19 @@ contract MarginBaseTest is DSTest {
         deposit(1 ether);
         mockExchangeRatesForDistributionTests();
 
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions = new IMarginBaseTypes.NewPosition[](
                 2
             );
 
         // open position
-        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.NewPosition(
             ETH_MARKET_KEY,
             1 ether,
             1 ether
         );
         // update position (same tx)
-        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.NewPosition(
             ETH_MARKET_KEY,
             -1 ether, // reduce margin
             -1 ether // reduce size
@@ -946,24 +946,24 @@ contract MarginBaseTest is DSTest {
         deposit(1 ether);
         mockExchangeRatesForDistributionTests();
 
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions = new IMarginBaseTypes.NewPosition[](
                 3
             );
 
         // open position
-        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.NewPosition(
             ETH_MARKET_KEY,
             1 ether,
             1 ether
         );
         // update position (same tx)
-        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.NewPosition(
             ETH_MARKET_KEY,
             0,
             0
         );
-        newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[2] = IMarginBaseTypes.NewPosition(
             ETH_MARKET_KEY,
             1 ether,
             1 ether
@@ -1002,11 +1002,11 @@ contract MarginBaseTest is DSTest {
         deposit(2 ether);
         mockExchangeRatesForDistributionTests();
 
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions = new IMarginBaseTypes.NewPosition[](
                 1
             );
-        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.NewPosition(
             ETH_MARKET_KEY,
             1 ether,
             1 ether
@@ -1024,11 +1024,11 @@ contract MarginBaseTest is DSTest {
             abi.encode(Position(0, 0, 1 ether, 1 ether, 0)) // size = 0
         );
 
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions2 = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions2 = new IMarginBaseTypes.NewPosition[](
                 1
             );
-        newPositions2[0] = IMarginBaseTypes.UpdateMarketPositionSpec({
+        newPositions2[0] = IMarginBaseTypes.NewPosition({
             marketKey: ETH_MARKET_KEY,
             marginDelta: 1 ether,
             sizeDelta: 0
@@ -1073,11 +1073,11 @@ contract MarginBaseTest is DSTest {
         );
 
         // modify positions so size is 0
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions = new IMarginBaseTypes.NewPosition[](
                 1
             );
-        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.NewPosition(
             ETH_MARKET_KEY,
             0,
             -1 ether
@@ -1100,26 +1100,26 @@ contract MarginBaseTest is DSTest {
         deposit(1 ether);
         mockExchangeRatesForDistributionTests();
 
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions = new IMarginBaseTypes.NewPosition[](
                 4
             );
-        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.NewPosition(
             ETH_MARKET_KEY,
             1 ether,
             1 ether
         );
-        newPositions[1] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[1] = IMarginBaseTypes.NewPosition(
             BTC_MARKET_KEY,
             1 ether,
             1 ether
         );
-        newPositions[2] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[2] = IMarginBaseTypes.NewPosition(
             LINK_MARKET_KEY,
             1 ether,
             1 ether
         );
-        newPositions[3] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[3] = IMarginBaseTypes.NewPosition(
             UNI_MARKET_KEY,
             1 ether,
             1 ether
@@ -1152,13 +1152,13 @@ contract MarginBaseTest is DSTest {
         deposit(1 ether);
         mockExchangeRatesForDistributionTests();
 
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions = new IMarginBaseTypes.NewPosition[](
                 255
             );
 
         for (uint8 i = 0; i < 255; i++) {
-            newPositions[i] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            newPositions[i] = IMarginBaseTypes.NewPosition(
                 ETH_MARKET_KEY,
                 1 ether,
                 1 ether
@@ -1203,11 +1203,11 @@ contract MarginBaseTest is DSTest {
             abi.encode(ETH_MARKET_KEY, true) // invalid == true
         );
 
-        IMarginBaseTypes.UpdateMarketPositionSpec[]
-            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+        IMarginBaseTypes.NewPosition[]
+            memory newPositions = new IMarginBaseTypes.NewPosition[](
                 1
             );
-        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+        newPositions[0] = IMarginBaseTypes.NewPosition(
             ETH_MARKET_KEY,
             1 ether,
             1 ether
