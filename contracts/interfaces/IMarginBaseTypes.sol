@@ -9,6 +9,13 @@ interface IMarginBaseTypes {
                                 Types
     ///////////////////////////////////////////////////////////////*/
 
+    // denotes order types for code clarity
+    /// @dev under the hood LIMIT = 0, STOP = 1
+    enum OrderTypes {
+        LIMIT,
+        STOP
+    }
+
     // marketKey: synthetix futures market id/key
     // margin: amount of margin (in sUSD) in specific futures market
     // size: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
@@ -30,13 +37,15 @@ interface IMarginBaseTypes {
     // marketKey: synthetix futures market id/key
     // marginDelta: amount of margin (in sUSD) to deposit or withdraw
     // sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
-    // desiredPrice: limit or stop price desired
+    // targetPrice: limit or stop price to fill at
     // gelatoTaskId: unqiue taskId from gelato necessary for cancelling orders
+    // orderType: order type to determine order fill logic
     struct Order {
         bytes32 marketKey;
         int256 marginDelta; // positive indicates deposit, negative withdraw
         int256 sizeDelta;
-        uint256 desiredPrice;
+        uint256 targetPrice;
         bytes32 gelatoTaskId;
+        OrderTypes orderType;
     }
 }
