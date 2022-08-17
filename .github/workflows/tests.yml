@@ -128,7 +128,7 @@ jobs:
               uses: codecov/codecov-action@v3
               with:
                 files: ./lcov.info # optional
-                flags: unittests # optional
+                flags: unit # optional
                 name: codecov-unit # optional
                 fail_ci_if_error: true # optional (default = false)
                 verbose: true # optional (default = false)
