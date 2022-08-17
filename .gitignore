@@ -4,6 +4,7 @@ coverage
 coverage.json
 typechain
 .DS_store
+lcov.info
 
 #Hardhat files
 cache
