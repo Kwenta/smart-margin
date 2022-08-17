@@ -125,7 +125,7 @@ jobs:
             - name: Run Foundry Unit Tests
               run: npm run coverage:generate-lcov
             - name: Upload Coverage Report
-            - uses: codecov/codecov-action@v3
+              uses: codecov/codecov-action@v3
               with:
                 files: ./lcov.info # optional
                 flags: unittests # optional
