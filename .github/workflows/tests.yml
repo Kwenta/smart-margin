@@ -124,10 +124,12 @@ jobs:
                   version: nightly
             - name: Run Foundry Unit Tests
               run: npm run coverage:generate-lcov
-            - name: Report code coverage
-              uses: zgosalvez/github-actions-report-lcov@v1
+            - name: Upload Coverage Report
+            - uses: codecov/codecov-action@v3
               with:
-                coverage-files: lcov.info
-                minimum-coverage: 90
-                github-token: ${{ secrets.GITHUB_TOKEN }}
+                files: ./lcov.info # optional
+                flags: unittests # optional
+                name: codecov-unit # optional
+                fail_ci_if_error: true # optional (default = false)
+                verbose: true # optional (default = false)
             
