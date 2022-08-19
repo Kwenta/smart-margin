@@ -202,6 +202,19 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         return positions;
     }
 
+    function activePositionInMarket(bytes32 _marketKey)
+        public
+        view
+        returns (bool)
+    {
+        for (uint16 i = 0; i < activeMarketKeys.length; i++) {
+            if (activeMarketKeys[i] == _marketKey) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// @notice the current withdrawable or usable balance
     function freeMargin() public view returns (uint256) {
         return marginAsset.balanceOf(address(this)) - committedMargin;
@@ -482,6 +495,33 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         _market.withdrawAllMargin();
     }
 
+    // post mutation fee extraction
+    function extractFee(
+        bytes32 _marketKey,
+        int256 _tradeSizeDelta,
+        uint256 _feeBPS
+    ) internal {
+        if (_tradeSizeDelta != 0) {
+            IFuturesMarket market = futuresMarket(_marketKey);
+            uint256 sizeDeltaInUSD = (sUSDRate(market) *
+                _abs(_tradeSizeDelta)) / 1e18;
+            uint256 fee = (sizeDeltaInUSD * _feeBPS) / MAX_BPS;
+
+            if (activePositionInMarket(_marketKey)) {
+                int256 negativeFee = int256(fee) * -1;
+                // withdraw from market position
+                market.transferMargin(negativeFee);
+            }
+
+            // else draw from current account
+            require(
+                marginAsset.balanceOf(address(this)) >= fee,
+                "Not enough funds to pay fee"
+            );
+            marginAsset.transfer(marginBaseSettings.treasury(), fee);
+        }
+    }
+
     /*///////////////////////////////////////////////////////////////
                     Internal Account State Management
     ///////////////////////////////////////////////////////////////*/
@@ -679,11 +719,19 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             sizeDelta: order.sizeDelta
         });
 
-        // delete order from orders
-        delete orders[_orderId];
-
         // execute trade
         _distributeMargin(newPositions);
+
+        extractFee(
+            order.marketKey,
+            order.sizeDelta,
+            order.orderType == OrderTypes.LIMIT
+                ? marginBaseSettings.limitOrderFee()
+                : marginBaseSettings.stopOrderFee()
+        );
+
+        // delete order from orders
+        delete orders[_orderId];
 
         // pay fee
         (uint256 fee, address feeToken) = IOps(ops).getFeeDetails();

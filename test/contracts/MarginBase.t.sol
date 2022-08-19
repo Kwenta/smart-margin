@@ -1009,6 +1009,24 @@ contract MarginBaseTest is DSTest {
         assertEq(account.getNumberOfActivePositions(), 2);
     }
 
+    function testCanGetActivePosition() public {
+        deposit(1 ether);
+        mockExchangeRatesForDistributionTests();
+
+        IMarginBaseTypes.UpdateMarketPositionSpec[]
+            memory newPositions = new IMarginBaseTypes.UpdateMarketPositionSpec[](
+                1
+            );
+        newPositions[0] = IMarginBaseTypes.UpdateMarketPositionSpec(
+            ETH_MARKET_KEY,
+            1 ether,
+            1 ether
+        );
+
+        account.distributeMargin(newPositions);
+        assertTrue(account.activePositionInMarket(ETH_MARKET_KEY));
+    }
+
     /**********************************
      * getAllActiveMarketPositions()
      * @notice position.margin and position.size are calculated by Synthetix
