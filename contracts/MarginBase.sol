@@ -310,14 +310,16 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
 
             /// @dev check if position exists internally
             if (markets.get(uint256(marketKey))) {
+                // check if position was liquidated
                 if (size == 0) {
-                    // position was liquidated; remove it
                     removeMarketKey(marketKey);
 
                     // continue to next newPosition
                     continue;
-                } else if (size + sizeDelta == 0) {
-                    // position will be closed; remove it
+                }
+                
+                // check if position will be closed by newPosition's sizeDelta
+                if (size + sizeDelta == 0) {
                     removeMarketKey(marketKey);
 
                     // close position and withdraw margin
