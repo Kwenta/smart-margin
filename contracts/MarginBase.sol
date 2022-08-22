@@ -490,13 +490,16 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         uint256 index = marketKeyIndex[_marketKey];
         assert(index < activeMarketKeys.length);
 
-        // renmove from mapping
+        // remove from mapping
         delete marketKeyIndex[_marketKey];
 
         // remove from array
         for (; index < activeMarketKeys.length - 1; ) {
             unchecked {
+                // shift element in array to the left
                 activeMarketKeys[index] = activeMarketKeys[index + 1];
+                // update index for given market key
+                marketKeyIndex[activeMarketKeys[index]] = index;
                 index++;
             }
         }
