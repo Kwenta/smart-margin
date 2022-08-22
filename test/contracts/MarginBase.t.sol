@@ -635,7 +635,19 @@ contract MarginBaseTest is DSTest {
 
         // I encourage anyone reading this to walkthrough the function calls
         // via the command:  npm run f-test:unit -- -vvvvv
-        account.getPosition(ETH_MARKET_KEY);
+
+        // when attempting to modify a position, if it has been liquidated since
+        // contract was last interacted with then position will be
+        // removed
+        newPositions = new IMarginBaseTypes.NewPosition[](1);
+        newPositions[0] = IMarginBaseTypes.NewPosition({
+            marketKey: ETH_MARKET_KEY,
+            marginDelta: 1 ether,
+            sizeDelta: 1 ether
+        });
+
+        // attmept to modify a liquidated position in ETH Market
+        account.distributeMargin(newPositions);
 
         // since position was liquidated, execution of that trade stopped
         assertEq(account.getNumberOfInternalPositions(), 0);

@@ -106,7 +106,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                                 Errors
     ///////////////////////////////////////////////////////////////*/
 
-    /// @notice amount deposited/withdrawn into/from account cannot be zero
+    /// @notice given value cannot be zero
     /// @param valueName: name of the variable that cannot be zero
     error ValueCannotBeZero(bytes32 valueName);
 
@@ -191,11 +191,10 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     }
 
     /// @notice get up-to-date position data from Synthetix
-    /// @dev if position was liquidated, update internal accounting
-    /// @dev not technically a view function (see above)
     /// @param _marketKey: key for synthetix futures market
     function getPosition(bytes32 _marketKey)
         external
+        view
         returns (
             uint64 id,
             uint64 fundingIndex,
@@ -207,14 +206,6 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         // fetch position data from Synthetix
         (id, fundingIndex, margin, lastPrice, size) = futuresMarket(_marketKey)
             .positions(address(this));
-
-        /// @dev check if position exists internally
-        if (markets.get(uint256(_marketKey))) {
-            if (size == 0) {
-                // position was liquidated; remove it
-                removeMarketKey(_marketKey);
-            }
-        }
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -338,7 +329,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                 }
             } else if (sizeDelta == 0) {
                 // position does not exist internally thus sizeDelta must be non-zero
-                revert("MarginBase: sizeDelta must be non-zero");
+                revert ValueCannotBeZero("sizeDelta");
             }
 
             /// @notice execute trade
