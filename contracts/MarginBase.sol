@@ -61,7 +61,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     bytes32[] public activeMarketKeys;
 
     /// @notice active market keys mapped to index in activeMarketKeys
-    mapping(bytes32 => uint256) private marketKeyIndex;
+    mapping(bytes32 => uint256) public marketKeyIndex;
 
     /// @notice limit orders
     mapping(uint256 => Order) public orders;
@@ -471,8 +471,10 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param _marketKey to add
     function addMarketKey(bytes32 _marketKey) internal {
         if (!markets.get(uint256(_marketKey))) {
-            // add to array
+            // add to mapping
             marketKeyIndex[_marketKey] = activeMarketKeys.length;
+
+            // add to end of array
             activeMarketKeys.push(_marketKey);
 
             // add to bitmap
@@ -485,6 +487,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     function removeMarketKey(bytes32 _marketKey) internal {
         uint256 index = marketKeyIndex[_marketKey];
         assert(index < activeMarketKeys.length);
+
+        // renmove from mapping
+        delete marketKeyIndex[_marketKey];
 
         // remove from array
         for (; index < activeMarketKeys.length - 1; ) {
