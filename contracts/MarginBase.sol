@@ -82,6 +82,36 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param amount: amount of token recovered
     event Rescued(address token, uint256 amount);
 
+    /// @notice emitted when an advanced order is placed
+    /// @param account: account placing the order
+    /// @param orderId: id of order
+    /// @param marketKey: futures market key
+    /// @param marginDelta: margin change
+    /// @param sizeDelta: size change
+    /// @param targetPrice: targeted fill price
+    event OrderPlaced(
+        address indexed account,
+        uint256 orderId,
+        bytes32 marketKey,
+        int256 marginDelta,
+        int256 sizeDelta,
+        uint256 targetPrice,
+        OrderTypes orderType
+    );
+
+    /// @notice emitted when an advanced order is cancelled
+    event OrderCancelled(address indexed account, uint256 orderId);
+
+    /// @notice emitted when an advanced order is filled
+    /// @param fillPrice: price the order was executed at
+    /// @param keeperFee: fees paid to the executor
+    event OrderFilled(
+        address indexed account,
+        uint256 orderId,
+        uint256 fillPrice,
+        uint256 keeperFee
+    );
+
     /*///////////////////////////////////////////////////////////////
                                 Modifiers
     ///////////////////////////////////////////////////////////////*/
@@ -545,7 +575,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice order logic condition checker
     /// @dev this is where order type logic checks are handled
     /// @param _orderId: key for an active order
-    function validOrder(uint256 _orderId) public view returns (bool) {
+    function validOrder(uint256 _orderId) public view returns (bool, uint256) {
         Order memory order = orders[_orderId];
         if (order.orderType == OrderTypes.LIMIT) {
             return validLimitOrder(order);
@@ -553,43 +583,51 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             return validStopOrder(order);
         }
         // unknown order type
-        return false;
+        return (false, 0);
     }
 
     /// @notice limit order logic condition checker
     /// @param order: struct for an active order
-    function validLimitOrder(Order memory order) internal view returns (bool) {
+    function validLimitOrder(Order memory order)
+        internal
+        view
+        returns (bool, uint256)
+    {
         uint256 price = sUSDRate(futuresMarket(order.marketKey));
 
         /// @notice intent is targetPrice or better despite direction
         if (order.sizeDelta > 0) {
             // Long
-            return price <= order.targetPrice;
+            return (price <= order.targetPrice, price);
         } else if (order.sizeDelta < 0) {
             // Short
-            return price >= order.targetPrice;
+            return (price >= order.targetPrice, price);
         }
 
         // sizeDelta == 0
-        return false;
+        return (false, price);
     }
 
     /// @notice stop order logic condition checker
     /// @param order: struct for an active order
-    function validStopOrder(Order memory order) internal view returns (bool) {
+    function validStopOrder(Order memory order)
+        internal
+        view
+        returns (bool, uint256)
+    {
         uint256 price = sUSDRate(futuresMarket(order.marketKey));
 
         /// @notice intent is targetPrice or worse despite direction
         if (order.sizeDelta > 0) {
             // Long
-            return price >= order.targetPrice;
+            return (price >= order.targetPrice, price);
         } else if (order.sizeDelta < 0) {
             // Short
-            return price <= order.targetPrice;
+            return (price <= order.targetPrice, price);
         }
 
         // sizeDelta == 0
-        return false;
+        return (false, price);
     }
 
     /// @notice register a limit order internally and with gelato
@@ -638,6 +676,16 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             orderType: _orderType
         });
 
+        emit OrderPlaced(
+            address(this),
+            orderId,
+            _marketKey,
+            _marginDelta,
+            _sizeDelta,
+            _targetPrice,
+            _orderType
+        );
+
         return orderId++;
     }
 
@@ -654,13 +702,16 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
 
         // delete order from orders
         delete orders[_orderId];
+
+        emit OrderCancelled(address(this), _orderId);
     }
 
     /// @notice execute a gelato queued order
     /// @notice only keepers can trigger this function
     /// @param _orderId: key for an active order
     function executeOrder(uint256 _orderId) external onlyOps {
-        if (!validOrder(_orderId)) {
+        (bool isValidOrder, uint256 fillPrice) = validOrder(_orderId);
+        if (!isValidOrder) {
             revert OrderInvalid();
         }
         Order memory order = orders[_orderId];
@@ -688,6 +739,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         // pay fee
         (uint256 fee, address feeToken) = IOps(ops).getFeeDetails();
         _transfer(fee, feeToken);
+
+        emit OrderFilled(address(this), _orderId, fillPrice, fee);
     }
 
     /// @notice signal to a keeper that an order is valid/invalid for execution
@@ -699,7 +752,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         view
         returns (bool canExec, bytes memory execPayload)
     {
-        canExec = validOrder(_orderId);
+        (canExec, ) = validOrder(_orderId);
         // calldata for execute func
         execPayload = abi.encodeWithSelector(
             this.executeOrder.selector,
