@@ -973,7 +973,7 @@ describe("Integration: Test Cross Margin", () => {
             // approve allowance for marginAccount to spend
             await sUSD
                 .connect(account0)
-                .approve(marginAccount.address, TEST_VALUE);
+                .approve(marginAccount.address, ACCOUNT_AMOUNT);
 
             // define new positions
             const newPosition = [
@@ -987,7 +987,7 @@ describe("Integration: Test Cross Margin", () => {
             // deposit margin into account and execute trade
             await marginAccount
                 .connect(account0)
-                .depositAndDistribute(TEST_VALUE, newPosition);
+                .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
 
             // confirm number of open internal positions that were defined above
             const numberOfInternalPositions = await marginAccount
