@@ -8,117 +8,6 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-/**
- * ########### SUMMARY ###########
- * MarginBase offers true cross-margin for users via the MarginBase.distributeMargin()
- * function. distributeMargin() gives the caller the flexibility to distribute margin
- * equally across all positions after opening/closing/modifying any/some/all market positions.
- * More specifically, distributeMargin() takes an array of objects defined by the caller
- * which represent market positions the account will take.
- *
- * ########### START OF EXAMPLES ###########
- * New Position Objects are defined as:
- * {
- *      Market Key,
- *      Margin in sUSD (negative denotes withdraw from market),
- *      Size of Position (negative denotes short position)
- *      Boolean: will this position be closed (i.e. if true, close position)
- * }
- *
- * example (1.0):
- * If Tom deposits 10_000 sUSD into a MarginBase account, and then passes this array of
- * market positions to distributeMargin():
- *
- * [{sETH, 1_000, 1*10e18, false}, {sUNI, 1_000, -900*10e18, false}]
- *
- * Then he will have two active market positions: (1) 2x long in sETH and (2) 5x short in sUNI.
- *
- * example (1.1):
- * Notice, Tom still has 8_000 sUSD of available margin which is not in either market. If
- * Tom wishes to use that margin, he can call distributeMargin() again with:
- *
- * [{sETH, 4_000, 0, false}, {sUNI, 4_000, 0, false}]
- *
- * That will increase the margin for each position, thus decreasing the leverage accordingly.
- * That will not change the size of either position; margin was simply deposited into each market.
- * Notice that the size of the positions specified in the above objects are "0". When a user wishes
- * to only deposit or withdraw margin, this is the correct method to do so.
- *
- * example (1.2):
- * Notice that once a position has been taken by the account,
- * calling distributeMargin() with an array of market positions/orders that do not include the
- * currently active positions will work, as long as there is sufficient margin available for the
- * positions specified:
- *
- * Assume Tom deposits another 10_000 sUSD into his account. He could then call
- * distributeMargin() with:
- *
- * [{sBTC, 1_000, 0.5*10e18, false}]
- *
- * He will now have three active market positions: (1) long in sETH (2) short in sUNI and (3) long in sBTC.
- * Notice, only 11_000 of his 20_000 margin is being used in markets, but that can be changed quite
- * easily.
- *
- * example (1.3):
- * Tom can also change the position sizes without altering the amount of margin in each
- * active market position. He can do this by passing position objects with marginDelta set to "0"
- * and sizeDelta set to the newly desired size. An example of changing his above sETH long position
- * size and not altering his other positions:
- *
- * [{sETH, 0, 5*10e18, false}]
- *
- * His sETH is now 10x long position.
- *
- * example (1.4):
- * Now, Tom wishes to withdraw margin from one of his positions. He can do so by
- * passing a new position into distributeMargin() that has a negative margin value:
- *
- * [{sUNI, -(1_000), 0, false}]
- *
- * The above position object results in the sUNI market losing $1_000 sUSD in margin and
- * Tom's account balance increasing by $1_000 sUSD (which can be deposited immediately
- * into another market, even in the same transaction).
- *
- * example (2):
- * Assume Tom has a single long position in sETH made via:
- *
- * [{sETH, 1_000, 1*10e18, false}
- *
- * Tom wishes to close this position. He can do so simply by:
- *
- * [{sETH, 0, 0, true}
- *
- *
- * ########### FINAL GOAL ###########
- * Ultimately, the goal of MarginBase is to offer users the flexibility to define cross margin
- * however they see fit. Single positions with limited margin relative to account margin is supported
- * as well as equally distrubted margin among all active market positions. It is up to the caller/front-end
- * to implement whatever strategy that best serves them.
- *
- * ########### NOTES ###########
- * (1) Notice that there is an order fee taken when a futures position is opened
- *          which is relative to position size, thus deposited margin will not strictly
- *          equal actual margin in market in the following tests. Expect difference
- *          to be less than 1%.
- *
- * (2) When closing a position, the margin will be transferred back to the
- *          user's account, thus, that margin can be used in any subsequent
- *          new positions which may be opened/modified in the same transaction
- * ex:
- * Assume a 1x BTC Long position already exists and then the following array of positions
- * is passed to distributeMargin:
- *
- * [{sBTC, 0, 0, true}, {X}, {Y}, {Z}]
- *
- * The first position object closes the BTC position, returning that margin to the account
- * which can then be used to open or modify positions: X, Y, Z.
- *
- * (3) Notice that there is a distribute margin fee taken whenever margin is deposited/withdrawn
- *          from a market. Following tests explain and test this mechanism.
- *
- * @author jaredborders
- */
-
 // constants
 const MINT_AMOUNT = ethers.BigNumber.from("110000000000000000000000"); // == $110_000 sUSD
 const ACCOUNT_AMOUNT = ethers.BigNumber.from("100000000000000000000000"); // == $100_000 sUSD
@@ -390,7 +279,7 @@ describe("Integration: Test Cross Margin", () => {
      */
 
     describe("Distributing Margin", () => {
-        describe("Opening and Closing Positions", () => {
+        describe("Opening Positions", () => {
             const sizeDelta = ethers.BigNumber.from("500000000000000000");
 
             before("Fork Network", async () => {
@@ -448,49 +337,6 @@ describe("Integration: Test Cross Margin", () => {
                 // due to potential future fee changes (makes test brittle)
                 expect(position.margin).to.be.above(0);
                 expect(position.size).to.equal(sizeDelta);
-            });
-
-            it("Should close single position", async () => {
-                const openingPosition = [
-                    {
-                        // open ~1x LONG position in ETH-PERP Market
-                        marketKey: MARKET_KEY_sETH,
-                        marginDelta: TEST_VALUE, // $1_000 sUSD
-                        sizeDelta: sizeDelta,
-                    },
-                ];
-
-                // execute trade
-                await marginAccount
-                    .connect(account0)
-                    .distributeMargin(openingPosition);
-
-                // position will close previously opened one
-                const closingPosition = [
-                    {
-                        // close ~1x LONG position in ETH-PERP Market
-                        marketKey: MARKET_KEY_sETH,
-                        marginDelta: 0,
-                        sizeDelta: sizeDelta.mul(-1),
-                    },
-                ];
-
-                // execute trade
-                await marginAccount
-                    .connect(account0)
-                    .distributeMargin(closingPosition);
-
-                // confirm correct position details:
-                // (1) market does not exist internally
-                expect(
-                    await marginAccount.getNumberOfInternalPositions()
-                ).to.equal(0);
-                // (2) size and margin
-                const position = await marginAccount
-                    .connect(account0)
-                    .getPosition(MARKET_KEY_sETH);
-                expect(position.margin).to.equal(0);
-                expect(position.size).to.equal(0);
             });
 
             it("Should open multiple positions", async () => {
@@ -585,8 +431,204 @@ describe("Integration: Test Cross Margin", () => {
                 expect(position.margin).to.be.above(0);
                 expect(position.size).to.equal(uniSizeDelta);
             });
+        });
+
+        describe("Closing Positions", () => {
+            before("Fork Network", async () => {
+                await forkAtBlock(9000000);
+            });
+            beforeEach("Setup", async () => {
+                // mint sUSD to test accounts, and deploy contracts
+                await setup();
+                await deployMarginBaseAccountForEOA(account0);
+
+                // approve allowance for marginAccount to spend
+                await sUSD
+                    .connect(account0)
+                    .approve(marginAccount.address, ACCOUNT_AMOUNT);
+
+                // deposit sUSD into margin account
+                await marginAccount.connect(account0).deposit(ACCOUNT_AMOUNT);
+            });
+
+            it("Should close single position", async () => {
+                const sizeDelta = ethers.BigNumber.from("500000000000000000");
+
+                const openingPosition = [
+                    {
+                        // open ~1x LONG position in ETH-PERP Market
+                        marketKey: MARKET_KEY_sETH,
+                        marginDelta: TEST_VALUE, // $1_000 sUSD
+                        sizeDelta: sizeDelta,
+                    },
+                ];
+
+                // execute trade
+                await marginAccount
+                    .connect(account0)
+                    .distributeMargin(openingPosition);
+
+                // position will close previously opened one
+                const closingPosition = [
+                    {
+                        // close ~1x LONG position in ETH-PERP Market
+                        marketKey: MARKET_KEY_sETH,
+                        marginDelta: 0,
+                        sizeDelta: sizeDelta.mul(-1),
+                    },
+                ];
+
+                // execute trade
+                await marginAccount
+                    .connect(account0)
+                    .distributeMargin(closingPosition);
+
+                // confirm correct position details:
+                // (1) market does not exist internally
+                expect(
+                    await marginAccount.getNumberOfInternalPositions()
+                ).to.equal(0);
+                // (2) size and margin
+                const position = await marginAccount
+                    .connect(account0)
+                    .getPosition(MARKET_KEY_sETH);
+                expect(position.margin).to.equal(0);
+                expect(position.size).to.equal(0);
+            });
+
+            it("Should close multiple positions", async () => {
+                const btcSizeDelta =
+                    ethers.BigNumber.from("-30000000000000000"); // 0.03 BTC
+                const linkSizeDelta = ethers.BigNumber.from(
+                    "700000000000000000000"
+                ); // 700 LINK
+                const uniSizeDelta = ethers.BigNumber.from(
+                    "-900000000000000000000"
+                ); // 900 UNI
+                const ethSizeDelta =
+                    ethers.BigNumber.from("500000000000000000"); // 0.5 ETH
+
+                // define new positions
+                const openingPositions = [
+                    {
+                        // open ~1x SHORT position in BTC-PERP Market
+                        marketKey: MARKET_KEY_sBTC,
+                        marginDelta: TEST_VALUE, // $1_000 sUSD
+                        sizeDelta: btcSizeDelta, // 0.03 BTC
+                    },
+                    {
+                        // open ~5x LONG position in LINK-PERP Market
+                        marketKey: MARKET_KEY_sLINK,
+                        marginDelta: TEST_VALUE, // $1_000 sUSD
+                        sizeDelta: linkSizeDelta, // 700 LINK
+                    },
+                    {
+                        // open ~5x SHORT position in UNI-PERP Market
+                        marketKey: MARKET_KEY_sUNI,
+                        marginDelta: TEST_VALUE, // $1_000 sUSD
+                        sizeDelta: uniSizeDelta, // 900 UNI
+                    },
+                    {
+                        // open ~1x LONG position in ETH-PERP Market
+                        marketKey: MARKET_KEY_sETH,
+                        marginDelta: TEST_VALUE, // $1_000 sUSD
+                        sizeDelta: ethSizeDelta, // 0.5 ETH
+                    },
+                ];
+
+                // execute trades
+                await marginAccount
+                    .connect(account0)
+                    .distributeMargin(openingPositions);
+
+                // modify positions (will close two of the above)
+                const closingPositions = [
+                    {
+                        // close ~1x SHORT position in BTC-PERP Market
+                        marketKey: MARKET_KEY_sBTC,
+                        marginDelta: 0,
+                        sizeDelta: btcSizeDelta.mul(-1), // -0.03 BTC
+                    },
+                    {
+                        // close ~5x SHORT position in UNI-PERP Market
+                        marketKey: MARKET_KEY_sUNI,
+                        marginDelta: 0,
+                        sizeDelta: uniSizeDelta.mul(-1), // -900 UNI
+                    },
+                ];
+
+                // execute trades (i.e. close positions)
+                await marginAccount
+                    .connect(account0)
+                    .distributeMargin(closingPositions);
+
+                // confirm correct position details:
+                expect(
+                    await marginAccount.getNumberOfInternalPositions()
+                ).to.equal(2);
+
+                /********** ACTIVE MARKETS **********/
+                // LINK-PERP
+                // (1) mapping is correct
+                let marketKeyIndex = await marginAccount.marketKeyIndex(
+                    MARKET_KEY_sLINK
+                );
+                expect(
+                    await marginAccount.activeMarketKeys(marketKeyIndex)
+                ).to.equal(MARKET_KEY_sLINK);
+                // (2) size and margin
+                let position = await marginAccount.getPosition(
+                    MARKET_KEY_sLINK
+                );
+                // will not estimate exact value for margin
+                // due to potential future fee changes (makes test brittle)
+                expect(position.margin).to.be.above(0);
+                expect(position.size).to.equal(linkSizeDelta);
+
+                // ETH-PERP
+                // (1) mapping is correct
+                marketKeyIndex = await marginAccount.marketKeyIndex(
+                    MARKET_KEY_sETH
+                );
+                expect(
+                    await marginAccount.activeMarketKeys(marketKeyIndex)
+                ).to.equal(MARKET_KEY_sETH);
+                // (2) size and margin
+                position = await marginAccount.getPosition(MARKET_KEY_sETH);
+                // will not estimate exact value for margin
+                // due to potential future fee changes (makes test brittle)
+                expect(position.margin).to.be.above(0);
+                expect(position.size).to.equal(ethSizeDelta);
+
+                /********** INACTIVE MARKETS **********/
+                // @notice default value for mapping is 0
+
+                // BTC-PERP
+                // (1) mapping is correct
+                marketKeyIndex = await marginAccount.marketKeyIndex(
+                    MARKET_KEY_sBTC
+                );
+                expect(marketKeyIndex).to.equal(0);
+                // (2) size and margin
+                position = await marginAccount.getPosition(MARKET_KEY_sBTC);
+                expect(position.margin).to.equal(0);
+                expect(position.size).to.equal(0);
+
+                // UNI-PERP
+                // (1) mapping is correct
+                marketKeyIndex = await marginAccount.marketKeyIndex(
+                    MARKET_KEY_sUNI
+                );
+                expect(marketKeyIndex).to.equal(0);
+                // (2) size and margin
+                position = await marginAccount.getPosition(MARKET_KEY_sUNI);
+                expect(position.margin).to.equal(0);
+                expect(position.size).to.equal(0);
+            });
 
             it("Should withdraw all margin to account after closing position", async () => {
+                const sizeDelta = ethers.BigNumber.from("500000000000000000");
+
                 const openingPosition = [
                     {
                         // open ~1x LONG position in ETH-PERP Market
@@ -1016,5 +1058,4 @@ describe("Integration: Test Cross Margin", () => {
 
     // @TODO simulate a situation where a position has been liquidated and a user
     // passes in a newActivePosition that specifies that same market
-    // @TODO do this after hh refactor
 });
