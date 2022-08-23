@@ -992,25 +992,25 @@ describe("Integration: Test Cross Margin", () => {
                 const newPositions = [
                     {
                         marketKey: MARKET_KEY_sETH,
-                        marginDelta: TEST_VALUE.div(2).mul(-1), // withdraw (TEST_VALUE / 2)
+                        marginDelta: TEST_VALUE.div(8).mul(-1), // withdraw (TEST_VALUE / 8)
                         sizeDelta: 0, // no change in size
                     },
                     {
                         // modify ~1x SHORT position in BTC-PERP Market to ~3x
                         marketKey: MARKET_KEY_sBTC,
-                        marginDelta: TEST_VALUE.div(2).mul(-1), // withdraw (TEST_VALUE / 2)
+                        marginDelta: TEST_VALUE.div(8).mul(-1), // withdraw (TEST_VALUE / 8)
                         sizeDelta: 0, // no change in size
                     },
                     {
                         // modify ~5x LONG position in LINK-PERP Market to ~1x
                         marketKey: MARKET_KEY_sLINK,
-                        marginDelta: TEST_VALUE.div(2).mul(-1), // withdraw (TEST_VALUE / 2)
+                        marginDelta: TEST_VALUE.div(8).mul(-1), // withdraw (TEST_VALUE / 8)
                         sizeDelta: 0, // no change in size
                     },
                     {
                         // modify ~5x SHORT position in UNI-PERP Market to ~1x
                         marketKey: MARKET_KEY_sUNI,
-                        marginDelta: TEST_VALUE.div(2).mul(-1), // withdraw (TEST_VALUE / 2)
+                        marginDelta: TEST_VALUE.div(8).mul(-1), // withdraw (TEST_VALUE / 8)
                         sizeDelta: 0, // no change in size
                     },
                 ];
