@@ -676,13 +676,22 @@ describe("Integration: Test Cross Margin", () => {
         });
 
         describe("Modifying Positions", () => {
+            const ethSizeDelta = ethers.BigNumber.from("500000000000000000");
+            const btcSizeDelta = ethers.BigNumber.from("-30000000000000000");
+            const linkSizeDelta = ethers.BigNumber.from(
+                "700000000000000000000"
+            );
+            const uniSizeDelta = ethers.BigNumber.from(
+                "-900000000000000000000"
+            );
+
             before("Fork Network", async () => {
                 await forkAtBlock(9000000);
             });
             beforeEach("Setup", async () => {
                 // mint sUSD to test accounts, and deploy contracts
                 await setup();
-                await deployMarginBaseAccountForEOA(account1);
+                await deployMarginBaseAccountForEOA(account0);
 
                 // approve allowance for marginAccount to spend
                 await sUSD
@@ -691,16 +700,50 @@ describe("Integration: Test Cross Margin", () => {
 
                 // deposit sUSD into margin account
                 await marginAccount.connect(account0).deposit(ACCOUNT_AMOUNT);
+
+                // open (4) positions
+                // define new positions
+                const openingPositions = [
+                    {
+                        marketKey: MARKET_KEY_sETH,
+                        marginDelta: TEST_VALUE,
+                        sizeDelta: ethSizeDelta,
+                    },
+                    {
+                        marketKey: MARKET_KEY_sBTC,
+                        marginDelta: TEST_VALUE,
+                        sizeDelta: btcSizeDelta,
+                    },
+                    {
+                        marketKey: MARKET_KEY_sLINK,
+                        marginDelta: TEST_VALUE,
+                        sizeDelta: linkSizeDelta,
+                    },
+                    {
+                        marketKey: MARKET_KEY_sUNI,
+                        marginDelta: TEST_VALUE,
+                        sizeDelta: uniSizeDelta,
+                    },
+                ];
+
+                // execute trades
+                await marginAccount
+                    .connect(account0)
+                    .distributeMargin(openingPositions);
             });
 
-            it.skip("Should Modify Multiple Position's Size", async () => {
-                /**
-                 * Notice that marginDelta for all positions is 0.
-                 * No withdrawing nor depositing into market positions, only
-                 * modifying position size (i.e. leverage)
-                 *
-                 * Notice no fees will be imposed because only size delta is changed
-                 */
+            it("Should Modify Multiple Position's Size", async () => {
+                const newETHSizeDelta = ethers.BigNumber.from(
+                    "1000000000000000000"
+                );
+                const newBTCSizeDelta =
+                    ethers.BigNumber.from("-60000000000000000");
+                const newLINKSizeDelta = ethers.BigNumber.from(
+                    "-560000000000000000000"
+                );
+                const newUNISizeDelta = ethers.BigNumber.from(
+                    "720000000000000000000"
+                );
 
                 // define new positions (modify existing)
                 const newPositions = [
@@ -708,29 +751,25 @@ describe("Integration: Test Cross Margin", () => {
                         // modify ~1x LONG position in ETH-PERP Market to ~3x
                         marketKey: MARKET_KEY_sETH,
                         marginDelta: 0, // no deposit
-                        sizeDelta: ethers.BigNumber.from("1000000000000000000"), // 0.5 ETH -> 1.5 ETH
+                        sizeDelta: newETHSizeDelta, // 0.5 ETH -> 1.5 ETH
                     },
                     {
                         // modify ~1x SHORT position in BTC-PERP Market to ~3x
                         marketKey: MARKET_KEY_sBTC,
                         marginDelta: 0, // no deposit
-                        sizeDelta: ethers.BigNumber.from("-60000000000000000"), // 0.03 BTC -> 0.09 BTC
+                        sizeDelta: newBTCSizeDelta, // 0.03 BTC -> 0.09 BTC
                     },
                     {
                         // modify ~5x LONG position in LINK-PERP Market to ~1x
                         marketKey: MARKET_KEY_sLINK,
                         marginDelta: 0, // no deposit
-                        sizeDelta: ethers.BigNumber.from(
-                            "-560000000000000000000"
-                        ), // 700 LINK -> 140 LINK
+                        sizeDelta: newLINKSizeDelta, // 700 LINK -> 140 LINK
                     },
                     {
                         // modify ~5x SHORT position in UNI-PERP Market to ~1x
                         marketKey: MARKET_KEY_sUNI,
                         marginDelta: 0, // no deposit
-                        sizeDelta: ethers.BigNumber.from(
-                            "720000000000000000000"
-                        ), // 900 UNI -> 180 UNI
+                        sizeDelta: newUNISizeDelta, // 900 UNI -> 180 UNI
                     },
                 ];
 
@@ -745,265 +784,316 @@ describe("Integration: Test Cross Margin", () => {
                     .getNumberOfInternalPositions();
                 expect(numberOfActivePositions).to.equal(4);
 
-                // NOTICE: margin in each market position should stay *close* to the same
-                // (only decreasing slightly due to further Synthetix fees for altering the position)
+                // confirm correct position details:
 
-                // confirm correct position details: Market, Margin, Size
-                // ETH
-                const ETHposition = await marginAccount
-                    .connect(account0)
-                    .activeMarketPositions(MARKET_KEY_sETH);
-                expect(ETHposition.marketKey).to.equal(MARKET_KEY_sETH);
-                expect(ETHposition.margin).to.be.closeTo(
-                    TEST_VALUE,
-                    TEST_VALUE.mul(1).div(100)
+                // ETH-PERP
+                // (1) market exists internally
+                let marketKeyIndex = await marginAccount.marketKeyIndex(
+                    MARKET_KEY_sETH
                 );
-                expect(ETHposition.size).to.equal(
-                    ethers.BigNumber.from("1500000000000000000")
-                );
-                // BTC
-                const BTCposition = await marginAccount
-                    .connect(account0)
-                    .activeMarketPositions(MARKET_KEY_sBTC);
-                expect(BTCposition.marketKey).to.equal(MARKET_KEY_sBTC);
-                expect(BTCposition.margin).to.be.closeTo(
-                    TEST_VALUE,
-                    TEST_VALUE.mul(1).div(100)
-                ); // 1% fee
-                expect(BTCposition.size).to.equal(
-                    ethers.BigNumber.from("-90000000000000000")
-                ); // 0.09 BTC
-                // LINK
-                const LINKposition = await marginAccount
-                    .connect(account0)
-                    .activeMarketPositions(MARKET_KEY_sLINK);
-                expect(LINKposition.marketKey).to.equal(MARKET_KEY_sLINK);
-                expect(LINKposition.margin).to.be.closeTo(
-                    TEST_VALUE,
-                    TEST_VALUE.mul(4).div(100)
-                ); // 4% fee
-                expect(LINKposition.size).to.equal(
-                    ethers.BigNumber.from("140000000000000000000")
-                ); // 140 LINK
-                // UNI
-                const UNIposition = await marginAccount
-                    .connect(account0)
-                    .activeMarketPositions(MARKET_KEY_sUNI);
-                expect(UNIposition.marketKey).to.equal(MARKET_KEY_sUNI);
-                expect(UNIposition.margin).to.be.closeTo(
-                    TEST_VALUE,
-                    TEST_VALUE.mul(4).div(100)
-                ); // 4% fee
-                expect(UNIposition.size).to.equal(
-                    ethers.BigNumber.from("-180000000000000000000")
-                ); // 180 UNI
-            });
-
-            it.skip("Should Modify Multiple Position's Margin (deposit)", async () => {
-                /**
-                 * BaseMargin Account at this point is only utilizing $4_000 sUSD of the
-                 * total $100_000 sUSD. The following trades will deposit more margin
-                 * into each active position, but will not alter the size
-                 */
-
-                // define new positions (modify existing)
-                const newPositions = [
-                    {
-                        // modify margin in position via $1_000 sUSD deposit
-                        marketKey: MARKET_KEY_sETH,
-                        marginDelta: TEST_VALUE, // $1_000 sUSD -> $2_000 sUSD
-                        sizeDelta: 0, // (no change) prev set to: 1.5 ETH
-                    },
-                    {
-                        // modify margin in position via $1_000 sUSD deposit
-                        marketKey: MARKET_KEY_sBTC,
-                        marginDelta: TEST_VALUE, // $1_000 sUSD -> $2_000 sUSD
-                        sizeDelta: 0, // (no change) prev set to: 0.09 BTC
-                    },
-                    {
-                        // modify margin in position via $1_000 sUSD deposit
-                        marketKey: MARKET_KEY_sLINK,
-                        marginDelta: TEST_VALUE, // $1_000 sUSD -> $2_000 sUSD
-                        sizeDelta: 0, // (no change) prev set to: 140 LINK
-                    },
-                    {
-                        // modify margin in position via $1_000 sUSD deposit
-                        marketKey: MARKET_KEY_sUNI,
-                        marginDelta: TEST_VALUE, // $1_000 sUSD -> $2_000 sUSD
-                        sizeDelta: 0, // (no change) prev set to: 180 UNI
-                    },
-                ];
-
-                // execute trades
-                await marginAccount
-                    .connect(account0)
-                    .distributeMargin(newPositions);
-
-                // confirm number of open positions
-                const numberOfActivePositions = await marginAccount
-                    .connect(account0)
-                    .getNumberOfInternalPositions();
-                expect(numberOfActivePositions).to.equal(4);
-
-                // NOTICE: margin in each market position should stay *close* to the same
-                // (only decreasing slightly due to further Synthetix fees for altering the position)
-
-                // confirm correct position details: Market, Margin, Size
-                // ETH
-                const ETHposition = await marginAccount
-                    .connect(account0)
-                    .activeMarketPositions(MARKET_KEY_sETH);
-                expect(ETHposition.marketKey).to.equal(MARKET_KEY_sETH);
-                expect(ETHposition.margin).to.be.closeTo(
-                    TEST_VALUE.add(TEST_VALUE),
-                    TEST_VALUE.mul(1).div(100)
-                );
-                expect(ETHposition.size).to.equal(
-                    ethers.BigNumber.from("1500000000000000000")
-                );
-                // BTC
-                const BTCposition = await marginAccount
-                    .connect(account0)
-                    .activeMarketPositions(MARKET_KEY_sBTC);
-                expect(BTCposition.marketKey).to.equal(MARKET_KEY_sBTC);
-                expect(BTCposition.margin).to.be.closeTo(
-                    TEST_VALUE.add(TEST_VALUE),
-                    TEST_VALUE.mul(1).div(100)
-                ); // 1% fee
-                expect(BTCposition.size).to.equal(
-                    ethers.BigNumber.from("-90000000000000000")
-                ); // 0.09 BTC
-                // LINK
-                const LINKposition = await marginAccount
-                    .connect(account0)
-                    .activeMarketPositions(MARKET_KEY_sLINK);
-                expect(LINKposition.marketKey).to.equal(MARKET_KEY_sLINK);
-                expect(LINKposition.margin).to.be.closeTo(
-                    TEST_VALUE.add(TEST_VALUE),
-                    TEST_VALUE.mul(4).div(100)
-                ); // 4% fee
-                expect(LINKposition.size).to.equal(
-                    ethers.BigNumber.from("140000000000000000000")
-                ); // 140 LINK
-                // UNI
-                const UNIposition = await marginAccount
-                    .connect(account0)
-                    .activeMarketPositions(MARKET_KEY_sUNI);
-                expect(UNIposition.marketKey).to.equal(MARKET_KEY_sUNI);
-                expect(UNIposition.margin).to.be.closeTo(
-                    TEST_VALUE.add(TEST_VALUE),
-                    TEST_VALUE.mul(4).div(100)
-                ); // 4% fee
-                expect(UNIposition.size).to.equal(
-                    ethers.BigNumber.from("-180000000000000000000")
-                ); // 180 UNI
-            });
-
-            it.skip("Should Modify Multiple Position's Margin (withdraw)", async () => {
-                /**
-                 * BaseMargin Account at this point is only utilizing $8_000 sUSD of the
-                 * total $100_000 sUSD. The following trades will withdraw margin
-                 * from each active position, but will not alter the size
-                 */
-
-                // define new positions (modify existing)
-                const newPositions = [
-                    {
-                        // modify margin in position via $1_000 sUSD withdraw
-                        marketKey: MARKET_KEY_sETH,
-                        marginDelta: TEST_VALUE.mul(-1), // $2_000 sUSD -> $1_000 sUSD
-                        sizeDelta: 0, // (no change) prev set to: 1.5 ETH
-                    },
-                    {
-                        // modify margin in position via $1_000 sUSD withdraw
-                        marketKey: MARKET_KEY_sBTC,
-                        marginDelta: TEST_VALUE.mul(-1), // $2_000 sUSD -> $1_000 sUSD
-                        sizeDelta: 0, // (no change) prev set to: 0.09 BTC
-                    },
-                    {
-                        // modify margin in position via $1_000 sUSD withdraw
-                        marketKey: MARKET_KEY_sLINK,
-                        marginDelta: TEST_VALUE.mul(-1), // $2_000 sUSD -> $1_000 sUSD
-                        sizeDelta: 0, // (no change) prev set to: 140 LINK
-                    },
-                    {
-                        // modify margin in position via $1_000 sUSD withdraw
-                        marketKey: MARKET_KEY_sUNI,
-                        marginDelta: TEST_VALUE.mul(-1), // $2_000 sUSD -> $1_000 sUSD
-                        sizeDelta: 0, // (no change) prev set to: 180 UNI
-                    },
-                ];
-
-                // execute trades
-                await marginAccount
-                    .connect(account0)
-                    .distributeMargin(newPositions);
-
-                // confirm number of open positions
-                const numberOfActivePositions = await marginAccount
-                    .connect(account0)
-                    .getNumberOfInternalPositions();
-                expect(numberOfActivePositions).to.equal(4);
-
-                // NOTICE: margin in each market position should stay *close* to the same
-                // (only decreasing slightly due to further synthetix fees for altering the position)
-
-                // confirm correct position details: Market, Margin, Size
-                // ETH
-                const position = await marginAccount
-                    .connect(account0)
-                    .activeMarketPositions(MARKET_KEY_sETH);
-                expect(position.marketKey).to.equal(MARKET_KEY_sETH);
-                expect(position.margin).to.be.closeTo(
-                    TEST_VALUE,
-                    TEST_VALUE.mul(1).div(100)
-                );
+                expect(
+                    await marginAccount.activeMarketKeys(marketKeyIndex)
+                ).to.equal(MARKET_KEY_sETH);
+                // (2) size and margin
+                let position = await marginAccount.getPosition(MARKET_KEY_sETH);
+                // will not estimate exact value for margin
+                // due to potential future fee changes (makes test brittle)
+                expect(position.margin).to.be.above(0);
                 expect(position.size).to.equal(
-                    ethers.BigNumber.from("1500000000000000000")
+                    ethSizeDelta.add(newETHSizeDelta)
                 );
-                // BTC
-                const BTCposition = await marginAccount
+
+                // BTC-PERP
+                // (1) market exists internally
+                marketKeyIndex = await marginAccount.marketKeyIndex(
+                    MARKET_KEY_sBTC
+                );
+                expect(
+                    await marginAccount.activeMarketKeys(marketKeyIndex)
+                ).to.equal(MARKET_KEY_sBTC);
+                // (2) size and margin
+                position = await marginAccount.getPosition(MARKET_KEY_sBTC);
+                // will not estimate exact value for margin
+                // due to potential future fee changes (makes test brittle)
+                expect(position.margin).to.be.above(0);
+                expect(position.size).to.equal(
+                    btcSizeDelta.add(newBTCSizeDelta)
+                );
+
+                // LINK-PERP
+                // (1) market exists internally
+                marketKeyIndex = await marginAccount.marketKeyIndex(
+                    MARKET_KEY_sLINK
+                );
+                expect(
+                    await marginAccount.activeMarketKeys(marketKeyIndex)
+                ).to.equal(MARKET_KEY_sLINK);
+                // (2) size and margin
+                position = await marginAccount.getPosition(MARKET_KEY_sLINK);
+                // will not estimate exact value for margin
+                // due to potential future fee changes (makes test brittle)
+                expect(position.margin).to.be.above(0);
+                expect(position.size).to.equal(
+                    linkSizeDelta.add(newLINKSizeDelta)
+                );
+
+                // UNI-PERP
+                // (1) market exists internally
+                marketKeyIndex = await marginAccount.marketKeyIndex(
+                    MARKET_KEY_sUNI
+                );
+                expect(
+                    await marginAccount.activeMarketKeys(marketKeyIndex)
+                ).to.equal(MARKET_KEY_sUNI);
+                // (2) size and margin
+                position = await marginAccount
                     .connect(account0)
-                    .activeMarketPositions(MARKET_KEY_sBTC);
-                expect(BTCposition.marketKey).to.equal(MARKET_KEY_sBTC);
-                expect(BTCposition.margin).to.be.closeTo(
-                    TEST_VALUE,
-                    TEST_VALUE.mul(1).div(100)
-                ); // 1% fee
-                expect(BTCposition.size).to.equal(
-                    ethers.BigNumber.from("-90000000000000000")
-                ); // 0.09 BTC
-                // LINK
-                const LINKposition = await marginAccount
+                    .getPosition(MARKET_KEY_sUNI);
+                // will not estimate exact value for margin
+                // due to potential future fee changes (makes test brittle)
+                expect(position.margin).to.be.above(0);
+                expect(position.size).to.equal(
+                    uniSizeDelta.add(newUNISizeDelta)
+                );
+            });
+
+            it("Should Modify Multiple Position's Margin (deposit)", async () => {
+                const oldETHposition = await marginAccount.getPosition(
+                    MARKET_KEY_sETH
+                );
+                const oldBTCposition = await marginAccount.getPosition(
+                    MARKET_KEY_sBTC
+                );
+                const oldLINKposition = await marginAccount.getPosition(
+                    MARKET_KEY_sLINK
+                );
+                const oldUNIposition = await marginAccount.getPosition(
+                    MARKET_KEY_sUNI
+                );
+
+                // define new positions (modify existing)
+                const newPositions = [
+                    {
+                        marketKey: MARKET_KEY_sETH,
+                        marginDelta: TEST_VALUE, // deposit TEST_VALUE
+                        sizeDelta: 0, // no change in size
+                    },
+                    {
+                        // modify ~1x SHORT position in BTC-PERP Market to ~3x
+                        marketKey: MARKET_KEY_sBTC,
+                        marginDelta: TEST_VALUE, // deposit TEST_VALUE
+                        sizeDelta: 0, // no change in size
+                    },
+                    {
+                        // modify ~5x LONG position in LINK-PERP Market to ~1x
+                        marketKey: MARKET_KEY_sLINK,
+                        marginDelta: TEST_VALUE, // deposit TEST_VALUE
+                        sizeDelta: 0, // no change in size
+                    },
+                    {
+                        // modify ~5x SHORT position in UNI-PERP Market to ~1x
+                        marketKey: MARKET_KEY_sUNI,
+                        marginDelta: TEST_VALUE, // deposit TEST_VALUE
+                        sizeDelta: 0, // no change in size
+                    },
+                ];
+
+                // execute trades
+                await marginAccount
                     .connect(account0)
-                    .activeMarketPositions(MARKET_KEY_sLINK);
-                expect(LINKposition.marketKey).to.equal(MARKET_KEY_sLINK);
-                expect(LINKposition.margin).to.be.closeTo(
-                    TEST_VALUE,
-                    TEST_VALUE.mul(4).div(100)
-                ); // 4% fee
-                expect(LINKposition.size).to.equal(
-                    ethers.BigNumber.from("140000000000000000000")
-                ); // 140 LINK
-                // UNI
-                const UNIposition = await marginAccount
+                    .distributeMargin(newPositions);
+
+                // confirm number of open positions
+                const numberOfActivePositions = await marginAccount
                     .connect(account0)
-                    .activeMarketPositions(MARKET_KEY_sUNI);
-                expect(UNIposition.marketKey).to.equal(MARKET_KEY_sUNI);
-                expect(UNIposition.margin).to.be.closeTo(
-                    TEST_VALUE,
-                    TEST_VALUE.mul(4).div(100)
-                ); // 4% fee
-                expect(UNIposition.size).to.equal(
-                    ethers.BigNumber.from("-180000000000000000000")
-                ); // 180 UNI
+                    .getNumberOfInternalPositions();
+                expect(numberOfActivePositions).to.equal(4);
+
+                // confirm correct position details:
+
+                // ETH-PERP
+                // (1) market exists internally
+                let marketKeyIndex = await marginAccount.marketKeyIndex(
+                    MARKET_KEY_sETH
+                );
+                expect(
+                    await marginAccount.activeMarketKeys(marketKeyIndex)
+                ).to.equal(MARKET_KEY_sETH);
+                // (2) size and margin
+                let position = await marginAccount.getPosition(MARKET_KEY_sETH);
+                // will not estimate exact value for margin
+                // due to potential future fee changes (makes test brittle)
+                expect(position.margin).to.be.above(oldETHposition.margin);
+                expect(position.size).to.equal(ethSizeDelta);
+
+                // BTC-PERP
+                // (1) market exists internally
+                marketKeyIndex = await marginAccount.marketKeyIndex(
+                    MARKET_KEY_sBTC
+                );
+                expect(
+                    await marginAccount.activeMarketKeys(marketKeyIndex)
+                ).to.equal(MARKET_KEY_sBTC);
+                // (2) size and margin
+                position = await marginAccount.getPosition(MARKET_KEY_sBTC);
+                // will not estimate exact value for margin
+                // due to potential future fee changes (makes test brittle)
+                expect(position.margin).to.be.above(oldBTCposition.margin);
+                expect(position.size).to.equal(btcSizeDelta);
+
+                // LINK-PERP
+                // (1) market exists internally
+                marketKeyIndex = await marginAccount.marketKeyIndex(
+                    MARKET_KEY_sLINK
+                );
+                expect(
+                    await marginAccount.activeMarketKeys(marketKeyIndex)
+                ).to.equal(MARKET_KEY_sLINK);
+                // (2) size and margin
+                position = await marginAccount.getPosition(MARKET_KEY_sLINK);
+                // will not estimate exact value for margin
+                // due to potential future fee changes (makes test brittle)
+                expect(position.margin).to.be.above(oldLINKposition.margin);
+                expect(position.size).to.equal(linkSizeDelta);
+
+                // UNI-PERP
+                // (1) market exists internally
+                marketKeyIndex = await marginAccount.marketKeyIndex(
+                    MARKET_KEY_sUNI
+                );
+                expect(
+                    await marginAccount.activeMarketKeys(marketKeyIndex)
+                ).to.equal(MARKET_KEY_sUNI);
+                // (2) size and margin
+                position = await marginAccount
+                    .connect(account0)
+                    .getPosition(MARKET_KEY_sUNI);
+                // will not estimate exact value for margin
+                // due to potential future fee changes (makes test brittle)
+                expect(position.margin).to.be.above(oldUNIposition.margin);
+                expect(position.size).to.equal(uniSizeDelta);
+            });
+
+            it("Should Modify Multiple Position's Margin (withdraw)", async () => {
+                const oldETHposition = await marginAccount.getPosition(
+                    MARKET_KEY_sETH
+                );
+                const oldBTCposition = await marginAccount.getPosition(
+                    MARKET_KEY_sBTC
+                );
+                const oldLINKposition = await marginAccount.getPosition(
+                    MARKET_KEY_sLINK
+                );
+                const oldUNIposition = await marginAccount.getPosition(
+                    MARKET_KEY_sUNI
+                );
+
+                // define new positions (modify existing)
+                const newPositions = [
+                    {
+                        marketKey: MARKET_KEY_sETH,
+                        marginDelta: TEST_VALUE.div(2).mul(-1), // withdraw (TEST_VALUE / 2)
+                        sizeDelta: 0, // no change in size
+                    },
+                    {
+                        // modify ~1x SHORT position in BTC-PERP Market to ~3x
+                        marketKey: MARKET_KEY_sBTC,
+                        marginDelta: TEST_VALUE.div(2).mul(-1), // withdraw (TEST_VALUE / 2)
+                        sizeDelta: 0, // no change in size
+                    },
+                    {
+                        // modify ~5x LONG position in LINK-PERP Market to ~1x
+                        marketKey: MARKET_KEY_sLINK,
+                        marginDelta: TEST_VALUE.div(2).mul(-1), // withdraw (TEST_VALUE / 2)
+                        sizeDelta: 0, // no change in size
+                    },
+                    {
+                        // modify ~5x SHORT position in UNI-PERP Market to ~1x
+                        marketKey: MARKET_KEY_sUNI,
+                        marginDelta: TEST_VALUE.div(2).mul(-1), // withdraw (TEST_VALUE / 2)
+                        sizeDelta: 0, // no change in size
+                    },
+                ];
+
+                // execute trades
+                await marginAccount
+                    .connect(account0)
+                    .distributeMargin(newPositions);
+
+                // confirm number of open positions
+                const numberOfActivePositions = await marginAccount
+                    .connect(account0)
+                    .getNumberOfInternalPositions();
+                expect(numberOfActivePositions).to.equal(4);
+
+                // confirm correct position details:
+
+                // ETH-PERP
+                // (1) market exists internally
+                let marketKeyIndex = await marginAccount.marketKeyIndex(
+                    MARKET_KEY_sETH
+                );
+                expect(
+                    await marginAccount.activeMarketKeys(marketKeyIndex)
+                ).to.equal(MARKET_KEY_sETH);
+                // (2) size and margin
+                let position = await marginAccount.getPosition(MARKET_KEY_sETH);
+                // will not estimate exact value for margin
+                // due to potential future fee changes (makes test brittle)
+                expect(position.margin).to.be.below(oldETHposition.margin);
+                expect(position.size).to.equal(ethSizeDelta);
+
+                // BTC-PERP
+                // (1) market exists internally
+                marketKeyIndex = await marginAccount.marketKeyIndex(
+                    MARKET_KEY_sBTC
+                );
+                expect(
+                    await marginAccount.activeMarketKeys(marketKeyIndex)
+                ).to.equal(MARKET_KEY_sBTC);
+                // (2) size and margin
+                position = await marginAccount.getPosition(MARKET_KEY_sBTC);
+                // will not estimate exact value for margin
+                // due to potential future fee changes (makes test brittle)
+                expect(position.margin).to.be.below(oldBTCposition.margin);
+                expect(position.size).to.equal(btcSizeDelta);
+
+                // LINK-PERP
+                // (1) market exists internally
+                marketKeyIndex = await marginAccount.marketKeyIndex(
+                    MARKET_KEY_sLINK
+                );
+                expect(
+                    await marginAccount.activeMarketKeys(marketKeyIndex)
+                ).to.equal(MARKET_KEY_sLINK);
+                // (2) size and margin
+                position = await marginAccount.getPosition(MARKET_KEY_sLINK);
+                // will not estimate exact value for margin
+                // due to potential future fee changes (makes test brittle)
+                expect(position.margin).to.be.below(oldLINKposition.margin);
+                expect(position.size).to.equal(linkSizeDelta);
+
+                // UNI-PERP
+                // (1) market exists internally
+                marketKeyIndex = await marginAccount.marketKeyIndex(
+                    MARKET_KEY_sUNI
+                );
+                expect(
+                    await marginAccount.activeMarketKeys(marketKeyIndex)
+                ).to.equal(MARKET_KEY_sUNI);
+                // (2) size and margin
+                position = await marginAccount
+                    .connect(account0)
+                    .getPosition(MARKET_KEY_sUNI);
+                // will not estimate exact value for margin
+                // due to potential future fee changes (makes test brittle)
+                expect(position.margin).to.be.below(oldUNIposition.margin);
+                expect(position.size).to.equal(uniSizeDelta);
             });
         });
     });
 
     describe("Batch Tx", () => {
-        const sizeDelta = ethers.BigNumber.from("500000000000000000");
-
         before("Fork Network", async () => {
             await forkAtBlock(9000000);
             // mint sUSD to test accounts, and deploy contracts
@@ -1012,6 +1102,8 @@ describe("Integration: Test Cross Margin", () => {
         });
 
         it("Should Deposit and open single position in one tx", async () => {
+            const sizeDelta = ethers.BigNumber.from("500000000000000000");
+
             // approve allowance for marginAccount to spend
             await sUSD
                 .connect(account0)
@@ -1055,7 +1147,4 @@ describe("Integration: Test Cross Margin", () => {
             expect(position.size).to.equal(sizeDelta);
         });
     });
-
-    // @TODO simulate a situation where a position has been liquidated and a user
-    // passes in a newActivePosition that specifies that same market
 });
