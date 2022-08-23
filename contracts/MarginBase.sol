@@ -575,6 +575,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice order logic condition checker
     /// @dev this is where order type logic checks are handled
     /// @param _orderId: key for an active order
+    /// @return true if order is valid by execution rules
+    /// @return price that the order will be filled at (only valid if prev is true)
     function validOrder(uint256 _orderId) public view returns (bool, uint256) {
         Order memory order = orders[_orderId];
         if (order.orderType == OrderTypes.LIMIT) {
@@ -588,6 +590,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
 
     /// @notice limit order logic condition checker
     /// @param order: struct for an active order
+    /// @return true if order is valid by execution rules
+    /// @return price that the order will be filled at (only valid if prev is true)
     function validLimitOrder(Order memory order)
         internal
         view
@@ -610,6 +614,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
 
     /// @notice stop order logic condition checker
     /// @param order: struct for an active order
+    /// @return true if order is valid by execution rules
+    /// @return price that the order will be filled at (only valid if prev is true)
     function validStopOrder(Order memory order)
         internal
         view
