@@ -542,19 +542,50 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                             Limit Orders
     ///////////////////////////////////////////////////////////////*/
 
-    /// @notice limit order logic condition checker
+    /// @notice order logic condition checker
+    /// @dev this is where order type logic checks are handled
     /// @param _orderId: key for an active order
     function validOrder(uint256 _orderId) public view returns (bool) {
         Order memory order = orders[_orderId];
+        if (order.orderType == OrderTypes.LIMIT) {
+            return validLimitOrder(order);
+        } else if (order.orderType == OrderTypes.STOP) {
+            return validStopOrder(order);
+        }
+        // unknown order type
+        return false;
+    }
 
+    /// @notice limit order logic condition checker
+    /// @param order: struct for an active order
+    function validLimitOrder(Order memory order) internal view returns (bool) {
         uint256 price = sUSDRate(futuresMarket(order.marketKey));
 
+        /// @notice intent is targetPrice or better despite direction
         if (order.sizeDelta > 0) {
             // Long
-            return price <= order.desiredPrice;
+            return price <= order.targetPrice;
         } else if (order.sizeDelta < 0) {
             // Short
-            return price >= order.desiredPrice;
+            return price >= order.targetPrice;
+        }
+
+        // sizeDelta == 0
+        return false;
+    }
+
+    /// @notice stop order logic condition checker
+    /// @param order: struct for an active order
+    function validStopOrder(Order memory order) internal view returns (bool) {
+        uint256 price = sUSDRate(futuresMarket(order.marketKey));
+
+        /// @notice intent is targetPrice or worse despite direction
+        if (order.sizeDelta > 0) {
+            // Long
+            return price >= order.targetPrice;
+        } else if (order.sizeDelta < 0) {
+            // Short
+            return price <= order.targetPrice;
         }
 
         // sizeDelta == 0
@@ -565,13 +596,15 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param _marketKey: synthetix futures market id/key
     /// @param _marginDelta: amount of margin (in sUSD) to deposit or withdraw
     /// @param _sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
-    /// @param _limitPrice: expected limit order price
+    /// @param _targetPrice: expected limit order price
+    /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
     /// @return orderId contract interface
     function placeOrder(
         bytes32 _marketKey,
         int256 _marginDelta,
         int256 _sizeDelta,
-        uint256 _limitPrice
+        uint256 _targetPrice,
+        OrderTypes _orderType
     )
         external
         payable
@@ -600,8 +633,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             marketKey: _marketKey,
             marginDelta: _marginDelta,
             sizeDelta: _sizeDelta,
-            desiredPrice: _limitPrice,
-            gelatoTaskId: taskId
+            targetPrice: _targetPrice,
+            gelatoTaskId: taskId,
+            orderType: _orderType
         });
 
         return orderId++;
