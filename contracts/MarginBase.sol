@@ -136,6 +136,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice cannot rescue underlying margin asset token
     error CannotRescueMarginAsset();
 
+    /// @notice Insufficient margin to pay fee
+    error CannotPayFee();
+
     /*///////////////////////////////////////////////////////////////
                         Constructor & Initializer
     ///////////////////////////////////////////////////////////////*/
@@ -330,6 +333,23 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                     market.closePositionWithTracking(TRACKING_CODE);
                     market.withdrawAllMargin();
 
+                    // determine trade fee based on size delta
+                    uint256 fee = calculateTradeFee(_abs(sizeDelta));
+
+                    /// @notice fee is currently measured in the underlying base asset of the market
+                    /// @dev fee will be measured in sUSD, thus exchange rate is needed
+                    fee = (sUSDRate(market) * fee) / 1e18;
+
+                    /// @notice impose fee
+                    /// @dev send fee to Kwenta's treasury
+                    bool successfulTransfer = marginAsset.transfer(
+                        marginBaseSettings.treasury(),
+                        fee
+                    );
+                    if (!successfulTransfer) {
+                        revert CannotPayFee();
+                    }
+
                     // continue to next newPosition
                     continue;
                 }
@@ -375,10 +395,13 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         /// @notice impose fee
         /// @dev send fee to Kwenta's treasury
         if (tradingFee > 0) {
-            require(
-                marginAsset.transfer(marginBaseSettings.treasury(), tradingFee),
-                "MarginBase: unable to pay trading fee"
+            bool successfulTransfer = marginAsset.transfer(
+                marginBaseSettings.treasury(),
+                tradingFee
             );
+            if (!successfulTransfer) {
+                revert CannotPayFee();
+            }
         }
     }
 
