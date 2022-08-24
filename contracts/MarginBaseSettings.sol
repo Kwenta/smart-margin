@@ -24,7 +24,7 @@ contract MarginBaseSettings is Ownable {
 
     /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
     /// @dev fee imposed on all trades 
-    /// @dev trades: defined as changes made to IMarginBaseTypes.ActiveMarketPosition.size
+    /// @dev trades: defined as changes made to IMarginBaseTypes.NewPosition.size
     uint256 public tradeFee;
 
     /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
