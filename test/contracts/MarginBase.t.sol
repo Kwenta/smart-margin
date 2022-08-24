@@ -569,6 +569,8 @@ contract MarginBaseTest is DSTest {
     /********************************************************************
      * position removed when liquidated
      ********************************************************************/
+    // I encourage anyone reading this to walkthrough the function calls
+    // via the command:  npm run f-test:unit -- -vvvvv
     function testLiquidatedPositionInDistributeMargin() public {
         deposit(2 ether);
         mockExchangeRatesForDistributionTests();
@@ -594,63 +596,24 @@ contract MarginBaseTest is DSTest {
             abi.encode(Position(0, 0, 1 ether, 1 ether, 0)) // size = 0
         );
 
+        // attempt to modify position
+        /// @notice since sizeDelta is zero, and the position was liquidated
+        /// we expect execution to fail (i.e. successfully handled liquidation)
         newPositions[0] = IMarginBaseTypes.NewPosition({
             marketKey: ETH_MARKET_KEY,
             marginDelta: 1 ether,
             sizeDelta: 0
         });
 
-        // I encourage anyone reading this to walkthrough the function calls
-        // via the command:  npm run f-test:unit -- -vvvvv
-        account.distributeMargin(newPositions);
-
-        // since position was liquidated, execution of that trade stopped
-        assertEq(account.getNumberOfInternalPositions(), 0);
-    }
-
-    function testLiquidatedPositionInGetPosition() public {
-        deposit(1 ether);
-        mockExchangeRatesForDistributionTests();
-
-        IMarginBaseTypes.NewPosition[]
-            memory newPositions = new IMarginBaseTypes.NewPosition[](1);
-        newPositions[0] = IMarginBaseTypes.NewPosition({
-            marketKey: ETH_MARKET_KEY,
-            marginDelta: 1 ether,
-            sizeDelta: 1 ether
-        });
-
-        // open position in ETH Market
-        account.distributeMargin(newPositions);
-
-        // mock liquidation
-        cheats.mockCall(
-            address(futuresMarketETH),
+        // since position was liquidated, the modification will actually be
+        // treated as a new position (i.e. will revert if size is zero)
+        cheats.expectRevert(
             abi.encodeWithSelector(
-                IFuturesMarket.positions.selector,
-                address(account)
-            ),
-            abi.encode(Position(0, 0, 1 ether, 1 ether, 0)) // size = 0
+                MarginBase.ValueCannotBeZero.selector,
+                bytes32("sizeDelta")
+            )
         );
-
-        // I encourage anyone reading this to walkthrough the function calls
-        // via the command:  npm run f-test:unit -- -vvvvv
-
-        // when attempting to modify a position, if it has been liquidated since
-        // contract was last interacted with then position will be
-        // removed
-        newPositions = new IMarginBaseTypes.NewPosition[](1);
-        newPositions[0] = IMarginBaseTypes.NewPosition({
-            marketKey: ETH_MARKET_KEY,
-            marginDelta: 1 ether,
-            sizeDelta: 1 ether
-        });
-
-        // attmept to modify a liquidated position in ETH Market
         account.distributeMargin(newPositions);
-
-        // since position was liquidated, execution of that trade stopped
-        assertEq(account.getNumberOfInternalPositions(), 0);
     }
 
     /********************************************************************
