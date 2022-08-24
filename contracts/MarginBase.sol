@@ -166,6 +166,11 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice cannot rescue underlying margin asset token
     error CannotRescueMarginAsset();
 
+    /// @notice Must have a minimum eth balance before placing an order
+    /// @param balance: current ETH balance
+    /// @param minimum: min required ETH balance
+    error InsufficientEthBalance(uint256 balance, uint256 minimum);
+
     /*///////////////////////////////////////////////////////////////
                         Constructor & Initializer
     ///////////////////////////////////////////////////////////////*/
@@ -344,7 +349,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                 // check if position was liquidated
                 if (size == 0) {
                     removeMarketKey(marketKey);
-                    
+
                     // this position no longer exists internally
                     // thus, treat as new position
                     if (sizeDelta == 0) {
@@ -352,7 +357,6 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                         revert ValueCannotBeZero("sizeDelta");
                     }
                 }
-                
                 // check if position will be closed by newPosition's sizeDelta
                 else if (size + sizeDelta == 0) {
                     removeMarketKey(marketKey);
@@ -561,6 +565,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             return validStopOrder(order);
         }
         // unknown order type
+        // @notice execution should never reach here
+        // @dev needed to satisfy types
         return (false, 0);
     }
 
@@ -585,6 +591,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         }
 
         // sizeDelta == 0
+        // @notice execution should never reach here
+        // @dev needed to satisfy types
         return (false, price);
     }
 
@@ -609,6 +617,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         }
 
         // sizeDelta == 0
+        // @notice execution should never reach here
+        // @dev needed to satisfy types
         return (false, price);
     }
 
@@ -632,10 +642,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         onlyOwner
         returns (uint256)
     {
-        require(
-            address(this).balance >= 1 ether / 10,
-            "Min 0.1 ETH balance in account"
-        );
+        if (address(this).balance < 1 ether / 10) {
+            revert InsufficientEthBalance(address(this).balance, 1 ether / 10);
+        }
         // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
             // ensure margin doesn't exceed max
