@@ -45,6 +45,25 @@ contract MarginBaseTest is DSTest {
         int128 size;
     }
 
+    event OrderPlaced(
+        address indexed account,
+        uint256 orderId,
+        bytes32 marketKey,
+        int256 marginDelta,
+        int256 sizeDelta,
+        uint256 targetPrice,
+        MarginBase.OrderTypes orderType
+    );
+
+    event OrderCancelled(address indexed account, uint256 orderId);
+
+    event OrderFilled(
+        address indexed account,
+        uint256 orderId,
+        uint256 fillPrice,
+        uint256 keeperFee
+    );
+
     // futures market(s) for mocking: addresses match those on OE Mainnet
     IFuturesMarket private futuresMarketETH =
         IFuturesMarket(0xf86048DFf23cF130107dfB4e6386f574231a5C65);
@@ -828,7 +847,8 @@ contract MarginBaseTest is DSTest {
         );
 
         mockExchangeRates(futuresMarketETH, currentPrice);
-        assertTrue(account.validOrder(orderId));
+        (bool isValid, ) = account.validOrder(orderId);
+        assertTrue(isValid);
     }
 
     function testLimitValidShortOrder() public {
@@ -848,7 +868,8 @@ contract MarginBaseTest is DSTest {
         );
 
         mockExchangeRates(futuresMarketETH, currentPrice);
-        assertTrue(account.validOrder(orderId));
+        (bool isValid, ) = account.validOrder(orderId);
+        assertTrue(isValid);
     }
 
     // either closing to stop loss (of a short) or opening to catch a breakout to the upside
@@ -869,7 +890,8 @@ contract MarginBaseTest is DSTest {
         );
 
         mockExchangeRates(futuresMarketETH, currentPrice);
-        assertTrue(account.validOrder(orderId));
+        (bool isValid, ) = account.validOrder(orderId);
+        assertTrue(isValid);
     }
 
     // either closing to stop loss or opening to catch a breakout to the downside
@@ -890,7 +912,8 @@ contract MarginBaseTest is DSTest {
         );
 
         mockExchangeRates(futuresMarketETH, currentPrice);
-        assertTrue(account.validOrder(orderId));
+        (bool isValid, ) = account.validOrder(orderId);
+        assertTrue(isValid);
     }
 
     /// @notice These orders should ALWAYS be valid
@@ -914,7 +937,8 @@ contract MarginBaseTest is DSTest {
         );
 
         mockExchangeRates(futuresMarketETH, currentPrice);
-        assertTrue(account.validOrder(orderId));
+        (bool isValid, ) = account.validOrder(orderId);
+        assertTrue(isValid);
     }
 
     /// @notice These orders should ALWAYS be valid
@@ -938,7 +962,8 @@ contract MarginBaseTest is DSTest {
         );
 
         mockExchangeRates(futuresMarketETH, currentPrice);
-        assertTrue(!account.validOrder(orderId));
+        (bool isValid, ) = account.validOrder(orderId);
+        assertTrue(!isValid);
     }
 
     /// @notice Tests the assumption that the order will always be executed at target price or worse
@@ -962,7 +987,8 @@ contract MarginBaseTest is DSTest {
         );
 
         mockExchangeRates(futuresMarketETH, currentPrice);
-        assertTrue(account.validOrder(orderId));
+        (bool isValid, ) = account.validOrder(orderId);
+        assertTrue(isValid);
     }
 
     /// @notice Tests the assumption that the order will always be executed at target price or worse
@@ -986,7 +1012,8 @@ contract MarginBaseTest is DSTest {
         );
 
         mockExchangeRates(futuresMarketETH, currentPrice);
-        assertTrue(!account.validOrder(orderId));
+        (bool isValid, ) = account.validOrder(orderId);
+        assertTrue(!isValid);
     }
 
     function testPlaceOrder() public {
@@ -1003,6 +1030,32 @@ contract MarginBaseTest is DSTest {
         );
         (, , , uint256 actualLimitPrice, , ) = account.orders(orderId);
         assertEq(expectedLimitPrice, actualLimitPrice);
+    }
+
+    function testPlaceOrderEmitsEvent() public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(amount);
+
+        cheats.expectEmit(true, false, false, true, address(account));
+        emit OrderPlaced(
+            address(account),
+            0, // first order
+            ETH_MARKET_KEY,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
+        );
+
+        placeAdvancedOrder(
+            ETH_MARKET_KEY,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
+        );
     }
 
     function testCommittingMargin() public {
@@ -1159,6 +1212,52 @@ contract MarginBaseTest is DSTest {
         assertEq(account.committedMargin(), 0);
     }
 
+    function testExecutionEmitsEvent() public {
+        //setup
+        assertEq(account.committedMargin(), 0);
+        uint256 originalDeposit = 10e18;
+        uint256 amountToCommit = originalDeposit;
+        int256 orderSizeDelta = 1e18;
+        uint256 limitPrice = 3e18;
+        uint256 fee = 1;
+        deposit(originalDeposit);
+
+        uint256 orderId = placeAdvancedOrder(
+            ETH_MARKET_KEY,
+            int256(amountToCommit),
+            orderSizeDelta,
+            limitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
+        );
+
+        // make limit order condition
+        mockExchangeRates(futuresMarketETH, limitPrice);
+
+        // mock gelato fee details
+        cheats.mockCall(
+            account.ops(),
+            abi.encodePacked(IOps.getFeeDetails.selector),
+            abi.encode(fee, account.ETH())
+        );
+
+        // mock gelato address getter
+        cheats.mockCall(
+            account.ops(),
+            abi.encodePacked(IOps.gelato.selector),
+            abi.encode(gelato)
+        );
+
+        // provide account with fee balance
+        cheats.deal(address(account), fee);
+
+        cheats.expectEmit(true, false, false, true, address(account));
+        emit OrderFilled(address(account), orderId, limitPrice, fee);
+
+        // call as ops
+        cheats.prank(address(gelatoOps));
+        account.executeOrder(orderId);
+    }
+
     // assert fee transfer to gelato is called
     function testFeeTransfer() public {
         assertEq(account.committedMargin(), 0);
@@ -1207,6 +1306,7 @@ contract MarginBaseTest is DSTest {
 
     // should 0 out committed margin
     function testCancellingLimitOrder() public {
+        //setup
         assertEq(account.committedMargin(), 0);
         uint256 amount = 10e18;
         int256 orderSizeDelta = 1e18;
@@ -1230,5 +1330,34 @@ contract MarginBaseTest is DSTest {
 
         account.cancelOrder(orderId);
         assertEq(account.committedMargin(), 0);
+    }
+
+    function testCancelOrderEmitsEvent() public {
+        //setup
+        assertEq(account.committedMargin(), 0);
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(amount);
+        uint256 orderId = placeAdvancedOrder(
+            ETH_MARKET_KEY,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
+        );
+        assertEq(account.committedMargin(), amount);
+
+        cheats.expectEmit(true, false, false, true, address(account));
+        emit OrderCancelled(address(account), orderId);
+
+        // Mock non-returning function call
+        (, , , , bytes32 taskId, ) = account.orders(orderId);
+        mockCall(
+            account.ops(),
+            abi.encodeWithSelector(IOps.cancelTask.selector, taskId)
+        );
+
+        account.cancelOrder(orderId);
     }
 }
