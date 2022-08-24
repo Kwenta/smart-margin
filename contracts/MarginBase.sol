@@ -2,6 +2,7 @@
 pragma solidity 0.8.13;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 import "./interfaces/IAddressResolver.sol";
 import "./interfaces/IFuturesMarket.sol";
 import "./interfaces/IFuturesMarketManager.sol";
@@ -16,6 +17,8 @@ import "./MarginBaseSettings.sol";
 /// @notice Flexible, minimalist, and gas-optimized cross-margin enabled account
 /// for managing perpetual futures positions
 contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
+    using BitMaps for BitMaps.BitMap;
+
     /*///////////////////////////////////////////////////////////////
                                 Constants
     ///////////////////////////////////////////////////////////////*/
@@ -51,11 +54,14 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice margin locked for future events (ie. limit orders)
     uint256 public committedMargin;
 
+    /// @notice active markets bitmap
+    BitMaps.BitMap private markets;
+
     /// @notice market keys that the account has active positions in
     bytes32[] public activeMarketKeys;
 
-    /// @notice market keys mapped to active market positions
-    mapping(bytes32 => ActiveMarketPosition) public activeMarketPositions;
+    /// @notice active market keys mapped to index in activeMarketKeys
+    mapping(bytes32 => uint256) public marketKeyIndex;
 
     /// @notice limit orders
     mapping(uint256 => Order) public orders;
@@ -82,6 +88,36 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param amount: amount of token recovered
     event Rescued(address token, uint256 amount);
 
+    /// @notice emitted when an advanced order is placed
+    /// @param account: account placing the order
+    /// @param orderId: id of order
+    /// @param marketKey: futures market key
+    /// @param marginDelta: margin change
+    /// @param sizeDelta: size change
+    /// @param targetPrice: targeted fill price
+    event OrderPlaced(
+        address indexed account,
+        uint256 orderId,
+        bytes32 marketKey,
+        int256 marginDelta,
+        int256 sizeDelta,
+        uint256 targetPrice,
+        OrderTypes orderType
+    );
+
+    /// @notice emitted when an advanced order is cancelled
+    event OrderCancelled(address indexed account, uint256 orderId);
+
+    /// @notice emitted when an advanced order is filled
+    /// @param fillPrice: price the order was executed at
+    /// @param keeperFee: fees paid to the executor
+    event OrderFilled(
+        address indexed account,
+        uint256 orderId,
+        uint256 fillPrice,
+        uint256 keeperFee
+    );
+
     /*///////////////////////////////////////////////////////////////
                                 Modifiers
     ///////////////////////////////////////////////////////////////*/
@@ -100,13 +136,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                                 Errors
     ///////////////////////////////////////////////////////////////*/
 
-    /// @notice amount deposited/withdrawn into/from account cannot be zero
+    /// @notice given value cannot be zero
     /// @param valueName: name of the variable that cannot be zero
     error ValueCannotBeZero(bytes32 valueName);
-
-    /// @notice position with given marketKey does not exist
-    /// @param marketKey: key for synthetix futures market
-    error MissingMarketKey(bytes32 marketKey);
 
     /// @notice limit size of new position specs passed into distribute margin
     /// @param numberOfNewPositions: number of new position specs
@@ -177,34 +209,33 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                                 Views
     ///////////////////////////////////////////////////////////////*/
 
-    /// @notice get number of active market positions account has
-    /// @return number of positions which are currently active for account
-    function getNumberOfActivePositions() external view returns (uint256) {
+    /// @notice get number of internal market positions account has
+    /// @return number of positions which are internally accounted for
+    function getNumberOfInternalPositions() external view returns (uint256) {
         return activeMarketKeys.length;
-    }
-
-    /// @notice get all active market positions
-    /// @return positions which are currently active for account (ActiveMarketPosition structs)
-    function getAllActiveMarketPositions()
-        external
-        view
-        returns (ActiveMarketPosition[] memory)
-    {
-        ActiveMarketPosition[] memory positions = new ActiveMarketPosition[](
-            activeMarketKeys.length
-        );
-
-        // there should never be more than 65535 activeMarketKeys
-        for (uint16 i = 0; i < activeMarketKeys.length; i++) {
-            positions[i] = (activeMarketPositions[activeMarketKeys[i]]);
-        }
-
-        return positions;
     }
 
     /// @notice the current withdrawable or usable balance
     function freeMargin() public view returns (uint256) {
         return marginAsset.balanceOf(address(this)) - committedMargin;
+    }
+
+    /// @notice get up-to-date position data from Synthetix
+    /// @param _marketKey: key for synthetix futures market
+    function getPosition(bytes32 _marketKey)
+        public
+        view
+        returns (
+            uint64 id,
+            uint64 fundingIndex,
+            uint128 margin,
+            uint128 lastPrice,
+            int128 size
+        )
+    {
+        // fetch position data from Synthetix
+        (id, fundingIndex, margin, lastPrice, size) = futuresMarket(_marketKey)
+            .positions(address(this));
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -251,6 +282,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice allow users to withdraw ETH deposited for keeper fees
     /// @param _amount: amount to withdraw
     function withdrawEth(uint256 _amount) external onlyOwner {
+        // solhint-disable-next-line
         (bool success, ) = payable(owner()).call{value: _amount}("");
         if (!success) {
             revert EthWithdrawalFailed();
@@ -261,57 +293,115 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                             Margin Distribution
     ///////////////////////////////////////////////////////////////*/
 
+    /// @notice accept a deposit amount and open new
+    /// futures market position(s) all in a single tx
+    /// @param _amount: amount of marginAsset to deposit into marginBase account
+    /// @param _newPositions: an array of NewPosition's used to modify active market positions
+    function depositAndDistribute(
+        uint256 _amount,
+        NewPosition[] memory _newPositions
+    ) external onlyOwner {
+        deposit(_amount);
+        _distributeMargin(_newPositions);
+    }
+
     /// @notice distribute margin across all/some positions specified via _newPositions
     /// @dev _newPositions may contain any number of new or existing positions
     /// @dev close and withdraw all margin from position if resulting position size is zero post trade
-    /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
-    function distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
+    /// @param _newPositions: an array of NewPosition's used to modify active market positions
+    function distributeMargin(NewPosition[] memory _newPositions)
         external
         onlyOwner
     {
         _distributeMargin(_newPositions);
     }
 
-    function _distributeMargin(UpdateMarketPositionSpec[] memory _newPositions)
-        internal
-    {
+    function _distributeMargin(NewPosition[] memory _newPositions) internal {
         /// @notice limit size of new position specs passed into distribute margin
-        if (_newPositions.length > type(uint8).max) {
-            revert MaxNewPositionsExceeded(_newPositions.length);
+        uint256 newPositionsLength = _newPositions.length;
+        if (newPositionsLength > type(uint8).max) {
+            revert MaxNewPositionsExceeded(newPositionsLength);
         }
 
         /// @notice tracking variable for calculating fee(s)
         uint256 totalSizeDeltaInUSD = 0;
 
-        // for each new position in _newPositions, distribute margin accordingly and update state
-        for (uint8 i = 0; i < _newPositions.length; i++) {
-            // define market via _marketKey
-            IFuturesMarket market = futuresMarket(_newPositions[i].marketKey);
+        // for each new position in _newPositions, distribute margin accordingly
+        for (uint8 i = 0; i < newPositionsLength; i++) {
+            // define market params to be used to create or modify a position
+            bytes32 marketKey = _newPositions[i].marketKey;
+            int256 sizeDelta = _newPositions[i].sizeDelta;
+            int256 marginDelta = _newPositions[i].marginDelta;
 
-            if (_newPositions[i].marginDelta < 0) {
-                /// @notice remove margin from market and potentially adjust position size
+            // define market
+            IFuturesMarket market = futuresMarket(marketKey);
+
+            // fetch position size from Synthetix
+            (, , , , int128 size) = getPosition(marketKey);
+
+            /// @dev check if position exists internally
+            if (markets.get(uint256(marketKey))) {
+                // check if position was liquidated
+                if (size == 0) {
+                    removeMarketKey(marketKey);
+                    
+                    // this position no longer exists internally
+                    // thus, treat as new position
+                    if (sizeDelta == 0) {
+                        // position does not exist internally thus sizeDelta must be non-zero
+                        revert ValueCannotBeZero("sizeDelta");
+                    }
+                }
+                
+                // check if position will be closed by newPosition's sizeDelta
+                else if (size + sizeDelta == 0) {
+                    removeMarketKey(marketKey);
+
+                    // close position and withdraw margin
+                    market.closePositionWithTracking(TRACKING_CODE);
+                    market.withdrawAllMargin();
+
+                    // continue to next newPosition
+                    continue;
+                }
+            } else if (sizeDelta == 0) {
+                // position does not exist internally thus sizeDelta must be non-zero
+                revert ValueCannotBeZero("sizeDelta");
+            }
+
+            /// @notice execute trade
+            /// @dev following trades will not result in position being closed
+            /// @dev following trades may either modify or create a position
+            if (marginDelta < 0) {
+                // remove margin from market and potentially adjust position size
                 totalSizeDeltaInUSD += modifyPositionForMarketAndWithdraw(
-                    _newPositions[i].marginDelta,
-                    _newPositions[i].sizeDelta,
-                    _newPositions[i].marketKey,
+                    marginDelta,
+                    sizeDelta,
                     market
                 );
-            } else if (_newPositions[i].marginDelta > 0) {
-                /// @notice deposit margin into market and potentially adjust position size
+
+                // update internal accounting
+                addMarketKey(marketKey);
+            } else if (marginDelta > 0) {
+                // deposit margin into market and potentially adjust position size
                 totalSizeDeltaInUSD += depositAndModifyPositionForMarket(
-                    _newPositions[i].marginDelta,
-                    _newPositions[i].sizeDelta,
-                    _newPositions[i].marketKey,
+                    marginDelta,
+                    sizeDelta,
                     market
                 );
-            } else if (_newPositions[i].sizeDelta != 0) {
+
+                // update internal accounting
+                addMarketKey(marketKey);
+            } else if (sizeDelta != 0) {
                 /// @notice adjust position size
                 /// @notice no margin deposited nor withdrawn from market
                 totalSizeDeltaInUSD += modifyPositionForMarket(
-                    _newPositions[i].sizeDelta,
-                    _newPositions[i].marketKey,
+                    sizeDelta,
                     market
                 );
+
+                // update internal accounting
+                addMarketKey(marketKey);
             }
         }
 
@@ -329,58 +419,37 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         }
     }
 
-    /// @notice accept a deposit amount and open new
-    /// futures market position(s) all in a single tx
-    /// @param _amount: amount of marginAsset to deposit into marginBase account
-    /// @param _newPositions: an array of UpdateMarketPositionSpec's used to modify active market positions
-    function depositAndDistribute(
-        uint256 _amount,
-        UpdateMarketPositionSpec[] memory _newPositions
-    ) external onlyOwner {
-        deposit(_amount);
-        _distributeMargin(_newPositions);
-    }
-
     /*///////////////////////////////////////////////////////////////
-                    Internal Margin Distribution
+                        Execute Trades
     ///////////////////////////////////////////////////////////////*/
 
     /// @notice modify market position's size
     /// @dev _sizeDelta will always be non-zero
-    /// @param _sizeDelta: size and position type (long/short) denoted in market synth (ex: sETH)
-    /// @param _marketKey: synthetix futures market id/key
+    /// @param _sizeDelta: size and position type (long/short) denominated in market synth
     /// @param _market: synthetix futures market
     /// @return sizeDeltaInUSD _sizeDelta *in sUSD*
-    function modifyPositionForMarket(
-        int256 _sizeDelta,
-        bytes32 _marketKey,
-        IFuturesMarket _market
-    ) internal returns (uint256 sizeDeltaInUSD) {
+    function modifyPositionForMarket(int256 _sizeDelta, IFuturesMarket _market)
+        internal
+        returns (uint256 sizeDeltaInUSD)
+    {
         /// @notice _sizeDelta is measured in the underlying base asset of the market
         /// @dev fee will be measured in sUSD, thus exchange rate is needed
         sizeDeltaInUSD = (sUSDRate(_market) * _abs(_sizeDelta)) / 1e18;
 
         // modify position in specific market with KWENTA tracking code
         _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
-
-        /// @notice execute necessary state updates
-        /// @dev must come after modifyPositionWithTracking() due to reliance on fetching
-        /// futures market data from Synthetix to update interal state
-        fetchPositionAndUpdate(_marketKey, _market);
     }
 
     /// @notice deposit margin into specific market and potentially modify position size
     /// @dev _depositSize will always be greater than zero
     /// @dev _sizeDelta may be zero (i.e. market position goes unchanged)
     /// @param _depositSize: size of deposit in sUSD
-    /// @param _sizeDelta: size and position type (long/short) denoted in market synth (ex: sETH)
-    /// @param _marketKey: synthetix futures market id/key
+    /// @param _sizeDelta: size and position type (long/short) denominated in market synth
     /// @param _market: synthetix futures market
     /// @return sizeDeltaInUSD _sizeDelta *in sUSD*
     function depositAndModifyPositionForMarket(
         int256 _depositSize,
         int256 _sizeDelta,
-        bytes32 _marketKey,
         IFuturesMarket _market
     ) internal returns (uint256 sizeDeltaInUSD) {
         /// @dev ensure trade doesn't spend margin which is not available
@@ -402,25 +471,18 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             // modify position in specific market with KWENTA tracking code
             _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
         }
-
-        /// @notice execute necessary state updates
-        /// @dev must come after modifyPositionWithTracking() due to reliance on fetching
-        /// futures market data from Synthetix to update interal state
-        fetchPositionAndUpdate(_marketKey, _market);
     }
 
     /// @notice potentially modify position size and withdraw margin from market
-    /// @dev _withdrawalSize can NEVER be positive NOR zero
+    /// @dev _withdrawalSize will always be less than zero
     /// @dev _sizeDelta may be zero (i.e. market position goes unchanged)
     /// @param _withdrawalSize: size of sUSD to withdraw from market into account
-    /// @param _sizeDelta: size and position type (long//short) denoted in market synth (ex: sETH)
-    /// @param _marketKey: synthetix futures market id/key
+    /// @param _sizeDelta: size and position type (long//short) denominated in market synth
     /// @param _market: synthetix futures market
     /// @return sizeDeltaInUSD _sizeDelta *in sUSD*
     function modifyPositionForMarketAndWithdraw(
         int256 _withdrawalSize,
         int256 _sizeDelta,
-        bytes32 _marketKey,
         IFuturesMarket _market
     ) internal returns (uint256 sizeDeltaInUSD) {
         /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
@@ -436,106 +498,50 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         /// @notice alter the amount of margin in specific market position
         /// @dev positive input triggers a deposit; a negative one, a withdrawal
         _market.transferMargin(_withdrawalSize);
-
-        /// @notice execute necessary state updates
-        /// @dev must come after modifyPositionWithTracking() due to reliance on fetching
-        /// futures market data from Synthetix to update interal state
-        fetchPositionAndUpdate(_marketKey, _market);
-    }
-
-    /// @notice fetch new position from Synthetix and update internal state
-    /// @dev if position size is zero, function will close position
-    /// @param _marketKey: synthetix futures market id/key
-    /// @param _market: synthetix futures market
-    function fetchPositionAndUpdate(bytes32 _marketKey, IFuturesMarket _market)
-        internal
-    {
-        // fetch new position data from Synthetix
-        (, , uint128 margin, , int128 size) = _market.positions(address(this));
-
-        // if position size is 0, position is effectively closed on
-        // FuturesMarket but margin is still in contract, thus it must
-        // be withdrawn back to this account
-        if (size == 0) {
-            /// @dev closePositionAndWithdraw() will update internal state
-            closePositionAndWithdraw(_marketKey, _market);
-
-            // no need to proceed in function; early exit.
-            return;
-        }
-
-        // update internal state for given open market position
-        updateActiveMarketPosition(_marketKey, margin, size);
-    }
-
-    /// @notice closes futures position and withdraws all margin in that market back to this account
-    /// @param _marketKey: synthetix futures market id/key
-    /// @param _market: synthetix futures market
-    function closePositionAndWithdraw(
-        bytes32 _marketKey,
-        IFuturesMarket _market
-    ) internal {
-        // internally update state (remove market)
-        removeActiveMarketPositon(_marketKey);
-
-        // withdraw margin back to this account
-        _market.withdrawAllMargin();
     }
 
     /*///////////////////////////////////////////////////////////////
-                    Internal Account State Management
+                        Internal Accounting
     ///////////////////////////////////////////////////////////////*/
 
-    /// @notice used internally to update contract state for the account's active position tracking
-    /// @dev parameters are generated and passed to this function via Synthetix Futures' contracts
-    /// @param _marketKey: key for synthetix futures market
-    /// @param _margin: amount of margin the specific market position has
-    /// @param _size: represents size of position (i.e. accounts for leverage)
-    function updateActiveMarketPosition(
-        bytes32 _marketKey,
-        uint128 _margin,
-        int128 _size
-    ) internal {
-        ActiveMarketPosition memory newPosition = ActiveMarketPosition({
-            marketKey: _marketKey,
-            margin: _margin,
-            size: _size
-        });
+    /// @notice add marketKey to activeMarketKeys
+    /// @param _marketKey to add
+    function addMarketKey(bytes32 _marketKey) internal {
+        if (!markets.get(uint256(_marketKey))) {
+            // add to mapping
+            marketKeyIndex[_marketKey] = activeMarketKeys.length;
 
-        // check if this is updating a position or creating one
-        if (activeMarketPositions[_marketKey].marketKey == 0) {
+            // add to end of array
             activeMarketKeys.push(_marketKey);
-        }
 
-        // update state of active market positions
-        activeMarketPositions[_marketKey] = newPosition;
+            // add to bitmap
+            markets.setTo(uint256(_marketKey), true);
+        }
     }
 
-    /// @notice used internally to remove active market position from contract's internal state
-    /// @param _marketKey: key for previously active market position
-    function removeActiveMarketPositon(bytes32 _marketKey) internal {
-        // ensure active market exists
-        if (activeMarketPositions[_marketKey].marketKey == 0) {
-            revert MissingMarketKey(_marketKey);
-        }
+    /// @notice remove index from activeMarketKeys
+    /// @param _marketKey to add
+    function removeMarketKey(bytes32 _marketKey) internal {
+        uint256 index = marketKeyIndex[_marketKey];
+        assert(index < activeMarketKeys.length);
 
-        delete activeMarketPositions[_marketKey];
-        uint256 numberOfActiveMarkets = activeMarketKeys.length;
+        // remove from mapping
+        delete marketKeyIndex[_marketKey];
 
-        // @TODO update logic to not use for-loop if possible
-        for (uint16 i = 0; i < numberOfActiveMarkets; i++) {
-            // once _marketKey is encountered, swap with
-            // last element in array and exit for-loop
-            if (activeMarketKeys[i] == _marketKey) {
-                /// @dev effectively removes _marketKey from activeMarketKeys
-                activeMarketKeys[i] = activeMarketKeys[
-                    numberOfActiveMarkets - 1
-                ];
-                break;
+        // remove from array
+        for (; index < activeMarketKeys.length - 1; ) {
+            unchecked {
+                // shift element in array to the left
+                activeMarketKeys[index] = activeMarketKeys[index + 1];
+                // update index for given market key
+                marketKeyIndex[activeMarketKeys[index]] = index;
+                index++;
             }
         }
-        // remove last element now that it has been copied
         activeMarketKeys.pop();
+
+        // remove from bitmap
+        markets.setTo(uint256(_marketKey), false);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -545,7 +551,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice order logic condition checker
     /// @dev this is where order type logic checks are handled
     /// @param _orderId: key for an active order
-    function validOrder(uint256 _orderId) public view returns (bool) {
+    /// @return true if order is valid by execution rules
+    /// @return price that the order will be filled at (only valid if prev is true)
+    function validOrder(uint256 _orderId) public view returns (bool, uint256) {
         Order memory order = orders[_orderId];
         if (order.orderType == OrderTypes.LIMIT) {
             return validLimitOrder(order);
@@ -553,49 +561,61 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             return validStopOrder(order);
         }
         // unknown order type
-        return false;
+        return (false, 0);
     }
 
     /// @notice limit order logic condition checker
     /// @param order: struct for an active order
-    function validLimitOrder(Order memory order) internal view returns (bool) {
+    /// @return true if order is valid by execution rules
+    /// @return price that the order will be filled at (only valid if prev is true)
+    function validLimitOrder(Order memory order)
+        internal
+        view
+        returns (bool, uint256)
+    {
         uint256 price = sUSDRate(futuresMarket(order.marketKey));
 
         /// @notice intent is targetPrice or better despite direction
         if (order.sizeDelta > 0) {
             // Long
-            return price <= order.targetPrice;
+            return (price <= order.targetPrice, price);
         } else if (order.sizeDelta < 0) {
             // Short
-            return price >= order.targetPrice;
+            return (price >= order.targetPrice, price);
         }
 
         // sizeDelta == 0
-        return false;
+        return (false, price);
     }
 
     /// @notice stop order logic condition checker
     /// @param order: struct for an active order
-    function validStopOrder(Order memory order) internal view returns (bool) {
+    /// @return true if order is valid by execution rules
+    /// @return price that the order will be filled at (only valid if prev is true)
+    function validStopOrder(Order memory order)
+        internal
+        view
+        returns (bool, uint256)
+    {
         uint256 price = sUSDRate(futuresMarket(order.marketKey));
 
         /// @notice intent is targetPrice or worse despite direction
         if (order.sizeDelta > 0) {
             // Long
-            return price >= order.targetPrice;
+            return (price >= order.targetPrice, price);
         } else if (order.sizeDelta < 0) {
             // Short
-            return price <= order.targetPrice;
+            return (price <= order.targetPrice, price);
         }
 
         // sizeDelta == 0
-        return false;
+        return (false, price);
     }
 
     /// @notice register a limit order internally and with gelato
     /// @param _marketKey: synthetix futures market id/key
     /// @param _marginDelta: amount of margin (in sUSD) to deposit or withdraw
-    /// @param _sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
+    /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of futures position
     /// @param _targetPrice: expected limit order price
     /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
     /// @return orderId contract interface
@@ -642,6 +662,16 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             orderType: _orderType
         });
 
+        emit OrderPlaced(
+            address(this),
+            orderId,
+            _marketKey,
+            _marginDelta,
+            _sizeDelta,
+            _targetPrice,
+            _orderType
+        );
+
         return orderId++;
     }
 
@@ -658,13 +688,16 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
 
         // delete order from orders
         delete orders[_orderId];
+
+        emit OrderCancelled(address(this), _orderId);
     }
 
     /// @notice execute a gelato queued order
     /// @notice only keepers can trigger this function
     /// @param _orderId: key for an active order
     function executeOrder(uint256 _orderId) external onlyOps {
-        if (!validOrder(_orderId)) {
+        (bool isValidOrder, uint256 fillPrice) = validOrder(_orderId);
+        if (!isValidOrder) {
             revert OrderInvalid();
         }
         Order memory order = orders[_orderId];
@@ -675,9 +708,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         }
 
         // prep new position
-        MarginBase.UpdateMarketPositionSpec[]
-            memory newPositions = new MarginBase.UpdateMarketPositionSpec[](1);
-        newPositions[0] = UpdateMarketPositionSpec({
+        MarginBase.NewPosition[]
+            memory newPositions = new MarginBase.NewPosition[](1);
+        newPositions[0] = NewPosition({
             marketKey: order.marketKey,
             marginDelta: order.marginDelta,
             sizeDelta: order.sizeDelta
@@ -692,6 +725,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         // pay fee
         (uint256 fee, address feeToken) = IOps(ops).getFeeDetails();
         _transfer(fee, feeToken);
+
+        emit OrderFilled(address(this), _orderId, fillPrice, fee);
     }
 
     /// @notice signal to a keeper that an order is valid/invalid for execution
@@ -703,7 +738,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         view
         returns (bool canExec, bytes memory execPayload)
     {
-        canExec = validOrder(_orderId);
+        (canExec, ) = validOrder(_orderId);
         // calldata for execute func
         execPayload = abi.encodeWithSelector(
             this.executeOrder.selector,
