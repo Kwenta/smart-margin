@@ -319,6 +319,7 @@ contract MarginBaseTest is DSTest {
         uint256 targetPrice,
         IMarginBase.OrderTypes orderType
     ) internal returns (uint256 orderId) {
+        cheats.deal(address(account), 1 ether / 10);
         bytes memory createTaskSelector = abi.encodePacked(
             IOps.createTaskNoPrepayment.selector
         );
@@ -603,6 +604,25 @@ contract MarginBaseTest is DSTest {
         assertEq(expectedLimitPrice, actualLimitPrice);
     }
 
+    function testPlaceOrderWithInsufficientEth() public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(amount);
+        bytes memory createTaskSelector = abi.encodePacked(
+            IOps.createTaskNoPrepayment.selector
+        );
+        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        cheats.expectRevert("Min 0.1 ETH balance in account");
+        account.placeOrder(
+            ETH_MARKET_KEY,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
+        );
+    }
+
     function testCommittingMargin() public {
         assertEq(account.committedMargin(), 0);
         uint256 amount = 10e18;
@@ -749,9 +769,6 @@ contract MarginBaseTest is DSTest {
             abi.encode(gelato)
         );
 
-        // provide account with fee balance
-        cheats.deal(address(account), fee);
-
         // call as ops
         cheats.prank(address(gelatoOps));
         account.executeOrder(orderId);
@@ -793,9 +810,6 @@ contract MarginBaseTest is DSTest {
             abi.encodePacked(IOps.gelato.selector),
             abi.encode(gelato)
         );
-
-        // provide account with fee balance
-        cheats.deal(address(account), fee);
 
         // expect a call w/ empty calldata to gelato (payment through callvalue)
         cheats.expectCall(gelato, "");

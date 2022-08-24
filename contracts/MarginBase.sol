@@ -612,6 +612,10 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         onlyOwner
         returns (uint256)
     {
+        require(
+            address(this).balance >= 1 ether / 10,
+            "Min 0.1 ETH balance in account"
+        );
         // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
             // ensure margin doesn't exceed max
