@@ -312,11 +312,12 @@ contract MarginBaseTest is DSTest {
         account.deposit(amount);
     }
 
-    function placeLimitOrder(
+    function placeAdvancedOrder(
         bytes32 marketKey,
         int256 marginDelta,
         int256 sizeDelta,
-        uint256 limitPrice
+        uint256 targetPrice,
+        IMarginBase.OrderTypes orderType
     ) internal returns (uint256 orderId) {
         bytes memory createTaskSelector = abi.encodePacked(
             IOps.createTaskNoPrepayment.selector
@@ -326,7 +327,8 @@ contract MarginBaseTest is DSTest {
             marketKey,
             marginDelta,
             sizeDelta,
-            limitPrice
+            targetPrice,
+            orderType
         );
     }
 
@@ -395,7 +397,13 @@ contract MarginBaseTest is DSTest {
             IOps.createTaskNoPrepayment.selector
         );
         cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
-        account.placeOrder{value: amount}(ETH_MARKET_KEY, 0, 1, 0);
+        account.placeOrder{value: amount}(
+            ETH_MARKET_KEY,
+            0,
+            1,
+            0,
+            IMarginBaseTypes.OrderTypes.LIMIT
+        );
 
         // Withdraw
         account.withdrawEth(amount);
@@ -803,7 +811,7 @@ contract MarginBaseTest is DSTest {
     /********************************************************************
      * Limit Orders
      ********************************************************************/
-    function testLimitValid() public {
+    function testLimitValidLongOrder() public {
         uint256 amount = 10e18;
         int256 orderSizeDelta = 1e18;
         uint256 expectedLimitPrice = 3e18;
@@ -811,11 +819,74 @@ contract MarginBaseTest is DSTest {
 
         // Setup
         deposit(amount);
-        uint256 orderId = placeLimitOrder(
+        uint256 orderId = placeAdvancedOrder(
             ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
-            expectedLimitPrice
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
+        );
+
+        mockExchangeRates(futuresMarketETH, currentPrice);
+        assertTrue(account.validOrder(orderId));
+    }
+
+    function testLimitValidShortOrder() public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = -1e18;
+        uint256 expectedLimitPrice = 3e18;
+        uint256 currentPrice = 4e18;
+
+        // Setup
+        deposit(amount);
+        uint256 orderId = placeAdvancedOrder(
+            ETH_MARKET_KEY,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
+        );
+
+        mockExchangeRates(futuresMarketETH, currentPrice);
+        assertTrue(account.validOrder(orderId));
+    }
+
+    // either closing to stop loss (of a short) or opening to catch a breakout to the upside
+    function testStopValidLongOrder() public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        uint256 currentPrice = 3e18 + 1;
+
+        // Setup
+        deposit(amount);
+        uint256 orderId = placeAdvancedOrder(
+            ETH_MARKET_KEY,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.STOP
+        );
+
+        mockExchangeRates(futuresMarketETH, currentPrice);
+        assertTrue(account.validOrder(orderId));
+    }
+
+    // either closing to stop loss or opening to catch a breakout to the downside
+    function testStopValidShortOrder() public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = -1e18;
+        uint256 expectedLimitPrice = 3e18;
+        uint256 currentPrice = 3e18 - 1;
+
+        // Setup
+        deposit(amount);
+        uint256 orderId = placeAdvancedOrder(
+            ETH_MARKET_KEY,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.STOP
         );
 
         mockExchangeRates(futuresMarketETH, currentPrice);
@@ -834,11 +905,12 @@ contract MarginBaseTest is DSTest {
 
         // Setup
         deposit(amount);
-        uint256 orderId = placeLimitOrder(
+        uint256 orderId = placeAdvancedOrder(
             ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
-            expectedLimitPrice
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
         );
 
         mockExchangeRates(futuresMarketETH, currentPrice);
@@ -857,11 +929,60 @@ contract MarginBaseTest is DSTest {
 
         // Setup
         deposit(amount);
-        uint256 orderId = placeLimitOrder(
+        uint256 orderId = placeAdvancedOrder(
             ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
-            expectedLimitPrice
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
+        );
+
+        mockExchangeRates(futuresMarketETH, currentPrice);
+        assertTrue(!account.validOrder(orderId));
+    }
+
+    /// @notice Tests the assumption that the order will always be executed at target price or worse
+    /// @dev stop order logic fuzz test
+    function testStopValid(uint256 currentPrice) public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 targetStopPrice = 3e18;
+
+        // Toss out fuzz runs greater than target price
+        cheats.assume(currentPrice >= targetStopPrice);
+
+        // Setup
+        deposit(amount);
+        uint256 orderId = placeAdvancedOrder(
+            ETH_MARKET_KEY,
+            int256(amount),
+            orderSizeDelta,
+            targetStopPrice,
+            IMarginBaseTypes.OrderTypes.STOP
+        );
+
+        mockExchangeRates(futuresMarketETH, currentPrice);
+        assertTrue(account.validOrder(orderId));
+    }
+
+    /// @notice Tests the assumption that the order will always be executed at target price or worse
+    /// @dev stop order logic fuzz test
+    function testStopInvalid(uint256 currentPrice) public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 targetStopPrice = 3e18;
+
+        // Toss out fuzz runs less than target price
+        cheats.assume(currentPrice < targetStopPrice);
+
+        // Setup
+        deposit(amount);
+        uint256 orderId = placeAdvancedOrder(
+            ETH_MARKET_KEY,
+            int256(amount),
+            orderSizeDelta,
+            targetStopPrice,
+            IMarginBaseTypes.OrderTypes.STOP
         );
 
         mockExchangeRates(futuresMarketETH, currentPrice);
@@ -873,13 +994,14 @@ contract MarginBaseTest is DSTest {
         int256 orderSizeDelta = 1e18;
         uint256 expectedLimitPrice = 3e18;
         deposit(amount);
-        uint256 orderId = placeLimitOrder(
+        uint256 orderId = placeAdvancedOrder(
             ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
-            expectedLimitPrice
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
         );
-        (, , , uint256 actualLimitPrice, ) = account.orders(orderId);
+        (, , , uint256 actualLimitPrice, , ) = account.orders(orderId);
         assertEq(expectedLimitPrice, actualLimitPrice);
     }
 
@@ -889,11 +1011,12 @@ contract MarginBaseTest is DSTest {
         int256 orderSizeDelta = 1e18;
         uint256 expectedLimitPrice = 3e18;
         deposit(amount);
-        placeLimitOrder(
+        placeAdvancedOrder(
             ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
-            expectedLimitPrice
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
         );
         assertEq(account.committedMargin(), amount);
     }
@@ -906,11 +1029,12 @@ contract MarginBaseTest is DSTest {
         int256 orderSizeDelta = 1e18;
         uint256 expectedLimitPrice = 3e18;
         deposit(originalDeposit);
-        placeLimitOrder(
+        placeAdvancedOrder(
             ETH_MARKET_KEY,
             int256(amountToCommit),
             orderSizeDelta,
-            expectedLimitPrice
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
         );
         cheats.expectRevert(
             abi.encodeWithSelector(
@@ -935,11 +1059,12 @@ contract MarginBaseTest is DSTest {
         // this is a valid case (unless we want to restrict limit orders from not changing margin)
         cheats.assume(amountToCommit != 0);
 
-        placeLimitOrder(
+        placeAdvancedOrder(
             ETH_MARKET_KEY,
             int256(amountToCommit),
             orderSizeDelta,
-            expectedLimitPrice
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
         );
         cheats.expectRevert(
             abi.encodeWithSelector(
@@ -960,11 +1085,12 @@ contract MarginBaseTest is DSTest {
         uint256 expectedLimitPrice = 3e18;
         deposit(originalDeposit);
 
-        placeLimitOrder(
+        placeAdvancedOrder(
             ETH_MARKET_KEY,
             int256(amountToCommit),
             firstOrderSizeDelta,
-            expectedLimitPrice
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
         );
 
         int256 secondOrderMarginDelta = 1e18;
@@ -998,11 +1124,12 @@ contract MarginBaseTest is DSTest {
         uint256 fee = 1;
         deposit(originalDeposit);
 
-        uint256 orderId = placeLimitOrder(
+        uint256 orderId = placeAdvancedOrder(
             ETH_MARKET_KEY,
             int256(amountToCommit),
             orderSizeDelta,
-            limitPrice
+            limitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
         );
 
         // make limit order condition
@@ -1042,11 +1169,12 @@ contract MarginBaseTest is DSTest {
         uint256 fee = 1;
         deposit(originalDeposit);
 
-        uint256 orderId = placeLimitOrder(
+        uint256 orderId = placeAdvancedOrder(
             ETH_MARKET_KEY,
             int256(amountToCommit),
             orderSizeDelta,
-            limitPrice
+            limitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
         );
 
         // make limit order condition
@@ -1084,16 +1212,17 @@ contract MarginBaseTest is DSTest {
         int256 orderSizeDelta = 1e18;
         uint256 expectedLimitPrice = 3e18;
         deposit(amount);
-        uint256 orderId = placeLimitOrder(
+        uint256 orderId = placeAdvancedOrder(
             ETH_MARKET_KEY,
             int256(amount),
             orderSizeDelta,
-            expectedLimitPrice
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
         );
         assertEq(account.committedMargin(), amount);
 
         // Mock non-returning function call
-        (, , , , bytes32 taskId) = account.orders(orderId);
+        (, , , , bytes32 taskId, ) = account.orders(orderId);
         mockCall(
             account.ops(),
             abi.encodeWithSelector(IOps.cancelTask.selector, taskId)
