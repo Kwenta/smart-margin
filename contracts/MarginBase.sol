@@ -368,8 +368,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                     // continue to next newPosition
                     continue;
                 }
-            } else if (sizeDelta == 0) {
-                // position does not exist internally thus sizeDelta must be non-zero
+            }
+            /// @dev position does not exist internally thus sizeDelta must be non-zero
+            else if (sizeDelta == 0) {
                 revert ValueCannotBeZero("sizeDelta");
             }
 
@@ -431,14 +432,21 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @dev _sizeDelta will always be non-zero
     /// @param _sizeDelta: size and position type (long/short) denominated in market synth
     /// @param _market: synthetix futures market
-    /// @return sizeDeltaInUSD _sizeDelta *in sUSD*
+    /// @return fee *in sUSD*
     function modifyPositionForMarket(int256 _sizeDelta, IFuturesMarket _market)
         internal
-        returns (uint256 sizeDeltaInUSD)
+        returns (uint256 fee)
     {
-        /// @notice _sizeDelta is measured in the underlying base asset of the market
+        // determine trade fee based on size delta
+        fee = calculateTradeFee(_abs(_sizeDelta));
+
+        /// @notice fee is currently measured in the underlying base asset of the market
         /// @dev fee will be measured in sUSD, thus exchange rate is needed
-        sizeDeltaInUSD = (sUSDRate(_market) * _abs(_sizeDelta)) / 1e18;
+        fee = (sUSDRate(_market) * fee) / 1e18;
+
+        /// @notice alter the amount of margin in specific market position
+        /// @dev positive input triggers a deposit; a negative one, a withdrawal
+        _market.transferMargin(int256(fee) * -1);
 
         // modify position in specific market with KWENTA tracking code
         _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
@@ -450,30 +458,39 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param _depositSize: size of deposit in sUSD
     /// @param _sizeDelta: size and position type (long/short) denominated in market synth
     /// @param _market: synthetix futures market
-    /// @return sizeDeltaInUSD _sizeDelta *in sUSD*
+    /// @return fee *in sUSD*
     function depositAndModifyPositionForMarket(
         int256 _depositSize,
         int256 _sizeDelta,
         IFuturesMarket _market
-    ) internal returns (uint256 sizeDeltaInUSD) {
+    ) internal returns (uint256 fee) {
         /// @dev ensure trade doesn't spend margin which is not available
         uint256 absDepositSize = _abs(_depositSize);
         if (absDepositSize > freeMargin()) {
             revert InsufficientFreeMargin(freeMargin(), absDepositSize);
         }
 
-        /// @notice alter the amount of margin in specific market position
-        /// @dev positive input triggers a deposit; a negative one, a withdrawal
-        _market.transferMargin(_depositSize);
-
         /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
         if (_sizeDelta != 0) {
-            /// @notice _sizeDelta is measured in the underlying base asset of the market
+            // determine trade fee based on size delta
+            fee = calculateTradeFee(_abs(_sizeDelta));
+
+            /// @notice fee is currently measured in the underlying base asset of the market
             /// @dev fee will be measured in sUSD, thus exchange rate is needed
-            sizeDeltaInUSD = (sUSDRate(_market) * _abs(_sizeDelta)) / 1e18;
+            fee = (sUSDRate(_market) * fee) / 1e18;
+
+            /// @notice alter the amount of margin in specific market position
+            /// @dev positive input triggers a deposit; a negative one, a withdrawal
+            /// @dev subtracting fee ensures margin account has enough margin to pay
+            /// the fee (i.e. effectively fee comes from position)
+            _market.transferMargin(_depositSize - int256(fee));
 
             // modify position in specific market with KWENTA tracking code
             _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
+        } else {
+            /// @notice alter the amount of margin in specific market position
+            /// @dev positive input triggers a deposit; a negative one, a withdrawal
+            _market.transferMargin(_depositSize);
         }
     }
 
@@ -483,30 +500,50 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param _withdrawalSize: size of sUSD to withdraw from market into account
     /// @param _sizeDelta: size and position type (long//short) denominated in market synth
     /// @param _market: synthetix futures market
-    /// @return sizeDeltaInUSD _sizeDelta *in sUSD*
+    /// @return fee *in sUSD*
     function modifyPositionForMarketAndWithdraw(
         int256 _withdrawalSize,
         int256 _sizeDelta,
         IFuturesMarket _market
-    ) internal returns (uint256 sizeDeltaInUSD) {
+    ) internal returns (uint256 fee) {
         /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
         if (_sizeDelta != 0) {
-            /// @notice _sizeDelta is measured in the underlying base asset of the market
-            /// @dev fee will be measured in sUSD, thus exchange rate is needed
-            sizeDeltaInUSD = (sUSDRate(_market) * _abs(_sizeDelta)) / 1e18;
-
             // modify position in specific market with KWENTA tracking code
             _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
-        }
 
-        /// @notice alter the amount of margin in specific market position
-        /// @dev positive input triggers a deposit; a negative one, a withdrawal
-        _market.transferMargin(_withdrawalSize);
+            // determine trade fee based on size delta
+            fee = calculateTradeFee(_abs(_sizeDelta));
+
+            /// @notice fee is currently measured in the underlying base asset of the market
+            /// @dev fee will be measured in sUSD, thus exchange rate is needed
+            fee = (sUSDRate(_market) * fee) / 1e18;
+
+            /// @notice alter the amount of margin in specific market position
+            /// @dev positive input triggers a deposit; a negative one, a withdrawal
+            /// @dev subtracting fee ensures margin account has enough margin to pay
+            /// the fee (i.e. effectively fee comes from position)
+            _market.transferMargin(_withdrawalSize - int256(fee));
+        } else {
+            /// @notice alter the amount of margin in specific market position
+            /// @dev positive input triggers a deposit; a negative one, a withdrawal
+            _market.transferMargin(_withdrawalSize);
+        }
     }
 
     /*///////////////////////////////////////////////////////////////
                         Internal Accounting
     ///////////////////////////////////////////////////////////////*/
+
+    /// @notice calculate fee based on both size and given market
+    /// @param _sizeDelta: size delta of given trade
+    /// @return fee to be imposed based on size delta
+    function calculateTradeFee(uint256 _sizeDelta)
+        internal
+        view
+        returns (uint256)
+    {
+        return (_sizeDelta * marginBaseSettings.tradeFee()) / MAX_BPS;
+    }
 
     /// @notice add marketKey to activeMarketKeys
     /// @param _marketKey to add
