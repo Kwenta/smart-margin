@@ -193,7 +193,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice get up-to-date position data from Synthetix
     /// @param _marketKey: key for synthetix futures market
     function getPosition(bytes32 _marketKey)
-        external
+        public
         view
         returns (
             uint64 id,
@@ -288,15 +288,16 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
 
     function _distributeMargin(NewPosition[] memory _newPositions) internal {
         /// @notice limit size of new position specs passed into distribute margin
-        if (_newPositions.length > type(uint8).max) {
-            revert MaxNewPositionsExceeded(_newPositions.length);
+        uint256 newPositionsLength = _newPositions.length;
+        if (newPositionsLength > type(uint8).max) {
+            revert MaxNewPositionsExceeded(newPositionsLength);
         }
 
         /// @notice tracking variable for calculating fee(s)
         uint256 totalSizeDeltaInUSD = 0;
 
         // for each new position in _newPositions, distribute margin accordingly
-        for (uint8 i = 0; i < _newPositions.length; i++) {
+        for (uint8 i = 0; i < newPositionsLength; i++) {
             // define market params to be used to create or modify a position
             bytes32 marketKey = _newPositions[i].marketKey;
             int256 sizeDelta = _newPositions[i].sizeDelta;
@@ -306,7 +307,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             IFuturesMarket market = futuresMarket(marketKey);
 
             // fetch position size from Synthetix
-            (, , , , int128 size) = market.positions(address(this));
+            (, , , , int128 size) = getPosition(marketKey);
 
             /// @dev check if position exists internally
             if (markets.get(uint256(marketKey))) {
