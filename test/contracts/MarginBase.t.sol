@@ -338,6 +338,7 @@ contract MarginBaseTest is DSTest {
         uint256 targetPrice,
         IMarginBase.OrderTypes orderType
     ) internal returns (uint256 orderId) {
+        cheats.deal(address(account), 1 ether / 10);
         bytes memory createTaskSelector = abi.encodePacked(
             IOps.createTaskNoPrepayment.selector
         );
@@ -1032,6 +1033,91 @@ contract MarginBaseTest is DSTest {
         assertEq(expectedLimitPrice, actualLimitPrice);
     }
 
+    function testPlaceOrderWithInsufficientEth() public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(amount);
+        bytes memory createTaskSelector = abi.encodePacked(
+            IOps.createTaskNoPrepayment.selector
+        );
+        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        cheats.expectRevert(
+            abi.encodeWithSelector(
+                MarginBase.InsufficientEthBalance.selector,
+                0, // 0 ETH in account
+                1 ether / 10 // .1 ETH minimum
+            )
+        );
+
+        account.placeOrder(
+            ETH_MARKET_KEY,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
+        );
+    }
+
+    /// @dev EVM reverts when using an order type that does not exist in the enum
+    function testPlaceOrderWithInvalidOrderType() public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(amount);
+        cheats.deal(address(account), 1 ether / 10);
+        bytes memory createTaskSelector = abi.encodePacked(
+            IOps.createTaskNoPrepayment.selector
+        );
+        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+
+        // Bad Order
+        (bool success, ) = address(account).call(
+            abi.encodeWithSelector(
+                account.placeOrder.selector,
+                ETH_MARKET_KEY,
+                int256(amount),
+                orderSizeDelta,
+                expectedLimitPrice,
+                2
+            )
+        );
+        assertTrue(!success);
+
+        // Good Order
+        (success, ) = address(account).call(
+            abi.encodeWithSelector(
+                account.placeOrder.selector,
+                ETH_MARKET_KEY,
+                int256(amount),
+                orderSizeDelta,
+                expectedLimitPrice,
+                1
+            )
+        );
+        assertTrue(success);
+    }
+
+    function testPlaceOrderWithZeroSize() public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 0;
+        uint256 expectedLimitPrice = 3e18;
+        deposit(amount);
+        cheats.expectRevert(
+            abi.encodeWithSelector(
+                MarginBase.ValueCannotBeZero.selector,
+                bytes32("_sizeDelta")
+            )
+        );
+        account.placeOrder(
+            ETH_MARKET_KEY,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
+        );
+    }
+
     function testPlaceOrderEmitsEvent() public {
         uint256 amount = 10e18;
         int256 orderSizeDelta = 1e18;
@@ -1202,9 +1288,6 @@ contract MarginBaseTest is DSTest {
             abi.encode(gelato)
         );
 
-        // provide account with fee balance
-        cheats.deal(address(account), fee);
-
         // call as ops
         cheats.prank(address(gelatoOps));
         account.executeOrder(orderId);
@@ -1292,9 +1375,6 @@ contract MarginBaseTest is DSTest {
             abi.encodePacked(IOps.gelato.selector),
             abi.encode(gelato)
         );
-
-        // provide account with fee balance
-        cheats.deal(address(account), fee);
 
         // expect a call w/ empty calldata to gelato (payment through callvalue)
         cheats.expectCall(gelato, "");
