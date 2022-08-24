@@ -395,6 +395,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         internal
         returns (uint256 fee)
     {
+        // modify position in specific market with KWENTA tracking code
+        _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
+
         // determine trade fee based on size delta
         fee = calculateTradeFee(_abs(_sizeDelta));
 
@@ -405,9 +408,6 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         /// @notice alter the amount of margin in specific market position
         /// @dev positive input triggers a deposit; a negative one, a withdrawal
         _market.transferMargin(int256(fee) * -1);
-
-        // modify position in specific market with KWENTA tracking code
-        _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
     }
 
     /// @notice deposit margin into specific market and potentially modify position size
