@@ -118,6 +118,11 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         uint256 keeperFee
     );
 
+    /// @notice emitted after a fee has been transferred to Treasury
+    /// @param account: the address of the account the fee was imposed on
+    /// @param amount: fee amount sent to Treasury
+    event FeeImposed(address indexed account, uint256 amount);
+
     /*///////////////////////////////////////////////////////////////
                                 Modifiers
     ///////////////////////////////////////////////////////////////*/
@@ -369,11 +374,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                     market.withdrawAllMargin();
 
                     // determine trade fee based on size delta
-                    uint256 fee = calculateTradeFee(_abs(sizeDelta));
-
-                    /// @notice fee is currently measured in the underlying base asset of the market
-                    /// @dev fee will be measured in sUSD, thus exchange rate is needed
-                    fee = (sUSDRate(market) * fee) / 1e18;
+                    uint256 fee = calculateTradeFee(_abs(sizeDelta), market);
 
                     /// @notice impose fee
                     /// @dev send fee to Kwenta's treasury
@@ -383,6 +384,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                     );
                     if (!successfulTransfer) {
                         revert CannotPayFee();
+                    } else {
+                        emit FeeImposed(address(this), tradingFee);
                     }
 
                     // continue to next newPosition
@@ -436,6 +439,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             );
             if (!successfulTransfer) {
                 revert CannotPayFee();
+            } else {
+                emit FeeImposed(address(this), tradingFee);
             }
         }
     }
@@ -457,11 +462,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
 
         // determine trade fee based on size delta
-        fee = calculateTradeFee(_abs(_sizeDelta));
-
-        /// @notice fee is currently measured in the underlying base asset of the market
-        /// @dev fee will be measured in sUSD, thus exchange rate is needed
-        fee = (sUSDRate(_market) * fee) / 1e18;
+        fee = calculateTradeFee(_abs(_sizeDelta), _market);
 
         /// @notice alter the amount of margin in specific market position
         /// @dev positive input triggers a deposit; a negative one, a withdrawal
@@ -489,11 +490,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
         if (_sizeDelta != 0) {
             // determine trade fee based on size delta
-            fee = calculateTradeFee(_abs(_sizeDelta));
-
-            /// @notice fee is currently measured in the underlying base asset of the market
-            /// @dev fee will be measured in sUSD, thus exchange rate is needed
-            fee = (sUSDRate(_market) * fee) / 1e18;
+            fee = calculateTradeFee(_abs(_sizeDelta), _market);
 
             /// @notice alter the amount of margin in specific market position
             /// @dev positive input triggers a deposit; a negative one, a withdrawal
@@ -528,11 +525,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
 
             // determine trade fee based on size delta
-            fee = calculateTradeFee(_abs(_sizeDelta));
-
-            /// @notice fee is currently measured in the underlying base asset of the market
-            /// @dev fee will be measured in sUSD, thus exchange rate is needed
-            fee = (sUSDRate(_market) * fee) / 1e18;
+            fee = calculateTradeFee(_abs(_sizeDelta), _market);
 
             /// @notice alter the amount of margin in specific market position
             /// @dev positive input triggers a deposit; a negative one, a withdrawal
@@ -552,13 +545,17 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
 
     /// @notice calculate fee based on both size and given market
     /// @param _sizeDelta: size delta of given trade
+    /// @param _market: synthetix futures market
     /// @return fee to be imposed based on size delta
-    function calculateTradeFee(uint256 _sizeDelta)
+    function calculateTradeFee(uint256 _sizeDelta, IFuturesMarket _market)
         internal
         view
-        returns (uint256)
+        returns (uint256 fee)
     {
-        return (_sizeDelta * marginBaseSettings.tradeFee()) / MAX_BPS;
+        fee = (_sizeDelta * marginBaseSettings.tradeFee()) / MAX_BPS;
+        /// @notice fee is currently measured in the underlying base asset of the market
+        /// @dev fee will be measured in sUSD, thus exchange rate is needed
+        fee = (sUSDRate(_market) * fee) / 1e18;
     }
 
     /// @notice add marketKey to activeMarketKeys
