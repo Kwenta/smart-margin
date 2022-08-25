@@ -44,7 +44,7 @@ interface IMarginBase is IMarginBaseTypes {
     ) external;
 
     // Limit Orders
-    function validOrder(uint256 _orderId) external view returns (bool);
+    function validOrder(uint256 _orderId) external view returns (bool, uint256);
     function placeOrder(bytes32 _marketKey, int256 _marginDelta, int256 _sizeDelta, uint256 _targetPrice, OrderTypes _orderType) external payable returns (uint256);
     function cancelOrder(uint256 _orderId) external;
 
