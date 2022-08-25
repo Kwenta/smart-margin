@@ -31,6 +31,7 @@ interface IMarginBaseTypes {
     // targetPrice: limit or stop price to fill at
     // gelatoTaskId: unqiue taskId from gelato necessary for cancelling orders
     // orderType: order type to determine order fill logic
+    // maxDynamicFee: dynamic fee cap in basis points; 0 for no cap
     struct Order {
         bytes32 marketKey;
         int256 marginDelta; // positive indicates deposit, negative withdraw
@@ -38,5 +39,6 @@ interface IMarginBaseTypes {
         uint256 targetPrice;
         bytes32 gelatoTaskId;
         OrderTypes orderType;
+        uint256 maxDynamicFee;
     }
 }
