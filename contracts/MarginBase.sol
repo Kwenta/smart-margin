@@ -556,6 +556,11 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         /// @notice fee is currently measured in the underlying base asset of the market
         /// @dev fee will be measured in sUSD, thus exchange rate is needed
         fee = (sUSDRate(_market) * fee) / 1e18;
+
+        // fee canot be greater than available margin
+        if (fee > freeMargin()) {
+            revert CannotPayFee();
+        }
     }
 
     /// @notice add marketKey to activeMarketKeys
