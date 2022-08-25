@@ -435,14 +435,13 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             }
         }
 
-        // fee canot be greater than available margin
-        if (tradingFee > freeMargin()) {
-            revert CannotPayFee();
-        }
-
         /// @notice impose fee
         /// @dev send fee to Kwenta's treasury
         if (tradingFee > 0) {
+            // fee canot be greater than available margin
+            if (tradingFee > freeMargin()) {
+                revert CannotPayFee();
+            }
             bool successfulTransfer = marginAsset.transfer(
                 marginBaseSettings.treasury(),
                 tradingFee
