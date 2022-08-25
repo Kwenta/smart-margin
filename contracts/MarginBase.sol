@@ -667,6 +667,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of futures position
     /// @param _targetPrice: expected limit order price
     /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
+    /// @param _maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
     /// @return orderId contract interface
     function placeOrderWithFeeCap(
         bytes32 _marketKey,
