@@ -538,7 +538,6 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             _market.transferMargin(_withdrawalSize);
         }
     }
-    }
 
     /*///////////////////////////////////////////////////////////////
                         Internal Accounting
