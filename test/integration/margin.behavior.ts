@@ -1,10 +1,11 @@
 /* eslint-disable no-unused-expressions */
 import { expect } from "chai";
 import { artifacts, ethers, network, waffle } from "hardhat";
-import { Contract } from "ethers";
+import { BigNumber, Contract } from "ethers";
 import { mintToAccountSUSD } from "../utils/helpers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import dotenv from "dotenv";
+import { boolean } from "hardhat/internal/core/params/argumentTypes";
 
 dotenv.config();
 
@@ -35,6 +36,9 @@ const MARKET_KEY_sETH = ethers.utils.formatBytes32String("sETH");
 const MARKET_KEY_sBTC = ethers.utils.formatBytes32String("sBTC");
 const MARKET_KEY_sLINK = ethers.utils.formatBytes32String("sLINK");
 const MARKET_KEY_sUNI = ethers.utils.formatBytes32String("sUNI");
+
+// market addresses at current block
+const ETH_PERP_MARKET_ADDR = "0xf86048DFf23cF130107dfB4e6386f574231a5C65";
 
 // gelato
 const GELATO_OPS = "0xB3f5503f93d5Ef84b06993a1975B9D21B962892F";
@@ -1109,7 +1113,7 @@ describe("Integration: Test Cross Margin", () => {
                 .connect(account0)
                 .approve(marginAccount.address, ACCOUNT_AMOUNT);
 
-            // define new positions
+            // define new position
             const newPosition = [
                 {
                     marketKey: MARKET_KEY_sETH,
@@ -1145,6 +1149,209 @@ describe("Integration: Test Cross Margin", () => {
             // due to potential future fee changes (makes test brittle)
             expect(position.margin).to.be.above(0);
             expect(position.size).to.equal(sizeDelta);
+        });
+    });
+
+    describe("Fees", () => {
+        const sizeDelta = ethers.BigNumber.from("500000000000000000");
+
+        before("Fork Network", async () => {
+            await forkAtBlock(9000000);
+        });
+        beforeEach("Setup", async () => {
+            // mint sUSD to test accounts, and deploy contracts
+            await setup();
+            await deployMarginBaseAccountForEOA(account0);
+        });
+
+        it("Fee imposed when opening a position", async () => {
+            // approve allowance for marginAccount to spend
+            await sUSD
+                .connect(account0)
+                .approve(marginAccount.address, ACCOUNT_AMOUNT);
+
+            // define new position
+            const newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: TEST_VALUE,
+                    sizeDelta: sizeDelta,
+                },
+            ];
+
+            // balance of treasury pre-trade
+            const preBalance = await sUSD.balanceOf(KWENTA_TREASURY);
+
+            // deposit margin into account and execute trade
+            await marginAccount
+                .connect(account0)
+                .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
+
+            // balance of treasury post-trade
+            const postBalance = await sUSD.balanceOf(KWENTA_TREASURY);
+
+            // get access to market
+            const ethPerpMarket = await ethers.getContractAt(
+                "IFuturesMarket",
+                ETH_PERP_MARKET_ADDR
+            );
+            const assetPrice: { price: BigNumber; invalid: boolean } =
+                await ethPerpMarket.assetPrice();
+
+            // calculate fee
+            let fee = sizeDelta.mul(tradeFee).div(MAX_BPS);
+            // get fee in USD
+            fee = fee.mul(assetPrice.price).div(ethers.utils.parseEther("1.0"));
+
+            // confirm correct margin was trasnferred to Treasury
+            expect(postBalance.sub(preBalance)).to.equal(fee);
+        });
+
+        /**
+         * @notice checks correct fee when calling:
+         *          (1) modifyPositionForMarket
+         */
+        it("Fee imposed when closing a position", async () => {
+            // approve allowance for marginAccount to spend
+            await sUSD
+                .connect(account0)
+                .approve(marginAccount.address, ACCOUNT_AMOUNT);
+
+            // define new position (open)
+            let newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: TEST_VALUE,
+                    sizeDelta: sizeDelta,
+                },
+            ];
+
+            // deposit margin into account and execute trade
+            await marginAccount
+                .connect(account0)
+                .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
+
+            // balance of treasury pre-trade
+            const preBalance = await sUSD.balanceOf(KWENTA_TREASURY);
+
+            // define new position (close)
+            newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: ethers.constants.Zero,
+                    sizeDelta: sizeDelta.mul(-1),
+                },
+            ];
+
+            await marginAccount.connect(account0).distributeMargin(newPosition);
+
+            // balance of treasury post-trade
+            const postBalance = await sUSD.balanceOf(KWENTA_TREASURY);
+
+            // get access to market
+            const ethPerpMarket = await ethers.getContractAt(
+                "IFuturesMarket",
+                ETH_PERP_MARKET_ADDR
+            );
+            const assetPrice: { price: BigNumber; invalid: boolean } =
+                await ethPerpMarket.assetPrice();
+
+            // calculate fee
+            let fee = sizeDelta.mul(tradeFee).div(MAX_BPS);
+            // get fee in USD
+            fee = fee.mul(assetPrice.price).div(ethers.utils.parseEther("1.0"));
+
+            // confirm correct margin was trasnferred to Treasury
+            expect(postBalance.sub(preBalance)).to.equal(fee);
+        });
+
+        /**
+         * @notice checks correct fee when calling both:
+         *          (1) depositAndModifyPositionForMarket
+         *          (2) modifyPositionForMarketAndWithdraw
+         */
+        it("Fee imposed when modifying a position", async () => {
+            // approve allowance for marginAccount to spend
+            await sUSD
+                .connect(account0)
+                .approve(marginAccount.address, ACCOUNT_AMOUNT);
+
+            // define new position (open)
+            let newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: TEST_VALUE,
+                    sizeDelta: sizeDelta,
+                },
+            ];
+
+            // deposit margin into account and execute trade
+            await marginAccount
+                .connect(account0)
+                .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
+
+            // balance of treasury pre-trade
+            const preBalance = await sUSD.balanceOf(KWENTA_TREASURY);
+
+            // new size delta
+            const newSizeDelta = sizeDelta.mul(2);
+
+            // define new position (depositAndModifyPositionForMarket)
+            newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: ethers.constants.One,
+                    sizeDelta: newSizeDelta,
+                },
+            ];
+
+            await marginAccount.connect(account0).distributeMargin(newPosition);
+
+            // balance of treasury post-trade
+            const postBalance = await sUSD.balanceOf(KWENTA_TREASURY);
+
+            // get access to market
+            const ethPerpMarket = await ethers.getContractAt(
+                "IFuturesMarket",
+                ETH_PERP_MARKET_ADDR
+            );
+            const assetPrice: { price: BigNumber; invalid: boolean } =
+                await ethPerpMarket.assetPrice();
+
+            // calculate fee
+            let fee = newSizeDelta.mul(tradeFee).div(MAX_BPS);
+            // get fee in USD
+            fee = fee.mul(assetPrice.price).div(ethers.utils.parseEther("1.0"));
+
+            // confirm correct margin was trasnferred to Treasury
+            expect(postBalance.sub(preBalance)).to.equal(fee);
+
+            // balance of treasury pre-trade
+            const preBalance2 = await sUSD.balanceOf(KWENTA_TREASURY);
+
+            // define new position (modifyPositionForMarketAndWithdraw)
+            newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: ethers.constants.One.mul(-1),
+                    sizeDelta: sizeDelta.mul(-1),
+                },
+            ];
+
+            await marginAccount.connect(account0).distributeMargin(newPosition);
+
+            // balance of treasury post-trade
+            const postBalance2 = await sUSD.balanceOf(KWENTA_TREASURY);
+
+            // calculate fee
+            let fee2 = sizeDelta.mul(tradeFee).div(MAX_BPS);
+            // get fee in USD
+            fee2 = fee2
+                .mul(assetPrice.price)
+                .div(ethers.utils.parseEther("1.0"));
+
+            // confirm correct margin was trasnferred to Treasury
+            expect(postBalance2.sub(preBalance2)).to.equal(fee2);
         });
     });
 });
