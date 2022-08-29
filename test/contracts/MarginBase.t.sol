@@ -80,6 +80,9 @@ contract MarginBaseTest is DSTest {
     // address resolver for mocking
     IAddressResolver private addressResolver =
         IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
+    // exchanger (from L2) used primarily for mocking
+    IExchanger private exchanger =
+        IExchanger(0xC37c47C55d894443493c1e2E615f4F9f4b8fDEa4);
     // kwenta treasury address on OE Mainnet
     address private constant KWENTA_TREASURY =
         0x82d2242257115351899894eF384f779b5ba8c695;
@@ -106,6 +109,7 @@ contract MarginBaseTest is DSTest {
         cheats.etch(address(addressResolver), new bytes(0x19));
 
         bytes32 futuresManagerKey = "FuturesMarketManager";
+        bytes32 exchangerKey = "Exchanger";
 
         // @mock addressResolver.requireAndGetAddress()
         cheats.mockCall(
@@ -116,6 +120,16 @@ contract MarginBaseTest is DSTest {
                 "MarginBase: Could not get Futures Market Manager"
             ),
             abi.encode(address(futuresManager))
+        );
+
+        cheats.mockCall(
+            address(addressResolver),
+            abi.encodeWithSelector(
+                IAddressResolver.requireAndGetAddress.selector,
+                exchangerKey,
+                "MarginBase: Could not get Exchanger"
+            ),
+            abi.encode(address(exchanger))
         );
     }
 
@@ -249,22 +263,35 @@ contract MarginBaseTest is DSTest {
     function mockExchangeRates(IFuturesMarket mockedMarket, uint256 mockedPrice)
         internal
     {
-        address exchangeRates = address(2);
         cheats.mockCall(
             address(mockedMarket),
             abi.encodePacked(IFuturesMarket.baseAsset.selector),
             abi.encode("sSYNTH")
-        );
-        cheats.mockCall(
-            address(addressResolver),
-            abi.encodePacked(IAddressResolver.requireAndGetAddress.selector),
-            abi.encode(exchangeRates)
         );
         // @mock market.assetPrice()
         cheats.mockCall(
             address(mockedMarket),
             abi.encodeWithSelector(IFuturesMarket.assetPrice.selector),
             abi.encode(mockedPrice, false)
+        );
+    }
+
+    function mockDynamicFee(
+        IFuturesMarket mockedMarket,
+        uint256 mockedFee,
+        bool tooVolatile
+    ) internal {
+        cheats.mockCall(
+            address(mockedMarket),
+            abi.encodePacked(IFuturesMarket.baseAsset.selector),
+            abi.encode("sETH")
+        );
+        cheats.mockCall(
+            address(exchanger),
+            abi.encodeWithSelector(
+                IExchanger.dynamicFeeRateForExchange.selector
+            ),
+            abi.encode(mockedFee, tooVolatile)
         );
     }
 
@@ -829,8 +856,9 @@ contract MarginBaseTest is DSTest {
     }
 
     /********************************************************************
-     * Limit Orders
+     * Advanced Orders Logic
      ********************************************************************/
+
     function testLimitValidLongOrder() public {
         uint256 amount = 10e18;
         int256 orderSizeDelta = 1e18;
@@ -1017,6 +1045,87 @@ contract MarginBaseTest is DSTest {
         assertTrue(!isValid);
     }
 
+    function testMaxFeeExceeded() public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        uint256 expectedMaxFee = 10; // 10 basis points
+        deposit(amount);
+        cheats.deal(address(account), 1 ether / 10);
+        bytes memory createTaskSelector = abi.encodePacked(
+            IOps.createTaskNoPrepayment.selector
+        );
+        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        uint256 orderId = account.placeOrderWithFeeCap(
+            ETH_MARKET_KEY,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT,
+            expectedMaxFee
+        );
+
+        mockDynamicFee(futuresMarketETH, 100, false);
+        (bool isValid, ) = account.validOrder(orderId);
+        assertTrue(!isValid);
+    }
+
+    function testTooVolatile() public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        uint256 expectedMaxFee = 10; // 10 basis points
+        deposit(amount);
+        cheats.deal(address(account), 1 ether / 10);
+        bytes memory createTaskSelector = abi.encodePacked(
+            IOps.createTaskNoPrepayment.selector
+        );
+        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        uint256 orderId = account.placeOrderWithFeeCap(
+            ETH_MARKET_KEY,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT,
+            expectedMaxFee
+        );
+
+        mockDynamicFee(futuresMarketETH, 0, true);
+        (bool isValid, ) = account.validOrder(orderId);
+        assertTrue(!isValid);
+    }
+
+    function testMaxFeeValid() public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        uint256 currentPrice = 2e18;
+        uint256 expectedMaxFee = 10; // 10 basis points
+        deposit(amount);
+        cheats.deal(address(account), 1 ether / 10);
+        bytes memory createTaskSelector = abi.encodePacked(
+            IOps.createTaskNoPrepayment.selector
+        );
+        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        uint256 orderId = account.placeOrderWithFeeCap(
+            ETH_MARKET_KEY,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT,
+            expectedMaxFee
+        );
+
+        mockDynamicFee(futuresMarketETH, 0, false);
+        mockExchangeRates(futuresMarketETH, currentPrice);
+        (bool isValid, ) = account.validOrder(orderId);
+        assertTrue(isValid);
+    }
+
+    /********************************************************************
+     * Advanced Orders Placement
+     ********************************************************************/
+
     function testPlaceOrder() public {
         uint256 amount = 10e18;
         int256 orderSizeDelta = 1e18;
@@ -1029,8 +1138,31 @@ contract MarginBaseTest is DSTest {
             expectedLimitPrice,
             IMarginBaseTypes.OrderTypes.LIMIT
         );
-        (, , , uint256 actualLimitPrice, , ) = account.orders(orderId);
+        (, , , uint256 actualLimitPrice, , , ) = account.orders(orderId);
         assertEq(expectedLimitPrice, actualLimitPrice);
+    }
+
+    function testPlaceOrderWithFeeCap() public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        uint256 expectedMaxFee = 10; // 10 basis points
+        deposit(amount);
+        cheats.deal(address(account), 1 ether / 10);
+        bytes memory createTaskSelector = abi.encodePacked(
+            IOps.createTaskNoPrepayment.selector
+        );
+        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        uint256 orderId = account.placeOrderWithFeeCap(
+            ETH_MARKET_KEY,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT,
+            expectedMaxFee
+        );
+        (, , , , , , uint256 maximumDynamicFee) = account.orders(orderId);
+        assertEq(expectedMaxFee, maximumDynamicFee);
     }
 
     function testPlaceOrderWithInsufficientEth() public {
@@ -1402,7 +1534,7 @@ contract MarginBaseTest is DSTest {
         assertEq(account.committedMargin(), amount);
 
         // Mock non-returning function call
-        (, , , , bytes32 taskId, ) = account.orders(orderId);
+        (, , , , bytes32 taskId, , ) = account.orders(orderId);
         mockCall(
             account.ops(),
             abi.encodeWithSelector(IOps.cancelTask.selector, taskId)
@@ -1432,7 +1564,7 @@ contract MarginBaseTest is DSTest {
         emit OrderCancelled(address(account), orderId);
 
         // Mock non-returning function call
-        (, , , , bytes32 taskId, ) = account.orders(orderId);
+        (, , , , bytes32 taskId, , ) = account.orders(orderId);
         mockCall(
             account.ops(),
             abi.encodeWithSelector(IOps.cancelTask.selector, taskId)

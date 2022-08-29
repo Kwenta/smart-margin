@@ -8,6 +8,7 @@ import "./interfaces/IFuturesMarket.sol";
 import "./interfaces/IFuturesMarketManager.sol";
 import "./interfaces/IMarginBaseTypes.sol";
 import "./interfaces/IMarginBase.sol";
+import "./interfaces/IExchanger.sol";
 import "./utils/OpsReady.sol";
 import "./utils/MinimalProxyable.sol";
 import "./MarginBaseSettings.sol";
@@ -559,11 +560,24 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @return price that the order will be filled at (only valid if prev is true)
     function validOrder(uint256 _orderId) public view returns (bool, uint256) {
         Order memory order = orders[_orderId];
+
+        if (order.maxDynamicFee != 0) {
+            (uint256 dynamicFee, bool tooVolatile) = exchanger()
+                .dynamicFeeRateForExchange(
+                    SUSD,
+                    futuresMarket(order.marketKey).baseAsset()
+                );
+            if (tooVolatile || dynamicFee >= order.maxDynamicFee) {
+                return (false, 0);
+            }
+        }
+
         if (order.orderType == OrderTypes.LIMIT) {
             return validLimitOrder(order);
         } else if (order.orderType == OrderTypes.STOP) {
             return validStopOrder(order);
         }
+
         // unknown order type
         // @notice execution should never reach here
         // @dev needed to satisfy types
@@ -635,9 +649,54 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         int256 _sizeDelta,
         uint256 _targetPrice,
         OrderTypes _orderType
+    ) external payable returns (uint256) {
+        return
+            _placeOrder(
+                _marketKey,
+                _marginDelta,
+                _sizeDelta,
+                _targetPrice,
+                _orderType,
+                0
+            );
+    }
+
+    /// @notice register a limit order internally and with gelato
+    /// @param _marketKey: synthetix futures market id/key
+    /// @param _marginDelta: amount of margin (in sUSD) to deposit or withdraw
+    /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of futures position
+    /// @param _targetPrice: expected limit order price
+    /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
+    /// @param _maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
+    /// @return orderId contract interface
+    function placeOrderWithFeeCap(
+        bytes32 _marketKey,
+        int256 _marginDelta,
+        int256 _sizeDelta,
+        uint256 _targetPrice,
+        OrderTypes _orderType,
+        uint256 _maxDynamicFee
+    ) external payable returns (uint256) {
+        return
+            _placeOrder(
+                _marketKey,
+                _marginDelta,
+                _sizeDelta,
+                _targetPrice,
+                _orderType,
+                _maxDynamicFee
+            );
+    }
+
+    function _placeOrder(
+        bytes32 _marketKey,
+        int256 _marginDelta,
+        int256 _sizeDelta,
+        uint256 _targetPrice,
+        OrderTypes _orderType,
+        uint256 _maxDynamicFee
     )
-        external
-        payable
+        internal
         notZero(_abs(_sizeDelta), "_sizeDelta")
         onlyOwner
         returns (uint256)
@@ -668,7 +727,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             sizeDelta: _sizeDelta,
             targetPrice: _targetPrice,
             gelatoTaskId: taskId,
-            orderType: _orderType
+            orderType: _orderType,
+            maxDynamicFee: _maxDynamicFee
         });
 
         emit OrderPlaced(
@@ -779,6 +839,17 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             revert InvalidPrice();
         }
         return price;
+    }
+
+    /// @notice exchangeRates() fetches current ExchangeRates contract
+    function exchanger() internal view returns (IExchanger) {
+        return
+            IExchanger(
+                addressResolver.requireAndGetAddress(
+                    "Exchanger",
+                    "MarginBase: Could not get Exchanger"
+                )
+            );
     }
 
     /*///////////////////////////////////////////////////////////////
