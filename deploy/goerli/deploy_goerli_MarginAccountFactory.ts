@@ -17,7 +17,7 @@ const deployMarginAccountFactoryOnGoerli: DeployFunction = async function (
     const marginAsset = "0xeBaEAAD9236615542844adC5c149F86C36aD1136"; // ProxyERC20sUSD on Goerli
     const addressResolver = "0x9Fc84992dF5496797784374B810E04238728743d"; // ReadProxyAddressResolver on Goerli
     const marginBaseSettings = await deployments.get("MarginBaseSettings"); // Settings on Goerli
-    const ops = "@TODO"; // Ops on Goerli
+    const ops = "0x255F82563b5973264e89526345EcEa766DB3baB2"; // Ops on Goerli
 
     await deploy("MarginAccountFactory", {
         from: deployer,
