@@ -315,7 +315,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         NewPosition[] memory _newPositions
     ) external onlyOwner {
         deposit(_amount);
-        _distributeMargin(_newPositions);
+        _distributeMargin(_newPositions, 0);
     }
 
     /// @notice distribute margin across all/some positions specified via _newPositions
@@ -326,10 +326,13 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         external
         onlyOwner
     {
-        _distributeMargin(_newPositions);
+        _distributeMargin(_newPositions, 0);
     }
 
-    function _distributeMargin(NewPosition[] memory _newPositions) internal {
+    function _distributeMargin(
+        NewPosition[] memory _newPositions,
+        uint256 _advancedOrderFee
+    ) internal {
         /// @notice limit size of new position specs passed into distribute margin
         uint256 newPositionsLength = _newPositions.length;
         if (newPositionsLength > type(uint8).max) {
@@ -374,7 +377,11 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                     market.withdrawAllMargin();
 
                     // determine trade fee based on size delta
-                    uint256 fee = calculateTradeFee(_abs(sizeDelta), market);
+                    uint256 fee = calculateTradeFee(
+                        _abs(sizeDelta),
+                        market,
+                        _advancedOrderFee
+                    );
 
                     // fee canot be greater than available margin
                     if (fee > freeMargin()) {
@@ -410,7 +417,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                 tradingFee += modifyPositionForMarketAndWithdraw(
                     marginDelta,
                     sizeDelta,
-                    market
+                    market,
+                    _advancedOrderFee
                 );
 
                 // update internal accounting
@@ -420,7 +428,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                 tradingFee += depositAndModifyPositionForMarket(
                     marginDelta,
                     sizeDelta,
-                    market
+                    market,
+                    _advancedOrderFee
                 );
 
                 // update internal accounting
@@ -428,7 +437,11 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             } else if (sizeDelta != 0) {
                 /// @notice adjust position size
                 /// @notice no margin deposited nor withdrawn from market
-                tradingFee += modifyPositionForMarket(sizeDelta, market);
+                tradingFee += modifyPositionForMarket(
+                    sizeDelta,
+                    market,
+                    _advancedOrderFee
+                );
 
                 // update internal accounting
                 addMarketKey(marketKey);
@@ -462,16 +475,18 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @dev _sizeDelta will always be non-zero
     /// @param _sizeDelta: size and position type (long/short) denominated in market synth
     /// @param _market: synthetix futures market
+    /// @param _advancedOrderFee: if additional fee charged for advanced orders
     /// @return fee *in sUSD*
-    function modifyPositionForMarket(int256 _sizeDelta, IFuturesMarket _market)
-        internal
-        returns (uint256 fee)
-    {
+    function modifyPositionForMarket(
+        int256 _sizeDelta,
+        IFuturesMarket _market,
+        uint256 _advancedOrderFee
+    ) internal returns (uint256 fee) {
         // modify position in specific market with KWENTA tracking code
         _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
 
         // determine trade fee based on size delta
-        fee = calculateTradeFee(_abs(_sizeDelta), _market);
+        fee = calculateTradeFee(_abs(_sizeDelta), _market, _advancedOrderFee);
 
         /// @notice alter the amount of margin in specific market position
         /// @dev positive input triggers a deposit; a negative one, a withdrawal
@@ -484,11 +499,13 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param _depositSize: size of deposit in sUSD
     /// @param _sizeDelta: size and position type (long/short) denominated in market synth
     /// @param _market: synthetix futures market
+    /// @param _advancedOrderFee: if additional fee charged for advanced orders
     /// @return fee *in sUSD*
     function depositAndModifyPositionForMarket(
         int256 _depositSize,
         int256 _sizeDelta,
-        IFuturesMarket _market
+        IFuturesMarket _market,
+        uint256 _advancedOrderFee
     ) internal returns (uint256 fee) {
         /// @dev ensure trade doesn't spend margin which is not available
         uint256 absDepositSize = _abs(_depositSize);
@@ -499,7 +516,11 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
         if (_sizeDelta != 0) {
             // determine trade fee based on size delta
-            fee = calculateTradeFee(_abs(_sizeDelta), _market);
+            fee = calculateTradeFee(
+                _abs(_sizeDelta),
+                _market,
+                _advancedOrderFee
+            );
 
             /// @notice alter the amount of margin in specific market position
             /// @dev positive input triggers a deposit; a negative one, a withdrawal
@@ -522,11 +543,13 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param _withdrawalSize: size of sUSD to withdraw from market into account
     /// @param _sizeDelta: size and position type (long//short) denominated in market synth
     /// @param _market: synthetix futures market
+    /// @param _advancedOrderFee: if additional fee charged for advanced orders
     /// @return fee *in sUSD*
     function modifyPositionForMarketAndWithdraw(
         int256 _withdrawalSize,
         int256 _sizeDelta,
-        IFuturesMarket _market
+        IFuturesMarket _market,
+        uint256 _advancedOrderFee
     ) internal returns (uint256 fee) {
         /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
         if (_sizeDelta != 0) {
@@ -534,7 +557,11 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
 
             // determine trade fee based on size delta
-            fee = calculateTradeFee(_abs(_sizeDelta), _market);
+            fee = calculateTradeFee(
+                _abs(_sizeDelta),
+                _market,
+                _advancedOrderFee
+            );
 
             /// @notice alter the amount of margin in specific market position
             /// @dev positive input triggers a deposit; a negative one, a withdrawal
@@ -555,13 +582,16 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice calculate fee based on both size and given market
     /// @param _sizeDelta: size delta of given trade
     /// @param _market: synthetix futures market
+    /// @param _advancedOrderFee: if additional fee charged for advanced orders
     /// @return fee to be imposed based on size delta
-    function calculateTradeFee(uint256 _sizeDelta, IFuturesMarket _market)
-        internal
-        view
-        returns (uint256 fee)
-    {
-        fee = (_sizeDelta * marginBaseSettings.tradeFee()) / MAX_BPS;
+    function calculateTradeFee(
+        uint256 _sizeDelta,
+        IFuturesMarket _market,
+        uint256 _advancedOrderFee
+    ) internal view returns (uint256 fee) {
+        fee =
+            (_sizeDelta * (marginBaseSettings.tradeFee() + _advancedOrderFee)) /
+            MAX_BPS;
         /// @notice fee is currently measured in the underlying base asset of the market
         /// @dev fee will be measured in sUSD, thus exchange rate is needed
         fee = (sUSDRate(_market) * fee) / 1e18;
@@ -787,8 +817,12 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         // delete order from orders
         delete orders[_orderId];
 
+        uint256 advancedOrderFee = order.orderType == OrderTypes.LIMIT
+            ? marginBaseSettings.limitOrderFee()
+            : marginBaseSettings.stopOrderFee();
+
         // execute trade
-        _distributeMargin(newPositions);
+        _distributeMargin(newPositions, advancedOrderFee);
 
         // pay fee
         (uint256 fee, address feeToken) = IOps(ops).getFeeDetails();

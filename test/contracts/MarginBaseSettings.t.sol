@@ -20,12 +20,12 @@ contract MarginBaseSettingsTest is DSTest {
         /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
         uint256 tradeFee = 5; // 5 BPS
         uint256 limitOrderFee = 5; // 5 BPS
-        uint256 stopLossFee = 10; // 10 BPS
+        uint256 stopOrderFee = 10; // 10 BPS
         marginBaseSettings = new MarginBaseSettings(
             KWENTA_TREASURY,
             tradeFee,
             limitOrderFee,
-            stopLossFee
+            stopOrderFee
         );
     }
 
@@ -115,7 +115,7 @@ contract MarginBaseSettingsTest is DSTest {
      **********************************/
 
     /// @dev fuzz test
-    function testSettingStopLossFee(uint256 x) public {
+    function testSettingStopOrderFee(uint256 x) public {
         if (x >= 10_000) {
             cheats.expectRevert(
                 abi.encodeWithSelector(
@@ -123,16 +123,16 @@ contract MarginBaseSettingsTest is DSTest {
                     x
                 )
             );
-            marginBaseSettings.setStopLossFee(x);
+            marginBaseSettings.setStopOrderFee(x);
             return;
         }
-        marginBaseSettings.setStopLossFee(x);
-        assertTrue(marginBaseSettings.stopLossFee() == x);
+        marginBaseSettings.setStopOrderFee(x);
+        assertTrue(marginBaseSettings.stopOrderFee() == x);
     }
 
-    function testFailSetStopLossFeeIfNotOwner() public {
+    function testFailSetStopOrderFeeIfNotOwner() public {
         marginBaseSettings.transferOwnership(RANDOM_ADDRESS); // not a zero address
-        marginBaseSettings.setStopLossFee(1 ether);
+        marginBaseSettings.setStopOrderFee(1 ether);
     }
 
     // @TODO: test events
