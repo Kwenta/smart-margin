@@ -2,10 +2,10 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
 
 /*///////////////////////////////////////////////////////////////
-                TEST DEPLOYMENT ON OPTIMISTIC KOVAN
+                TEST DEPLOYMENT ON OPTIMISTIC GOERLI
 ///////////////////////////////////////////////////////////////*/
 
-const deployMarginBaseSettingsOnKovan: DeployFunction = async function (
+const deployMarginBaseSettingsOnGoerli: DeployFunction = async function (
     hre: HardhatRuntimeEnvironment
 ) {
     const { deployments, getNamedAccounts } = hre;
@@ -13,7 +13,7 @@ const deployMarginBaseSettingsOnKovan: DeployFunction = async function (
     const { deployer } = await getNamedAccounts();
 
     // constructor params
-    const treasury = "0xB594a842A528cb8b80536a84D3DfEd73C2c0c658"; // EOA on Kovan
+    const treasury = "0x6e1768574dC439aE6ffCd2b0A0f218105f2612c6"; // EOA on Goerli
     const distributionFee = 5; // BPS
     const limitOrderFee = 5; // BPS
     const stopLossFee = 5; // BPS
@@ -24,5 +24,5 @@ const deployMarginBaseSettingsOnKovan: DeployFunction = async function (
         log: true,
     });
 };
-export default deployMarginBaseSettingsOnKovan;
-deployMarginBaseSettingsOnKovan.tags = ["MarginBaseSettings-Kovan"];
+export default deployMarginBaseSettingsOnGoerli;
+deployMarginBaseSettingsOnGoerli.tags = ["MarginBaseSettings-Goerli"];
