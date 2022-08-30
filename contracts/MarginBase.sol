@@ -179,9 +179,6 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param minimum: min required ETH balance
     error InsufficientEthBalance(uint256 balance, uint256 minimum);
 
-    /// @notice Insufficient margin to pay fee
-    error CannotPayFee();
-
     /*///////////////////////////////////////////////////////////////
                         Constructor & Initializer
     ///////////////////////////////////////////////////////////////*/
