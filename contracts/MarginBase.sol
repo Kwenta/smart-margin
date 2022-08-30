@@ -377,6 +377,11 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                     // determine trade fee based on size delta
                     uint256 fee = calculateTradeFee(_abs(sizeDelta), market);
 
+                    // fee canot be greater than available margin
+                    if (fee > freeMargin()) {
+                        revert CannotPayFee();
+                    }
+
                     /// @notice impose fee
                     /// @dev send fee to Kwenta's treasury
                     bool successfulTransfer = marginAsset.transfer(
@@ -434,6 +439,10 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         /// @notice impose fee
         /// @dev send fee to Kwenta's treasury
         if (tradingFee > 0) {
+            // fee canot be greater than available margin
+            if (tradingFee > freeMargin()) {
+                revert CannotPayFee();
+            }
             bool successfulTransfer = marginAsset.transfer(
                 marginBaseSettings.treasury(),
                 tradingFee
