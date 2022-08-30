@@ -14,9 +14,9 @@ const deployMarginBaseSettingsOnGoerli: DeployFunction = async function (
 
     // constructor params
     const treasury = "0x6e1768574dC439aE6ffCd2b0A0f218105f2612c6"; // EOA on Goerli
-    const distributionFee = 5; // BPS
-    const limitOrderFee = 5; // BPS
-    const stopLossFee = 5; // BPS
+    const distributionFee = 5;  // BPS
+    const limitOrderFee = 5;    // BPS
+    const stopLossFee = 5;      // BPS
 
     await deploy("MarginBaseSettings", {
         from: deployer,

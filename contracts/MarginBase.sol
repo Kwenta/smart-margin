@@ -171,6 +171,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice cannot rescue underlying margin asset token
     error CannotRescueMarginAsset();
 
+    /// @notice Insufficient margin to pay fee
+    error CannotPayFee();
+
     /// @notice Must have a minimum eth balance before placing an order
     /// @param balance: current ETH balance
     /// @param minimum: min required ETH balance
@@ -361,7 +364,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                     // this position no longer exists internally
                     // thus, treat as new position
                     if (sizeDelta == 0) {
-                        // position does not exist internally thus sizeDelta must be non-zero
+                        // position does not exist internally thus, sizeDelta must be non-zero
                         revert ValueCannotBeZero("sizeDelta");
                     }
                 }
