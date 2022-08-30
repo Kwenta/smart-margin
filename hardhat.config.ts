@@ -34,16 +34,16 @@ const config: HardhatUserConfig = {
         localhost: {
             chainId: 31337,
         },
-        "optimistic-kovan": {
-            url: process.env.ARCHIVE_NODE_URL_KOVAN_L2
-                ? process.env.ARCHIVE_NODE_URL_KOVAN_L2
+        "optimistic-goerli": {
+            url: process.env.ARCHIVE_NODE_URL_GOERLI_L2
+                ? process.env.ARCHIVE_NODE_URL_GOERLI_L2
                 : "",
             accounts: process.env.DEPLOYER_PRIVATE_KEY
                 ? [process.env.DEPLOYER_PRIVATE_KEY]
                 : undefined,
             verify: {
                 etherscan: {
-                    apiUrl: "https://api-kovan-optimistic.etherscan.io",
+                    apiUrl: "https://api-goerli-optimistic.etherscan.io",
                 },
             },
         },
