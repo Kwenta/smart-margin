@@ -1353,5 +1353,255 @@ describe("Integration: Test Cross Margin", () => {
             // confirm correct margin was trasnferred to Treasury
             expect(postBalance2.sub(preBalance2)).to.equal(fee2);
         });
+
+        /**
+         * @dev if margin delta is x (where x > 0) and fee is y (where y > x)
+         * then margin will be withdrawn from position despite
+         * depositAndModifyPositionForMarket() being called
+         */
+        it("Fee still imposed when larger than margin deposited", async () => {
+            // approve allowance for marginAccount to spend
+            await sUSD
+                .connect(account0)
+                .approve(marginAccount.address, ACCOUNT_AMOUNT);
+
+            // define new position
+            let newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: TEST_VALUE,
+                    sizeDelta: sizeDelta,
+                },
+            ];
+
+            // deposit margin into account and execute trade
+            await marginAccount
+                .connect(account0)
+                .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
+
+            // set trade fee to be 10% of sizeDelta
+            const newTradeFee = 100;
+            await marginBaseSettings.connect(account0).setTradeFee(newTradeFee);
+
+            /**
+             * @dev fee is 1% and sizeDelta below is 1 ether (i.e. ~2_000 USD)
+             * therefore, fee should be 20 USD.
+             * There is only 1_000 USD in the market and trade will deposit
+             * 1 USD (i.e. margin delta), thus margin must be pulled from
+             * market for fee to be imposed
+             */
+            const newMarginDelta = TEST_VALUE.div(1000); // 1 USD
+            newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: newMarginDelta,
+                    sizeDelta: sizeDelta.mul(2),
+                },
+            ];
+
+            // position in eth perp market pre-trade
+            const preTradeMarketPos = await marginAccount.getPosition(
+                MARKET_KEY_sETH
+            );
+
+            // trade
+            await marginAccount.connect(account0).distributeMargin(newPosition);
+
+            // position in eth perp market post-trade
+            const postTradeMarketPos = await marginAccount.getPosition(
+                MARKET_KEY_sETH
+            );
+
+            /**
+             * @notice confirm fee pulled from market
+             * @dev since our fee was 10%, we assume margin decrease in market
+             * is at least that much
+             */
+
+            // get access to market
+            const ethPerpMarket = await ethers.getContractAt(
+                "IFuturesMarket",
+                ETH_PERP_MARKET_ADDR
+            );
+            const assetPrice: { price: BigNumber; invalid: boolean } =
+                await ethPerpMarket.assetPrice();
+
+            // calculate fee
+            let fee = sizeDelta.mul(newTradeFee).div(MAX_BPS);
+            // get fee in USD
+            fee = fee.mul(assetPrice.price).div(ethers.utils.parseEther("1.0"));
+            expect(fee).to.be.below(
+                preTradeMarketPos.margin.sub(postTradeMarketPos.margin)
+            );
+        });
+
+        /**
+         * @dev if margin in market is x (where x > 0) and fee is y (where y >= x)
+         * then trade will fail due to insufficient margin
+         */
+        it("Trade fails if fee is greater than margin in Market", async () => {
+            // approve allowance for marginAccount to spend
+            await sUSD
+                .connect(account0)
+                .approve(marginAccount.address, ACCOUNT_AMOUNT);
+
+            // define new position
+            let newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: TEST_VALUE,
+                    sizeDelta: sizeDelta,
+                },
+            ];
+
+            // deposit margin into account and execute trade
+            await marginAccount
+                .connect(account0)
+                .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
+
+            /**
+             * @notice at this point, total margin in market is TEST_VALUE
+             */
+
+            // set trade fee to be 90% of sizeDelta
+            await marginBaseSettings.connect(account0).setTradeFee(9_000);
+
+            /**
+             * @dev fee is 90% and sizeDelta below is 1 ether (i.e. ~2_000 USD)
+             * therefore, fee should be 1_800 USD.
+             * There is only 1_000 USD in the market, thus trade should fail
+             */
+            newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: ethers.constants.Zero,
+                    sizeDelta: sizeDelta.mul(2),
+                },
+            ];
+
+            // trade
+            const tx = marginAccount
+                .connect(account0)
+                .distributeMargin(newPosition);
+            await expect(tx).to.be.revertedWith("Insufficient margin");
+        });
+
+        /**
+         * @dev if margin in market is x (where x > 0) and fee is y
+         * then trade will fail if y being imposed results in
+         * leverage based on x being greater than what is allowed (10x at this block)
+         * @notice if margin delta is non-zero, we expect modifyPosition to be called thus
+         * error "Max leverage exceeded" to be thrown
+         */
+        it("Trade fails if fee greater than max leverage with non-zero margin delta", async () => {
+            // approve allowance for marginAccount to spend
+            await sUSD
+                .connect(account0)
+                .approve(marginAccount.address, ACCOUNT_AMOUNT);
+
+            // define new position
+            let newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: TEST_VALUE,
+                    sizeDelta: sizeDelta,
+                },
+            ];
+
+            // deposit margin into account and execute trade
+            await marginAccount
+                .connect(account0)
+                .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
+
+            /**
+             * @notice at this point, total margin in market is TEST_VALUE
+             */
+
+            // set trade fee to be 40% of sizeDelta
+            await marginBaseSettings.connect(account0).setTradeFee(4_000);
+
+            /**
+             * @dev fee is 40% and sizeDelta below is 1 ether (i.e. ~2_000 USD)
+             * therefore, fee should be 800 USD.
+             * There is only 1_000 USD in the market, thus trade results
+             * in 200 USD remaining.
+             * This exceeds max leverage based on size and
+             * margin in market and thus should fail with Max leverage exceeded
+             * @dev synthetix adds their fee which pushes us past 10x
+             */
+            const newMarginDelta = TEST_VALUE.div(1000); // 1 USD
+            newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: newMarginDelta,
+                    sizeDelta: sizeDelta.mul(2),
+                },
+            ];
+
+            // trade
+            const tx = marginAccount
+                .connect(account0)
+                .distributeMargin(newPosition);
+            await expect(tx).to.be.revertedWith("Max leverage exceeded");
+        });
+
+        /**
+         * @dev if margin in market is x (where x > 0) and fee is y
+         * then trade will fail if y being imposed results in
+         * leverage based on x being greater than what is allowed (10x at this block)
+         * @notice if margin delta is zero, we do not expect modifyPosition() to be called
+         * and only transfeMargin() thus we expect error "Insufficient margin" to be
+         * thrown despite it being a max leverage exceeded issue
+         */
+        it("Trade fails if fee greater than max leverage with zero margin delta", async () => {
+            // approve allowance for marginAccount to spend
+            await sUSD
+                .connect(account0)
+                .approve(marginAccount.address, ACCOUNT_AMOUNT);
+
+            // define new position
+            let newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: TEST_VALUE,
+                    sizeDelta: sizeDelta,
+                },
+            ];
+
+            // deposit margin into account and execute trade
+            await marginAccount
+                .connect(account0)
+                .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
+
+            /**
+             * @notice at this point, total margin in market is TEST_VALUE
+             */
+
+            // set trade fee to be 40% of sizeDelta
+            await marginBaseSettings.connect(account0).setTradeFee(4_000);
+
+            /**
+             * @dev fee is 40% and sizeDelta below is 1 ether (i.e. ~2_000 USD)
+             * therefore, fee should be 800 USD.
+             * There is only 1_000 USD in the market, thus trade results
+             * in 200 USD remaining.
+             * This exceeds max leverage based on size and
+             * margin in market and thus should fail with Max leverage exceeded
+             * @dev synthetix adds their fee which pushes us past 10x
+             */
+            newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: ethers.constants.Zero,
+                    sizeDelta: sizeDelta.mul(2),
+                },
+            ];
+
+            // trade
+            const tx = marginAccount
+                .connect(account0)
+                .distributeMargin(newPosition);
+            await expect(tx).to.be.revertedWith("Insufficient margin");
+        });
     });
 });
