@@ -1603,5 +1603,44 @@ describe("Integration: Test Cross Margin", () => {
                 .distributeMargin(newPosition);
             await expect(tx).to.be.revertedWith("Insufficient margin");
         });
+
+        it("Trade fails if trade fee exceeds free margin", async () => {
+            // approve allowance for marginAccount to spend
+            await sUSD
+                .connect(account0)
+                .approve(marginAccount.address, MINT_AMOUNT);
+
+            // set trade fee to be 10% of sizeDelta
+            await marginBaseSettings.connect(account0).setTradeFee(1_000);
+
+            /** 
+             * @notice define new positions which attempt to spend margin 
+             * set aside for fee resulting inadequate margin to pay fee
+             * 
+             * @dev margin delta in second position transfers
+             * remaining MINT_AMOUNT plus fee (i.e. sizeDelta / 10)
+             * from first position which results in no margin left to pay 
+             * trade fees at the end of the tx
+             */
+            let newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: MINT_AMOUNT.div(2),
+                    sizeDelta: sizeDelta, // 1_000 USD
+                },
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: MINT_AMOUNT.div(2).add(sizeDelta.div(10)),
+                    sizeDelta: sizeDelta, // 1_000 USD
+                },
+            ];
+
+            // deposit margin into account and execute trade
+            const tx = marginAccount
+                .connect(account0)
+                .depositAndDistribute(MINT_AMOUNT, newPosition);
+
+            await expect(tx).to.revertedWith("CannotPayFee");
+        });
     });
 });
