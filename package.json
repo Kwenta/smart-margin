@@ -7,7 +7,7 @@
     "f-test:integration": "forge test --fork-url $(grep ARCHIVE_NODE_URL_L2 .env | cut -d '=' -f2) --fork-block-number 9000000 --etherscan-api-key $(grep ETHERSCAN_API_KEY .env | cut -d '=' -f2) --gas-report",
     "hh-test:integration": "npx hardhat test test/integration/*",
     "coverage": "npx hardhat coverage",
-    "testnet-deploy": "hardhat deploy --network optimistic-kovan --tags MarginAccountFactory-Kovan",
+    "testnet-deploy": "hardhat deploy --network optimistic-goerli --tags MarginAccountFactory-Goerli",
     "mainnet-deploy": "hardhat deploy --network optimistic-mainnet --tags MarginAccountFactory"
   },
   "repository": {
@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.5",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.4",
     "@nomiclabs/hardhat-etherscan": "^3.0.3",
     "@nomiclabs/hardhat-waffle": "^2.0.3",
     "@openzeppelin/contracts": "^4.6.0",
