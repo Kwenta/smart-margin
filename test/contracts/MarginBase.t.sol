@@ -64,6 +64,8 @@ contract MarginBaseTest is DSTest {
         uint256 keeperFee
     );
 
+    event FeeImposed(address indexed account, uint256 amount);
+
     // futures market(s) for mocking: addresses match those on OE Mainnet
     IFuturesMarket private futuresMarketETH =
         IFuturesMarket(0xf86048DFf23cF130107dfB4e6386f574231a5C65);
@@ -305,6 +307,22 @@ contract MarginBaseTest is DSTest {
             address(marginAsset),
             abi.encodePacked(IERC20.balanceOf.selector),
             abi.encode(amount)
+        );
+    }
+
+    function mockGelato(uint256 fee) internal {
+        // mock gelato fee details
+        cheats.mockCall(
+            account.ops(),
+            abi.encodePacked(IOps.getFeeDetails.selector),
+            abi.encode(fee, account.ETH())
+        );
+
+        // mock gelato address getter
+        cheats.mockCall(
+            account.ops(),
+            abi.encodePacked(IOps.gelato.selector),
+            abi.encode(gelato)
         );
     }
 
@@ -1392,7 +1410,6 @@ contract MarginBaseTest is DSTest {
         uint256 amountToCommit = originalDeposit;
         int256 orderSizeDelta = 1e18;
         uint256 limitPrice = 3e18;
-        uint256 fee = 1;
         deposit(originalDeposit);
 
         uint256 orderId = placeAdvancedOrder(
@@ -1405,20 +1422,7 @@ contract MarginBaseTest is DSTest {
 
         // make limit order condition
         mockExchangeRates(futuresMarketETH, limitPrice);
-
-        // mock gelato fee details
-        cheats.mockCall(
-            account.ops(),
-            abi.encodePacked(IOps.getFeeDetails.selector),
-            abi.encode(fee, account.ETH())
-        );
-
-        // mock gelato address getter
-        cheats.mockCall(
-            account.ops(),
-            abi.encodePacked(IOps.gelato.selector),
-            abi.encode(gelato)
-        );
+        mockGelato(0);
 
         // call as ops
         cheats.prank(address(gelatoOps));
@@ -1447,20 +1451,7 @@ contract MarginBaseTest is DSTest {
 
         // make limit order condition
         mockExchangeRates(futuresMarketETH, limitPrice);
-
-        // mock gelato fee details
-        cheats.mockCall(
-            account.ops(),
-            abi.encodePacked(IOps.getFeeDetails.selector),
-            abi.encode(fee, account.ETH())
-        );
-
-        // mock gelato address getter
-        cheats.mockCall(
-            account.ops(),
-            abi.encodePacked(IOps.gelato.selector),
-            abi.encode(gelato)
-        );
+        mockGelato(fee);
 
         // provide account with fee balance
         cheats.deal(address(account), fee);
@@ -1471,6 +1462,70 @@ contract MarginBaseTest is DSTest {
         // call as ops
         cheats.prank(address(gelatoOps));
         account.executeOrder(orderId);
+    }
+
+    function testExecutionEmitsFeeImposedEvent() public {
+        //setup
+        assertEq(account.committedMargin(), 0);
+        uint256 originalDeposit = 10e18;
+        uint256 amountToCommit = originalDeposit;
+        int256 orderSizeDelta = 1e18;
+        uint256 ethPrice = 3e18;
+
+        uint256 priceInUSD = (uint256(orderSizeDelta) * ethPrice) / 1e18;
+        uint256 expectedFinalFeeCost = (priceInUSD *
+            (TRADE_FEE + LIMIT_ORDER_FEE)) / 10_000;
+
+        deposit(originalDeposit);
+
+        uint256 orderId = placeAdvancedOrder(
+            ETH_MARKET_KEY,
+            int256(amountToCommit),
+            orderSizeDelta,
+            ethPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
+        );
+
+        // make limit order condition
+        mockExchangeRates(futuresMarketETH, ethPrice);
+        mockGelato(0);
+
+        cheats.expectEmit(true, false, false, true, address(account));
+        emit FeeImposed(address(account), expectedFinalFeeCost);
+
+        // call as ops
+        cheats.prank(address(gelatoOps));
+        account.executeOrder(orderId);
+    }
+
+    // assert successful execution frees committed margin
+    function testExecutionPaysGelato() public {
+        assertEq(account.committedMargin(), 0);
+        uint256 originalDeposit = 10e18;
+        uint256 amountToCommit = originalDeposit;
+        int256 orderSizeDelta = 1e18;
+        uint256 limitPrice = 3e18;
+        uint256 fee = 1;
+        deposit(originalDeposit);
+
+        uint256 orderId = placeAdvancedOrder(
+            ETH_MARKET_KEY,
+            int256(amountToCommit),
+            orderSizeDelta,
+            limitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT
+        );
+
+        // make limit order condition
+        mockExchangeRates(futuresMarketETH, limitPrice);
+
+        mockGelato(fee);
+
+        // call as ops
+        cheats.prank(address(gelatoOps));
+        account.executeOrder(orderId);
+
+        assertEq(address(gelato).balance, fee);
     }
 
     // assert fee transfer to gelato is called
