@@ -1500,6 +1500,8 @@ contract MarginBaseTest is DSTest {
 
     // assert successful execution frees committed margin
     function testExecutionPaysGelato() public {
+        uint256 existingGelatoBalance = address(gelato).balance;
+
         assertEq(account.committedMargin(), 0);
         uint256 originalDeposit = 10e18;
         uint256 amountToCommit = originalDeposit;
@@ -1525,7 +1527,7 @@ contract MarginBaseTest is DSTest {
         cheats.prank(address(gelatoOps));
         account.executeOrder(orderId);
 
-        assertEq(address(gelato).balance, fee);
+        assertEq(address(gelato).balance, existingGelatoBalance + fee);
     }
 
     // assert fee transfer to gelato is called
