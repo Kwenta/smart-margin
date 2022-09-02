@@ -4,7 +4,10 @@ import { artifacts, ethers, network, waffle } from "hardhat";
 import { Contract } from "ethers";
 import { mintToAccountSUSD } from "../utils/helpers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { setBalance } from "@nomicfoundation/hardhat-network-helpers";
+import {
+    setBalance,
+    impersonateAccount,
+} from "@nomicfoundation/hardhat-network-helpers";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -41,6 +44,7 @@ const MARKET_KEY_sETH = ethers.utils.formatBytes32String("sETH");
 
 // gelato
 const GELATO_OPS = "0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c";
+const GELATO_ETH = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
 // cross margin
 let marginBaseSettings: Contract;
@@ -164,8 +168,15 @@ const setup = async () => {
 describe("Integration: Test Advanced Orders", () => {
     describe("Test integration w/ Gelato", () => {
         const sizeDelta = ethers.BigNumber.from("500000000000000000");
+        let gelatoOps: Contract;
         before("Fork Network", async () => {
             await forkAtBlock(9000000);
+            const OPS_ABI = (await artifacts.readArtifact("IOps")).abi;
+            gelatoOps = new ethers.Contract(
+                GELATO_OPS,
+                OPS_ABI,
+                waffle.provider
+            );
         });
         beforeEach("Setup", async () => {
             // mint sUSD to test accounts, and deploy contracts
@@ -192,6 +203,127 @@ describe("Integration: Test Advanced Orders", () => {
             // confirm order placed
             const order = await marginAccount.orders(0);
             expect(order.marketKey).to.equal(MARKET_KEY_sETH);
+        });
+
+        it("Cancel order through gelato", async () => {
+            // submit order to gelato
+            await marginAccount
+                .connect(account0)
+                .placeOrder(MARKET_KEY_sETH, TEST_VALUE, sizeDelta, 0, 0);
+
+            // attempt to cancel order
+            const order = await marginAccount.orders(0);
+            await expect(marginAccount.connect(account0).cancelOrder(0))
+                .to.emit(gelatoOps, "TaskCancelled")
+                .withArgs(order.gelatoTaskId, marginAccount.address);
+        });
+
+        describe("Execute order (as Gelato)", () => {
+            const gelatoFee = 100;
+            const currentPrice = "1961800000000000000000"; // current ETH price at forked block
+
+            const executeOrder = async () => {
+                const order = await marginAccount.orders(0);
+                const gelato = await marginAccount.gelato();
+                const checkerCalldata =
+                    marginAccount.interface.encodeFunctionData("checker", [0]);
+                const executeOrderCalldata =
+                    marginAccount.interface.encodeFunctionData("executeOrder", [
+                        0,
+                    ]);
+                const resolverHash = await gelatoOps.getResolverHash(
+                    marginAccount.address,
+                    checkerCalldata
+                );
+
+                // execute order as Gelato would
+                await impersonateAccount(gelato);
+                const tx = gelatoOps
+                    .connect(await ethers.getSigner(gelato))
+                    .exec(
+                        gelatoFee,
+                        GELATO_ETH,
+                        marginAccount.address,
+                        false,
+                        true, // reverts for off-chain sim
+                        resolverHash,
+                        marginAccount.address,
+                        executeOrderCalldata
+                    );
+
+                return {
+                    tx,
+                    order,
+                    executeOrderCalldata,
+                };
+            };
+
+            beforeEach("Place order", async () => {
+                // submit order to gelato
+                await marginAccount
+                    .connect(account0)
+                    .placeOrder(
+                        MARKET_KEY_sETH,
+                        TEST_VALUE,
+                        sizeDelta,
+                        ethers.constants.MaxUint256,
+                        0
+                    );
+            });
+
+            it("ExecSuccess emitted from gelato", async () => {
+                const { tx, order, executeOrderCalldata } =
+                    await executeOrder();
+
+                await expect(tx)
+                    .to.emit(gelatoOps, "ExecSuccess")
+                    .withArgs(
+                        gelatoFee,
+                        GELATO_ETH,
+                        marginAccount.address,
+                        executeOrderCalldata,
+                        order.gelatoTaskId,
+                        true
+                    );
+            });
+
+            it("OrderFilled emitted", async () => {
+                const { tx } = await executeOrder();
+
+                await expect(tx)
+                    .to.emit(marginAccount, "OrderFilled")
+                    .withArgs(
+                        marginAccount.address,
+                        0,
+                        currentPrice,
+                        gelatoFee
+                    );
+            });
+
+            it("Order 'book' cleared", async () => {
+                const { tx } = await executeOrder();
+                await tx;
+
+                expect(
+                    (await marginAccount.orders(0)).gelatoTaskId
+                ).to.be.equal(ethers.constants.HashZero);
+            });
+
+            it("Fee transfer is correct", async () => {
+                const oldTreasuryPrice = await sUSD.balanceOf(KWENTA_TREASURY);
+
+                const { tx } = await executeOrder();
+                await tx;
+
+                const expectedFee = sizeDelta
+                    .mul(currentPrice)
+                    .div(ethers.constants.WeiPerEther)
+                    .mul(limitOrderFee + tradeFee)
+                    .div(10000);
+                expect(await sUSD.balanceOf(KWENTA_TREASURY)).to.equal(
+                    oldTreasuryPrice.add(expectedFee)
+                );
+            });
         });
     });
 
