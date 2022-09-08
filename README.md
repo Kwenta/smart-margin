@@ -16,12 +16,12 @@ The repo is a mix of [Hardhat](https://hardhat.org/) & [Foundry](https://github.
 
 ## Interacting
 
-### Using the CLI Interact Tool
-
 Make sure the deployer private key is set as an ENV if you want to use a signer
 ```
-DEPLOYER_PRIVATE_KEY=0xdeadbeef
+DEPLOYER_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
 ```
+
+### Using the CLI Interact Tool
 
 To interact with the local deployment files (Factory, Settings)
 ```bash
