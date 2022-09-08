@@ -26,7 +26,7 @@ DEPLOYER_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
 To interact with the local deployment files (Factory, Settings)
 ```bash
 npx hardhat interact --network <NETWORK_NAME>
-# ie. npx hardhat interact --network optimistic-goerli  
+# npx hardhat interact --network optimistic-goerli  
 ```
 
 To hot load a particular address (useful for attaching to a deployed margin account)
