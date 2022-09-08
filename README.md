@@ -14,6 +14,27 @@ The repo is a mix of [Hardhat](https://hardhat.org/) & [Foundry](https://github.
     │   └── integration         # End-to-end, integration tests using Hardhat
     └── ...
 
+## Interacting
+
+### Using the CLI Interact Tool
+
+Make sure the deployer private key is set as an ENV if you want to use a signer
+```
+DEPLOYER_PRIVATE_KEY=0xdeadbeef
+```
+
+To interact with the local deployment files (Factory, Settings)
+```bash
+npx hardhat interact --network <NETWORK_NAME>
+# ie. npx hardhat interact --network optimistic-goerli  
+```
+
+To hot load a particular address (useful for attaching to a deployed margin account)
+```bash
+npx hardhat interact --network <NETWORK_NAME> <ADDRESS> <PATH_TO_ABI>
+# npx hardhat interact --network optimistic-goerli 0xad1f15F747b1717D1Bf08e7E9a000B60D51344B9 ./artifacts/MarginBase.sol/MarginBase.json    
+```
+
 ## Testing
 
 ### Running Unit Tests
