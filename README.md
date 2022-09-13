@@ -1,6 +1,6 @@
 # Kwenta Margin Manager
 
-Contracts to manage account abstractions and features on top of the Synthetix Futures Platform. This will support future implementations of cross margin, limit orders, stop orders (TBD), copy trading (TBD). 
+Contracts to manage account abstractions and features on top of Synthetix Futures (v1). This will support implementations of cross margin, limit orders, and stop orders.
 
 The repo is a mix of [Hardhat](https://hardhat.org/) & [Foundry](https://github.com/foundry-rs/foundry). Hardhat will be used for integration testing and deployment. Foundry will be used for unit testing and fuzz testing. 
 
