@@ -954,18 +954,4 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     function _abs(int256 x) internal pure returns (uint256) {
         return uint256(x < 0 ? -x : x);
     }
-
-    /// @notice added to support recovering trapped erc20 tokens
-    /// @param tokenAddress: address of token to be recovered
-    /// @param tokenAmount: amount of token to be recovered
-    function rescueERC20(address tokenAddress, uint256 tokenAmount)
-        external
-        onlyOwner
-    {
-        if (tokenAddress == address(marginAsset)) {
-            revert CannotRescueMarginAsset();
-        }
-        IERC20(tokenAddress).transfer(owner(), tokenAmount);
-        emit Rescued(tokenAddress, tokenAmount);
-    }
 }
