@@ -16,11 +16,18 @@ contract MarginBaseSettingsTest is DSTest {
     address private constant RANDOM_ADDRESS =
         0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B;
 
+    /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
+    uint256 private tradeFee = 5; // 5 BPS
+    uint256 private limitOrderFee = 5; // 5 BPS
+    uint256 private stopOrderFee = 10; // 10 BPS
+
+    // events
+    event TreasuryAddressChanged(address treasury);
+    event TradeFeeChanged(uint256 fee);
+    event LimitOrderFeeChanged(uint256 fee);
+    event StopOrderFeeChanged(uint256 fee);
+
     function setUp() public {
-        /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
-        uint256 tradeFee = 5; // 5 BPS
-        uint256 limitOrderFee = 5; // 5 BPS
-        uint256 stopOrderFee = 10; // 10 BPS
         marginBaseSettings = new MarginBaseSettings(
             KWENTA_TREASURY,
             tradeFee,
@@ -54,7 +61,14 @@ contract MarginBaseSettingsTest is DSTest {
         marginBaseSettings.setTreasury(address(0));
     }
 
-    // @TODO: test events
+    function testSettingTreasuryAddressEvent() public {
+        // only care that topic 1 matches
+        cheats.expectEmit(true, false, false, false);
+        // event we expect
+        emit TreasuryAddressChanged(RANDOM_ADDRESS);
+        // event we get
+        marginBaseSettings.setTreasury(RANDOM_ADDRESS);
+    }
 
     /**********************************
      * Set Distribution Fee
@@ -81,7 +95,18 @@ contract MarginBaseSettingsTest is DSTest {
         marginBaseSettings.setTradeFee(1 ether);
     }
 
-    // @TODO: test events
+    function testFailSetSameTradeFee() public {
+        marginBaseSettings.setTradeFee(tradeFee);
+    }
+
+    function testSettingTradeFeeEvent() public {
+        // only care that topic 1 matches
+        cheats.expectEmit(true, false, false, false);
+        // event we expect
+        emit TradeFeeChanged(tradeFee * 2);
+        // event we get
+        marginBaseSettings.setTradeFee(tradeFee * 2);
+    }
 
     /**********************************
      * Set Limit Order Fee
@@ -108,7 +133,18 @@ contract MarginBaseSettingsTest is DSTest {
         marginBaseSettings.setLimitOrderFee(1 ether);
     }
 
-    // @TODO: test events
+    function testFailSetSameLimitOrderFee() public {
+        marginBaseSettings.setTradeFee(limitOrderFee);
+    }
+
+    function testSettingLimitOrderFeeEvent() public {
+        // only care that topic 1 matches
+        cheats.expectEmit(true, false, false, false);
+        // event we expect
+        emit LimitOrderFeeChanged(limitOrderFee * 2);
+        // event we get
+        marginBaseSettings.setLimitOrderFee(limitOrderFee * 2);
+    }
 
     /**********************************
      * Set Stop Loss Fee
@@ -135,5 +171,16 @@ contract MarginBaseSettingsTest is DSTest {
         marginBaseSettings.setStopOrderFee(1 ether);
     }
 
-    // @TODO: test events
+    function testFailSetSameStopOrderFee() public {
+        marginBaseSettings.setStopOrderFee(stopOrderFee);
+    }
+
+    function testSettingStopOrderFeeEvent() public {
+        // only care that topic 1 matches
+        cheats.expectEmit(true, false, false, false);
+        // event we expect
+        emit StopOrderFeeChanged(stopOrderFee * 2);
+        // event we get
+        marginBaseSettings.setStopOrderFee(stopOrderFee * 2);
+    }
 }
