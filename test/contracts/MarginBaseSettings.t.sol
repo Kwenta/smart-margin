@@ -76,7 +76,7 @@ contract MarginBaseSettingsTest is DSTest {
 
     /// @dev fuzz test
     function testSettingTradeFee(uint256 x) public {
-        if (x >= 10_000) {
+        if (x >= 10_000 && x != tradeFee) {
             cheats.expectRevert(
                 abi.encodeWithSelector(
                     MarginBaseSettings.InvalidFee.selector,
@@ -114,7 +114,7 @@ contract MarginBaseSettingsTest is DSTest {
 
     /// @dev fuzz test
     function testSettingLimitOrderFee(uint256 x) public {
-        if (x >= 10_000) {
+        if (x >= 10_000 && x != limitOrderFee) {
             cheats.expectRevert(
                 abi.encodeWithSelector(
                     MarginBaseSettings.InvalidFee.selector,
@@ -152,7 +152,7 @@ contract MarginBaseSettingsTest is DSTest {
 
     /// @dev fuzz test
     function testSettingStopOrderFee(uint256 x) public {
-        if (x >= 10_000) {
+        if (x >= 10_000 && x != stopOrderFee) {
             cheats.expectRevert(
                 abi.encodeWithSelector(
                     MarginBaseSettings.InvalidFee.selector,
