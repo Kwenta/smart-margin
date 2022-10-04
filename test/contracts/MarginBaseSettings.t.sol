@@ -125,7 +125,7 @@ contract MarginBaseSettingsTest is DSTest {
             cheats.expectRevert(
                 abi.encodeWithSelector(MarginBaseSettings.DuplicateFee.selector)
             );
-            marginBaseSettings.setTradeFee(x);
+            marginBaseSettings.setLimitOrderFee(x);
             return;
         }
         if (x >= 10_000) {
@@ -170,7 +170,7 @@ contract MarginBaseSettingsTest is DSTest {
             cheats.expectRevert(
                 abi.encodeWithSelector(MarginBaseSettings.DuplicateFee.selector)
             );
-            marginBaseSettings.setTradeFee(x);
+            marginBaseSettings.setStopOrderFee(x);
             return;
         }
         if (x >= 10_000) {
