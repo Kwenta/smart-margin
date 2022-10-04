@@ -66,6 +66,9 @@ contract MarginBaseSettings is Ownable {
     /// @param fee: fee denoted in BPS
     error InvalidFee(uint256 fee);
 
+    /// @notice new fee cannot be the same as the old fee
+    error DuplicateFee();
+
     /*///////////////////////////////////////////////////////////////
                             Constructor
     ///////////////////////////////////////////////////////////////*/
@@ -120,6 +123,9 @@ contract MarginBaseSettings is Ownable {
         /// @notice ensure valid fee
         if (_fee >= MAX_BPS) { revert InvalidFee(_fee); }
 
+        // @notice ensure fee will change
+        if (_fee == tradeFee) revert DuplicateFee();
+
         /// @notice set fee
         tradeFee = _fee;
 
@@ -132,6 +138,9 @@ contract MarginBaseSettings is Ownable {
         /// @notice ensure valid fee
         if (_fee >= MAX_BPS) { revert InvalidFee(_fee); }
 
+        // @notice ensure fee will change
+        if (_fee == limitOrderFee) revert DuplicateFee();
+
         /// @notice set fee
         limitOrderFee = _fee;
 
@@ -143,6 +152,9 @@ contract MarginBaseSettings is Ownable {
     function setStopOrderFee(uint256 _fee) external onlyOwner {
         /// @notice ensure valid fee
         if (_fee >= MAX_BPS) { revert InvalidFee(_fee); }
+
+        // @notice ensure fee will change
+        if (_fee == stopOrderFee) revert DuplicateFee();
 
         /// @notice set fee
         stopOrderFee = _fee;
