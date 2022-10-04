@@ -12,7 +12,7 @@ contract MarginBaseSettings is Ownable {
                                 Constants
     ///////////////////////////////////////////////////////////////*/
 
-    /// @notice decimals calculations
+    /// @notice max BPS; used for decimals calculations
     uint256 private constant MAX_BPS = 10000;
 
     /*///////////////////////////////////////////////////////////////
@@ -23,7 +23,7 @@ contract MarginBaseSettings is Ownable {
     address public treasury;
 
     /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
-    /// @dev fee imposed on all trades 
+    /// @dev fee imposed on all trades
     /// @dev trades: defined as changes made to IMarginBaseTypes.ActiveMarketPosition.size
     uint256 public tradeFee;
 
@@ -62,7 +62,7 @@ contract MarginBaseSettings is Ownable {
     /// @notice zero address cannot be used
     error ZeroAddress();
 
-    /// @notice invalid fee (fee >= MAX_BPS)
+    /// @notice invalid fee (fee > MAX_BPS)
     /// @param fee: fee denoted in BPS
     error InvalidFee(uint256 fee);
 
@@ -82,15 +82,15 @@ contract MarginBaseSettings is Ownable {
         uint256 _stopOrderFee
     ) {
         /// @notice ensure valid address for Kwenta Treasury
-        if (_treasury == address(0)) { revert ZeroAddress(); }
-        
-        /// @notice set Kwenta Treasury address 
+        if (_treasury == address(0)) revert ZeroAddress();
+
+        /// @notice set Kwenta Treasury address
         treasury = _treasury;
 
         /// @notice ensure valid fees
-        if (_tradeFee >= MAX_BPS) { revert InvalidFee(_tradeFee); }
-        if (_limitOrderFee >= MAX_BPS) { revert InvalidFee(_limitOrderFee); }
-        if (_stopOrderFee >= MAX_BPS) { revert InvalidFee(_stopOrderFee); }
+        if (_tradeFee > MAX_BPS) revert InvalidFee(_tradeFee);
+        if (_limitOrderFee > MAX_BPS) revert InvalidFee(_limitOrderFee);
+        if (_stopOrderFee > MAX_BPS) revert InvalidFee(_stopOrderFee);
 
         /// @notice set initial fees
         tradeFee = _tradeFee;
@@ -106,7 +106,7 @@ contract MarginBaseSettings is Ownable {
     /// @param _treasury: new treasury address
     function setTreasury(address _treasury) external onlyOwner {
         /// @notice ensure valid address for Kwenta Treasury
-        if (_treasury == address(0)) { revert ZeroAddress(); }
+        if (_treasury == address(0)) revert ZeroAddress();
 
         /// @notice set Kwenta Treasury address
         treasury = _treasury;
@@ -118,7 +118,7 @@ contract MarginBaseSettings is Ownable {
     /// @param _fee: fee denoted in BPS
     function setTradeFee(uint256 _fee) external onlyOwner {
         /// @notice ensure valid fee
-        if (_fee >= MAX_BPS) { revert InvalidFee(_fee); }
+        if (_fee > MAX_BPS) revert InvalidFee(_fee);
 
         /// @notice set fee
         tradeFee = _fee;
@@ -130,7 +130,7 @@ contract MarginBaseSettings is Ownable {
     /// @param _fee: fee denoted in BPS
     function setLimitOrderFee(uint256 _fee) external onlyOwner {
         /// @notice ensure valid fee
-        if (_fee >= MAX_BPS) { revert InvalidFee(_fee); }
+        if (_fee > MAX_BPS) revert InvalidFee(_fee);
 
         /// @notice set fee
         limitOrderFee = _fee;
@@ -142,7 +142,7 @@ contract MarginBaseSettings is Ownable {
     /// @param _fee: fee denoted in BPS
     function setStopOrderFee(uint256 _fee) external onlyOwner {
         /// @notice ensure valid fee
-        if (_fee >= MAX_BPS) { revert InvalidFee(_fee); }
+        if (_fee > MAX_BPS) revert InvalidFee(_fee);
 
         /// @notice set fee
         stopOrderFee = _fee;
