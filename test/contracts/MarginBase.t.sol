@@ -453,6 +453,12 @@ contract MarginBaseTest is DSTest {
         assertEq(marginAsset.balanceOf(address(account)), 0);
     }
 
+    function testSendingEthToAccount() public payable {
+        (bool success, ) = address(account).call{value: 1 ether}("");
+        require(success, "call failed");
+        assertEq(address(account).balance, 1 ether);
+    }
+
     function testEthDepositWithdrawal() public payable {
         uint256 amount = 1 ether;
         cheats.deal(address(this), amount);
