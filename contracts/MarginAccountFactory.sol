@@ -84,6 +84,6 @@ contract MarginAccountFactory is MinimalProxyFactory {
         );
         account.transferOwnership(msg.sender);
 
-        emit NewAccount(msg.sender, address(account));
+        emit NewAccount(msg.sender, accountAddress);
     }
 }
