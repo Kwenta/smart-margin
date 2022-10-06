@@ -208,7 +208,6 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                 "MarginBase: Could not get Futures Market Manager"
             )
         );
-        marginAsset = IERC20(_marginAsset);
 
         /// @dev MarginBaseSettings must exist prior to MarginBase account creation
         marginBaseSettings = MarginBaseSettings(_marginBaseSettings);
