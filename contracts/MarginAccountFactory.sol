@@ -26,7 +26,7 @@ contract MarginAccountFactory is MinimalProxyFactory {
     address public immutable addressResolver;
 
     /// @notice settings for MarginBase accounts
-    address public marginBaseSettings;
+    address public immutable marginBaseSettings;
     
     /// @notice gelato ops
     address payable public immutable ops;
