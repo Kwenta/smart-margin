@@ -188,6 +188,10 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     // solhint-disable-next-line
     constructor() MinimalProxyable() {}
 
+    /// @notice allows ETH to be deposited directly into a margin account
+    /// @notice ETH can be withdrawn
+    receive() external payable onlyOwner {}
+
     /// @notice initialize contract (only once) and transfer ownership to caller
     /// @dev ensure resolver and sUSD addresses are set to their proxies and not implementations
     /// @param _marginAsset: token contract address used for account margin
