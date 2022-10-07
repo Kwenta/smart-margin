@@ -54,15 +54,13 @@ contract MarginBaseSettingsTest is DSTest {
         marginBaseSettings.setTreasury(address(0));
     }
 
-    // @TODO: test events
-
     /**********************************
      * Set Distribution Fee
      **********************************/
 
     /// @dev fuzz test
     function testSettingTradeFee(uint256 x) public {
-        if (x >= 10_000) {
+        if (x > 10_000) {
             cheats.expectRevert(
                 abi.encodeWithSelector(
                     MarginBaseSettings.InvalidFee.selector,
@@ -81,15 +79,13 @@ contract MarginBaseSettingsTest is DSTest {
         marginBaseSettings.setTradeFee(1 ether);
     }
 
-    // @TODO: test events
-
     /**********************************
      * Set Limit Order Fee
      **********************************/
 
     /// @dev fuzz test
     function testSettingLimitOrderFee(uint256 x) public {
-        if (x >= 10_000) {
+        if (x > 10_000) {
             cheats.expectRevert(
                 abi.encodeWithSelector(
                     MarginBaseSettings.InvalidFee.selector,
@@ -108,15 +104,13 @@ contract MarginBaseSettingsTest is DSTest {
         marginBaseSettings.setLimitOrderFee(1 ether);
     }
 
-    // @TODO: test events
-
     /**********************************
      * Set Stop Loss Fee
      **********************************/
 
     /// @dev fuzz test
     function testSettingStopOrderFee(uint256 x) public {
-        if (x >= 10_000) {
+        if (x > 10_000) {
             cheats.expectRevert(
                 abi.encodeWithSelector(
                     MarginBaseSettings.InvalidFee.selector,
@@ -134,6 +128,4 @@ contract MarginBaseSettingsTest is DSTest {
         marginBaseSettings.transferOwnership(RANDOM_ADDRESS); // not a zero address
         marginBaseSettings.setStopOrderFee(1 ether);
     }
-
-    // @TODO: test events
 }
