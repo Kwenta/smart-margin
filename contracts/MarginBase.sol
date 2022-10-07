@@ -260,11 +260,12 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     ///////////////////////////////////////////////////////////////*/
 
     /// @param _amount: amount of marginAsset to deposit into marginBase account
-    function deposit(uint256 _amount)
-        public
-        notZero(_amount, "_amount")
-        onlyOwner
-    {
+    function deposit(uint256 _amount) public onlyOwner {
+        _deposit(_amount);
+    }
+
+    /// @dev see deposit() NatSpec
+    function _deposit(uint256 _amount) internal notZero(_amount, "_amount") {
         // transfer in margin asset from user
         // (will revert if user does not have amount specified)
         require(
@@ -318,7 +319,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         uint256 _amount,
         NewPosition[] memory _newPositions
     ) external onlyOwner {
-        deposit(_amount);
+        _deposit(_amount);
         _distributeMargin(_newPositions, 0);
     }
 
@@ -333,6 +334,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         _distributeMargin(_newPositions, 0);
     }
 
+    // @dev see distributeMargin() NatSpec
     function _distributeMargin(
         NewPosition[] memory _newPositions,
         uint256 _advancedOrderFee
