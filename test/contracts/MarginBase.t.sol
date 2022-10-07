@@ -1115,6 +1115,33 @@ contract MarginBaseTest is DSTest {
         assertTrue(isValid);
     }
 
+    function testMaxFeeValidWhenEqual() public {
+        uint256 amount = 10e18;
+        int256 orderSizeDelta = 1e18;
+        uint256 expectedLimitPrice = 3e18;
+        uint256 currentPrice = 2e18;
+        uint256 expectedMaxFee = 10; // 10 basis points
+        deposit(amount);
+        cheats.deal(address(account), 1 ether / 10);
+        bytes memory createTaskSelector = abi.encodePacked(
+            IOps.createTaskNoPrepayment.selector
+        );
+        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        uint256 orderId = account.placeOrderWithFeeCap(
+            ETH_MARKET_KEY,
+            int256(amount),
+            orderSizeDelta,
+            expectedLimitPrice,
+            IMarginBaseTypes.OrderTypes.LIMIT,
+            expectedMaxFee
+        );
+
+        mockDynamicFee(futuresMarketETH, 10, false);
+        mockExchangeRates(futuresMarketETH, currentPrice);
+        (bool isValid, ) = account.validOrder(orderId);
+        assertTrue(isValid);
+    }
+
     /********************************************************************
      * Advanced Orders Placement
      ********************************************************************/

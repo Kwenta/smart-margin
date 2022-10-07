@@ -654,7 +654,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                     SUSD,
                     futuresMarket(order.marketKey).baseAsset()
                 );
-            if (tooVolatile || dynamicFee >= order.maxDynamicFee) {
+            if (tooVolatile || dynamicFee > order.maxDynamicFee) {
                 return (false, 0);
             }
         }
