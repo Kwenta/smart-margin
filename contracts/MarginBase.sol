@@ -188,6 +188,10 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     // solhint-disable-next-line
     constructor() MinimalProxyable() {}
 
+    /// @notice allows ETH to be deposited directly into a margin account
+    /// @notice ETH can be withdrawn
+    receive() external payable onlyOwner {}
+
     /// @notice initialize contract (only once) and transfer ownership to caller
     /// @dev ensure resolver and sUSD addresses are set to their proxies and not implementations
     /// @param _marginAsset: token contract address used for account margin
@@ -379,7 +383,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
 
                     // determine trade fee based on size delta
                     uint256 fee = calculateTradeFee(
-                        _abs(sizeDelta),
+                        sizeDelta,
                         market,
                         _advancedOrderFee
                     );
@@ -487,7 +491,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
 
         // determine trade fee based on size delta
-        fee = calculateTradeFee(_abs(_sizeDelta), _market, _advancedOrderFee);
+        fee = calculateTradeFee(_sizeDelta, _market, _advancedOrderFee);
 
         /// @notice alter the amount of margin in specific market position
         /// @dev positive input triggers a deposit; a negative one, a withdrawal
@@ -517,11 +521,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
         if (_sizeDelta != 0) {
             // determine trade fee based on size delta
-            fee = calculateTradeFee(
-                _abs(_sizeDelta),
-                _market,
-                _advancedOrderFee
-            );
+            fee = calculateTradeFee(_sizeDelta, _market, _advancedOrderFee);
 
             /// @notice alter the amount of margin in specific market position
             /// @dev positive input triggers a deposit; a negative one, a withdrawal
@@ -558,11 +558,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
 
             // determine trade fee based on size delta
-            fee = calculateTradeFee(
-                _abs(_sizeDelta),
-                _market,
-                _advancedOrderFee
-            );
+            fee = calculateTradeFee(_sizeDelta, _market, _advancedOrderFee);
 
             /// @notice alter the amount of margin in specific market position
             /// @dev positive input triggers a deposit; a negative one, a withdrawal
@@ -586,12 +582,13 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param _advancedOrderFee: if additional fee charged for advanced orders
     /// @return fee to be imposed based on size delta
     function calculateTradeFee(
-        uint256 _sizeDelta,
+        int256 _sizeDelta,
         IFuturesMarket _market,
         uint256 _advancedOrderFee
     ) internal view returns (uint256 fee) {
         fee =
-            (_sizeDelta * (marginBaseSettings.tradeFee() + _advancedOrderFee)) /
+            (_abs(_sizeDelta) *
+                (marginBaseSettings.tradeFee() + _advancedOrderFee)) /
             MAX_BPS;
         /// @notice fee is currently measured in the underlying base asset of the market
         /// @dev fee will be measured in sUSD, thus exchange rate is needed
@@ -953,19 +950,5 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param x: signed number
     function _abs(int256 x) internal pure returns (uint256) {
         return uint256(x < 0 ? -x : x);
-    }
-
-    /// @notice added to support recovering trapped erc20 tokens
-    /// @param tokenAddress: address of token to be recovered
-    /// @param tokenAmount: amount of token to be recovered
-    function rescueERC20(address tokenAddress, uint256 tokenAmount)
-        external
-        onlyOwner
-    {
-        if (tokenAddress == address(marginAsset)) {
-            revert CannotRescueMarginAsset();
-        }
-        IERC20(tokenAddress).transfer(owner(), tokenAmount);
-        emit Rescued(tokenAddress, tokenAmount);
     }
 }

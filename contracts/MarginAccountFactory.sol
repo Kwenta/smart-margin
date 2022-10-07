@@ -7,9 +7,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title Kwenta MarginBase Factory
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
-/// @notice Factory which enables deploying a MarginBase account for any user 
+/// @notice Factory which enables deploying a MarginBase account for any user
 contract MarginAccountFactory is MinimalProxyFactory {
-    
     string public version; // format: (0.1.0)
 
     /*///////////////////////////////////////////////////////////////
@@ -72,14 +71,19 @@ contract MarginAccountFactory is MinimalProxyFactory {
     /// @notice clone MarginBase (i.e. create new account for user)
     /// @dev this contract is the initial owner of cloned MarginBase,
     /// but ownership is transferred after successful initialization
-    function newAccount() external returns (address) {
-        MarginBase account = MarginBase(
+    function newAccount() external returns (address payable accountAddress) {
+        accountAddress = payable(
             _cloneAsMinimalProxy(address(implementation), "Creation failure")
         );
-        account.initialize(address(marginAsset), addressResolver, marginBaseSettings, ops);
+        MarginBase account = MarginBase(accountAddress);
+        account.initialize(
+            address(marginAsset),
+            addressResolver,
+            marginBaseSettings,
+            ops
+        );
         account.transferOwnership(msg.sender);
 
-        emit NewAccount(msg.sender, address(account));
-        return address(account);
+        emit NewAccount(msg.sender, accountAddress);
     }
 }

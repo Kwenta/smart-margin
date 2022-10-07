@@ -453,6 +453,12 @@ contract MarginBaseTest is DSTest {
         assertEq(marginAsset.balanceOf(address(account)), 0);
     }
 
+    function testSendingEthToAccount() public payable {
+        (bool success, ) = address(account).call{value: 1 ether}("");
+        require(success, "call failed");
+        assertEq(address(account).balance, 1 ether);
+    }
+
     function testEthDepositWithdrawal() public payable {
         uint256 amount = 1 ether;
         cheats.deal(address(this), amount);
@@ -840,37 +846,6 @@ contract MarginBaseTest is DSTest {
             abi.encodeWithSelector(MarginBase.InvalidPrice.selector)
         );
         account.depositAndDistribute(1 ether, newPositions);
-    }
-
-    /********************************************************************
-     * rescueERC20()
-     ********************************************************************/
-    function testCanRescueToken() public {
-        MintableERC20 token = new MintableERC20(address(this), 1 ether);
-        token.transfer(address(account), 1 ether);
-        assertEq(token.balanceOf(address(this)), 0);
-        account.rescueERC20(address(token), 1 ether);
-        assertEq(token.balanceOf(address(this)), 1 ether);
-    }
-
-    function testCantRescueMarginAssetToken() public {
-        marginAsset.mint(address(this), 1 ether);
-        marginAsset.transfer(address(account), 1 ether);
-        assertEq(marginAsset.balanceOf(address(this)), 0);
-        cheats.expectRevert(
-            abi.encodeWithSelector(MarginBase.CannotRescueMarginAsset.selector)
-        );
-        account.rescueERC20(address(marginAsset), 1 ether);
-    }
-
-    function testCantRescueTokenIfNotOwner() public {
-        MintableERC20 token = new MintableERC20(address(this), 1 ether);
-        token.transfer(address(account), 1 ether);
-        cheats.expectRevert(
-            abi.encodePacked("Ownable: caller is not the owner")
-        );
-        cheats.prank(nonOwnerEOA); // non-owner calling rescueERC20()
-        account.rescueERC20(address(token), 1 ether);
     }
 
     /********************************************************************
