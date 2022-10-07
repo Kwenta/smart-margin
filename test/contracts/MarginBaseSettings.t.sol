@@ -83,7 +83,7 @@ contract MarginBaseSettingsTest is DSTest {
             marginBaseSettings.setTradeFee(x);
             return;
         }
-        if (x >= 10_000) {
+        if (x > 10_000) {
             cheats.expectRevert(
                 abi.encodeWithSelector(
                     MarginBaseSettings.InvalidFee.selector,
@@ -128,7 +128,8 @@ contract MarginBaseSettingsTest is DSTest {
             marginBaseSettings.setLimitOrderFee(x);
             return;
         }
-        if (x >= 10_000) {
+        
+        if (x > 10_000) {
             cheats.expectRevert(
                 abi.encodeWithSelector(
                     MarginBaseSettings.InvalidFee.selector,
@@ -173,7 +174,8 @@ contract MarginBaseSettingsTest is DSTest {
             marginBaseSettings.setStopOrderFee(x);
             return;
         }
-        if (x >= 10_000) {
+
+        if (x > 10_000) {
             cheats.expectRevert(
                 abi.encodeWithSelector(
                     MarginBaseSettings.InvalidFee.selector,
