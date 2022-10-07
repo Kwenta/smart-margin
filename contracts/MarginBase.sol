@@ -383,7 +383,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
 
                     // determine trade fee based on size delta
                     uint256 fee = calculateTradeFee(
-                        _abs(sizeDelta),
+                        sizeDelta,
                         market,
                         _advancedOrderFee
                     );
@@ -491,7 +491,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
 
         // determine trade fee based on size delta
-        fee = calculateTradeFee(_abs(_sizeDelta), _market, _advancedOrderFee);
+        fee = calculateTradeFee(_sizeDelta, _market, _advancedOrderFee);
 
         /// @notice alter the amount of margin in specific market position
         /// @dev positive input triggers a deposit; a negative one, a withdrawal
@@ -521,11 +521,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
         if (_sizeDelta != 0) {
             // determine trade fee based on size delta
-            fee = calculateTradeFee(
-                _abs(_sizeDelta),
-                _market,
-                _advancedOrderFee
-            );
+            fee = calculateTradeFee(_sizeDelta, _market, _advancedOrderFee);
 
             /// @notice alter the amount of margin in specific market position
             /// @dev positive input triggers a deposit; a negative one, a withdrawal
@@ -562,11 +558,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             _market.modifyPositionWithTracking(_sizeDelta, TRACKING_CODE);
 
             // determine trade fee based on size delta
-            fee = calculateTradeFee(
-                _abs(_sizeDelta),
-                _market,
-                _advancedOrderFee
-            );
+            fee = calculateTradeFee(_sizeDelta, _market, _advancedOrderFee);
 
             /// @notice alter the amount of margin in specific market position
             /// @dev positive input triggers a deposit; a negative one, a withdrawal
@@ -590,12 +582,13 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param _advancedOrderFee: if additional fee charged for advanced orders
     /// @return fee to be imposed based on size delta
     function calculateTradeFee(
-        uint256 _sizeDelta,
+        int256 _sizeDelta,
         IFuturesMarket _market,
         uint256 _advancedOrderFee
     ) internal view returns (uint256 fee) {
         fee =
-            (_sizeDelta * (marginBaseSettings.tradeFee() + _advancedOrderFee)) /
+            (_abs(_sizeDelta) *
+                (marginBaseSettings.tradeFee() + _advancedOrderFee)) /
             MAX_BPS;
         /// @notice fee is currently measured in the underlying base asset of the market
         /// @dev fee will be measured in sUSD, thus exchange rate is needed
