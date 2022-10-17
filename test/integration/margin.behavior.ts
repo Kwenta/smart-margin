@@ -56,6 +56,25 @@ let accounts: SignerWithAddress[];
 ///////////////////////////////////////////////////////////////*/
 
 /**
+ *  Increases the time in the EVM.
+ *  @param seconds Number of seconds to increase the time by
+ */
+const fastForward = async (seconds: number | BigNumber) => {
+    // It's handy to be able to be able to pass big numbers in as we can just
+    // query them from the contract, then send them back. If not changed to
+    // a number, this causes much larger fast forwards than expected without error.
+    if (ethers.BigNumber.isBigNumber(seconds)) seconds = seconds.toNumber();
+
+    // And same with strings.
+    if (typeof seconds === "string") seconds = parseFloat(seconds);
+
+    await network.provider.send("evm_increaseTime", [seconds]);
+
+    await network.provider.send("evm_mine");
+    await network.provider.send("evm_mine");
+};
+
+/**
  * @notice fork network at block number given
  */
 const forkAtBlock = async (block: number) => {
@@ -100,7 +119,7 @@ const setup = async () => {
     // get signers
     accounts = await ethers.getSigners();
 
-    for (let index = 0; index < 10; index++) {
+    for (let index = 0; index < 30; index++) {
         // mint account0 $100_000 sUSD
         await mintToAccountSUSD(accounts[index].address, MINT_AMOUNT);
     }
@@ -133,7 +152,7 @@ const setup = async () => {
                                 TESTS
 ///////////////////////////////////////////////////////////////*/
 
-describe("Integration: Test Cross Margin", () => {
+describe.only("Integration: Test Cross Margin", () => {
     before("Fork Network", async () => {
         await forkAtBlock(9000000);
         await setup();
@@ -214,7 +233,7 @@ describe("Integration: Test Cross Margin", () => {
     });
 
     describe("Deposit and Withdraw margin from account", () => {
-        beforeEach("Setup", async () => {
+        before("Setup", async () => {
             await deployMarginBaseAccountForEOA(accounts[1]);
         });
 
@@ -235,25 +254,17 @@ describe("Integration: Test Cross Margin", () => {
         it("Should Withdraw Margin from Account", async () => {
             const preBalance = await sUSD.balanceOf(accounts[1].address);
 
-            // approve allowance for marginAccount to spend
-            await sUSD
-                .connect(accounts[1])
-                .approve(marginAccount.address, ACCOUNT_AMOUNT);
-
-            // deposit sUSD into margin account
-            await marginAccount.connect(accounts[1]).deposit(ACCOUNT_AMOUNT);
-
             // withdraw sUSD into margin account
             await marginAccount.connect(accounts[1]).withdraw(ACCOUNT_AMOUNT);
 
-            // confirm deposit
+            // confirm withdraw
             const marginAccountBalance = await sUSD.balanceOf(
                 marginAccount.address
             );
             expect(marginAccountBalance).to.equal(0);
 
             const postBalance = await sUSD.balanceOf(accounts[1].address);
-            expect(preBalance).to.equal(postBalance);
+            expect(preBalance).to.below(postBalance);
         });
     });
 
@@ -272,7 +283,7 @@ describe("Integration: Test Cross Margin", () => {
         describe("Opening Positions", () => {
             const sizeDelta = ethers.BigNumber.from("500000000000000000");
 
-            beforeEach("Setup", async () => {
+            it("Should open single position", async () => {
                 await deployMarginBaseAccountForEOA(accounts[2]);
 
                 // approve allowance for marginAccount to spend
@@ -284,9 +295,7 @@ describe("Integration: Test Cross Margin", () => {
                 await marginAccount
                     .connect(accounts[2])
                     .deposit(ACCOUNT_AMOUNT);
-            });
 
-            it("Should open single position", async () => {
                 // define new positions
                 const newPosition = [
                     {
@@ -331,6 +340,18 @@ describe("Integration: Test Cross Margin", () => {
             });
 
             it("Should open multiple positions", async () => {
+                await deployMarginBaseAccountForEOA(accounts[9]);
+
+                // approve allowance for marginAccount to spend
+                await sUSD
+                    .connect(accounts[9])
+                    .approve(marginAccount.address, ACCOUNT_AMOUNT);
+
+                // deposit sUSD into margin account
+                await marginAccount
+                    .connect(accounts[9])
+                    .deposit(ACCOUNT_AMOUNT);
+
                 const btcSizeDelta =
                     ethers.BigNumber.from("-30000000000000000"); // 0.03 BTC
                 const linkSizeDelta = ethers.BigNumber.from(
@@ -364,12 +385,12 @@ describe("Integration: Test Cross Margin", () => {
 
                 // execute trades
                 await marginAccount
-                    .connect(accounts[2])
+                    .connect(accounts[9])
                     .distributeMargin(newPositions);
 
                 // confirm number of open internal positions that were defined above
                 const numberOfInternalPositions = await marginAccount
-                    .connect(accounts[2])
+                    .connect(accounts[9])
                     .getNumberOfInternalPositions();
                 expect(numberOfInternalPositions).to.equal(3);
 
@@ -423,7 +444,7 @@ describe("Integration: Test Cross Margin", () => {
 
                 // (2) size and margin
                 position = await marginAccount
-                    .connect(accounts[2])
+                    .connect(accounts[9])
                     .getPosition(MARKET_KEY_sUNI);
 
                 // will not estimate exact value for margin
@@ -434,7 +455,7 @@ describe("Integration: Test Cross Margin", () => {
         });
 
         describe("Closing Positions", () => {
-            beforeEach("Setup", async () => {
+            it("Should close single position", async () => {
                 await deployMarginBaseAccountForEOA(accounts[3]);
 
                 // approve allowance for marginAccount to spend
@@ -446,9 +467,7 @@ describe("Integration: Test Cross Margin", () => {
                 await marginAccount
                     .connect(accounts[3])
                     .deposit(ACCOUNT_AMOUNT);
-            });
 
-            it("Should close single position", async () => {
                 const sizeDelta = ethers.BigNumber.from("500000000000000000");
 
                 const openingPosition = [
@@ -496,6 +515,18 @@ describe("Integration: Test Cross Margin", () => {
             });
 
             it("Should close multiple positions", async () => {
+                await deployMarginBaseAccountForEOA(accounts[10]);
+
+                // approve allowance for marginAccount to spend
+                await sUSD
+                    .connect(accounts[10])
+                    .approve(marginAccount.address, ACCOUNT_AMOUNT);
+
+                // deposit sUSD into margin account
+                await marginAccount
+                    .connect(accounts[10])
+                    .deposit(ACCOUNT_AMOUNT);
+
                 const btcSizeDelta =
                     ethers.BigNumber.from("-30000000000000000"); // 0.03 BTC
                 const linkSizeDelta = ethers.BigNumber.from(
@@ -537,7 +568,7 @@ describe("Integration: Test Cross Margin", () => {
 
                 // execute trades
                 await marginAccount
-                    .connect(accounts[3])
+                    .connect(accounts[10])
                     .distributeMargin(openingPositions);
 
                 // modify positions (will close two of the above)
@@ -558,7 +589,7 @@ describe("Integration: Test Cross Margin", () => {
 
                 // execute trades (i.e. close positions)
                 await marginAccount
-                    .connect(accounts[3])
+                    .connect(accounts[10])
                     .distributeMargin(closingPositions);
 
                 // confirm correct position details:
@@ -635,6 +666,18 @@ describe("Integration: Test Cross Margin", () => {
             });
 
             it("Should withdraw all margin to account after closing position", async () => {
+                await deployMarginBaseAccountForEOA(accounts[11]);
+
+                // approve allowance for marginAccount to spend
+                await sUSD
+                    .connect(accounts[11])
+                    .approve(marginAccount.address, ACCOUNT_AMOUNT);
+
+                // deposit sUSD into margin account
+                await marginAccount
+                    .connect(accounts[11])
+                    .deposit(ACCOUNT_AMOUNT);
+
                 const sizeDelta = ethers.BigNumber.from("500000000000000000");
 
                 const openingPosition = [
@@ -650,7 +693,7 @@ describe("Integration: Test Cross Margin", () => {
 
                 // execute trade
                 await marginAccount
-                    .connect(accounts[3])
+                    .connect(accounts[11])
                     .distributeMargin(openingPosition);
 
                 const postOpeningTradeBalance = await sUSD.balanceOf(
@@ -669,7 +712,7 @@ describe("Integration: Test Cross Margin", () => {
 
                 // execute trade
                 await marginAccount
-                    .connect(accounts[3])
+                    .connect(accounts[11])
                     .distributeMargin(closingPosition);
 
                 const postClosingTradeBalance = await sUSD.balanceOf(
@@ -693,7 +736,32 @@ describe("Integration: Test Cross Margin", () => {
                 "-900000000000000000000"
             );
 
-            beforeEach("Setup", async () => {
+            // open (4) positions
+            // define new positions
+            const openingPositions = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: TEST_VALUE,
+                    sizeDelta: ethSizeDelta,
+                },
+                {
+                    marketKey: MARKET_KEY_sBTC,
+                    marginDelta: TEST_VALUE,
+                    sizeDelta: btcSizeDelta,
+                },
+                {
+                    marketKey: MARKET_KEY_sLINK,
+                    marginDelta: TEST_VALUE,
+                    sizeDelta: linkSizeDelta,
+                },
+                {
+                    marketKey: MARKET_KEY_sUNI,
+                    marginDelta: TEST_VALUE,
+                    sizeDelta: uniSizeDelta,
+                },
+            ];
+
+            it("Should Modify Multiple Position's Size", async () => {
                 await deployMarginBaseAccountForEOA(accounts[4]);
 
                 // approve allowance for marginAccount to spend
@@ -706,38 +774,11 @@ describe("Integration: Test Cross Margin", () => {
                     .connect(accounts[4])
                     .deposit(ACCOUNT_AMOUNT);
 
-                // open (4) positions
-                // define new positions
-                const openingPositions = [
-                    {
-                        marketKey: MARKET_KEY_sETH,
-                        marginDelta: TEST_VALUE,
-                        sizeDelta: ethSizeDelta,
-                    },
-                    {
-                        marketKey: MARKET_KEY_sBTC,
-                        marginDelta: TEST_VALUE,
-                        sizeDelta: btcSizeDelta,
-                    },
-                    {
-                        marketKey: MARKET_KEY_sLINK,
-                        marginDelta: TEST_VALUE,
-                        sizeDelta: linkSizeDelta,
-                    },
-                    {
-                        marketKey: MARKET_KEY_sUNI,
-                        marginDelta: TEST_VALUE,
-                        sizeDelta: uniSizeDelta,
-                    },
-                ];
-
                 // execute trades
                 await marginAccount
                     .connect(accounts[4])
                     .distributeMargin(openingPositions);
-            });
 
-            it("Should Modify Multiple Position's Size", async () => {
                 const newETHSizeDelta = ethers.BigNumber.from(
                     "1000000000000000000"
                 );
@@ -876,6 +917,23 @@ describe("Integration: Test Cross Margin", () => {
             });
 
             it("Should Modify Multiple Position's Margin (deposit)", async () => {
+                await deployMarginBaseAccountForEOA(accounts[13]);
+
+                // approve allowance for marginAccount to spend
+                await sUSD
+                    .connect(accounts[13])
+                    .approve(marginAccount.address, ACCOUNT_AMOUNT);
+
+                // deposit sUSD into margin account
+                await marginAccount
+                    .connect(accounts[13])
+                    .deposit(ACCOUNT_AMOUNT);
+
+                // execute trades
+                await marginAccount
+                    .connect(accounts[13])
+                    .distributeMargin(openingPositions);
+
                 const oldETHposition = await marginAccount.getPosition(
                     MARKET_KEY_sETH
                 );
@@ -918,12 +976,12 @@ describe("Integration: Test Cross Margin", () => {
 
                 // execute trades
                 await marginAccount
-                    .connect(accounts[4])
+                    .connect(accounts[13])
                     .distributeMargin(newPositions);
 
                 // confirm number of open positions
                 const numberOfActivePositions = await marginAccount
-                    .connect(accounts[4])
+                    .connect(accounts[13])
                     .getNumberOfInternalPositions();
 
                 expect(numberOfActivePositions).to.equal(4);
@@ -1006,6 +1064,23 @@ describe("Integration: Test Cross Margin", () => {
             });
 
             it("Should Modify Multiple Position's Margin (withdraw)", async () => {
+                await deployMarginBaseAccountForEOA(accounts[14]);
+
+                // approve allowance for marginAccount to spend
+                await sUSD
+                    .connect(accounts[14])
+                    .approve(marginAccount.address, ACCOUNT_AMOUNT);
+
+                // deposit sUSD into margin account
+                await marginAccount
+                    .connect(accounts[14])
+                    .deposit(ACCOUNT_AMOUNT);
+
+                // execute trades
+                await marginAccount
+                    .connect(accounts[14])
+                    .distributeMargin(openingPositions);
+
                 const oldETHposition = await marginAccount.getPosition(
                     MARKET_KEY_sETH
                 );
@@ -1048,12 +1123,12 @@ describe("Integration: Test Cross Margin", () => {
 
                 // execute trades
                 await marginAccount
-                    .connect(accounts[4])
+                    .connect(accounts[14])
                     .distributeMargin(newPositions);
 
                 // confirm number of open positions
                 const numberOfActivePositions = await marginAccount
-                    .connect(accounts[4])
+                    .connect(accounts[14])
                     .getNumberOfInternalPositions();
                 expect(numberOfActivePositions).to.equal(4);
 
@@ -1125,7 +1200,7 @@ describe("Integration: Test Cross Margin", () => {
 
                 // (2) size and margin
                 position = await marginAccount
-                    .connect(accounts[4])
+                    .connect(accounts[14])
                     .getPosition(MARKET_KEY_sUNI);
 
                 // will not estimate exact value for margin
@@ -1191,11 +1266,9 @@ describe("Integration: Test Cross Margin", () => {
     describe("Fees", () => {
         const sizeDelta = ethers.BigNumber.from("500000000000000000");
 
-        beforeEach("Setup", async () => {
-            await deployMarginBaseAccountForEOA(accounts[7]);
-        });
-
         it("Fee imposed when opening a position", async () => {
+            await deployMarginBaseAccountForEOA(accounts[7]);
+
             // approve allowance for marginAccount to spend
             await sUSD
                 .connect(accounts[7])
@@ -1243,9 +1316,11 @@ describe("Integration: Test Cross Margin", () => {
          *          (1) modifyPositionForMarket
          */
         it("Fee imposed when closing a position", async () => {
+            await deployMarginBaseAccountForEOA(accounts[15]);
+
             // approve allowance for marginAccount to spend
             await sUSD
-                .connect(accounts[7])
+                .connect(accounts[15])
                 .approve(marginAccount.address, ACCOUNT_AMOUNT);
 
             // define new position (open)
@@ -1259,7 +1334,7 @@ describe("Integration: Test Cross Margin", () => {
 
             // deposit margin into account and execute trade
             await marginAccount
-                .connect(accounts[7])
+                .connect(accounts[15])
                 .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
 
             // balance of treasury pre-trade
@@ -1275,7 +1350,7 @@ describe("Integration: Test Cross Margin", () => {
             ];
 
             await marginAccount
-                .connect(accounts[7])
+                .connect(accounts[15])
                 .distributeMargin(newPosition);
 
             // balance of treasury post-trade
@@ -1304,9 +1379,11 @@ describe("Integration: Test Cross Margin", () => {
          *          (2) modifyPositionForMarketAndWithdraw
          */
         it("Fee imposed when modifying a position", async () => {
+            await deployMarginBaseAccountForEOA(accounts[16]);
+
             // approve allowance for marginAccount to spend
             await sUSD
-                .connect(accounts[7])
+                .connect(accounts[16])
                 .approve(marginAccount.address, ACCOUNT_AMOUNT);
 
             // define new position (open)
@@ -1320,7 +1397,7 @@ describe("Integration: Test Cross Margin", () => {
 
             // deposit margin into account and execute trade
             await marginAccount
-                .connect(accounts[7])
+                .connect(accounts[16])
                 .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
 
             // balance of treasury pre-trade
@@ -1339,7 +1416,7 @@ describe("Integration: Test Cross Margin", () => {
             ];
 
             await marginAccount
-                .connect(accounts[7])
+                .connect(accounts[16])
                 .distributeMargin(newPosition);
 
             // balance of treasury post-trade
@@ -1374,7 +1451,7 @@ describe("Integration: Test Cross Margin", () => {
             ];
 
             await marginAccount
-                .connect(accounts[7])
+                .connect(accounts[16])
                 .distributeMargin(newPosition);
 
             // balance of treasury post-trade
@@ -1397,9 +1474,11 @@ describe("Integration: Test Cross Margin", () => {
          * depositAndModifyPositionForMarket() being called
          */
         it("Fee still imposed when larger than margin deposited", async () => {
+            await deployMarginBaseAccountForEOA(accounts[17]);
+
             // approve allowance for marginAccount to spend
             await sUSD
-                .connect(accounts[7])
+                .connect(accounts[17])
                 .approve(marginAccount.address, ACCOUNT_AMOUNT);
 
             // define new position
@@ -1413,7 +1492,7 @@ describe("Integration: Test Cross Margin", () => {
 
             // deposit margin into account and execute trade
             await marginAccount
-                .connect(accounts[7])
+                .connect(accounts[17])
                 .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
 
             // set trade fee to be 10% of sizeDelta
@@ -1445,7 +1524,7 @@ describe("Integration: Test Cross Margin", () => {
 
             // trade
             await marginAccount
-                .connect(accounts[7])
+                .connect(accounts[17])
                 .distributeMargin(newPosition);
 
             // position in eth perp market post-trade
@@ -1481,9 +1560,11 @@ describe("Integration: Test Cross Margin", () => {
          * then trade will fail due to insufficient margin
          */
         it("Trade fails if fee is greater than margin in Market", async () => {
+            await deployMarginBaseAccountForEOA(accounts[18]);
+
             // approve allowance for marginAccount to spend
             await sUSD
-                .connect(accounts[7])
+                .connect(accounts[18])
                 .approve(marginAccount.address, ACCOUNT_AMOUNT);
 
             // define new position
@@ -1497,7 +1578,7 @@ describe("Integration: Test Cross Margin", () => {
 
             // deposit margin into account and execute trade
             await marginAccount
-                .connect(accounts[7])
+                .connect(accounts[18])
                 .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
 
             /**
@@ -1522,7 +1603,7 @@ describe("Integration: Test Cross Margin", () => {
 
             // trade
             const tx = marginAccount
-                .connect(accounts[7])
+                .connect(accounts[18])
                 .distributeMargin(newPosition);
             await expect(tx).to.be.revertedWith("Insufficient margin");
         });
@@ -1535,9 +1616,11 @@ describe("Integration: Test Cross Margin", () => {
          * error "Max leverage exceeded" to be thrown
          */
         it("Trade fails if fee greater than max leverage with non-zero margin delta", async () => {
+            await deployMarginBaseAccountForEOA(accounts[19]);
+
             // approve allowance for marginAccount to spend
             await sUSD
-                .connect(accounts[7])
+                .connect(accounts[19])
                 .approve(marginAccount.address, ACCOUNT_AMOUNT);
 
             // define new position
@@ -1551,7 +1634,7 @@ describe("Integration: Test Cross Margin", () => {
 
             // deposit margin into account and execute trade
             await marginAccount
-                .connect(accounts[7])
+                .connect(accounts[19])
                 .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
 
             /**
@@ -1561,16 +1644,7 @@ describe("Integration: Test Cross Margin", () => {
             // set trade fee to be 40% of sizeDelta
             await marginBaseSettings.connect(accounts[0]).setTradeFee(4_000);
 
-            /**
-             * @dev fee is 40% and sizeDelta below is 1 ether (i.e. ~2_000 USD)
-             * therefore, fee should be 800 USD.
-             * There is only 1_000 USD in the market, thus trade results
-             * in 200 USD remaining.
-             * This exceeds max leverage based on size and
-             * margin in market and thus should fail with Max leverage exceeded
-             * @dev synthetix adds their fee which pushes us past 10x
-             */
-            const newMarginDelta = TEST_VALUE.div(1000); // 1 USD
+            const newMarginDelta = TEST_VALUE.sub(TEST_VALUE.div(10));
             newPosition = [
                 {
                     marketKey: MARKET_KEY_sETH,
@@ -1581,7 +1655,7 @@ describe("Integration: Test Cross Margin", () => {
 
             // trade
             const tx = marginAccount
-                .connect(accounts[7])
+                .connect(accounts[19])
                 .distributeMargin(newPosition);
             await expect(tx).to.be.revertedWith("Max leverage exceeded");
         });
@@ -1595,9 +1669,11 @@ describe("Integration: Test Cross Margin", () => {
          * thrown despite it being a max leverage exceeded issue
          */
         it("Trade fails if fee greater than max leverage with zero margin delta", async () => {
+            await deployMarginBaseAccountForEOA(accounts[20]);
+
             // approve allowance for marginAccount to spend
             await sUSD
-                .connect(accounts[7])
+                .connect(accounts[20])
                 .approve(marginAccount.address, ACCOUNT_AMOUNT);
 
             // define new position
@@ -1611,7 +1687,7 @@ describe("Integration: Test Cross Margin", () => {
 
             // deposit margin into account and execute trade
             await marginAccount
-                .connect(accounts[7])
+                .connect(accounts[20])
                 .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
 
             /**
@@ -1640,15 +1716,17 @@ describe("Integration: Test Cross Margin", () => {
 
             // trade
             const tx = marginAccount
-                .connect(accounts[7])
+                .connect(accounts[20])
                 .distributeMargin(newPosition);
             await expect(tx).to.be.revertedWith("Insufficient margin");
         });
 
         it("Trade fails if trade fee exceeds free margin", async () => {
+            await deployMarginBaseAccountForEOA(accounts[21]);
+
             // approve allowance for marginAccount to spend
             await sUSD
-                .connect(accounts[7])
+                .connect(accounts[21])
                 .approve(marginAccount.address, MINT_AMOUNT);
 
             // set trade fee to be 10% of sizeDelta
@@ -1678,7 +1756,7 @@ describe("Integration: Test Cross Margin", () => {
 
             // deposit margin into account and execute trade
             const tx = marginAccount
-                .connect(accounts[7])
+                .connect(accounts[21])
                 .depositAndDistribute(MINT_AMOUNT, newPosition);
 
             await expect(tx).to.revertedWith("CannotPayFee");
