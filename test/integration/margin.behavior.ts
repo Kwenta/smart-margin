@@ -152,7 +152,7 @@ const setup = async () => {
                                 TESTS
 ///////////////////////////////////////////////////////////////*/
 
-describe.only("Integration: Test Cross Margin", () => {
+describe("Integration: Test Cross Margin", () => {
     before("Fork Network", async () => {
         await forkAtBlock(9000000);
         await setup();
