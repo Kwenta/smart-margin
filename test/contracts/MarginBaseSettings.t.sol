@@ -70,6 +70,10 @@ contract MarginBaseSettingsTest is DSTest {
         marginBaseSettings.setTreasury(RANDOM_ADDRESS);
     }
 
+    function testFailSetSameTreasuryAddress() public {
+        marginBaseSettings.setTreasury(KWENTA_TREASURY);
+    }
+
     /**********************************
      * Set Distribution Fee
      **********************************/
