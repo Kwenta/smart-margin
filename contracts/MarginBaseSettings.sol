@@ -69,6 +69,9 @@ contract MarginBaseSettings is Ownable {
     /// @notice new fee cannot be the same as the old fee
     error DuplicateFee();
 
+    /// @notice new address cannot be the same as the old address
+    error DuplicateAddress();
+
     /*///////////////////////////////////////////////////////////////
                             Constructor
     ///////////////////////////////////////////////////////////////*/
@@ -110,6 +113,9 @@ contract MarginBaseSettings is Ownable {
     function setTreasury(address _treasury) external onlyOwner {
         /// @notice ensure valid address for Kwenta Treasury
         if (_treasury == address(0)) revert ZeroAddress();
+
+        // @notice ensure address will change
+        if (_treasury == treasury) revert DuplicateAddress();
 
         /// @notice set Kwenta Treasury address
         treasury = _treasury;
