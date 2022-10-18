@@ -1671,6 +1671,9 @@ describe("Integration: Test Cross Margin", () => {
         it("Trade fails if fee greater than max leverage with zero margin delta", async () => {
             await deployMarginBaseAccountForEOA(accounts[20]);
 
+            // set trade fee to be 0% of sizeDelta
+            await marginBaseSettings.connect(accounts[0]).setTradeFee(0);
+
             // approve allowance for marginAccount to spend
             await sUSD
                 .connect(accounts[20])
