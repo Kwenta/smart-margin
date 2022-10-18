@@ -17,17 +17,14 @@ const config: HardhatUserConfig = {
         compilers: [
             {
                 version: "0.8.13",
-            },
-            {
-                version: "0.5.16",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 1000,
+                    },
+                },
             },
         ],
-        settings: {
-            optimizer: {
-                enabled: true,
-                runs: 1000,
-            },
-        }
     },
     namedAccounts: {
         deployer: 0,
