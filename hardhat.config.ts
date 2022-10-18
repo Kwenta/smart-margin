@@ -22,6 +22,12 @@ const config: HardhatUserConfig = {
                 version: "0.5.16",
             },
         ],
+        settings: {
+            optimizer: {
+                enabled: true,
+                runs: 1000,
+            },
+        }
     },
     namedAccounts: {
         deployer: 0,
