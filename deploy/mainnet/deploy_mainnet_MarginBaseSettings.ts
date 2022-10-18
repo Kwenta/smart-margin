@@ -14,9 +14,9 @@ const deployMarginBaseSettings: DeployFunction = async function (
 
     // constructor params
     const treasury = "0x82d2242257115351899894eF384f779b5ba8c695"; // Kwenta Treasury on OE
-    const distributionFee = 5; // BPS
-    const limitOrderFee = 5; // BPS
-    const stopLossFee = 5; // BPS
+    const distributionFee = 2; // BPS
+    const limitOrderFee = 3; // BPS
+    const stopLossFee = 3; // BPS
 
     await deploy("MarginBaseSettings", {
         from: deployer,
