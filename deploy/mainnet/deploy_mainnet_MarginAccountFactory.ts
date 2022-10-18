@@ -21,7 +21,7 @@ const deployMarginAccountFactory: DeployFunction = async function (
 
     await deploy("MarginAccountFactory", {
         from: deployer,
-        args: [version, marginAsset, addressResolver, marginBaseSettings, ops],
+        args: [version, marginAsset, addressResolver, marginBaseSettings.address, ops],
         log: true,
     });
 };
