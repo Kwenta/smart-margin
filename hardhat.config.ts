@@ -31,6 +31,12 @@ const config: HardhatUserConfig = {
         artifacts: "artifacts",
     },
     networks: {
+        hardhat: {
+            accounts: {
+                count: 30,
+                accountsBalance: "10000000000000000000000", // 10ETH (Default)
+            },
+        },
         localhost: {
             chainId: 31337,
         },
@@ -67,7 +73,7 @@ const config: HardhatUserConfig = {
     },
     etherscan: {
         apiKey: process.env.ETHERSCAN_API_KEY,
-    },
+    },  
 };
 
 export default config;
