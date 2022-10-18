@@ -1,6 +1,6 @@
 {
   "name": "@kwenta/cross-margin-manager",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "compile": "npx hardhat compile",
     "f-test:unit": "forge test",
