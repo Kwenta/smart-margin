@@ -378,28 +378,11 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                     market.withdrawAllMargin();
 
                     // determine trade fee based on size delta
-                    uint256 fee = calculateTradeFee(
+                    tradingFee += calculateTradeFee(
                         sizeDelta,
                         market,
                         _advancedOrderFee
                     );
-
-                    // fee canot be greater than available margin
-                    if (fee > freeMargin()) {
-                        revert CannotPayFee();
-                    }
-
-                    /// @notice impose fee
-                    /// @dev send fee to Kwenta's treasury
-                    bool successfulTransfer = marginAsset.transfer(
-                        marginBaseSettings.treasury(),
-                        fee
-                    );
-                    if (!successfulTransfer) {
-                        revert CannotPayFee();
-                    } else {
-                        emit FeeImposed(address(this), tradingFee);
-                    }
 
                     // continue to next newPosition
                     continue;
