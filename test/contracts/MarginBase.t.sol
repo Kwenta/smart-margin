@@ -324,6 +324,13 @@ contract MarginBaseTest is DSTest {
             abi.encodePacked(IOps.gelato.selector),
             abi.encode(gelato)
         );
+
+        // mock gelato address getter
+        cheats.mockCall(
+            account.ops(),
+            abi.encodePacked(IOps.cancelTask.selector),
+            abi.encode(0)
+        );
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -1198,7 +1205,7 @@ contract MarginBaseTest is DSTest {
             abi.encodeWithSelector(
                 MarginBase.InsufficientEthBalance.selector,
                 0, // 0 ETH in account
-                1 ether / 10 // .1 ETH minimum
+                1 ether / 100 // .01 ETH minimum
             )
         );
 
@@ -1553,19 +1560,7 @@ contract MarginBaseTest is DSTest {
         // make limit order condition
         mockExchangeRates(futuresMarketETH, limitPrice);
 
-        // mock gelato fee details
-        cheats.mockCall(
-            account.ops(),
-            abi.encodePacked(IOps.getFeeDetails.selector),
-            abi.encode(fee, account.ETH())
-        );
-
-        // mock gelato address getter
-        cheats.mockCall(
-            account.ops(),
-            abi.encodePacked(IOps.gelato.selector),
-            abi.encode(gelato)
-        );
+        mockGelato(fee);
 
         // expect a call w/ empty calldata to gelato (payment through callvalue)
         cheats.expectCall(gelato, "");

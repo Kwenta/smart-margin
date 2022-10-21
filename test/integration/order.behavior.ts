@@ -287,6 +287,24 @@ describe("Integration: Test Advanced Orders", () => {
                     );
             });
 
+            it("Gelato task unregistered", async () => {
+                const gelatoTaskId = (await marginAccount.orders(0))
+                    .gelatoTaskId;
+
+                // Expect task to be registered
+                expect(await gelatoOps.taskCreator(gelatoTaskId)).to.be.equal(
+                    marginAccount.address
+                );
+
+                const { tx } = await executeOrder();
+                await tx;
+
+                // Expect that we cancel the task for gelato after execution
+                expect(await gelatoOps.taskCreator(gelatoTaskId)).to.be.equal(
+                    ethers.constants.AddressZero
+                );
+            });
+
             it("OrderFilled emitted", async () => {
                 const { tx } = await executeOrder();
 
