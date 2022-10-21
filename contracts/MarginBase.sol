@@ -784,7 +784,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         returns (uint256)
     {
         if (address(this).balance < 1 ether / 100) {
-            revert InsufficientEthBalance(address(this).balance, 1 ether / 10);
+            revert InsufficientEthBalance(address(this).balance, 1 ether / 100);
         }
         // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
