@@ -1198,7 +1198,7 @@ contract MarginBaseTest is DSTest {
             abi.encodeWithSelector(
                 MarginBase.InsufficientEthBalance.selector,
                 0, // 0 ETH in account
-                1 ether / 10 // .1 ETH minimum
+                1 ether / 100 // .01 ETH minimum
             )
         );
 
