@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-expressions */
 import { expect } from "chai";
 import { artifacts, ethers, network, waffle } from "hardhat";
-import { BigNumber, Contract } from "ethers";
+import { BigNumber, Contract, ContractReceipt } from "ethers";
 import { mintToAccountSUSD } from "../utils/helpers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import dotenv from "dotenv";
@@ -1311,10 +1311,6 @@ describe("Integration: Test Cross Margin", () => {
             expect(postBalance.sub(preBalance)).to.equal(fee);
         });
 
-        /**
-         * @notice checks correct fee when calling:
-         *          (1) modifyPositionForMarket
-         */
         it("Fee imposed when closing a position", async () => {
             await deployMarginBaseAccountForEOA(accounts[15]);
 
@@ -1371,6 +1367,64 @@ describe("Integration: Test Cross Margin", () => {
 
             // confirm correct margin was trasnferred to Treasury
             expect(postBalance.sub(preBalance)).to.equal(fee);
+        });
+
+        it("Event emits correct fee imposed when closing a position", async () => {
+            await deployMarginBaseAccountForEOA(accounts[22]);
+
+            // approve allowance for marginAccount to spend
+            await sUSD
+                .connect(accounts[22])
+                .approve(marginAccount.address, ACCOUNT_AMOUNT);
+
+            // define new position (open)
+            let newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: TEST_VALUE,
+                    sizeDelta: sizeDelta,
+                },
+            ];
+
+            // deposit margin into account and execute trade
+            await marginAccount
+                .connect(accounts[22])
+                .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
+
+            // define new position (close)
+            newPosition = [
+                {
+                    marketKey: MARKET_KEY_sETH,
+                    marginDelta: ethers.constants.Zero,
+                    sizeDelta: sizeDelta.mul(-1),
+                },
+            ];
+
+            // get access to market
+            const ethPerpMarket = await ethers.getContractAt(
+                "IFuturesMarket",
+                ETH_PERP_MARKET_ADDR
+            );
+            const assetPrice: { price: BigNumber; invalid: boolean } =
+                await ethPerpMarket.assetPrice();
+
+            // calculate fee
+            let fee = sizeDelta.mul(tradeFee).div(MAX_BPS);
+            // get fee in USD
+            fee = fee.mul(assetPrice.price).div(ethers.utils.parseEther("1.0"));
+
+            const tx = await marginAccount
+                .connect(accounts[22])
+                .distributeMargin(newPosition);
+
+            let receipt: ContractReceipt = await tx.wait();
+            const event = receipt.events?.filter((x) => {
+                return x.event == "FeeImposed";
+            });
+            const accountAddr = event![0].args![0];
+            const feeImposedAmount = event![0].args![1];
+            expect(accountAddr).to.equal(marginAccount.address);
+            expect(feeImposedAmount).to.equal(fee);
         });
 
         /**
