@@ -54,4 +54,6 @@ interface IOps {
         address _resolverAddress,
         bytes memory _resolverData
     ) external pure returns (bytes32);
+
+    function taskCreator(bytes32 _taskId) external view returns (address);
 }

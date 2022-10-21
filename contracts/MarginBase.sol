@@ -867,6 +867,10 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             sizeDelta: order.sizeDelta
         });
 
+        // remove task from gelato's side
+        /// @dev optimization done for gelato
+        IOps(ops).cancelTask(order.gelatoTaskId);
+
         // delete order from orders
         delete orders[_orderId];
 
