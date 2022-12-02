@@ -30,9 +30,9 @@ contract MinimalProxyFactory {
                 //---- constructor -----
                 bytes10(0x3d602d80600a3d3981f3),
                 //---- proxy code -----
-                bytes10(0x363d3d373d3d3d363d73),
+                bytes11(0x3d3d3d3d363d3d37363d73),
                 _base,
-                bytes15(0x5af43d82803e903d91602b57fd5bf3)
+                bytes13(0x5af43d3d93803e602a57fd5bf3)
             );
     }
 }
