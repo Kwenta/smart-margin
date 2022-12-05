@@ -10,8 +10,6 @@ interface IMarginBase is IMarginBaseTypes {
                                 Views
     ///////////////////////////////////////////////////////////////*/
 
-    function getNumberOfInternalPositions() external view returns (uint256);
-
     function freeMargin() external view returns (uint256);
 
     function getPosition(bytes32 _marketKey)

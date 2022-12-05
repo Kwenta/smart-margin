@@ -17,7 +17,6 @@ import "./MarginBaseSettings.sol";
 /// @notice Flexible, minimalist, and gas-optimized cross-margin enabled account
 /// for managing perpetual futures positions
 contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
-
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -317,17 +316,18 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         NewPosition[] memory _newPositions,
         uint256 _advancedOrderFee
     ) internal {
-        /// @notice limit size of new position specs passed into distribute margin
-        uint256 newPositionsLength = _newPositions.length;
-        if (newPositionsLength > type(uint8).max) {
-            revert MaxNewPositionsExceeded(newPositionsLength);
-        }
-
         /// @notice tracking variable for calculating fee(s)
         uint256 tradingFee = 0;
 
+        // store length of new positions in memory
+        uint256 newPositionsLength = _newPositions.length;
+
         // for each new position in _newPositions, distribute margin accordingly
-        for (uint8 i = 0; i < newPositionsLength; i++) {
+        for (uint256 i = newPositionsLength; i != 0; ) {
+            unchecked {
+                --i;
+            }
+
             // define market params to be used to create or modify a position
             bytes32 marketKey = _newPositions[i].marketKey;
             int256 sizeDelta = _newPositions[i].sizeDelta;
@@ -339,41 +339,28 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             // fetch position size from Synthetix
             (, , , , int128 size) = getPosition(marketKey);
 
-            /// @dev check if position exists internally
-            if (markets.get(uint256(marketKey))) {
-                // check if position was liquidated
-                if (size == 0) {
-                    removeMarketKey(marketKey);
-
-                    // this position no longer exists internally
-                    // thus, treat as new position
-                    if (sizeDelta == 0) {
-                        // position does not exist internally thus, sizeDelta must be non-zero
-                        revert ValueCannotBeZero("sizeDelta");
-                    }
-                }
-                // check if position will be closed by newPosition's sizeDelta
-                else if (size + sizeDelta == 0) {
-                    removeMarketKey(marketKey);
-
-                    // close position and withdraw margin
-                    market.closePositionWithTracking(TRACKING_CODE);
-                    market.withdrawAllMargin();
-
-                    // determine trade fee based on size delta
-                    tradingFee += calculateTradeFee(
-                        sizeDelta,
-                        market,
-                        _advancedOrderFee
-                    );
-
-                    // continue to next newPosition
-                    continue;
-                }
-            }
-            /// @dev position does not exist internally thus sizeDelta must be non-zero
-            else if (sizeDelta == 0) {
+            // if size is zero, then trade must specify non-zero
+            // sizeDelta
+            if (size == 0 && sizeDelta == 0) {
                 revert ValueCannotBeZero("sizeDelta");
+            }
+
+            /// @dev if this trade results in zero size,
+            /// close position and withdraw all margin from market
+            if (size + sizeDelta == 0) {
+                // close position and withdraw margin
+                market.closePositionWithTracking(TRACKING_CODE);
+                market.withdrawAllMargin();
+
+                // determine trade fee based on size delta
+                tradingFee += calculateTradeFee(
+                    sizeDelta,
+                    market,
+                    _advancedOrderFee
+                );
+
+                // continue to next newPosition
+                continue;
             }
 
             /// @notice execute trade
