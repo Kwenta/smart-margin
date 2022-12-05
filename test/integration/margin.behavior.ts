@@ -311,12 +311,11 @@ describe("Integration: Test Cross Margin", () => {
                     .connect(accounts[2])
                     .distributeMargin(newPosition);
 
-                // confirm number of open internal positions that were defined above
-                const numberOfInternalPositions = await marginAccount
-                    .connect(accounts[2])
-                    .getNumberOfInternalPositions();
-
-                expect(numberOfInternalPositions).to.equal(1);
+                // // confirm number of open internal positions that were defined above
+                // const numberOfInternalPositions = await marginAccount
+                //     .connect(accounts[2])
+                //     .getNumberOfInternalPositions();
+                // expect(numberOfInternalPositions).to.equal(1);
 
                 // confirm correct position details:
                 // (1) market exists internally
@@ -388,11 +387,11 @@ describe("Integration: Test Cross Margin", () => {
                     .connect(accounts[9])
                     .distributeMargin(newPositions);
 
-                // confirm number of open internal positions that were defined above
-                const numberOfInternalPositions = await marginAccount
-                    .connect(accounts[9])
-                    .getNumberOfInternalPositions();
-                expect(numberOfInternalPositions).to.equal(3);
+                // // confirm number of open internal positions that were defined above
+                // const numberOfInternalPositions = await marginAccount
+                //     .connect(accounts[9])
+                //     .getNumberOfInternalPositions();
+                // expect(numberOfInternalPositions).to.equal(3);
 
                 // confirm correct position details:
 
@@ -501,9 +500,9 @@ describe("Integration: Test Cross Margin", () => {
 
                 // confirm correct position details:
                 // (1) market does not exist internally
-                expect(
-                    await marginAccount.getNumberOfInternalPositions()
-                ).to.equal(0);
+                // expect(
+                //     await marginAccount.getNumberOfInternalPositions()
+                // ).to.equal(0);
 
                 // (2) size and margin
                 const position = await marginAccount
@@ -592,10 +591,10 @@ describe("Integration: Test Cross Margin", () => {
                     .connect(accounts[10])
                     .distributeMargin(closingPositions);
 
-                // confirm correct position details:
-                expect(
-                    await marginAccount.getNumberOfInternalPositions()
-                ).to.equal(2);
+                // // confirm correct position details:
+                // expect(
+                //     await marginAccount.getNumberOfInternalPositions()
+                // ).to.equal(2);
 
                 /********** ACTIVE MARKETS **********/
                 // LINK-PERP
@@ -824,12 +823,11 @@ describe("Integration: Test Cross Margin", () => {
                     .connect(accounts[4])
                     .distributeMargin(newPositions);
 
-                // confirm number of open positions
-                const numberOfActivePositions = await marginAccount
-                    .connect(accounts[4])
-                    .getNumberOfInternalPositions();
-
-                expect(numberOfActivePositions).to.equal(4);
+                // // confirm number of open positions
+                // const numberOfActivePositions = await marginAccount
+                //     .connect(accounts[4])
+                //     .getNumberOfInternalPositions();
+                // expect(numberOfActivePositions).to.equal(4);
 
                 // confirm correct position details:
 
@@ -979,12 +977,11 @@ describe("Integration: Test Cross Margin", () => {
                     .connect(accounts[13])
                     .distributeMargin(newPositions);
 
-                // confirm number of open positions
-                const numberOfActivePositions = await marginAccount
-                    .connect(accounts[13])
-                    .getNumberOfInternalPositions();
-
-                expect(numberOfActivePositions).to.equal(4);
+                // // confirm number of open positions
+                // const numberOfActivePositions = await marginAccount
+                //     .connect(accounts[13])
+                //     .getNumberOfInternalPositions();
+                // expect(numberOfActivePositions).to.equal(4);
 
                 // confirm correct position details:
 
@@ -1126,11 +1123,11 @@ describe("Integration: Test Cross Margin", () => {
                     .connect(accounts[14])
                     .distributeMargin(newPositions);
 
-                // confirm number of open positions
-                const numberOfActivePositions = await marginAccount
-                    .connect(accounts[14])
-                    .getNumberOfInternalPositions();
-                expect(numberOfActivePositions).to.equal(4);
+                // // confirm number of open positions
+                // const numberOfActivePositions = await marginAccount
+                //     .connect(accounts[14])
+                //     .getNumberOfInternalPositions();
+                // expect(numberOfActivePositions).to.equal(4);
 
                 // confirm correct position details:
 
@@ -1238,11 +1235,11 @@ describe("Integration: Test Cross Margin", () => {
                 .connect(accounts[5])
                 .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
 
-            // confirm number of open internal positions that were defined above
-            const numberOfInternalPositions = await marginAccount
-                .connect(accounts[5])
-                .getNumberOfInternalPositions();
-            expect(numberOfInternalPositions).to.equal(1);
+            // // confirm number of open internal positions that were defined above
+            // const numberOfInternalPositions = await marginAccount
+            //     .connect(accounts[5])
+            //     .getNumberOfInternalPositions();
+            // expect(numberOfInternalPositions).to.equal(1);
 
             // confirm correct position details:
             // (1) market exists internally
