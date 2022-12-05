@@ -210,12 +210,6 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice get number of internal market positions account has
-    /// @return number of positions which are internally accounted for
-    function getNumberOfInternalPositions() external view returns (uint256) {
-        return activeMarketKeys.length;
-    }
-
     /// @notice the current withdrawable or usable balance
     function freeMargin() public view returns (uint256) {
         return marginAsset.balanceOf(address(this)) - committedMargin;
