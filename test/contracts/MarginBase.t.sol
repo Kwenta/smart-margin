@@ -516,8 +516,15 @@ contract MarginBaseTest is DSTest {
             marginDelta: 1 ether,
             sizeDelta: 1 ether
         });
+
+        uint256 totalSizeDelta = 4 * (1 ether);
+        uint256 expectedFee = (totalSizeDelta * marginBaseSettings.tradeFee()) /
+            MAX_BPS;
+
+        cheats.expectEmit(true, false, false, true, address(account));
+        emit FeeImposed(address(account), expectedFee);
+
         account.distributeMargin(newPositions);
-        assertEq(account.getNumberOfInternalPositions(), 4);
     }
 
     /// @dev DistributeMargin fuzz test
@@ -538,26 +545,16 @@ contract MarginBaseTest is DSTest {
             });
         }
 
-        account.distributeMargin(newPositions);
-        assertEq(
-            account.getNumberOfInternalPositions(),
-            (numberOfNewPositions == 0 ? 0 : 1)
-        );
-    }
+        // test fee to confirm trade was made
+        if (numberOfNewPositions != 0) {
+            uint256 expectedFee = (numberOfNewPositions *
+                marginBaseSettings.tradeFee() *
+                1 ether) / MAX_BPS;
 
-    function testCannotPassMaxPositions() public {
-        mockExchangeRatesForDistributionTests();
+            cheats.expectEmit(true, false, false, true, address(account));
+            emit FeeImposed(address(account), expectedFee);
+        }
 
-        uint32 max = type(uint16).max;
-        IMarginBaseTypes.NewPosition[]
-            memory newPositions = new IMarginBaseTypes.NewPosition[](max + 1);
-
-        cheats.expectRevert(
-            abi.encodeWithSelector(
-                MarginBase.MaxNewPositionsExceeded.selector,
-                max + 1
-            )
-        );
         account.distributeMargin(newPositions);
     }
 
@@ -599,8 +596,15 @@ contract MarginBaseTest is DSTest {
         marginAsset.mint(address(this), amount);
         marginAsset.approve(address(account), amount);
 
+        uint256 numberOfNewPositions = 2;
+        uint256 expectedFee = (numberOfNewPositions *
+            marginBaseSettings.tradeFee() *
+            1 ether) / MAX_BPS;
+
+        cheats.expectEmit(true, false, false, true, address(account));
+        emit FeeImposed(address(account), expectedFee);
+
         account.depositAndDistribute(amount, newPositions);
-        assertEq(account.getNumberOfInternalPositions(), 2);
     }
 
     function testCannotDepositAndDistributeAsNonOwner() public {
@@ -623,33 +627,6 @@ contract MarginBaseTest is DSTest {
         );
         cheats.prank(nonOwnerEOA); // non-owner calling depositAndDistribute()
         account.depositAndDistribute(amount, newPositions);
-    }
-
-    /********************************************************************
-     * getNumberOfInternalPositions()
-     ********************************************************************/
-    function testGetNumberOfInternalPositionsReturnsZero() public {
-        assertEq(account.getNumberOfInternalPositions(), 0);
-    }
-
-    function testGetNumberOfInternalPositions() public {
-        deposit(1 ether);
-        mockExchangeRatesForDistributionTests();
-
-        IMarginBaseTypes.NewPosition[]
-            memory newPositions = new IMarginBaseTypes.NewPosition[](2);
-        newPositions[0] = IMarginBaseTypes.NewPosition({
-            marketKey: ETH_MARKET_KEY,
-            marginDelta: 1 ether,
-            sizeDelta: 1 ether
-        });
-        newPositions[1] = IMarginBaseTypes.NewPosition({
-            marketKey: ETH_MARKET_KEY,
-            marginDelta: 1 ether,
-            sizeDelta: 1 ether
-        });
-        account.distributeMargin(newPositions);
-        assertEq(account.getNumberOfInternalPositions(), 1);
     }
 
     /********************************************************************
@@ -718,6 +695,13 @@ contract MarginBaseTest is DSTest {
         });
 
         // open position in ETH Market
+        uint256 numberOfNewPositions = 1;
+        uint256 expectedFee = (numberOfNewPositions *
+            marginBaseSettings.tradeFee() *
+            1 ether) / MAX_BPS;
+
+        cheats.expectEmit(true, false, false, true, address(account));
+        emit FeeImposed(address(account), expectedFee);
         account.distributeMargin(newPositions);
 
         newPositions[0] = IMarginBaseTypes.NewPosition({
@@ -726,10 +710,9 @@ contract MarginBaseTest is DSTest {
             sizeDelta: -1 ether
         });
 
+        cheats.expectEmit(true, false, false, true, address(account));
+        emit FeeImposed(address(account), expectedFee);
         account.distributeMargin(newPositions);
-
-        // since second position size was the inverse of the first, execution of that trade stopped
-        assertEq(account.getNumberOfInternalPositions(), 0);
     }
 
     /********************************************************************
@@ -1394,7 +1377,7 @@ contract MarginBaseTest is DSTest {
         int256 secondOrderMarginDelta = 1e18;
         int256 secondOrderSizeDelta = 1e18;
         IMarginBaseTypes.NewPosition[]
-            memory newPositions = new IMarginBaseTypes.NewPosition[](4);
+            memory newPositions = new IMarginBaseTypes.NewPosition[](1);
         newPositions[0] = IMarginBaseTypes.NewPosition(
             "sETH",
             secondOrderMarginDelta,

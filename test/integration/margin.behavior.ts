@@ -311,31 +311,16 @@ describe("Integration: Test Cross Margin", () => {
                     .connect(accounts[2])
                     .distributeMargin(newPosition);
 
-                // confirm number of open internal positions that were defined above
-                const numberOfInternalPositions = await marginAccount
-                    .connect(accounts[2])
-                    .getNumberOfInternalPositions();
-
-                expect(numberOfInternalPositions).to.equal(1);
-
-                // confirm correct position details:
-                // (1) market exists internally
-                const marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sETH
-                );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sETH);
-
-                // (2) size and margin
+                // confirm size and margin from SNX
                 const position = await marginAccount
                     .connect(accounts[2])
                     .getPosition(MARKET_KEY_sETH);
 
                 // will not estimate exact value for margin
                 // due to potential future fee changes (makes test brittle)
-                expect(position.margin).to.be.above(0);
+                expect(position.margin).to.be.above(
+                    TEST_VALUE.sub(TEST_VALUE.div(10))
+                );
                 expect(position.size).to.equal(sizeDelta);
             });
 
@@ -388,68 +373,32 @@ describe("Integration: Test Cross Margin", () => {
                     .connect(accounts[9])
                     .distributeMargin(newPositions);
 
-                // confirm number of open internal positions that were defined above
-                const numberOfInternalPositions = await marginAccount
-                    .connect(accounts[9])
-                    .getNumberOfInternalPositions();
-                expect(numberOfInternalPositions).to.equal(3);
-
-                // confirm correct position details:
+                // for the following assertions:
+                // will not estimate exact value for margin(s)
+                // due to potential future fee changes (makes test brittle)
 
                 // BTC-PERP
-                // (1) market exists internally
-                let marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sBTC
-                );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sBTC);
-
-                // (2) size and margin
+                // confirm size and margin
                 let position = await marginAccount.getPosition(MARKET_KEY_sBTC);
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
-                expect(position.margin).to.be.above(0);
+                expect(position.margin).to.be.above(
+                    TEST_VALUE.sub(TEST_VALUE.div(10))
+                );
                 expect(position.size).to.equal(btcSizeDelta);
 
                 // LINK-PERP
-                // (1) market exists internally
-                marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sLINK
-                );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sLINK);
-
-                // (2) size and margin
+                // confirm size and margin
                 position = await marginAccount.getPosition(MARKET_KEY_sLINK);
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
-                expect(position.margin).to.be.above(0);
+                expect(position.margin).to.be.above(
+                    TEST_VALUE.sub(TEST_VALUE.div(10))
+                );
                 expect(position.size).to.equal(linkSizeDelta);
 
                 // UNI-PERP
-                // (1) market exists internally
-                marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sUNI
+                // confirm size and margin
+                position = await marginAccount.getPosition(MARKET_KEY_sUNI);
+                expect(position.margin).to.be.above(
+                    TEST_VALUE.sub(TEST_VALUE.div(10))
                 );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sUNI);
-
-                // (2) size and margin
-                position = await marginAccount
-                    .connect(accounts[9])
-                    .getPosition(MARKET_KEY_sUNI);
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
-                expect(position.margin).to.be.above(0);
                 expect(position.size).to.equal(uniSizeDelta);
             });
         });
@@ -499,17 +448,10 @@ describe("Integration: Test Cross Margin", () => {
                     .connect(accounts[3])
                     .distributeMargin(closingPosition);
 
-                // confirm correct position details:
-                // (1) market does not exist internally
-                expect(
-                    await marginAccount.getNumberOfInternalPositions()
-                ).to.equal(0);
-
-                // (2) size and margin
-                const position = await marginAccount
-                    .connect(accounts[3])
-                    .getPosition(MARKET_KEY_sETH);
-
+                // confirm size and margin
+                const position = await marginAccount.getPosition(
+                    MARKET_KEY_sETH
+                );
                 expect(position.margin).to.equal(0);
                 expect(position.size).to.equal(0);
             });
@@ -592,74 +534,40 @@ describe("Integration: Test Cross Margin", () => {
                     .connect(accounts[10])
                     .distributeMargin(closingPositions);
 
-                // confirm correct position details:
-                expect(
-                    await marginAccount.getNumberOfInternalPositions()
-                ).to.equal(2);
+                // for the following assertions:
+                // will not estimate exact value for margin(s)
+                // due to potential future fee changes (makes test brittle)
+
+                let position;
 
                 /********** ACTIVE MARKETS **********/
+
                 // LINK-PERP
-                // (1) mapping is correct
-                let marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sLINK
+                // confirm size and margin
+                position = await marginAccount.getPosition(MARKET_KEY_sLINK);
+                expect(position.margin).to.be.above(
+                    TEST_VALUE.sub(TEST_VALUE.div(10))
                 );
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sLINK);
-
-                // (2) size and margin
-                let position = await marginAccount.getPosition(
-                    MARKET_KEY_sLINK
-                );
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
-                expect(position.margin).to.be.above(0);
                 expect(position.size).to.equal(linkSizeDelta);
 
                 // ETH-PERP
-                // (1) mapping is correct
-                marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sETH
-                );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sETH);
-
-                // (2) size and margin
+                // confirm size and margin
                 position = await marginAccount.getPosition(MARKET_KEY_sETH);
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
-                expect(position.margin).to.be.above(0);
+                expect(position.margin).to.be.above(
+                    TEST_VALUE.sub(TEST_VALUE.div(10))
+                );
                 expect(position.size).to.equal(ethSizeDelta);
 
                 /********** INACTIVE MARKETS **********/
-                // @notice default value for mapping is 0
 
                 // BTC-PERP
-                // (1) mapping is correct
-                marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sBTC
-                );
-
-                expect(marketKeyIndex).to.equal(0);
-
-                // (2) size and margin
+                // confirm size and margin
                 position = await marginAccount.getPosition(MARKET_KEY_sBTC);
                 expect(position.margin).to.equal(0);
                 expect(position.size).to.equal(0);
 
                 // UNI-PERP
-                // (1) mapping is correct
-                marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sUNI
-                );
-
-                expect(marketKeyIndex).to.equal(0);
-
-                // (2) size and margin
+                // confirm size and margin
                 position = await marginAccount.getPosition(MARKET_KEY_sUNI);
                 expect(position.margin).to.equal(0);
                 expect(position.size).to.equal(0);
@@ -824,92 +732,33 @@ describe("Integration: Test Cross Margin", () => {
                     .connect(accounts[4])
                     .distributeMargin(newPositions);
 
-                // confirm number of open positions
-                const numberOfActivePositions = await marginAccount
-                    .connect(accounts[4])
-                    .getNumberOfInternalPositions();
-
-                expect(numberOfActivePositions).to.equal(4);
-
-                // confirm correct position details:
-
                 // ETH-PERP
-                // (1) market exists internally
-                let marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sETH
-                );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sETH);
-
-                // (2) size and margin
+                // confirm size and margin
                 let position = await marginAccount.getPosition(MARKET_KEY_sETH);
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
                 expect(position.margin).to.be.above(0);
                 expect(position.size).to.equal(
                     ethSizeDelta.add(newETHSizeDelta)
                 );
 
                 // BTC-PERP
-                // (1) market exists internally
-                marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sBTC
-                );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sBTC);
-
-                // (2) size and margin
+                // confirm size and margin
                 position = await marginAccount.getPosition(MARKET_KEY_sBTC);
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
                 expect(position.margin).to.be.above(0);
                 expect(position.size).to.equal(
                     btcSizeDelta.add(newBTCSizeDelta)
                 );
 
                 // LINK-PERP
-                // (1) market exists internally
-                marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sLINK
-                );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sLINK);
-
-                // (2) size and margin
+                // confirm size and margin
                 position = await marginAccount.getPosition(MARKET_KEY_sLINK);
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
                 expect(position.margin).to.be.above(0);
                 expect(position.size).to.equal(
                     linkSizeDelta.add(newLINKSizeDelta)
                 );
 
                 // UNI-PERP
-                // (1) market exists internally
-                marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sUNI
-                );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sUNI);
-
-                // (2) size and margin
-                position = await marginAccount
-                    .connect(accounts[4])
-                    .getPosition(MARKET_KEY_sUNI);
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
+                // confirm size and margin
+                position = await marginAccount.getPosition(MARKET_KEY_sUNI);
                 expect(position.margin).to.be.above(0);
                 expect(position.size).to.equal(
                     uniSizeDelta.add(newUNISizeDelta)
@@ -979,86 +828,32 @@ describe("Integration: Test Cross Margin", () => {
                     .connect(accounts[13])
                     .distributeMargin(newPositions);
 
-                // confirm number of open positions
-                const numberOfActivePositions = await marginAccount
-                    .connect(accounts[13])
-                    .getNumberOfInternalPositions();
+                // for the following assertions:
+                // will not estimate exact value for margin(s)
+                // due to potential future fee changes (makes test brittle)
 
-                expect(numberOfActivePositions).to.equal(4);
-
-                // confirm correct position details:
+                let position;
 
                 // ETH-PERP
-                // (1) market exists internally
-                let marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sETH
-                );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sETH);
-
-                // (2) size and margin
-                let position = await marginAccount.getPosition(MARKET_KEY_sETH);
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
+                // confirm size and margin
+                position = await marginAccount.getPosition(MARKET_KEY_sETH);
                 expect(position.margin).to.be.above(oldETHposition.margin);
                 expect(position.size).to.equal(ethSizeDelta);
 
                 // BTC-PERP
-                // (1) market exists internally
-                marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sBTC
-                );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sBTC);
-
-                // (2) size and margin
+                // confirm size and margin
                 position = await marginAccount.getPosition(MARKET_KEY_sBTC);
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
                 expect(position.margin).to.be.above(oldBTCposition.margin);
                 expect(position.size).to.equal(btcSizeDelta);
 
                 // LINK-PERP
-                // (1) market exists internally
-                marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sLINK
-                );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sLINK);
-
-                // (2) size and margin
+                // confirm size and margin
                 position = await marginAccount.getPosition(MARKET_KEY_sLINK);
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
                 expect(position.margin).to.be.above(oldLINKposition.margin);
                 expect(position.size).to.equal(linkSizeDelta);
 
                 // UNI-PERP
-                // (1) market exists internally
-                marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sUNI
-                );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sUNI);
-
-                // (2) size and margin
-                position = await marginAccount
-                    .connect(accounts[4])
-                    .getPosition(MARKET_KEY_sUNI);
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
+                position = await marginAccount.getPosition(MARKET_KEY_sUNI);
                 expect(position.margin).to.be.above(oldUNIposition.margin);
                 expect(position.size).to.equal(uniSizeDelta);
             });
@@ -1126,85 +921,34 @@ describe("Integration: Test Cross Margin", () => {
                     .connect(accounts[14])
                     .distributeMargin(newPositions);
 
-                // confirm number of open positions
-                const numberOfActivePositions = await marginAccount
-                    .connect(accounts[14])
-                    .getNumberOfInternalPositions();
-                expect(numberOfActivePositions).to.equal(4);
+                // for the following assertions:
+                // will not estimate exact value for margin(s)
+                // due to potential future fee changes (makes test brittle)
 
-                // confirm correct position details:
+                let position;
 
                 // ETH-PERP
-                // (1) market exists internally
-                let marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sETH
-                );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sETH);
-
-                // (2) size and margin
-                let position = await marginAccount.getPosition(MARKET_KEY_sETH);
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
+                // confirm size and margin
+                position = await marginAccount.getPosition(MARKET_KEY_sETH);
                 expect(position.margin).to.be.below(oldETHposition.margin);
                 expect(position.size).to.equal(ethSizeDelta);
 
                 // BTC-PERP
                 // (1) market exists internally
-                marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sBTC
-                );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sBTC);
-
-                // (2) size and margin
+                // confirm size and margin
                 position = await marginAccount.getPosition(MARKET_KEY_sBTC);
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
                 expect(position.margin).to.be.below(oldBTCposition.margin);
                 expect(position.size).to.equal(btcSizeDelta);
 
                 // LINK-PERP
-                // (1) market exists internally
-                marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sLINK
-                );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sLINK);
-
-                // (2) size and margin
+                // confirm size and margin
                 position = await marginAccount.getPosition(MARKET_KEY_sLINK);
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
                 expect(position.margin).to.be.below(oldLINKposition.margin);
                 expect(position.size).to.equal(linkSizeDelta);
 
                 // UNI-PERP
-                // (1) market exists internally
-                marketKeyIndex = await marginAccount.marketKeyIndex(
-                    MARKET_KEY_sUNI
-                );
-
-                expect(
-                    await marginAccount.activeMarketKeys(marketKeyIndex)
-                ).to.equal(MARKET_KEY_sUNI);
-
-                // (2) size and margin
-                position = await marginAccount
-                    .connect(accounts[14])
-                    .getPosition(MARKET_KEY_sUNI);
-
-                // will not estimate exact value for margin
-                // due to potential future fee changes (makes test brittle)
+                // confirm size and margin
+                position = await marginAccount.getPosition(MARKET_KEY_sUNI);
                 expect(position.margin).to.be.below(oldUNIposition.margin);
                 expect(position.size).to.equal(uniSizeDelta);
             });
@@ -1238,24 +982,13 @@ describe("Integration: Test Cross Margin", () => {
                 .connect(accounts[5])
                 .depositAndDistribute(ACCOUNT_AMOUNT, newPosition);
 
-            // confirm number of open internal positions that were defined above
-            const numberOfInternalPositions = await marginAccount
-                .connect(accounts[5])
-                .getNumberOfInternalPositions();
-            expect(numberOfInternalPositions).to.equal(1);
-
             // confirm correct position details:
-            // (1) market exists internally
-            const marketKeyIndex = await marginAccount.marketKeyIndex(
-                MARKET_KEY_sETH
-            );
-            expect(
-                await marginAccount.activeMarketKeys(marketKeyIndex)
-            ).to.equal(MARKET_KEY_sETH);
-            // (2) size and margin
+
+            // confirm size and margin
             const position = await marginAccount
                 .connect(accounts[5])
                 .getPosition(MARKET_KEY_sETH);
+
             // will not estimate exact value for margin
             // due to potential future fee changes (makes test brittle)
             expect(position.margin).to.be.above(0);

@@ -2,7 +2,6 @@
 pragma solidity 0.8.13;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 import "./interfaces/IAddressResolver.sol";
 import "./interfaces/IFuturesMarket.sol";
 import "./interfaces/IFuturesMarketManager.sol";
@@ -14,15 +13,13 @@ import "./utils/MinimalProxyable.sol";
 import "./MarginBaseSettings.sol";
 
 /// @title Kwenta MarginBase Account
-/// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
+/// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice Flexible, minimalist, and gas-optimized cross-margin enabled account
 /// for managing perpetual futures positions
 contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
-    using BitMaps for BitMaps.BitMap;
-
-    /*///////////////////////////////////////////////////////////////
-                                Constants
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
@@ -36,9 +33,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice constant for sUSD currency key
     bytes32 private constant SUSD = "sUSD";
 
-    /*///////////////////////////////////////////////////////////////
-                                State
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                                 STATE
+    //////////////////////////////////////////////////////////////*/
 
     // @notice synthetix address resolver
     IAddressResolver private addressResolver;
@@ -55,24 +52,15 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice margin locked for future events (ie. limit orders)
     uint256 public committedMargin;
 
-    /// @notice active markets bitmap
-    BitMaps.BitMap private markets;
-
-    /// @notice market keys that the account has active positions in
-    bytes32[] public activeMarketKeys;
-
-    /// @notice active market keys mapped to index in activeMarketKeys
-    mapping(bytes32 => uint256) public marketKeyIndex;
-
     /// @notice limit orders
     mapping(uint256 => Order) public orders;
 
     /// @notice sequentially id orders
     uint256 public orderId;
 
-    /*///////////////////////////////////////////////////////////////
-                                Events
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice emitted after a successful deposit
     /// @param user: the address that deposited into account
@@ -119,9 +107,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param amount: fee amount sent to Treasury
     event FeeImposed(address indexed account, uint256 amount);
 
-    /*///////////////////////////////////////////////////////////////
-                                Modifiers
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice helpful modifier to check non-zero values
     /// @param value: value to check if zero
@@ -133,9 +121,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         _;
     }
 
-    /*///////////////////////////////////////////////////////////////
-                                Errors
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice given value cannot be zero
     /// @param valueName: name of the variable that cannot be zero
@@ -175,9 +163,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param minimum: min required ETH balance
     error InsufficientEthBalance(uint256 balance, uint256 minimum);
 
-    /*///////////////////////////////////////////////////////////////
-                        Constructor & Initializer
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice constructor never used except for first CREATE
     // solhint-disable-next-line
@@ -217,15 +205,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         ops = _ops;
     }
 
-    /*///////////////////////////////////////////////////////////////
-                                Views
-    ///////////////////////////////////////////////////////////////*/
-
-    /// @notice get number of internal market positions account has
-    /// @return number of positions which are internally accounted for
-    function getNumberOfInternalPositions() external view returns (uint256) {
-        return activeMarketKeys.length;
-    }
+    /*//////////////////////////////////////////////////////////////
+                                 VIEWS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice the current withdrawable or usable balance
     function freeMargin() public view returns (uint256) {
@@ -250,9 +232,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             .positions(address(this));
     }
 
-    /*///////////////////////////////////////////////////////////////
-                        Account Deposit & Withdraw
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                        ACCOUNT DEPOSIT/WITHDRAW
+    //////////////////////////////////////////////////////////////*/
 
     /// @param _amount: amount of marginAsset to deposit into marginBase account
     function deposit(uint256 _amount) public onlyOwner {
@@ -302,9 +284,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         }
     }
 
-    /*///////////////////////////////////////////////////////////////
-                            Margin Distribution
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                          MARGIN DISTRIBUTION
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice accept a deposit amount and open new
     /// futures market position(s) all in a single tx
@@ -334,17 +316,18 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         NewPosition[] memory _newPositions,
         uint256 _advancedOrderFee
     ) internal {
-        /// @notice limit size of new position specs passed into distribute margin
-        uint256 newPositionsLength = _newPositions.length;
-        if (newPositionsLength > type(uint8).max) {
-            revert MaxNewPositionsExceeded(newPositionsLength);
-        }
-
         /// @notice tracking variable for calculating fee(s)
         uint256 tradingFee = 0;
 
+        // store length of new positions in memory
+        uint256 newPositionsLength = _newPositions.length;
+
         // for each new position in _newPositions, distribute margin accordingly
-        for (uint8 i = 0; i < newPositionsLength; i++) {
+        for (uint256 i = newPositionsLength; i != 0; ) {
+            unchecked {
+                --i;
+            }
+
             // define market params to be used to create or modify a position
             bytes32 marketKey = _newPositions[i].marketKey;
             int256 sizeDelta = _newPositions[i].sizeDelta;
@@ -356,41 +339,28 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             // fetch position size from Synthetix
             (, , , , int128 size) = getPosition(marketKey);
 
-            /// @dev check if position exists internally
-            if (markets.get(uint256(marketKey))) {
-                // check if position was liquidated
-                if (size == 0) {
-                    removeMarketKey(marketKey);
-
-                    // this position no longer exists internally
-                    // thus, treat as new position
-                    if (sizeDelta == 0) {
-                        // position does not exist internally thus, sizeDelta must be non-zero
-                        revert ValueCannotBeZero("sizeDelta");
-                    }
-                }
-                // check if position will be closed by newPosition's sizeDelta
-                else if (size + sizeDelta == 0) {
-                    removeMarketKey(marketKey);
-
-                    // close position and withdraw margin
-                    market.closePositionWithTracking(TRACKING_CODE);
-                    market.withdrawAllMargin();
-
-                    // determine trade fee based on size delta
-                    tradingFee += calculateTradeFee(
-                        sizeDelta,
-                        market,
-                        _advancedOrderFee
-                    );
-
-                    // continue to next newPosition
-                    continue;
-                }
-            }
-            /// @dev position does not exist internally thus sizeDelta must be non-zero
-            else if (sizeDelta == 0) {
+            // if size is zero, then trade must specify non-zero
+            // sizeDelta
+            if (size == 0 && sizeDelta == 0) {
                 revert ValueCannotBeZero("sizeDelta");
+            }
+
+            /// @dev if this trade results in zero size,
+            /// close position and withdraw all margin from market
+            if (size + sizeDelta == 0) {
+                // close position and withdraw margin
+                market.closePositionWithTracking(TRACKING_CODE);
+                market.withdrawAllMargin();
+
+                // determine trade fee based on size delta
+                tradingFee += calculateTradeFee(
+                    sizeDelta,
+                    market,
+                    _advancedOrderFee
+                );
+
+                // continue to next newPosition
+                continue;
             }
 
             /// @notice execute trade
@@ -404,9 +374,6 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                     market,
                     _advancedOrderFee
                 );
-
-                // update internal accounting
-                addMarketKey(marketKey);
             } else if (marginDelta > 0) {
                 // deposit margin into market and potentially adjust position size
                 tradingFee += depositAndModifyPositionForMarket(
@@ -415,9 +382,6 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                     market,
                     _advancedOrderFee
                 );
-
-                // update internal accounting
-                addMarketKey(marketKey);
             } else if (sizeDelta != 0) {
                 /// @notice adjust position size
                 /// @notice no margin deposited nor withdrawn from market
@@ -426,9 +390,6 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                     market,
                     _advancedOrderFee
                 );
-
-                // update internal accounting
-                addMarketKey(marketKey);
             }
         }
 
@@ -451,9 +412,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         }
     }
 
-    /*///////////////////////////////////////////////////////////////
-                        Execute Trades
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                             EXECUTE TRADES
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice modify market position's size
     /// @dev _sizeDelta will always be non-zero
@@ -551,9 +512,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         }
     }
 
-    /*///////////////////////////////////////////////////////////////
-                        Internal Accounting
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                            FEE CALCULATION
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice calculate fee based on both size and given market
     /// @param _sizeDelta: size delta of given trade
@@ -574,49 +535,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         fee = (sUSDRate(_market) * fee) / 1e18;
     }
 
-    /// @notice add marketKey to activeMarketKeys
-    /// @param _marketKey to add
-    function addMarketKey(bytes32 _marketKey) internal {
-        if (!markets.get(uint256(_marketKey))) {
-            // add to mapping
-            marketKeyIndex[_marketKey] = activeMarketKeys.length;
-
-            // add to end of array
-            activeMarketKeys.push(_marketKey);
-
-            // add to bitmap
-            markets.setTo(uint256(_marketKey), true);
-        }
-    }
-
-    /// @notice remove index from activeMarketKeys
-    /// @param _marketKey to add
-    function removeMarketKey(bytes32 _marketKey) internal {
-        uint256 index = marketKeyIndex[_marketKey];
-        assert(index < activeMarketKeys.length);
-
-        // remove from mapping
-        delete marketKeyIndex[_marketKey];
-
-        // remove from array
-        for (; index < activeMarketKeys.length - 1; ) {
-            unchecked {
-                // shift element in array to the left
-                activeMarketKeys[index] = activeMarketKeys[index + 1];
-                // update index for given market key
-                marketKeyIndex[activeMarketKeys[index]] = index;
-                index++;
-            }
-        }
-        activeMarketKeys.pop();
-
-        // remove from bitmap
-        markets.setTo(uint256(_marketKey), false);
-    }
-
-    /*///////////////////////////////////////////////////////////////
-                            Limit Orders
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                            ADVANCED ORDERS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice order logic condition checker
     /// @dev this is where order type logic checks are handled
@@ -888,9 +809,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         );
     }
 
-    /*///////////////////////////////////////////////////////////////
-                        Internal Getter Utilities
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                            GETTER UTILITIES
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice addressResolver fetches IFuturesMarket address for specific market
     /// @param _marketKey: key for synthetix futures market
@@ -925,9 +846,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             );
     }
 
-    /*///////////////////////////////////////////////////////////////
-                            Utility Functions
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                             MATH UTILITIES
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice Absolute value of the input, returned as an unsigned number.
     /// @param x: signed number
