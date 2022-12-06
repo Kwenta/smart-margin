@@ -85,4 +85,17 @@ contract MarginAccountFactoryTest is DSTest {
         MarginBase account = MarginBase(marginAccountFactory.newAccount());
         assertEq(account.owner(), address(this));
     }
+
+    function testCannotInitAccountTwice() public {
+        MarginBase account = MarginBase(
+            payable(marginAccountFactory.newAccount())
+        );
+        cheats.expectRevert();
+        account.initialize(
+            address(0),
+            address(0),
+            address(0),
+            payable(address(0))
+        );
+    }
 }
