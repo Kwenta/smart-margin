@@ -2,22 +2,23 @@
 pragma solidity 0.8.13;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./interfaces/IMarginBaseSettings.sol";
 
 /// @title Kwenta Settings for MarginBase Accounts
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice Contract (owned by the deployer) for controlling the settings of MarginBase account(s)
 /// @dev This contract will require deployment prior to MarginBase account creation
-contract MarginBaseSettings is Ownable {
-    /*///////////////////////////////////////////////////////////////
-                                Constants
-    ///////////////////////////////////////////////////////////////*/
+contract MarginBaseSettings is IMarginBaseSettings, Ownable {
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice max BPS; used for decimals calculations
     uint256 private constant MAX_BPS = 10000;
 
-    /*///////////////////////////////////////////////////////////////
-                        Settings
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                                SETTINGS
+    //////////////////////////////////////////////////////////////*/
 
     // @notice Kwenta's Treasury Address
     address public treasury;
@@ -35,9 +36,9 @@ contract MarginBaseSettings is Ownable {
     /// @dev fee imposed on stop losses
     uint256 public stopOrderFee;
 
-    /*///////////////////////////////////////////////////////////////
-                                Events
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice emitted after changing treasury address
     /// @param treasury: new treasury address
@@ -55,9 +56,9 @@ contract MarginBaseSettings is Ownable {
     /// @param fee: fee denoted in BPS
     event StopOrderFeeChanged(uint256 fee);
 
-    /*///////////////////////////////////////////////////////////////
-                                Errors
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice zero address cannot be used
     error ZeroAddress();
@@ -72,9 +73,9 @@ contract MarginBaseSettings is Ownable {
     /// @notice new address cannot be the same as the old address
     error DuplicateAddress();
 
-    /*///////////////////////////////////////////////////////////////
-                            Constructor
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice set initial margin base account fees
     /// @param _treasury: Kwenta's Treasury Address
@@ -104,9 +105,9 @@ contract MarginBaseSettings is Ownable {
         stopOrderFee = _stopOrderFee;
     }
 
-    /*///////////////////////////////////////////////////////////////
-                                Setters
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice set new treasury address
     /// @param _treasury: new treasury address
