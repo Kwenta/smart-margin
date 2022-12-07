@@ -8,7 +8,7 @@ import "./interfaces/IFuturesMarket.sol";
 import "./interfaces/IFuturesMarketManager.sol";
 import "./interfaces/IMarginBaseTypes.sol";
 import "./interfaces/IMarginBase.sol";
-import "./MarginBaseSettings.sol";
+import "./interfaces/IMarginBaseSettings.sol";
 import "./utils/MinimalProxyable.sol";
 import "./utils/OpsReady.sol";
 
@@ -46,7 +46,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     IFuturesMarketManager private futuresManager;
 
     /// @notice settings for MarginBase account
-    MarginBaseSettings public marginBaseSettings;
+    IMarginBaseSettings public marginBaseSettings;
 
     /// @notice token contract used for account margin
     IERC20 public marginAsset;
@@ -199,7 +199,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         );
 
         /// @dev MarginBaseSettings must exist prior to MarginBase account creation
-        marginBaseSettings = MarginBaseSettings(_marginBaseSettings);
+        marginBaseSettings = IMarginBaseSettings(_marginBaseSettings);
 
         /// @dev the Ownable constructor is never called when we create minimal proxies
         _transferOwnership(msg.sender);
