@@ -3,20 +3,22 @@ pragma solidity 0.8.13;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IAddressResolver.sol";
+import "./interfaces/IExchanger.sol";
 import "./interfaces/IFuturesMarket.sol";
 import "./interfaces/IFuturesMarketManager.sol";
 import "./interfaces/IMarginBaseTypes.sol";
 import "./interfaces/IMarginBase.sol";
-import "./interfaces/IExchanger.sol";
-import "./utils/OpsReady.sol";
-import "./utils/MinimalProxyable.sol";
 import "./MarginBaseSettings.sol";
+import "./utils/MinimalProxyable.sol";
+import "./utils/OpsReady.sol";
 
 /// @title Kwenta MarginBase Account
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice Flexible, minimalist, and gas-optimized cross-margin enabled account
 /// for managing perpetual futures positions
 contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
+    string public constant VERSION = "2.0.0";
+
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
