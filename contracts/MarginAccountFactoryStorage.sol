@@ -12,20 +12,21 @@ contract MarginAccountFactoryStorage is IMarginAccountFactoryStorage, Ownable {
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    // @TODO DOCS
+    /// @notice map of addresses which created a margin account
     mapping(address => address) public deployedMarginAccounts;
-    
-    // @TODO DOCS
+
+    /// @notice map of factories which are verified to create margin accounts
+    /// @dev only can be updated by the owner
     mapping(address => bool) public verifiedFactories;
 
     /*//////////////////////////////////////////////////////////////
                               FACTORY AUTH
     //////////////////////////////////////////////////////////////*/
 
-    // @TODO DOCS
+    /// @notice thrown if non-verified factory is the function caller
     error FactoryOnly();
 
-    // @TODO DOCS
+    /// @notice ensure caller is a verified factory
     modifier onlyFactory() {
         if (!verifiedFactories[msg.sender]) {
             revert FactoryOnly();
@@ -37,7 +38,9 @@ contract MarginAccountFactoryStorage is IMarginAccountFactoryStorage, Ownable {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    // @TODO DOCS
+    /// @notice sets owner of store
+    /// @param _owner: address of owner; originally deployer but
+    /// will be changed to this param
     constructor(address _owner) {
         transferOwnership(_owner);
     }
@@ -46,7 +49,10 @@ contract MarginAccountFactoryStorage is IMarginAccountFactoryStorage, Ownable {
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    // @TODO DOCS
+    /// @notice update store to track new account
+    /// @dev can only be called by verified factory
+    /// @param _creator: address which created margin account
+    /// @param _account: address of newly created margin account
     function addDeployedAccount(address _creator, address _account)
         external
         onlyFactory
@@ -54,7 +60,9 @@ contract MarginAccountFactoryStorage is IMarginAccountFactoryStorage, Ownable {
         deployedMarginAccounts[_creator] = _account;
     }
 
-    // @TODO DOCS
+    /// @notice update store to track new verified factory
+    /// @dev can only be called by the owner
+    /// @param _factory: address of factory
     function addVerifiedFactory(address _factory) external onlyOwner {
         verifiedFactories[_factory] = true;
     }
