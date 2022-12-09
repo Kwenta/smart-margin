@@ -3,9 +3,9 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 
-import "../../contracts/MarginBaseSettings.sol";
-import "../../contracts/MarginAccountFactory.sol";
-import "../../contracts/MarginBase.sol";
+import "../../src/MarginBaseSettings.sol";
+import "../../src/MarginAccountFactory.sol";
+import "../../src/MarginBase.sol";
 
 contract MarginBaseSettingsTest is DSTest {
     MarginBaseSettings private marginBaseSettings;
