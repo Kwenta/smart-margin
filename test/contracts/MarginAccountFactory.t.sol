@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.17;
 
-import "ds-test/test.sol";
-import "./interfaces/CheatCodes.sol";
+import "forge-std/Test.sol";
+
 import "../../contracts/MarginBaseSettings.sol";
 import "../../contracts/MarginAccountFactory.sol";
 import "../../contracts/MarginAccountFactoryStorage.sol";
 import "../../contracts/MarginBase.sol";
 
 contract MarginAccountFactoryTest is DSTest {
-    CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
     MarginBaseSettings private marginBaseSettings;
     MarginAccountFactory private marginAccountFactory;
     MarginAccountFactoryStorage private marginAccountFactoryStorage;
@@ -34,7 +33,7 @@ contract MarginAccountFactoryTest is DSTest {
         bytes32 futuresManagerKey = "FuturesMarketManager";
 
         // @mock addressResolver.requireAndGetAddress()
-        cheats.mockCall(
+        vm.mockCall(
             address(addressResolver),
             abi.encodeWithSelector(
                 IAddressResolver.requireAndGetAddress.selector,
@@ -84,15 +83,15 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     function testNonOwnerCannotAddFactory() public {
-        cheats.expectRevert("Ownable: caller is not the owner");
-        cheats.prank(address(0));
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(address(0));
         marginAccountFactoryStorage.addVerifiedFactory(
             address(marginAccountFactory)
         );
     }
 
     function testNonVerifiedFactoryCannotCreate() public {
-        cheats.expectRevert(
+        vm.expectRevert(
             abi.encodeWithSelector(
                 MarginAccountFactoryStorage.FactoryOnly.selector
             )
@@ -140,7 +139,7 @@ contract MarginAccountFactoryTest is DSTest {
         MarginBase account = MarginBase(
             payable(marginAccountFactory.newAccount())
         );
-        cheats.expectRevert();
+        vm.expectRevert();
         account.initialize(
             address(0),
             address(0),

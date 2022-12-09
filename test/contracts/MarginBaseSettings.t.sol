@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.17;
 
-import "ds-test/test.sol";
-import "./interfaces/CheatCodes.sol";
+import "forge-std/Test.sol";
+
 import "../../contracts/MarginBaseSettings.sol";
 import "../../contracts/MarginAccountFactory.sol";
 import "../../contracts/MarginBase.sol";
 
 contract MarginBaseSettingsTest is DSTest {
-    CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
     MarginBaseSettings private marginBaseSettings;
 
     address private constant KWENTA_TREASURY =
@@ -55,7 +54,7 @@ contract MarginBaseSettingsTest is DSTest {
     }
 
     function testShouldFailSettingTreasuryAddressToZero() public {
-        cheats.expectRevert(
+        vm.expectRevert(
             abi.encodeWithSelector(MarginBaseSettings.ZeroAddress.selector)
         );
         marginBaseSettings.setTreasury(address(0));
@@ -63,7 +62,7 @@ contract MarginBaseSettingsTest is DSTest {
 
     function testSettingTreasuryAddressEvent() public {
         // only care that topic 1 matches
-        cheats.expectEmit(true, false, false, false);
+        vm.expectEmit(true, false, false, false);
         // event we expect
         emit TreasuryAddressChanged(RANDOM_ADDRESS);
         // event we get
@@ -81,14 +80,14 @@ contract MarginBaseSettingsTest is DSTest {
     /// @dev fuzz test
     function testSettingTradeFee(uint256 x) public {
         if (x == marginBaseSettings.tradeFee()) {
-            cheats.expectRevert(
+            vm.expectRevert(
                 abi.encodeWithSelector(MarginBaseSettings.DuplicateFee.selector)
             );
             marginBaseSettings.setTradeFee(x);
             return;
         }
         if (x > 10_000) {
-            cheats.expectRevert(
+            vm.expectRevert(
                 abi.encodeWithSelector(
                     MarginBaseSettings.InvalidFee.selector,
                     x
@@ -112,7 +111,7 @@ contract MarginBaseSettingsTest is DSTest {
 
     function testSettingTradeFeeEvent() public {
         // only care that topic 1 matches
-        cheats.expectEmit(true, false, false, false);
+        vm.expectEmit(true, false, false, false);
         // event we expect
         emit TradeFeeChanged(tradeFee * 2);
         // event we get
@@ -126,7 +125,7 @@ contract MarginBaseSettingsTest is DSTest {
     /// @dev fuzz test
     function testSettingLimitOrderFee(uint256 x) public {
         if (x == marginBaseSettings.limitOrderFee()) {
-            cheats.expectRevert(
+            vm.expectRevert(
                 abi.encodeWithSelector(MarginBaseSettings.DuplicateFee.selector)
             );
             marginBaseSettings.setLimitOrderFee(x);
@@ -134,7 +133,7 @@ contract MarginBaseSettingsTest is DSTest {
         }
         
         if (x > 10_000) {
-            cheats.expectRevert(
+            vm.expectRevert(
                 abi.encodeWithSelector(
                     MarginBaseSettings.InvalidFee.selector,
                     x
@@ -158,7 +157,7 @@ contract MarginBaseSettingsTest is DSTest {
 
     function testSettingLimitOrderFeeEvent() public {
         // only care that topic 1 matches
-        cheats.expectEmit(true, false, false, false);
+        vm.expectEmit(true, false, false, false);
         // event we expect
         emit LimitOrderFeeChanged(limitOrderFee * 2);
         // event we get
@@ -172,7 +171,7 @@ contract MarginBaseSettingsTest is DSTest {
     /// @dev fuzz test
     function testSettingStopOrderFee(uint256 x) public {
         if (x == marginBaseSettings.stopOrderFee()) {
-            cheats.expectRevert(
+            vm.expectRevert(
                 abi.encodeWithSelector(MarginBaseSettings.DuplicateFee.selector)
             );
             marginBaseSettings.setStopOrderFee(x);
@@ -180,7 +179,7 @@ contract MarginBaseSettingsTest is DSTest {
         }
 
         if (x > 10_000) {
-            cheats.expectRevert(
+            vm.expectRevert(
                 abi.encodeWithSelector(
                     MarginBaseSettings.InvalidFee.selector,
                     x
@@ -204,7 +203,7 @@ contract MarginBaseSettingsTest is DSTest {
 
     function testSettingStopOrderFeeEvent() public {
         // only care that topic 1 matches
-        cheats.expectEmit(true, false, false, false);
+        vm.expectEmit(true, false, false, false);
         // event we expect
         emit StopOrderFeeChanged(stopOrderFee * 2);
         // event we get

@@ -1,11 +1,6 @@
-[default]
-solc = "0.8.17"
-optimizer = true
-optimizer_runs = 1_000_000
-fuzz_runs = 10_000
-src = 'contracts'
-out = 'artifacts'
-test = 'test'
-libs = ['lib', 'node_modules']
+[profile.default]
+src = 'src'
+out = 'out'
+libs = ['lib']
 
-# See more config options https://github.com/gakonst/foundry/tree/master/config
+# See more config options https://github.com/foundry-rs/foundry/tree/master/config

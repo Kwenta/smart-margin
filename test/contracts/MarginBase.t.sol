@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.17;
 
-import "ds-test/test.sol";
-import "./interfaces/CheatCodes.sol";
+import "forge-std/Test.sol";
+
 import "../../contracts/interfaces/IFuturesMarket.sol";
 import "../../contracts/interfaces/IFuturesMarketManager.sol";
 import "../../contracts/interfaces/IAddressResolver.sol";
@@ -14,7 +14,6 @@ import "../../contracts/MarginBase.sol";
 import "./utils/MintableERC20.sol";
 
 contract MarginBaseTest is DSTest {
-    CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
     MintableERC20 private marginAsset;
     MarginBaseSettings private marginBaseSettings;
     MarginAccountFactory private marginAccountFactory;
@@ -110,13 +109,13 @@ contract MarginBaseTest is DSTest {
          * This is because Solidity inserts an extcodesize check before some contract calls.
          * To circumvent this, use the etch cheatcode if the mocked address has no code.
          */
-        cheats.etch(address(addressResolver), new bytes(0x19));
+        vm.etch(address(addressResolver), new bytes(0x19));
 
         bytes32 futuresManagerKey = "FuturesMarketManager";
         bytes32 exchangerKey = "Exchanger";
 
         // @mock addressResolver.requireAndGetAddress()
-        cheats.mockCall(
+        vm.mockCall(
             address(addressResolver),
             abi.encodeWithSelector(
                 IAddressResolver.requireAndGetAddress.selector,
@@ -126,7 +125,7 @@ contract MarginBaseTest is DSTest {
             abi.encode(address(futuresManager))
         );
 
-        cheats.mockCall(
+        vm.mockCall(
             address(addressResolver),
             abi.encodeWithSelector(
                 IAddressResolver.requireAndGetAddress.selector,
@@ -145,7 +144,7 @@ contract MarginBaseTest is DSTest {
      */
     function mockFuturesMarketManagerCalls() internal {
         // use the etch cheatcode if the mocked address has no code
-        cheats.etch(address(futuresManager), new bytes(0x19));
+        vm.etch(address(futuresManager), new bytes(0x19));
 
         bytes32[4] memory keys = [
             ETH_MARKET_KEY,
@@ -161,7 +160,7 @@ contract MarginBaseTest is DSTest {
         ];
         for (uint16 i = 0; i < 4; i++) {
             // @mock futuresManager.marketForKey()
-            cheats.mockCall(
+            vm.mockCall(
                 address(futuresManager),
                 abi.encodeWithSelector(
                     IFuturesMarketManager.marketForKey.selector,
@@ -189,10 +188,10 @@ contract MarginBaseTest is DSTest {
         ];
         for (uint16 i = 0; i < 4; i++) {
             // use the etch cheatcode if the mocked address has no code
-            cheats.etch(address(marketsToMock[i]), new bytes(0x19));
+            vm.etch(address(marketsToMock[i]), new bytes(0x19));
 
             // @mock market.transferMargin()
-            cheats.mockCall(
+            vm.mockCall(
                 address(marketsToMock[i]),
                 abi.encodeWithSelector(
                     IFuturesMarket.transferMargin.selector,
@@ -200,7 +199,7 @@ contract MarginBaseTest is DSTest {
                 ),
                 abi.encode()
             );
-            cheats.mockCall(
+            vm.mockCall(
                 address(marketsToMock[i]),
                 abi.encodeWithSelector(
                     IFuturesMarket.transferMargin.selector,
@@ -210,7 +209,7 @@ contract MarginBaseTest is DSTest {
             );
 
             // @mock market.modifyPositionWithTracking()
-            cheats.mockCall(
+            vm.mockCall(
                 address(marketsToMock[i]),
                 abi.encodeWithSelector(
                     IFuturesMarket.modifyPositionWithTracking.selector,
@@ -219,7 +218,7 @@ contract MarginBaseTest is DSTest {
                 ),
                 abi.encode()
             );
-            cheats.mockCall(
+            vm.mockCall(
                 address(marketsToMock[i]),
                 abi.encodeWithSelector(
                     IFuturesMarket.modifyPositionWithTracking.selector,
@@ -230,7 +229,7 @@ contract MarginBaseTest is DSTest {
             );
 
             // @mock market.positions()
-            cheats.mockCall(
+            vm.mockCall(
                 address(marketsToMock[i]),
                 abi.encodeWithSelector(
                     IFuturesMarket.positions.selector,
@@ -240,7 +239,7 @@ contract MarginBaseTest is DSTest {
             );
 
             // @mock market.withdrawAllMargin()
-            cheats.mockCall(
+            vm.mockCall(
                 address(marketsToMock[i]),
                 abi.encodeWithSelector(
                     IFuturesMarket.withdrawAllMargin.selector
@@ -249,7 +248,7 @@ contract MarginBaseTest is DSTest {
             );
 
             // @mock market.closePosition()
-            cheats.mockCall(
+            vm.mockCall(
                 address(marketsToMock[i]),
                 abi.encodeWithSelector(IFuturesMarket.closePosition.selector),
                 abi.encode()
@@ -267,13 +266,13 @@ contract MarginBaseTest is DSTest {
     function mockExchangeRates(IFuturesMarket mockedMarket, uint256 mockedPrice)
         internal
     {
-        cheats.mockCall(
+        vm.mockCall(
             address(mockedMarket),
             abi.encodePacked(IFuturesMarket.baseAsset.selector),
             abi.encode("sSYNTH")
         );
         // @mock market.assetPrice()
-        cheats.mockCall(
+        vm.mockCall(
             address(mockedMarket),
             abi.encodeWithSelector(IFuturesMarket.assetPrice.selector),
             abi.encode(mockedPrice, false)
@@ -285,12 +284,12 @@ contract MarginBaseTest is DSTest {
         uint256 mockedFee,
         bool tooVolatile
     ) internal {
-        cheats.mockCall(
+        vm.mockCall(
             address(mockedMarket),
             abi.encodePacked(IFuturesMarket.baseAsset.selector),
             abi.encode("sETH")
         );
-        cheats.mockCall(
+        vm.mockCall(
             address(exchanger),
             abi.encodeWithSelector(
                 IExchanger.dynamicFeeRateForExchange.selector
@@ -305,7 +304,7 @@ contract MarginBaseTest is DSTest {
      * @dev Mocked calls are in effect until clearMockedCalls is called.
      */
     function mockMarginBalance(uint256 amount) internal {
-        cheats.mockCall(
+        vm.mockCall(
             address(marginAsset),
             abi.encodePacked(IERC20.balanceOf.selector),
             abi.encode(amount)
@@ -314,21 +313,21 @@ contract MarginBaseTest is DSTest {
 
     function mockGelato(uint256 fee) internal {
         // mock gelato fee details
-        cheats.mockCall(
+        vm.mockCall(
             account.ops(),
             abi.encodePacked(IOps.getFeeDetails.selector),
             abi.encode(fee, account.ETH())
         );
 
         // mock gelato address getter
-        cheats.mockCall(
+        vm.mockCall(
             account.ops(),
             abi.encodePacked(IOps.gelato.selector),
             abi.encode(gelato)
         );
 
         // mock gelato address getter
-        cheats.mockCall(
+        vm.mockCall(
             account.ops(),
             abi.encodePacked(IOps.cancelTask.selector),
             abi.encode(0)
@@ -401,11 +400,11 @@ contract MarginBaseTest is DSTest {
         uint256 targetPrice,
         IMarginBase.OrderTypes orderType
     ) internal returns (uint256 orderId) {
-        cheats.deal(address(account), 1 ether / 10);
+        vm.deal(address(account), 1 ether / 10);
         bytes memory createTaskSelector = abi.encodePacked(
             IOps.createTaskNoPrepayment.selector
         );
-        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        vm.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
         orderId = account.placeOrder(
             marketKey,
             marginDelta,
@@ -432,9 +431,9 @@ contract MarginBaseTest is DSTest {
     /// https://book.getfoundry.sh/cheatcodes/mock-call.html#description
     function mockCall(address where, bytes memory data) internal {
         // Fill target with bytes
-        cheats.etch(where, new bytes(0x19));
+        vm.etch(where, new bytes(0x19));
         // Mock target call
-        cheats.mockCall(where, data, abi.encode());
+        vm.mockCall(where, data, abi.encode());
     }
 
     function getSelector(string memory _func) internal pure returns (bytes4) {
@@ -464,8 +463,8 @@ contract MarginBaseTest is DSTest {
 
     /// @dev Deposit/Withdrawal fuzz test
     function testWithdrawal(uint256 amount) public {
-        cheats.assume(amount > 0);
-        cheats.assume(amount <= 10000000 ether); // 10_000_000
+        vm.assume(amount > 0);
+        vm.assume(amount <= 10000000 ether); // 10_000_000
         deposit(amount);
         account.withdraw(amount);
         assertEq(marginAsset.balanceOf(address(account)), 0);
@@ -479,13 +478,13 @@ contract MarginBaseTest is DSTest {
 
     function testEthDepositWithdrawal() public payable {
         uint256 amount = 1 ether;
-        cheats.deal(address(this), amount);
+        vm.deal(address(this), amount);
 
         // Deposit
         bytes memory createTaskSelector = abi.encodePacked(
             IOps.createTaskNoPrepayment.selector
         );
-        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        vm.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
         account.placeOrder{value: amount}(
             ETH_MARKET_KEY,
             0,
@@ -532,7 +531,7 @@ contract MarginBaseTest is DSTest {
         uint256 expectedFee = (totalSizeDelta * marginBaseSettings.tradeFee()) /
             MAX_BPS;
 
-        cheats.expectEmit(true, false, false, true, address(account));
+        vm.expectEmit(true, false, false, true, address(account));
         emit FeeImposed(address(account), expectedFee);
 
         account.distributeMargin(newPositions);
@@ -562,7 +561,7 @@ contract MarginBaseTest is DSTest {
                 marginBaseSettings.tradeFee() *
                 1 ether) / MAX_BPS;
 
-            cheats.expectEmit(true, false, false, true, address(account));
+            vm.expectEmit(true, false, false, true, address(account));
             emit FeeImposed(address(account), expectedFee);
         }
 
@@ -580,7 +579,7 @@ contract MarginBaseTest is DSTest {
             marginDelta: 1 ether,
             sizeDelta: 1 ether
         });
-        cheats.expectRevert();
+        vm.expectRevert();
         account.distributeMargin(newPositions);
     }
 
@@ -612,7 +611,7 @@ contract MarginBaseTest is DSTest {
             marginBaseSettings.tradeFee() *
             1 ether) / MAX_BPS;
 
-        cheats.expectEmit(true, false, false, true, address(account));
+        vm.expectEmit(true, false, false, true, address(account));
         emit FeeImposed(address(account), expectedFee);
 
         account.depositAndDistribute(amount, newPositions);
@@ -633,10 +632,10 @@ contract MarginBaseTest is DSTest {
         marginAsset.mint(nonOwnerEOA, amount);
         marginAsset.approve(nonOwnerEOA, amount);
 
-        cheats.expectRevert(
+        vm.expectRevert(
             abi.encodePacked("Ownable: caller is not the owner")
         );
-        cheats.prank(nonOwnerEOA); // non-owner calling depositAndDistribute()
+        vm.prank(nonOwnerEOA); // non-owner calling depositAndDistribute()
         account.depositAndDistribute(amount, newPositions);
     }
 
@@ -661,7 +660,7 @@ contract MarginBaseTest is DSTest {
         account.distributeMargin(newPositions);
 
         // mock liquidation
-        cheats.mockCall(
+        vm.mockCall(
             address(futuresMarketETH),
             abi.encodeWithSelector(
                 IFuturesMarket.positions.selector,
@@ -681,7 +680,7 @@ contract MarginBaseTest is DSTest {
 
         // since position was liquidated, the modification will actually be
         // treated as a new position (i.e. will revert if size is zero)
-        cheats.expectRevert(
+        vm.expectRevert(
             abi.encodeWithSelector(
                 MarginBase.ValueCannotBeZero.selector,
                 bytes32("sizeDelta")
@@ -711,7 +710,7 @@ contract MarginBaseTest is DSTest {
             marginBaseSettings.tradeFee() *
             1 ether) / MAX_BPS;
 
-        cheats.expectEmit(true, false, false, true, address(account));
+        vm.expectEmit(true, false, false, true, address(account));
         emit FeeImposed(address(account), expectedFee);
         account.distributeMargin(newPositions);
 
@@ -721,7 +720,7 @@ contract MarginBaseTest is DSTest {
             sizeDelta: -1 ether
         });
 
-        cheats.expectEmit(true, false, false, true, address(account));
+        vm.expectEmit(true, false, false, true, address(account));
         emit FeeImposed(address(account), expectedFee);
         account.distributeMargin(newPositions);
     }
@@ -826,7 +825,7 @@ contract MarginBaseTest is DSTest {
         mockExchangeRatesForDistributionTests();
 
         // update: @mock market.assetPrice()
-        cheats.mockCall(
+        vm.mockCall(
             address(futuresMarketETH),
             abi.encodeWithSelector(IFuturesMarket.assetPrice.selector),
             abi.encode(ETH_MARKET_KEY, true) // invalid == true
@@ -843,7 +842,7 @@ contract MarginBaseTest is DSTest {
         marginAsset.mint(address(this), 1 ether);
         marginAsset.approve(address(account), 1 ether);
 
-        cheats.expectRevert(
+        vm.expectRevert(
             abi.encodeWithSelector(MarginBase.InvalidPrice.selector)
         );
         account.depositAndDistribute(1 ether, newPositions);
@@ -947,7 +946,7 @@ contract MarginBaseTest is DSTest {
         uint256 expectedLimitPrice = 3e18;
 
         // Toss out fuzz runs greater than limit price
-        cheats.assume(currentPrice <= expectedLimitPrice);
+        vm.assume(currentPrice <= expectedLimitPrice);
 
         // Setup
         deposit(amount);
@@ -972,7 +971,7 @@ contract MarginBaseTest is DSTest {
         uint256 expectedLimitPrice = 3e18;
 
         // Toss out fuzz runs less than limit price
-        cheats.assume(currentPrice > expectedLimitPrice);
+        vm.assume(currentPrice > expectedLimitPrice);
 
         // Setup
         deposit(amount);
@@ -997,7 +996,7 @@ contract MarginBaseTest is DSTest {
         uint256 targetStopPrice = 3e18;
 
         // Toss out fuzz runs greater than target price
-        cheats.assume(currentPrice >= targetStopPrice);
+        vm.assume(currentPrice >= targetStopPrice);
 
         // Setup
         deposit(amount);
@@ -1022,7 +1021,7 @@ contract MarginBaseTest is DSTest {
         uint256 targetStopPrice = 3e18;
 
         // Toss out fuzz runs less than target price
-        cheats.assume(currentPrice < targetStopPrice);
+        vm.assume(currentPrice < targetStopPrice);
 
         // Setup
         deposit(amount);
@@ -1045,11 +1044,11 @@ contract MarginBaseTest is DSTest {
         uint256 expectedLimitPrice = 3e18;
         uint256 expectedMaxFee = 10; // 10 basis points
         deposit(amount);
-        cheats.deal(address(account), 1 ether / 10);
+        vm.deal(address(account), 1 ether / 10);
         bytes memory createTaskSelector = abi.encodePacked(
             IOps.createTaskNoPrepayment.selector
         );
-        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        vm.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
         uint256 orderId = account.placeOrderWithFeeCap(
             ETH_MARKET_KEY,
             int256(amount),
@@ -1070,11 +1069,11 @@ contract MarginBaseTest is DSTest {
         uint256 expectedLimitPrice = 3e18;
         uint256 expectedMaxFee = 10; // 10 basis points
         deposit(amount);
-        cheats.deal(address(account), 1 ether / 10);
+        vm.deal(address(account), 1 ether / 10);
         bytes memory createTaskSelector = abi.encodePacked(
             IOps.createTaskNoPrepayment.selector
         );
-        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        vm.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
         uint256 orderId = account.placeOrderWithFeeCap(
             ETH_MARKET_KEY,
             int256(amount),
@@ -1096,11 +1095,11 @@ contract MarginBaseTest is DSTest {
         uint256 currentPrice = 2e18;
         uint256 expectedMaxFee = 10; // 10 basis points
         deposit(amount);
-        cheats.deal(address(account), 1 ether / 10);
+        vm.deal(address(account), 1 ether / 10);
         bytes memory createTaskSelector = abi.encodePacked(
             IOps.createTaskNoPrepayment.selector
         );
-        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        vm.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
         uint256 orderId = account.placeOrderWithFeeCap(
             ETH_MARKET_KEY,
             int256(amount),
@@ -1123,11 +1122,11 @@ contract MarginBaseTest is DSTest {
         uint256 currentPrice = 2e18;
         uint256 expectedMaxFee = 10; // 10 basis points
         deposit(amount);
-        cheats.deal(address(account), 1 ether / 10);
+        vm.deal(address(account), 1 ether / 10);
         bytes memory createTaskSelector = abi.encodePacked(
             IOps.createTaskNoPrepayment.selector
         );
-        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        vm.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
         uint256 orderId = account.placeOrderWithFeeCap(
             ETH_MARKET_KEY,
             int256(amount),
@@ -1169,11 +1168,11 @@ contract MarginBaseTest is DSTest {
         uint256 expectedLimitPrice = 3e18;
         uint256 expectedMaxFee = 10; // 10 basis points
         deposit(amount);
-        cheats.deal(address(account), 1 ether / 10);
+        vm.deal(address(account), 1 ether / 10);
         bytes memory createTaskSelector = abi.encodePacked(
             IOps.createTaskNoPrepayment.selector
         );
-        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        vm.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
         uint256 orderId = account.placeOrderWithFeeCap(
             ETH_MARKET_KEY,
             int256(amount),
@@ -1194,8 +1193,8 @@ contract MarginBaseTest is DSTest {
         bytes memory createTaskSelector = abi.encodePacked(
             IOps.createTaskNoPrepayment.selector
         );
-        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
-        cheats.expectRevert(
+        vm.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        vm.expectRevert(
             abi.encodeWithSelector(
                 MarginBase.InsufficientEthBalance.selector,
                 0, // 0 ETH in account
@@ -1218,11 +1217,11 @@ contract MarginBaseTest is DSTest {
         int256 orderSizeDelta = 1e18;
         uint256 expectedLimitPrice = 3e18;
         deposit(amount);
-        cheats.deal(address(account), 1 ether / 10);
+        vm.deal(address(account), 1 ether / 10);
         bytes memory createTaskSelector = abi.encodePacked(
             IOps.createTaskNoPrepayment.selector
         );
-        cheats.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
+        vm.mockCall(account.ops(), createTaskSelector, abi.encode(0x1));
 
         // Bad Order
         (bool success, ) = address(account).call(
@@ -1256,7 +1255,7 @@ contract MarginBaseTest is DSTest {
         int256 orderSizeDelta = 0;
         uint256 expectedLimitPrice = 3e18;
         deposit(amount);
-        cheats.expectRevert(
+        vm.expectRevert(
             abi.encodeWithSelector(
                 MarginBase.ValueCannotBeZero.selector,
                 bytes32("_sizeDelta")
@@ -1277,7 +1276,7 @@ contract MarginBaseTest is DSTest {
         uint256 expectedLimitPrice = 3e18;
         deposit(amount);
 
-        cheats.expectEmit(true, false, false, true, address(account));
+        vm.expectEmit(true, false, false, true, address(account));
         emit OrderPlaced(
             address(account),
             0, // first order
@@ -1328,7 +1327,7 @@ contract MarginBaseTest is DSTest {
             expectedLimitPrice,
             IMarginBaseTypes.OrderTypes.LIMIT
         );
-        cheats.expectRevert(
+        vm.expectRevert(
             abi.encodeWithSelector(
                 MarginBase.InsufficientFreeMargin.selector,
                 originalDeposit - amountToCommit,
@@ -1339,7 +1338,7 @@ contract MarginBaseTest is DSTest {
     }
 
     function testWithdrawingCommittedMargin(uint256 originalDeposit) public {
-        cheats.assume(originalDeposit > 0);
+        vm.assume(originalDeposit > 0);
         assertEq(account.committedMargin(), 0);
         uint256 amountToCommit = originalDeposit;
         int256 orderSizeDelta = 1e18;
@@ -1347,9 +1346,9 @@ contract MarginBaseTest is DSTest {
         deposit(originalDeposit);
 
         // the maximum margin delta is positive 2^128 because it is int256
-        cheats.assume(amountToCommit < 2**128 - 1);
+        vm.assume(amountToCommit < 2**128 - 1);
         // this is a valid case (unless we want to restrict limit orders from not changing margin)
-        cheats.assume(amountToCommit != 0);
+        vm.assume(amountToCommit != 0);
 
         placeAdvancedOrder(
             ETH_MARKET_KEY,
@@ -1358,7 +1357,7 @@ contract MarginBaseTest is DSTest {
             expectedLimitPrice,
             IMarginBaseTypes.OrderTypes.LIMIT
         );
-        cheats.expectRevert(
+        vm.expectRevert(
             abi.encodeWithSelector(
                 MarginBase.InsufficientFreeMargin.selector,
                 originalDeposit - amountToCommit,
@@ -1395,7 +1394,7 @@ contract MarginBaseTest is DSTest {
             secondOrderSizeDelta
         );
 
-        cheats.expectRevert(
+        vm.expectRevert(
             abi.encodeWithSelector(
                 MarginBase.InsufficientFreeMargin.selector,
                 originalDeposit - amountToCommit, // free margin
@@ -1428,7 +1427,7 @@ contract MarginBaseTest is DSTest {
         mockGelato(0);
 
         // call as ops
-        cheats.prank(address(gelatoOps));
+        vm.prank(address(gelatoOps));
         account.executeOrder(orderId);
 
         assertEq(account.committedMargin(), 0);
@@ -1457,13 +1456,13 @@ contract MarginBaseTest is DSTest {
         mockGelato(fee);
 
         // provide account with fee balance
-        cheats.deal(address(account), fee);
+        vm.deal(address(account), fee);
 
-        cheats.expectEmit(true, false, false, true, address(account));
+        vm.expectEmit(true, false, false, true, address(account));
         emit OrderFilled(address(account), orderId, limitPrice, fee);
 
         // call as ops
-        cheats.prank(address(gelatoOps));
+        vm.prank(address(gelatoOps));
         account.executeOrder(orderId);
     }
 
@@ -1493,11 +1492,11 @@ contract MarginBaseTest is DSTest {
         mockExchangeRates(futuresMarketETH, ethPrice);
         mockGelato(0);
 
-        cheats.expectEmit(true, false, false, true, address(account));
+        vm.expectEmit(true, false, false, true, address(account));
         emit FeeImposed(address(account), expectedFinalFeeCost);
 
         // call as ops
-        cheats.prank(address(gelatoOps));
+        vm.prank(address(gelatoOps));
         account.executeOrder(orderId);
     }
 
@@ -1527,7 +1526,7 @@ contract MarginBaseTest is DSTest {
         mockGelato(fee);
 
         // call as ops
-        cheats.prank(address(gelatoOps));
+        vm.prank(address(gelatoOps));
         account.executeOrder(orderId);
 
         assertEq(address(gelato).balance, existingGelatoBalance + fee);
@@ -1557,10 +1556,10 @@ contract MarginBaseTest is DSTest {
         mockGelato(fee);
 
         // expect a call w/ empty calldata to gelato (payment through callvalue)
-        cheats.expectCall(gelato, "");
+        vm.expectCall(gelato, "");
 
         // call as ops
-        cheats.prank(address(gelatoOps));
+        vm.prank(address(gelatoOps));
         account.executeOrder(orderId);
     }
 
@@ -1608,7 +1607,7 @@ contract MarginBaseTest is DSTest {
         );
         assertEq(account.committedMargin(), amount);
 
-        cheats.expectEmit(true, false, false, true, address(account));
+        vm.expectEmit(true, false, false, true, address(account));
         emit OrderCancelled(address(account), orderId);
 
         // Mock non-returning function call
