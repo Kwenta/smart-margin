@@ -5,12 +5,14 @@ import "ds-test/test.sol";
 import "./interfaces/CheatCodes.sol";
 import "../../contracts/MarginBaseSettings.sol";
 import "../../contracts/MarginAccountFactory.sol";
+import "../../contracts/MarginAccountFactoryStorage.sol";
 import "../../contracts/MarginBase.sol";
 
 contract MarginAccountFactoryTest is DSTest {
     CheatCodes private cheats = CheatCodes(HEVM_ADDRESS);
     MarginBaseSettings private marginBaseSettings;
     MarginAccountFactory private marginAccountFactory;
+    MarginAccountFactoryStorage private marginAccountFactoryStorage;
 
     address private addressResolver =
         0x1Cb059b7e74fD21665968C908806143E744D5F30;
@@ -50,29 +52,71 @@ contract MarginAccountFactoryTest is DSTest {
         uint256 tradeFee = 5; // 5 BPS
         uint256 limitOrderFee = 5; // 5 BPS
         uint256 stopLossFee = 10; // 10 BPS
-        marginBaseSettings = new MarginBaseSettings(
-            KWENTA_TREASURY,
-            tradeFee,
-            limitOrderFee,
-            stopLossFee
-        );
+        marginBaseSettings = new MarginBaseSettings({
+            _treasury: KWENTA_TREASURY,
+            _tradeFee: tradeFee,
+            _limitOrderFee: limitOrderFee,
+            _stopOrderFee: stopLossFee
+        });
 
-        marginAccountFactory = new MarginAccountFactory(
-            "0.0.0",
-            address(0),
-            addressResolver,
-            address(marginBaseSettings),
-            payable(address(0))
+        marginAccountFactoryStorage = new MarginAccountFactoryStorage({
+            _owner: address(this)
+        });
+
+        marginAccountFactory = new MarginAccountFactory({
+            _store: address(marginAccountFactoryStorage),
+            _marginAsset: address(0),
+            _addressResolver: addressResolver,
+            _marginBaseSettings: address(marginBaseSettings),
+            _ops: payable(address(0))
+        });
+    }
+
+    function testOwnerCanAddFactory() public {
+        marginAccountFactoryStorage.addVerifiedFactory(
+            address(marginAccountFactory)
+        );
+        assertTrue(
+            marginAccountFactoryStorage.verifiedFactories(
+                address(marginAccountFactory)
+            )
         );
     }
 
+    function testNonOwnerCannotAddFactory() public {
+        cheats.expectRevert("Ownable: caller is not the owner");
+        cheats.prank(address(0));
+        marginAccountFactoryStorage.addVerifiedFactory(
+            address(marginAccountFactory)
+        );
+    }
+
+    function testNonVerifiedFactoryCannotCreate() public {
+        cheats.expectRevert(
+            abi.encodeWithSelector(
+                MarginAccountFactoryStorage.FactoryOnly.selector
+            )
+        );
+        marginAccountFactory.newAccount();
+    }
+
     function testAccountCreation() public {
+        marginAccountFactoryStorage.addVerifiedFactory(
+            address(marginAccountFactory)
+        );
         address account = marginAccountFactory.newAccount();
         assertTrue(account != address(0));
+        assertTrue(
+            marginAccountFactoryStorage.deployedMarginAccounts(address(this)) ==
+                address(account)
+        );
     }
 
     // Assert proxy is less than implementation
     function testAssertProxySize() public {
+        marginAccountFactoryStorage.addVerifiedFactory(
+            address(marginAccountFactory)
+        );
         address account = marginAccountFactory.newAccount();
         assertEq(account.code.length, 45); // Minimal proxy is 45 bytes
         assertLt(
@@ -82,11 +126,17 @@ contract MarginAccountFactoryTest is DSTest {
     }
 
     function testAccountOwnerIsMsgSender() public {
+        marginAccountFactoryStorage.addVerifiedFactory(
+            address(marginAccountFactory)
+        );
         MarginBase account = MarginBase(marginAccountFactory.newAccount());
         assertEq(account.owner(), address(this));
     }
 
     function testCannotInitAccountTwice() public {
+        marginAccountFactoryStorage.addVerifiedFactory(
+            address(marginAccountFactory)
+        );
         MarginBase account = MarginBase(
             payable(marginAccountFactory.newAccount())
         );

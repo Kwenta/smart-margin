@@ -9,6 +9,7 @@ import "../../contracts/interfaces/IAddressResolver.sol";
 import "../../contracts/interfaces/IMarginBaseTypes.sol";
 import "../../contracts/MarginBaseSettings.sol";
 import "../../contracts/MarginAccountFactory.sol";
+import "../../contracts/MarginAccountFactoryStorage.sol";
 import "../../contracts/MarginBase.sol";
 import "./utils/MintableERC20.sol";
 
@@ -17,6 +18,7 @@ contract MarginBaseTest is DSTest {
     MintableERC20 private marginAsset;
     MarginBaseSettings private marginBaseSettings;
     MarginAccountFactory private marginAccountFactory;
+    MarginAccountFactoryStorage private marginAccountFactoryStorage;
     MarginBase private account;
 
     // test address
@@ -352,13 +354,22 @@ contract MarginBaseTest is DSTest {
 
         marginAsset = new MintableERC20(address(this), 0);
 
-        marginAccountFactory = new MarginAccountFactory(
-            "0.0.0",
-            address(marginAsset),
-            address(addressResolver),
-            address(marginBaseSettings),
-            payable(address(gelatoOps))
+        marginAccountFactoryStorage = new MarginAccountFactoryStorage({
+            _owner: address(this)
+        });
+
+        marginAccountFactory = new MarginAccountFactory({
+            _store: address(marginAccountFactoryStorage),
+            _marginAsset: address(marginAsset),
+            _addressResolver: address(addressResolver),
+            _marginBaseSettings: address(marginBaseSettings),
+            _ops: payable(address(gelatoOps))
+        });
+
+        marginAccountFactoryStorage.addVerifiedFactory(
+            address(marginAccountFactory)
         );
+
         account = MarginBase(marginAccountFactory.newAccount());
 
         mockFuturesMarketManagerCalls();
