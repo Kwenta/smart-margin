@@ -16,7 +16,7 @@ const config: HardhatUserConfig = {
     solidity: {
         compilers: [
             {
-                version: "0.8.13",
+                version: "0.8.17",
                 settings: {
                     optimizer: {
                         enabled: true,
@@ -76,7 +76,7 @@ const config: HardhatUserConfig = {
     },
     etherscan: {
         apiKey: process.env.ETHERSCAN_API_KEY,
-    },  
+    },
 };
 
 export default config;

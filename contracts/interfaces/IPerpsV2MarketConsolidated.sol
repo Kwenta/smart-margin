@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.13;
+pragma solidity 0.8.17;
 pragma experimental ABIEncoderV2;
 
 // Helper Interface, only used in tests and to provide a consolidated interface to PerpsV2 users/integrators
