@@ -7,7 +7,7 @@ import "../../src/MarginBaseSettings.sol";
 import "../../src/MarginAccountFactory.sol";
 import "../../src/MarginBase.sol";
 
-contract MarginBaseSettingsTest is DSTest {
+contract MarginBaseSettingsTest is Test {
     MarginBaseSettings private marginBaseSettings;
 
     address private constant KWENTA_TREASURY =

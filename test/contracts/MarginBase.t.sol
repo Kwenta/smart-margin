@@ -13,7 +13,7 @@ import "../../src/MarginAccountFactoryStorage.sol";
 import "../../src/MarginBase.sol";
 import "./utils/MintableERC20.sol";
 
-contract MarginBaseTest is DSTest {
+contract MarginBaseTest is Test {
     MintableERC20 private marginAsset;
     MarginBaseSettings private marginBaseSettings;
     MarginAccountFactory private marginAccountFactory;

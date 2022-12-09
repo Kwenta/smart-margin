@@ -8,7 +8,7 @@ import "../../src/MarginAccountFactory.sol";
 import "../../src/MarginAccountFactoryStorage.sol";
 import "../../src/MarginBase.sol";
 
-contract MarginAccountFactoryTest is DSTest {
+contract MarginAccountFactoryTest is Test {
     MarginBaseSettings private marginBaseSettings;
     MarginAccountFactory private marginAccountFactory;
     MarginAccountFactoryStorage private marginAccountFactoryStorage;
