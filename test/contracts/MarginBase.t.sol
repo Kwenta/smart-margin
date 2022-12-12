@@ -339,7 +339,9 @@ contract MarginBaseTest is Test {
     ///////////////////////////////////////////////////////////////*/
 
     /// @dev enable payments to this contract
-    receive() external payable {}
+    receive() external payable {
+        return;
+    }
 
     function setUp() public {
         mockAddressResolverCalls();
