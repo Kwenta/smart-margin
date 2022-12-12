@@ -8,7 +8,7 @@ import "../../src/MarginAccountFactory.sol";
 import "../../src/MarginAccountFactoryStorage.sol";
 import "../../src/MarginBase.sol";
 
-contract MarginAccountFactoryTest is Test {
+contract MarginAccountFactoryStorageTest is Test {
     MarginBaseSettings private marginBaseSettings;
     MarginAccountFactory private marginAccountFactory;
     MarginAccountFactoryStorage private marginAccountFactoryStorage;
@@ -71,52 +71,46 @@ contract MarginAccountFactoryTest is Test {
         });
     }
 
-    function testAccountCreation() public {
+    function testOwnerWasSet() public {
+        marginAccountFactoryStorage = new MarginAccountFactoryStorage({
+            _owner: KWENTA_TREASURY
+        });
+        assertTrue(marginAccountFactoryStorage.owner() == KWENTA_TREASURY);
+    }
+
+    function testOwnerCanAddFactory() public {
+        marginAccountFactoryStorage.addVerifiedFactory(
+            address(marginAccountFactory)
+        );
+        assertTrue(
+            marginAccountFactoryStorage.verifiedFactories(
+                address(marginAccountFactory)
+            )
+        );
+    }
+
+    function testNonOwnerCannotAddFactory() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(address(0));
+        marginAccountFactoryStorage.addVerifiedFactory(
+            address(marginAccountFactory)
+        );
+    }
+
+    function testNonVerifiedFactoryCannotCreate() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MarginAccountFactoryStorage.FactoryOnly.selector
+            )
+        );
+        marginAccountFactory.newAccount();
+    }
+
+    function testVerifiedFactoryCanCreate() public {
         marginAccountFactoryStorage.addVerifiedFactory(
             address(marginAccountFactory)
         );
         address account = marginAccountFactory.newAccount();
         assertTrue(account != address(0));
-        assertTrue(
-            marginAccountFactoryStorage.deployedMarginAccounts(address(this)) ==
-                address(account)
-        );
-    }
-
-    // Assert proxy is less than implementation
-    function testAssertProxySize() public {
-        marginAccountFactoryStorage.addVerifiedFactory(
-            address(marginAccountFactory)
-        );
-        address account = marginAccountFactory.newAccount();
-        assertEq(account.code.length, 45); // Minimal proxy is 45 bytes
-        assertLt(
-            account.code.length,
-            address(marginAccountFactory.implementation()).code.length
-        );
-    }
-
-    function testAccountOwnerIsMsgSender() public {
-        marginAccountFactoryStorage.addVerifiedFactory(
-            address(marginAccountFactory)
-        );
-        MarginBase account = MarginBase(marginAccountFactory.newAccount());
-        assertEq(account.owner(), address(this));
-    }
-
-    function testCannotInitAccountTwice() public {
-        marginAccountFactoryStorage.addVerifiedFactory(
-            address(marginAccountFactory)
-        );
-        MarginBase account = MarginBase(
-            payable(marginAccountFactory.newAccount())
-        );
-        vm.expectRevert();
-        account.initialize(
-            address(0),
-            address(0),
-            address(0),
-            payable(address(0))
-        );
     }
 }
