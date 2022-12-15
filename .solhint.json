@@ -1,6 +1,7 @@
 {
     "extends": "solhint:recommended",
     "rules": {
+        "var-name-mixedcase": "off",
         "compiler-version": [
             "error",
             "^0.8.13"
