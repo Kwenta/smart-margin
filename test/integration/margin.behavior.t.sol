@@ -17,7 +17,7 @@ contract MarginBehaviorTest is Test {
     // see: for cheatcodes: https://book.getfoundry.sh/cheatcodes/forking
 
     /// @notice forking related constants
-    string private OPTIMISM_RPC_URL = vm.envString("OPTIMISM_RPC_URL");
+    string private OPTIMISM_RPC_URL = vm.envString("ARCHIVE_NODE_URL_L2");
     uint256 private constant BLOCK_NUMBER = 16000000;
     uint256 private optimismFork;
 
