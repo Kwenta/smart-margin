@@ -40,10 +40,10 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     //////////////////////////////////////////////////////////////*/
 
     // @notice synthetix address resolver
-    IAddressResolver private addressResolver;
+    IAddressResolver public addressResolver;
 
     /// @notice synthetix futures market manager
-    IFuturesMarketManager private futuresManager;
+    IFuturesMarketManager public futuresManager;
 
     /// @notice settings for MarginBase account
     IMarginBaseSettings public marginBaseSettings;
