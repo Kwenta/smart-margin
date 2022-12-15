@@ -30,10 +30,10 @@ jobs:
 
       - name: Run Forge Unit tests
         run: |
-          npm run unit-test
+          forge test --no-match-path test/integration/account.behavior.t.sol
         id: test
 
       - name: Run Forge Integration tests
         run: |
-          npm run integration-test
+          forge test --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }} --match-path test/integration/account.behavior.t.sol
         id: test
