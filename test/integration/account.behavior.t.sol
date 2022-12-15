@@ -9,17 +9,8 @@ import "../../src/MarginAccountFactoryStorage.sol";
 import "../../src/MarginBase.sol";
 import "../../src/interfaces/IAddressResolver.sol";
 
-contract MarginBehaviorTest is Test {
-    /*//////////////////////////////////////////////////////////////
-                                  FORK
-    //////////////////////////////////////////////////////////////*/
-
-    // see: for cheatcodes: https://book.getfoundry.sh/cheatcodes/forking
-
-    /// @notice forking related constants
-    string private OPTIMISM_RPC_URL = vm.envString("ARCHIVE_NODE_URL_L2");
+contract AccountBehaviorTest is Test {
     uint256 private constant BLOCK_NUMBER = 16000000;
-    uint256 private optimismFork;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
@@ -62,10 +53,6 @@ contract MarginBehaviorTest is Test {
     /// meaning each test function is executed with a copy of the state after
     /// setUp and is executed in its own stand-alone EVM.
     function setUp() public {
-        // select the fork for test env
-        optimismFork = vm.createFork(OPTIMISM_RPC_URL);
-        vm.selectFork(optimismFork);
-
         // select block number
         vm.rollFork(BLOCK_NUMBER);
 

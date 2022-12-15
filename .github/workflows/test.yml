@@ -28,7 +28,12 @@ jobs:
           forge build --sizes
         id: build
 
-      - name: Run Forge tests
+      - name: Run Forge Unit tests
         run: |
-          forge test -vvv
+          npm run unit-test
+        id: test
+
+      - name: Run Forge Integration tests
+        run: |
+          npm run integration-test
         id: test
