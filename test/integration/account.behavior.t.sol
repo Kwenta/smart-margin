@@ -248,5 +248,5 @@ contract AccountBehaviorTest is Test {
     /// and in a single trade:
     /// (1) + size of some positions
     /// (2) - size of some positions
-    function testModifyMultiplePositionsMargin() external {}
+    function testModifyMultiplePositionsSize() external {}
 }
