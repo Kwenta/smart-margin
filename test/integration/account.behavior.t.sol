@@ -11,6 +11,8 @@ import "../../src/MarginBase.sol";
 import "../../src/interfaces/IAddressResolver.sol";
 
 contract AccountBehaviorTest is Test {
+    receive() external payable {}
+    
     /// @notice BLOCK_NUMBER corresponds to Jan-03-2023
     /// @dev hard coded addresses are only guaranteed for this block
     uint256 private constant BLOCK_NUMBER = 16326866;
@@ -19,7 +21,7 @@ contract AccountBehaviorTest is Test {
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    // sUSD minted to test signer
+    // test amount used throughout tests
     uint256 private constant AMOUNT = 10_000 ether;
 
     // synthetix (ReadProxyAddressResolver)
@@ -42,9 +44,6 @@ contract AccountBehaviorTest is Test {
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice test account
-    address private constant signer = address(0xCafeBabe);
 
     /// @notice KWENTA contracts
     MarginBaseSettings private marginBaseSettings;
@@ -172,19 +171,72 @@ contract AccountBehaviorTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice use helper function defined in this test contract
-    /// to mint sUSD to test signer which is stored
-    /// in contract state
+    /// to mint sUSD
     function testCanMintSUSD() external {
-        assert(sUSD.balanceOf(signer) == 0);
-        mintSUSD(signer, AMOUNT);
-        assert(sUSD.balanceOf(signer) == AMOUNT);
+        assert(sUSD.balanceOf(address(this)) == 0);
+
+        // mint sUSD and transfer to this address
+        mintSUSD(address(this), AMOUNT);
+
+        assert(sUSD.balanceOf(address(this)) == AMOUNT);
     }
 
     /// @notice deposit sUSD into account
-    function testDeposit() external {}
+    function testDepositSUSD() external {
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // mint sUSD and transfer to this address
+        mintSUSD(address(this), AMOUNT);
+
+        // approve account to spend AMOUNT
+        sUSD.approve(address(account), AMOUNT);
+
+        assert(sUSD.balanceOf(address(account)) == 0);
+
+        // deposit sUSD into account
+        account.deposit(AMOUNT);
+
+        assert(sUSD.balanceOf(address(account)) == AMOUNT);
+    }
 
     /// @notice withdraw sUSD from account
-    function testWithdraw() external {}
+    function testWithdrawSUSD() external {
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // mint sUSD and transfer to this address
+        mintSUSD(address(this), AMOUNT);
+
+        // approve account to spend AMOUNT
+        sUSD.approve(address(account), AMOUNT);
+
+        // deposit sUSD into account
+        account.deposit(AMOUNT);
+
+        // withdraw sUSD from account
+        account.withdraw(AMOUNT);
+
+        assert(sUSD.balanceOf(address(this)) == AMOUNT);
+        assert(sUSD.balanceOf(address(account)) == 0);
+    }
+
+    /// @notice withdraw ETH from account
+    function testWithdrawETH() external {
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // send ETH to account
+        (bool s, ) = address(account).call{value: 1 ether}("");
+        assert(s);
+
+        assert(address(account).balance == 1 ether);
+
+        // withdraw ETH
+        account.withdrawEth(1 ether);
+
+        assert(address(account).balance == 0);
+    }
 
     /*//////////////////////////////////////////////////////////////
                              BASIC TRADING
