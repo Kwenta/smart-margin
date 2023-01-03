@@ -3,16 +3,17 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 import "@solmate/tokens/ERC20.sol";
-import "../../src/interfaces/ISynth.sol";
+import "../../src/interfaces/synthetix/ISynth.sol";
 import "../../src/MarginBaseSettings.sol";
 import "../../src/MarginAccountFactory.sol";
 import "../../src/MarginAccountFactoryStorage.sol";
 import "../../src/MarginBase.sol";
-import "../../src/interfaces/IAddressResolver.sol";
+import "../../src/interfaces/IMarginBaseTypes.sol";
+import "../../src/interfaces/synthetix/IAddressResolver.sol";
 
 contract AccountBehaviorTest is Test {
     receive() external payable {}
-    
+
     /// @notice BLOCK_NUMBER corresponds to Jan-03-2023
     /// @dev hard coded addresses are only guaranteed for this block
     uint256 private constant BLOCK_NUMBER = 16326866;
@@ -36,10 +37,13 @@ contract AccountBehaviorTest is Test {
     address private constant KWENTA_TREASURY =
         0x82d2242257115351899894eF384f779b5ba8c695;
 
-    /// @notice fee settings
+    // fee settings
     uint256 private constant TRADE_FEE = 5; // 5 BPS
     uint256 private constant LIMIT_ORDER_FEE = 5; // 5 BPS
     uint256 private constant STOP_LOSS_FEE = 10; // 10 BPS
+
+    // Synthetix PerpsV2 market key(s)
+    bytes32 private constant sETHPERP = "sETHPERP";
 
     /*//////////////////////////////////////////////////////////////
                                  STATE
@@ -142,7 +146,7 @@ contract AccountBehaviorTest is Test {
         // check correct values set in constructor
         assert(address(account.addressResolver()) == address(ADDRESS_RESOLVER));
         assert(
-            address(account.futuresManager()) ==
+            address(account.futuresMarketManager()) ==
                 ADDRESS_RESOLVER.getAddress("FuturesMarketManager")
         );
         assert(
@@ -248,38 +252,40 @@ contract AccountBehaviorTest is Test {
     /// OPENING POSITIONS
     ///
 
-    /// @notice open a single long position
-    function testOpenLongPosition() external {}
+    /// @notice open long and short positions
+    function testOpenPositions() external pure {
+        // long position:
+        int256 longMarginDelta = int256(AMOUNT) / 10;
+        int256 longSizeDelta = 1 ether;
+        IMarginBaseTypes.NewPosition memory longPosition = IMarginBaseTypes
+            .NewPosition({
+                marketKey: sETHPERP,
+                marginDelta: longMarginDelta,
+                sizeDelta: longSizeDelta
+            });
 
-    /// @notice open multiple long positions
-    function testOpenLongPositions() external {}
+        // short position:
+        int256 shortMarginDelta = int256(AMOUNT) / 10;
+        int256 shortSizeDelta = -1 ether;
+        IMarginBaseTypes.NewPosition memory shortPosition = IMarginBaseTypes
+            .NewPosition({
+                marketKey: sETHPERP,
+                marginDelta: shortMarginDelta,
+                sizeDelta: shortSizeDelta
+            });
 
-    /// @notice open a single short position
-    function testOpenShortPosition() external {}
-
-    /// @notice open multiple short positions
-    function testOpenShortPositions() external {}
-
-    /// @notice open multiple long and short positions
-    function testOpenPositions() external {}
+        // define positions array
+        IMarginBaseTypes.NewPosition[]
+            memory positions = new IMarginBaseTypes.NewPosition[](2);
+        positions[0] = longPosition;
+        positions[1] = shortPosition;
+    }
 
     ///
     /// CLOSING POSITIONS
     ///
 
-    /// @notice close a single long position
-    function testCloseLongPosition() external {}
-
-    /// @notice close multiple long positions
-    function testCloseLongPositions() external {}
-
-    /// @notice close a single short position
-    function testCloseShortPosition() external {}
-
-    /// @notice close multiple short positions
-    function testCloseShortPositions() external {}
-
-    /// @notice open multiple long and short positions
+    /// @notice close long and short positions
     function testClosePositions() external {}
 
     ///
