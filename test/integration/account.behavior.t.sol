@@ -3,6 +3,7 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 import "@solmate/tokens/ERC20.sol";
+import "../../src/interfaces/ISynth.sol";
 import "../../src/MarginBaseSettings.sol";
 import "../../src/MarginAccountFactory.sol";
 import "../../src/MarginAccountFactoryStorage.sol";
@@ -10,11 +11,16 @@ import "../../src/MarginBase.sol";
 import "../../src/interfaces/IAddressResolver.sol";
 
 contract AccountBehaviorTest is Test {
-    uint256 private constant BLOCK_NUMBER = 16000000;
+    /// @notice BLOCK_NUMBER corresponds to Jan-03-2023
+    /// @dev hard coded addresses are only guaranteed for this block
+    uint256 private constant BLOCK_NUMBER = 16326866;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
+
+    // sUSD minted to test signer
+    uint256 private constant AMOUNT = 10_000 ether;
 
     // synthetix (ReadProxyAddressResolver)
     IAddressResolver private constant ADDRESS_RESOLVER =
@@ -37,6 +43,9 @@ contract AccountBehaviorTest is Test {
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice test account
+    address private constant signer = address(0xCafeBabe);
+
     /// @notice KWENTA contracts
     MarginBaseSettings private marginBaseSettings;
     MarginAccountFactory private marginAccountFactory;
@@ -44,6 +53,34 @@ contract AccountBehaviorTest is Test {
 
     /// @notice other contracts
     ERC20 private sUSD;
+
+    /*//////////////////////////////////////////////////////////////
+                               MINT SUSD
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice mint sUSD and transfer to address specified
+    /// @dev Issuer.sol is an auxiliary helper contract that performs
+    /// the issuing and burning functionality.
+    /// Synth.sol is the base ERC20 token contract comprising most of
+    /// the behaviour of all synths.
+    /// Issuer is considered an "internal contract" therefore,
+    /// it is permitted to call Synth.issue() which is restricted by
+    /// the onlyInternalContracts modifier. Synth.issue() updates the
+    /// token state (i.e. balance and total existing tokens) which effectively
+    /// can be used to "mint" an account the underlying synth.
+    /// @param to: address to mint and transfer sUSD to
+    /// @param amount: amount to mint and transfer
+    function mintSUSD(address to, uint256 amount) private {
+        // fetch addresses needed
+        address issuer = ADDRESS_RESOLVER.getAddress("Issuer");
+        ISynth synthsUSD = ISynth(ADDRESS_RESOLVER.getAddress("SynthsUSD"));
+
+        // set caller as issuer
+        vm.prank(issuer);
+
+        // mint sUSD
+        synthsUSD.issue(to, amount);
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  SETUP
@@ -134,6 +171,15 @@ contract AccountBehaviorTest is Test {
                        ACCOUNT DEPOSITS/WITHDRAWS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice use helper function defined in this test contract
+    /// to mint sUSD to test signer which is stored
+    /// in contract state
+    function testCanMintSUSD() external {
+        assert(sUSD.balanceOf(signer) == 0);
+        mintSUSD(signer, AMOUNT);
+        assert(sUSD.balanceOf(signer) == AMOUNT);
+    }
+
     /// @notice deposit sUSD into account
     function testDeposit() external {}
 
@@ -143,7 +189,7 @@ contract AccountBehaviorTest is Test {
     /*//////////////////////////////////////////////////////////////
                              BASIC TRADING
     //////////////////////////////////////////////////////////////*/
-    /// @dev basic trading excludes advanced/conditional 
+    /// @dev basic trading excludes advanced/conditional
     /// orders such as limit/stop-loss
 
     ///
