@@ -16,16 +16,17 @@ interface IMarginBaseTypes {
         STOP
     }
 
-    // marketKey: synthetix futures market id/key
+    // marketKey: Synthetix PerpsV2 Market id/key
     // marginDelta: amount of margin (in sUSD) to deposit or withdraw
     // sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
     struct NewPosition {
         bytes32 marketKey;
         int256 marginDelta; // positive indicates deposit, negative withdraw
-        int256 sizeDelta;
+        int256 sizeDelta; // difference in position
+        uint128 priceImpactDelta; // price impact tolerance as a percentage used on fillPrice at execution
     }
 
-    // marketKey: synthetix futures market id/key
+    // marketKey: Synthetix PerpsV2 Market id/key
     // marginDelta: amount of margin (in sUSD) to deposit or withdraw
     // sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
     // targetPrice: limit or stop price to fill at

@@ -235,6 +235,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             bytes32 marketKey = _newPositions[i].marketKey;
             int256 sizeDelta = _newPositions[i].sizeDelta;
             int256 marginDelta = _newPositions[i].marginDelta;
+            uint256 priceImpactDelta = _newPositions[i].priceImpactDelta;
 
             // define market
             IPerpsV2MarketConsolidated market = getPerpsV2Market(marketKey);
@@ -253,7 +254,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             if (size + sizeDelta == 0) {
                 // close position and withdraw margin
                 market.closePositionWithTracking({
-                    priceImpactDelta: 1, // @TODO add field to NewPosition struct
+                    priceImpactDelta: priceImpactDelta,
                     trackingCode: TRACKING_CODE
                 });
                 market.withdrawAllMargin();
@@ -278,7 +279,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                     marginDelta,
                     sizeDelta,
                     market,
-                    _advancedOrderFee
+                    _advancedOrderFee,
+                    priceImpactDelta
                 );
             } else if (marginDelta > 0) {
                 // deposit margin into market and potentially adjust position size
@@ -286,7 +288,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                     marginDelta,
                     sizeDelta,
                     market,
-                    _advancedOrderFee
+                    _advancedOrderFee,
+                    priceImpactDelta
                 );
             } else if (sizeDelta != 0) {
                 /// @notice adjust position size
@@ -294,7 +297,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                 tradingFee += modifyPositionForMarket(
                     sizeDelta,
                     market,
-                    _advancedOrderFee
+                    _advancedOrderFee,
+                    priceImpactDelta
                 );
             }
         }
@@ -327,16 +331,18 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param _sizeDelta: size and position type (long/short) denominated in market synth
     /// @param _market: Synthetix PerpsV2 Market
     /// @param _advancedOrderFee: if additional fee charged for advanced orders
+    /// @param _priceImpactDelta: price impact tolerance as a percentage
     /// @return fee *in sUSD*
     function modifyPositionForMarket(
         int256 _sizeDelta,
         IPerpsV2MarketConsolidated _market,
-        uint256 _advancedOrderFee
+        uint256 _advancedOrderFee,
+        uint256 _priceImpactDelta
     ) internal returns (uint256 fee) {
         // modify position in specific market with KWENTA tracking code
         _market.submitOffchainDelayedOrderWithTracking({
             sizeDelta: _sizeDelta,
-            priceImpactDelta: 1, // @TODO add field to NewPosition struct
+            priceImpactDelta: _priceImpactDelta,
             trackingCode: TRACKING_CODE
         });
 
@@ -355,12 +361,14 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param _sizeDelta: size and position type (long/short) denominated in market synth
     /// @param _market: Synthetix PerpsV2 Market
     /// @param _advancedOrderFee: if additional fee charged for advanced orders
+    /// @param _priceImpactDelta: price impact tolerance as a percentage
     /// @return fee *in sUSD*
     function depositAndModifyPositionForMarket(
         int256 _depositSize,
         int256 _sizeDelta,
         IPerpsV2MarketConsolidated _market,
-        uint256 _advancedOrderFee
+        uint256 _advancedOrderFee,
+        uint256 _priceImpactDelta
     ) internal returns (uint256 fee) {
         /// @dev ensure trade doesn't spend margin which is not available
         uint256 absDepositSize = _abs(_depositSize);
@@ -382,7 +390,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             // modify position in specific market with KWENTA tracking code
             _market.submitOffchainDelayedOrderWithTracking({
                 sizeDelta: _sizeDelta,
-                priceImpactDelta: 1, // @TODO add field to NewPosition struct
+                priceImpactDelta: _priceImpactDelta,
                 trackingCode: TRACKING_CODE
             });
         } else {
@@ -399,19 +407,21 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param _sizeDelta: size and position type (long//short) denominated in market synth
     /// @param _market: Synthetix PerpsV2 Market
     /// @param _advancedOrderFee: if additional fee charged for advanced orders
+    /// @param _priceImpactDelta: price impact tolerance as a percentage
     /// @return fee *in sUSD*
     function modifyPositionForMarketAndWithdraw(
         int256 _withdrawalSize,
         int256 _sizeDelta,
         IPerpsV2MarketConsolidated _market,
-        uint256 _advancedOrderFee
+        uint256 _advancedOrderFee,
+        uint256 _priceImpactDelta
     ) internal returns (uint256 fee) {
         /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
         if (_sizeDelta != 0) {
             // modify position in specific market with KWENTA tracking code
             _market.submitOffchainDelayedOrderWithTracking({
                 sizeDelta: _sizeDelta,
-                priceImpactDelta: 1, // @TODO add field to NewPosition struct
+                priceImpactDelta: _priceImpactDelta,
                 trackingCode: TRACKING_CODE
             });
 
