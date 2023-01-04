@@ -4,6 +4,7 @@
         "no-empty-blocks": "off",
         "var-name-mixedcase": "off",
         "avoid-low-level-calls": "off",
+        "const-name-snakecase": "off",
         "compiler-version": [
             "error",
             "^0.8.13"
