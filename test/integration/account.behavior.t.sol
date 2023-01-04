@@ -11,12 +11,13 @@ import "../../src/MarginBase.sol";
 import "../../src/interfaces/IMarginBaseTypes.sol";
 import "../../src/interfaces/synthetix/IAddressResolver.sol";
 
+// Functions tagged with @HELPER are helper functions and not tests
 contract AccountBehaviorTest is Test {
     receive() external payable {}
 
-    /// @notice BLOCK_NUMBER corresponds to Jan-03-2023
+    /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
     /// @dev hard coded addresses are only guaranteed for this block
-    uint256 private constant BLOCK_NUMBER = 16326866;
+    uint256 private constant BLOCK_NUMBER = 60242268;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
@@ -44,6 +45,7 @@ contract AccountBehaviorTest is Test {
 
     // Synthetix PerpsV2 market key(s)
     bytes32 private constant sETHPERP = "sETHPERP";
+    bytes32 private constant sBTCPERP = "sBTCPERP";
 
     /*//////////////////////////////////////////////////////////////
                                  STATE
@@ -61,6 +63,7 @@ contract AccountBehaviorTest is Test {
                                MINT SUSD
     //////////////////////////////////////////////////////////////*/
 
+    // @HELPER
     /// @notice mint sUSD and transfer to address specified
     /// @dev Issuer.sol is an auxiliary helper contract that performs
     /// the issuing and burning functionality.
@@ -135,6 +138,14 @@ contract AccountBehaviorTest is Test {
                             ACCOUNT CREATION
     //////////////////////////////////////////////////////////////*/
 
+    // @HELPER
+    /// @dev utility function doing same as above
+    /// @return account - MarginBase account
+    function createAccount() private returns (MarginBase account) {
+        // call factory to create account
+        account = MarginBase(payable(marginAccountFactory.newAccount()));
+    }
+
     /// @notice create account via the MarginAccountFactory
     function testAccountCreated() external {
         // call factory to create account
@@ -161,13 +172,6 @@ contract AccountBehaviorTest is Test {
             marginAccountFactoryStorage.deployedMarginAccounts(address(this)) ==
                 address(account)
         );
-    }
-
-    /// @dev utility function doing same as above
-    /// @return account - MarginBase account
-    function createAccount() private returns (MarginBase account) {
-        // call factory to create account
-        account = MarginBase(payable(marginAccountFactory.newAccount()));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -243,46 +247,86 @@ contract AccountBehaviorTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
+                       FETCHING POSITION DETAILS
+    //////////////////////////////////////////////////////////////*/
+
+    function testCanFetchPositionDetails() external {
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // get position details
+        IPerpsV2MarketConsolidated.Position memory position = account
+            .getPosition(sETHPERP);
+
+        // expect all details to be zero
+        assert(position.id == 0);
+        assert(position.lastFundingIndex == 0);
+        assert(position.margin == 0);
+        assert(position.lastPrice == 0);
+        assert(position.size == 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                              BASIC TRADING
     //////////////////////////////////////////////////////////////*/
     /// @dev basic trading excludes advanced/conditional
     /// orders such as limit/stop-loss
+
+    // @HELPER
+    /// @notice create margin base account and fund it with sUSD
+    /// @return MarginBase account
+    function createAccountAndDepositSUSD() private returns (MarginBase) {
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // mint sUSD and transfer to this address
+        mintSUSD(address(this), AMOUNT);
+
+        // approve account to spend AMOUNT
+        sUSD.approve(address(account), AMOUNT);
+
+        // deposit sUSD into account
+        account.deposit(AMOUNT);
+
+        return account;
+    }
 
     ///
     /// OPENING POSITIONS
     ///
 
     /// @notice open long and short positions
-    function testOpenPositions() external pure {
-        // long position:
-        int256 longMarginDelta = int256(AMOUNT) / 10;
-        int256 longSizeDelta = 1 ether;
-        uint128 longPriceImpactDelta = 1;
+    function testOpenPosition() external {
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // define position details
         IMarginBaseTypes.NewPosition memory longPosition = IMarginBaseTypes
             .NewPosition({
                 marketKey: sETHPERP,
-                marginDelta: longMarginDelta,
-                sizeDelta: longSizeDelta,
-                priceImpactDelta: longPriceImpactDelta
-            });
-
-        // short position:
-        int256 shortMarginDelta = int256(AMOUNT) / 10;
-        int256 shortSizeDelta = -1 ether;
-        uint128 shortPriceImpactDelta = 1;
-        IMarginBaseTypes.NewPosition memory shortPosition = IMarginBaseTypes
-            .NewPosition({
-                marketKey: sETHPERP,
-                marginDelta: shortMarginDelta,
-                sizeDelta: shortSizeDelta,
-                priceImpactDelta: shortPriceImpactDelta
+                marginDelta: int256(AMOUNT) / 10,
+                sizeDelta: 1 ether,
+                priceImpactDelta: 1
             });
 
         // define positions array
         IMarginBaseTypes.NewPosition[]
-            memory positions = new IMarginBaseTypes.NewPosition[](2);
+            memory positions = new IMarginBaseTypes.NewPosition[](1);
         positions[0] = longPosition;
-        positions[1] = shortPosition;
+
+        // place trade
+        account.distributeMargin(positions);
+
+        // get position details
+        IPerpsV2MarketConsolidated.Position memory position = account
+            .getPosition(sETHPERP);
+
+        // expect only margin to be non-zero at this point
+        assert(position.id == 0);
+        assert(position.lastFundingIndex == 0);
+        assert(position.margin != 0);
+        assert(position.lastPrice == 0);
+        assert(position.size == 0);
     }
 
     ///
