@@ -28,6 +28,9 @@ interface IMarginBase is IMarginBaseTypes {
     /// @param marginDelta: margin change
     /// @param sizeDelta: size change
     /// @param targetPrice: targeted fill price
+    /// @param orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
+    /// @param maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
+    /// @param priceImpactDelta: price impact tolerance as a percentage
     event OrderPlaced(
         address indexed account,
         uint256 orderId,
@@ -35,7 +38,9 @@ interface IMarginBase is IMarginBaseTypes {
         int256 marginDelta,
         int256 sizeDelta,
         uint256 targetPrice,
-        OrderTypes orderType
+        OrderTypes orderType,
+        uint256 maxDynamicFee,
+        uint128 priceImpactDelta
     );
 
     /// @notice emitted when an advanced order is cancelled
@@ -112,14 +117,12 @@ interface IMarginBase is IMarginBaseTypes {
                                 Mutative
     ///////////////////////////////////////////////////////////////*/
 
-    // Account Deposit & Withdraw
     function deposit(uint256 _amount) external;
 
     function withdraw(uint256 _amount) external;
 
     function withdrawEth(uint256 _amount) external;
 
-    // Margin Distribution
     function distributeMargin(NewPosition[] memory _newPositions) external;
 
     function depositAndDistribute(
@@ -127,7 +130,6 @@ interface IMarginBase is IMarginBaseTypes {
         NewPosition[] memory _newPositions
     ) external;
 
-    // Limit Orders
     function validOrder(uint256 _orderId) external view returns (bool, uint256);
 
     function placeOrder(
@@ -135,7 +137,8 @@ interface IMarginBase is IMarginBaseTypes {
         int256 _marginDelta,
         int256 _sizeDelta,
         uint256 _targetPrice,
-        OrderTypes _orderType
+        OrderTypes _orderType,
+        uint128 _priceImpactDelta
     ) external payable returns (uint256);
 
     function placeOrderWithFeeCap(
@@ -144,7 +147,8 @@ interface IMarginBase is IMarginBaseTypes {
         int256 _sizeDelta,
         uint256 _targetPrice,
         OrderTypes _orderType,
-        uint256 _maxDynamicFee
+        uint256 _maxDynamicFee,
+        uint128 _priceImpactDelta
     ) external payable returns (uint256);
 
     function cancelOrder(uint256 _orderId) external;

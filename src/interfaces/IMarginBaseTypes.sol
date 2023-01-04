@@ -41,5 +41,6 @@ interface IMarginBaseTypes {
         bytes32 gelatoTaskId;
         OrderTypes orderType;
         uint256 maxDynamicFee;
+        uint128 priceImpactDelta; // price impact tolerance as a percentage used on fillPrice at execution
     }
 }

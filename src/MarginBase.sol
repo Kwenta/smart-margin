@@ -556,23 +556,26 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of futures position
     /// @param _targetPrice: expected limit order price
     /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
+    /// @param _priceImpactDelta: price impact tolerance as a percentage
     /// @return orderId contract interface
     function placeOrder(
         bytes32 _marketKey,
         int256 _marginDelta,
         int256 _sizeDelta,
         uint256 _targetPrice,
-        OrderTypes _orderType
+        OrderTypes _orderType,
+        uint128 _priceImpactDelta
     ) external payable returns (uint256) {
         return
-            _placeOrder(
-                _marketKey,
-                _marginDelta,
-                _sizeDelta,
-                _targetPrice,
-                _orderType,
-                0
-            );
+            _placeOrder({
+                _marketKey: _marketKey,
+                _marginDelta: _marginDelta,
+                _sizeDelta: _sizeDelta,
+                _targetPrice: _targetPrice,
+                _orderType: _orderType,
+                _maxDynamicFee: 0,
+                _priceImpactDelta: _priceImpactDelta
+            });
     }
 
     /// @notice register a limit order internally and with gelato
@@ -582,6 +585,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param _targetPrice: expected limit order price
     /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
     /// @param _maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
+    /// @param _priceImpactDelta: price impact tolerance as a percentage
     /// @return orderId contract interface
     function placeOrderWithFeeCap(
         bytes32 _marketKey,
@@ -589,17 +593,19 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         int256 _sizeDelta,
         uint256 _targetPrice,
         OrderTypes _orderType,
-        uint256 _maxDynamicFee
+        uint256 _maxDynamicFee,
+        uint128 _priceImpactDelta
     ) external payable returns (uint256) {
         return
-            _placeOrder(
-                _marketKey,
-                _marginDelta,
-                _sizeDelta,
-                _targetPrice,
-                _orderType,
-                _maxDynamicFee
-            );
+            _placeOrder({
+                _marketKey: _marketKey,
+                _marginDelta: _marginDelta,
+                _sizeDelta: _sizeDelta,
+                _targetPrice: _targetPrice,
+                _orderType: _orderType,
+                _maxDynamicFee: _maxDynamicFee,
+                _priceImpactDelta: _priceImpactDelta
+            });
     }
 
     function _placeOrder(
@@ -608,7 +614,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         int256 _sizeDelta,
         uint256 _targetPrice,
         OrderTypes _orderType,
-        uint256 _maxDynamicFee
+        uint256 _maxDynamicFee,
+        uint128 _priceImpactDelta
     )
         internal
         notZero(_abs(_sizeDelta), "_sizeDelta")
@@ -642,7 +649,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             targetPrice: _targetPrice,
             gelatoTaskId: taskId,
             orderType: _orderType,
-            maxDynamicFee: _maxDynamicFee
+            maxDynamicFee: _maxDynamicFee,
+            priceImpactDelta: _priceImpactDelta
         });
 
         emit OrderPlaced(
@@ -652,7 +660,9 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             _marginDelta,
             _sizeDelta,
             _targetPrice,
-            _orderType
+            _orderType,
+            _maxDynamicFee,
+            _priceImpactDelta
         );
 
         return orderId++;
@@ -696,7 +706,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         newPositions[0] = NewPosition({
             marketKey: order.marketKey,
             marginDelta: order.marginDelta,
-            sizeDelta: order.sizeDelta
+            sizeDelta: order.sizeDelta,
+            priceImpactDelta: order.priceImpactDelta
         });
 
         // remove task from gelato's side
