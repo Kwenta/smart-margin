@@ -257,21 +257,25 @@ contract AccountBehaviorTest is Test {
         // long position:
         int256 longMarginDelta = int256(AMOUNT) / 10;
         int256 longSizeDelta = 1 ether;
+        uint128 longPriceImpactDelta = 1;
         IMarginBaseTypes.NewPosition memory longPosition = IMarginBaseTypes
             .NewPosition({
                 marketKey: sETHPERP,
                 marginDelta: longMarginDelta,
-                sizeDelta: longSizeDelta
+                sizeDelta: longSizeDelta,
+                priceImpactDelta: longPriceImpactDelta
             });
 
         // short position:
         int256 shortMarginDelta = int256(AMOUNT) / 10;
         int256 shortSizeDelta = -1 ether;
+        uint128 shortPriceImpactDelta = 1;
         IMarginBaseTypes.NewPosition memory shortPosition = IMarginBaseTypes
             .NewPosition({
                 marketKey: sETHPERP,
                 marginDelta: shortMarginDelta,
-                sizeDelta: shortSizeDelta
+                sizeDelta: shortSizeDelta,
+                priceImpactDelta: shortPriceImpactDelta
             });
 
         // define positions array
