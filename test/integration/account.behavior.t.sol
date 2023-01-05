@@ -321,12 +321,42 @@ contract AccountBehaviorTest is Test {
         IPerpsV2MarketConsolidated.Position memory position = account
             .getPosition(sETHPERP);
 
-        // expect only margin to be non-zero at this point
+        // expect only margin to be non-zero since order has not been executed
         assert(position.id == 0);
         assert(position.lastFundingIndex == 0);
         assert(position.margin != 0);
         assert(position.lastPrice == 0);
         assert(position.size == 0);
+
+        // adjust Synthetix PerpsV2 sETHPERP Market Settings as contract owner
+        address perpsV2MarketSettings = ADDRESS_RESOLVER.getAddress(
+            "PerpsV2MarketSettings"
+        );
+        address perpsV2MarketSettingsOwner = 0x6d4a64C57612841c2C6745dB2a4E4db34F002D20;
+        vm.prank(perpsV2MarketSettingsOwner);
+
+        // set min age to zero so order can be executed immediately
+        (bool s, bytes memory r) = perpsV2MarketSettings.call(
+            abi.encodeWithSignature(
+                "setOffchainDelayedOrderMinAge(bytes32,uint)",
+                sETHPERP,
+                0
+            )
+        );
+
+        // generate authentic price-feed to submit
+        bytes32[] memory priceUpdateData;
+
+        // attempt to execute order
+        address sETHPERPAddress = ADDRESS_RESOLVER.getAddress(sETHPERP);
+        (s, r) = sETHPERPAddress.call(
+            abi.encodeWithSignature(
+                "executeOffchainDelayedOrder(address,bytes[])",
+                address(account),
+                priceUpdateData
+            )
+        );
+        //assert(s);
     }
 
     ///
