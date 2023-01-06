@@ -2,14 +2,14 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@synthetix/IAddressResolver.sol";
+import "@synthetix/IExchanger.sol";
+import "@synthetix/IFuturesMarketManager.sol";
 import "./interfaces/IMarginBaseTypes.sol";
 import "./interfaces/IMarginBase.sol";
 import "./interfaces/IMarginBaseSettings.sol";
 import "./utils/MinimalProxyable.sol";
 import "./utils/OpsReady.sol";
-import "./interfaces/synthetix/IAddressResolver.sol";
-import "./interfaces/synthetix/IExchanger.sol";
-import "./interfaces/synthetix/IFuturesMarketManager.sol";
 
 /// @title Kwenta MarginBase Account
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)

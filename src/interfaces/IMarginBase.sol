@@ -2,7 +2,7 @@
 pragma solidity 0.8.17;
 
 import "./IMarginBaseTypes.sol";
-import "./synthetix/IPerpsV2MarketConsolidated.sol";
+import "@synthetix/IPerpsV2MarketConsolidated.sol";
 
 /// @title Kwenta MarginBase Interface
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
