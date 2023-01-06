@@ -3,13 +3,14 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 import "@solmate/tokens/ERC20.sol";
-import "../../src/interfaces/synthetix/ISynth.sol";
+import "@synthetix/ISynth.sol";
+import "@synthetix/IAddressResolver.sol";
+import "@synthetix/IPerpsV2MarketSettings.sol";
 import "../../src/MarginBaseSettings.sol";
 import "../../src/MarginAccountFactory.sol";
 import "../../src/MarginAccountFactoryStorage.sol";
 import "../../src/MarginBase.sol";
 import "../../src/interfaces/IMarginBaseTypes.sol";
-import "../../src/interfaces/synthetix/IAddressResolver.sol";
 
 // Functions tagged with @HELPER are helper functions and not tests
 contract AccountBehaviorTest is Test {
@@ -139,7 +140,7 @@ contract AccountBehaviorTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     // @HELPER
-    /// @dev utility function doing same as above
+    /// @notice create margin base account
     /// @return account - MarginBase account
     function createAccount() private returns (MarginBase account) {
         // call factory to create account
@@ -314,6 +315,8 @@ contract AccountBehaviorTest is Test {
             memory positions = new IMarginBaseTypes.NewPosition[](1);
         positions[0] = longPosition;
 
+        /// @dev SUBMIT ORDER
+
         // place trade
         account.distributeMargin(positions);
 
@@ -328,35 +331,44 @@ contract AccountBehaviorTest is Test {
         assert(position.lastPrice == 0);
         assert(position.size == 0);
 
+        /// @dev EXECUTE ORDER
+
+        /* @TODO
+
         // adjust Synthetix PerpsV2 sETHPERP Market Settings as contract owner
-        address perpsV2MarketSettings = ADDRESS_RESOLVER.getAddress(
+        address marketSettings = ADDRESS_RESOLVER.getAddress(
             "PerpsV2MarketSettings"
         );
-        address perpsV2MarketSettingsOwner = 0x6d4a64C57612841c2C6745dB2a4E4db34F002D20;
-        vm.prank(perpsV2MarketSettingsOwner);
 
-        // set min age to zero so order can be executed immediately
-        (bool s, bytes memory r) = perpsV2MarketSettings.call(
-            abi.encodeWithSignature(
-                "setOffchainDelayedOrderMinAge(bytes32,uint)",
-                sETHPERP,
-                0
-            )
-        );
+        // determine min age order must be to allow execution
+        uint256 minAge = IPerpsV2MarketSettings(marketSettings)
+            .offchainDelayedOrderMinAge(sETHPERP);
+
+        // increase time passed
+        vm.warp(minAge + 1);
 
         // generate authentic price-feed to submit
-        bytes32[] memory priceUpdateData;
+        bytes[] memory priceUpdateData;
 
         // attempt to execute order
-        address sETHPERPAddress = ADDRESS_RESOLVER.getAddress(sETHPERP);
-        (s, r) = sETHPERPAddress.call(
-            abi.encodeWithSignature(
-                "executeOffchainDelayedOrder(address,bytes[])",
-                address(account),
-                priceUpdateData
-            )
+        // ADDRESS_RESOLVER: 0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C
+        // FuturesMarketManager: 0xdb89f3fc45A707Dd49781495f77f8ae69bF5cA6e
+        IFuturesMarketManager manager = IFuturesMarketManager(
+            ADDRESS_RESOLVER.getAddress("FuturesMarketManager")
         );
-        //assert(s);
+        // (ProxyPerpsV2) sETHPERP: 0x2B3bb4c683BFc5239B029131EEf3B1d214478d93::dfa723cc
+        IPerpsV2MarketConsolidated market = IPerpsV2MarketConsolidated(
+            manager.marketForKey(sETHPERP)
+        );
+        // PerpsV2MarketDelayedOrdersOffchain: 0x36841F7Ff6fBD318202A5101F8426eBb051d5e4d
+        // PerpsV2MarketState: 0x038dC05D68ED32F23e6856c0D44b0696B325bfC8
+        // PerpsV2ExchangeRate: 0x4aD2d14Bed21062Ef7B85C378F69cDdf6ED7489C
+        // FlexibleStorage: 0x47649022380d182DA8010Ae5d257fea4227b21ff
+        // ERC1967Proxy: 0xff1a0f4744e8582DF1aE09D5611b887B6a12925C
+        // PythUpgradable: 0x47C409845b57BA4004c26A5841e59Dc15BB39E7b
+        market.executeOffchainDelayedOrder{value: 1 ether}(address(account), priceUpdateData);
+        
+        */
     }
 
     ///
