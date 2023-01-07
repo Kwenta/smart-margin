@@ -28,7 +28,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice name for futures market manager
     bytes32 private constant FUTURES_MARKET_MANAGER = "FuturesMarketManager";
 
-    /// @notice max BPS
+    /// @notice max BPS; used for decimals calculations
     uint256 private constant MAX_BPS = 10000;
 
     /// @notice constant for sUSD currency key
@@ -126,7 +126,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         return marginAsset.balanceOf(address(this)) - committedMargin;
     }
 
-    /// @notice get up-to-date position data from Synthetix
+    /// @notice get up-to-date position data from Synthetix PerpsV2
     /// @param _marketKey: key for Synthetix PerpsV2 Market
     /// @return position struct defining current position
     function getPosition(bytes32 _marketKey)
@@ -138,22 +138,36 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         position = getPerpsV2Market(_marketKey).positions(address(this));
     }
 
+    /// @notice get delayed order data from Synthetix PerpsV2
+    /// @param _marketKey: key for Synthetix PerpsV2 Market
+    /// @return order struct defining delayed order
+    function getDelayedOrder(bytes32 _marketKey)
+        public
+        view
+        returns (IPerpsV2MarketConsolidated.DelayedOrder memory order)
+    {
+        // fetch delayed order data from Synthetix
+        order = getPerpsV2Market(_marketKey).delayedOrders(address(this));
+    }
+
     /*//////////////////////////////////////////////////////////////
                         ACCOUNT DEPOSIT/WITHDRAW
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice deposit margin asset to trade with into this contract
     /// @param _amount: amount of marginAsset to deposit into marginBase account
     function deposit(uint256 _amount) public onlyOwner {
         _deposit(_amount);
     }
 
-    /// @dev see deposit() NatSpec
     function _deposit(uint256 _amount) internal notZero(_amount, "_amount") {
         // attempt to transfer margin asset from user into this account
-        require(
-            marginAsset.transferFrom(owner(), address(this), _amount),
-            "MarginBase: deposit failed"
+        bool success = marginAsset.transferFrom(
+            owner(),
+            address(this),
+            _amount
         );
+        if (!success) revert FailedMarginTransfer();
 
         emit Deposit(msg.sender, _amount);
     }
@@ -170,10 +184,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         }
 
         // attempt to transfer margin asset from this account to the user
-        require(
-            marginAsset.transfer(owner(), _amount),
-            "MarginBase: withdraw failed"
-        );
+        bool success = marginAsset.transfer(owner(), _amount);
+        if (!success) revert FailedMarginTransfer();
 
         emit Withdraw(msg.sender, _amount);
     }
@@ -182,9 +194,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param _amount: amount to withdraw
     function withdrawEth(uint256 _amount) external onlyOwner {
         (bool success, ) = payable(owner()).call{value: _amount}("");
-        if (!success) {
-            revert EthWithdrawalFailed();
-        }
+        if (!success) revert EthWithdrawalFailed();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -214,12 +224,12 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         _distributeMargin(_newPositions, 0);
     }
 
-    // @dev see distributeMargin() NatSpec
+    
     function _distributeMargin(
         NewPosition[] memory _newPositions,
         uint256 _advancedOrderFee
     ) internal {
-        /// @notice tracking variable for calculating fee(s)
+        /// @notice tracking variable for calculating trading fee(s)
         uint256 tradingFee = 0;
 
         // store length of new positions in memory
@@ -243,14 +253,13 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             // fetch position size from Synthetix
             int128 size = getPosition(marketKey).size;
 
-            // if size is zero, then trade must specify non-zero
-            // sizeDelta
+            // if size is zero, then trade must specify non-zero sizeDelta
             if (size == 0 && sizeDelta == 0) {
                 revert ValueCannotBeZero("sizeDelta");
             }
 
-            /// @dev if this trade results in zero size,
-            /// close position and withdraw all margin from market
+            // if this trade results in zero size,
+            // close position and withdraw all margin from market
             if (size + sizeDelta == 0) {
                 // close position and withdraw margin
                 market.closePositionWithTracking({
@@ -270,7 +279,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                 continue;
             }
 
-            /// @notice execute trade
+            /// @notice submit trade
             /// @dev following trades will not result in position being closed
             /// @dev following trades may either modify or create a position
             if (marginDelta < 0) {
@@ -310,20 +319,20 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             if (tradingFee > freeMargin()) {
                 revert CannotPayFee();
             }
-            bool successfulTransfer = marginAsset.transfer(
+
+            // attempt to transfer margin asset from user to Kwenta's treasury
+            bool success = marginAsset.transfer(
                 marginBaseSettings.treasury(),
                 tradingFee
             );
-            if (!successfulTransfer) {
-                revert CannotPayFee();
-            } else {
-                emit FeeImposed(address(this), tradingFee);
-            }
+            if (!success) revert FailedMarginTransfer();
+
+            emit FeeImposed(address(this), tradingFee);
         }
     }
 
     /*//////////////////////////////////////////////////////////////
-                             EXECUTE TRADES
+                             SUBMIT ORDERS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice modify market position's size
@@ -447,7 +456,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @notice calculate fee based on both size and given market
     /// @param _sizeDelta: size delta of given trade
     /// @param _market: Synthetix PerpsV2 Market
-    /// @param _advancedOrderFee: if additional fee charged for advanced orders
+    /// @param _advancedOrderFee: additional fee charged for advanced orders
+    /// @dev _advancedOrderFee will be zero if trade is not an advanced order
     /// @return fee to be imposed based on size delta
     function calculateTradeFee(
         int256 _sizeDelta,
