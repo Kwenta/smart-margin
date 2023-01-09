@@ -9,6 +9,16 @@ interface IMarginBaseTypes {
                                 Types
     ///////////////////////////////////////////////////////////////*/
 
+    /// @notice Command Flags used to decode commands to execute
+    enum Command {
+        PERPS_V2_DEPOSIT,
+        PERPS_V2_WITHDRAW,
+        PERPS_V2_CLOSE,
+        PERPS_V2_ATOMIC_ORDER,
+        PERPS_V2_DELAYED_ORDER,
+        PERPS_V2_OFFCHAIN_DELAYED_ORDER
+    }
+    
     // denotes order types for code clarity
     /// @dev under the hood LIMIT = 0, STOP = 1
     enum OrderTypes {

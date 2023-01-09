@@ -65,6 +65,16 @@ interface IMarginBase is IMarginBaseTypes {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice thrown when commands length does not equal inputs length
+    error LengthMismatch();
+
+    /// @notice thrown when Command given is not valid
+    error InvalidCommandType(uint256 commandType);
+
+    /// @notice thrown when margin delta is
+    /// positive/zero for withdrawals or negative/zero for deposits
+    error InvalidMarginDelta();
+
     /// @notice thrown when margin asset transfer fails
     error FailedMarginTransfer();
 

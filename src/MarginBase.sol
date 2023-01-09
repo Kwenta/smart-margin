@@ -198,6 +198,104 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     }
 
     /*//////////////////////////////////////////////////////////////
+                               EXECUTION
+    //////////////////////////////////////////////////////////////*/
+
+    function execute(Command[] calldata commands, bytes[] calldata inputs)
+        external
+        payable
+        onlyOwner
+    {
+        uint256 numCommands = commands.length;
+        if (inputs.length != numCommands) revert LengthMismatch();
+
+        // loop through all given commands and execute them
+        for (uint256 commandIndex = 0; commandIndex < numCommands; ) {
+            Command command = commands[commandIndex];
+
+            bytes memory input = inputs[commandIndex];
+
+            dispatch(command, input);
+
+            unchecked {
+                commandIndex++;
+            }
+        }
+    }
+
+    function dispatch(Command command, bytes memory inputs) internal {
+        if (command == Command.PERPS_V2_DEPOSIT) {
+            (int256 amount, address market) = abi.decode(
+                inputs,
+                (int256, address)
+            );
+            perpsV2Deposit(amount, market);
+        } else if (command == Command.PERPS_V2_WITHDRAW) {
+            (int256 amount, address market) = abi.decode(
+                inputs,
+                (int256, address)
+            );
+            perpsV2Withdraw(amount, market);
+        } else if (command == Command.PERPS_V2_CLOSE) {
+            perpsV2ClosePosition();
+        } else if (command == Command.PERPS_V2_ATOMIC_ORDER) {
+            perpsV2AtomicOrder();
+        } else if (command == Command.PERPS_V2_DELAYED_ORDER) {
+            perpsV2DelayedOrder();
+        } else if (command == Command.PERPS_V2_OFFCHAIN_DELAYED_ORDER) {
+            perpsV2OffchainDelayedOrder();
+        } else {
+            // placeholder area for further commands
+            revert InvalidCommandType(uint256(command));
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                COMMANDS
+    //////////////////////////////////////////////////////////////*/
+
+    function perpsV2Deposit(int256 _amount, address _market) internal {
+        if (_amount <= 0) revert InvalidMarginDelta();
+        if (_abs(_amount) > freeMargin()) {
+            revert InsufficientFreeMargin(freeMargin(), _abs(_amount));
+        }
+        IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
+    }
+
+    function perpsV2Withdraw(int256 _amount, address _market) internal {
+        if (_amount >= 0) revert InvalidMarginDelta();
+        IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
+    }
+
+    function perpsV2ClosePosition() internal {
+        // @TODO
+
+        // close position
+        // take fee
+    }
+
+    function perpsV2AtomicOrder() internal {
+        // @TODO
+
+        // take fee from account margin
+        // submit order
+    }
+
+    function perpsV2DelayedOrder() internal {
+        // @TODO
+
+        // take fee from account margin
+        // submit order
+    }
+
+    function perpsV2OffchainDelayedOrder() internal {
+        // @TODO
+
+        // take fee from account margin
+        // submit order
+    }
+
+    /*//////////////////////////////////////////////////////////////
                           MARGIN DISTRIBUTION
     //////////////////////////////////////////////////////////////*/
 
@@ -224,7 +322,6 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         _distributeMargin(_newPositions, 0);
     }
 
-    
     function _distributeMargin(
         NewPosition[] memory _newPositions,
         uint256 _advancedOrderFee
