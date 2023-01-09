@@ -1,12 +1,19 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-interface IFuturesMarketBaseTypes {
+interface IPerpsV2MarketBaseTypes {
     /* ========== TYPES ========== */
+
+    enum OrderType {
+        Atomic,
+        Delayed,
+        Offchain
+    }
 
     enum Status {
         Ok,
         InvalidPrice,
+        InvalidOrderType,
         PriceOutOfBounds,
         CanLiquidate,
         CannotLiquidate,
@@ -16,7 +23,8 @@ interface IFuturesMarketBaseTypes {
         NotPermitted,
         NilOrder,
         NoPositionOpen,
-        PriceTooVolatile
+        PriceTooVolatile,
+        PriceImpactToleranceExceeded
     }
 
     // If margin/size are positive, the position is long; if negative then it is short.
@@ -28,12 +36,16 @@ interface IFuturesMarketBaseTypes {
         int128 size;
     }
 
-    // next-price order storage
-    struct NextPriceOrder {
+    // Delayed order storage
+    struct DelayedOrder {
+        bool isOffchain; // flag indicating the delayed order is offchain
         int128 sizeDelta; // difference in position to pass to modifyPosition
-        uint128 targetRoundId; // price oracle roundId using which price this order needs to exucted
+        uint128 priceImpactDelta; // price impact tolerance as a percentage used on fillPrice at execution
+        uint128 targetRoundId; // price oracle roundId using which price this order needs to executed
         uint128 commitDeposit; // the commitDeposit paid upon submitting that needs to be refunded if order succeeds
         uint128 keeperDeposit; // the keeperDeposit paid upon submitting that needs to be paid / refunded on tx confirmation
+        uint256 executableAtTime; // The timestamp at which this order is executable at
+        uint256 intentionTime; // The block timestamp of submission
         bytes32 trackingCode; // tracking code to emit on execution for volume source fee sharing
     }
 }

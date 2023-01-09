@@ -1,5 +1,16 @@
 # Kwenta Margin Manager
 
+[![Github Actions][gha-badge]][gha] 
+[![Foundry][foundry-badge]][foundry] 
+[![License: MIT][license-badge]][license]
+
+[gha]: https://github.com/Kwenta/margin-manager/actions
+[gha-badge]: https://github.com/Kwenta/margin-manager/actions/workflows/test.yml/badge.svg
+[foundry]: https://getfoundry.sh/
+[foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
+[license]: https://opensource.org/licenses/MIT
+[license-badge]: https://img.shields.io/badge/License-MIT-blue.svg
+
 Contracts to manage account abstractions and features on top of Synthetix Perps v2. This will support implementations of cross margin, limit orders, and stop orders.
 
 ## Folder Structure
@@ -26,9 +37,16 @@ DEPLOYER_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
 
 2. Build project
 ```
-forge build
+npm run compile
 ```
+
 3. Execute unit tests
 ```
-npm run test
+npm run unit-test
 ```
+
+4. Execute integration tests
+```
+npm run integration-test
+```
+> integration tests will fail if you have not set up your .env (see .env.example)

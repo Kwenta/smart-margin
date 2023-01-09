@@ -28,7 +28,12 @@ jobs:
           forge build --sizes
         id: build
 
-      - name: Run Forge tests
+      - name: Run Forge Unit tests
         run: |
-          forge test -vvv
-        id: test
+          forge test --no-match-path test/integration/account.behavior.t.sol
+        id: unit-test
+
+      - name: Run Forge Integration tests
+        run: |
+          forge test --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }} --match-path test/integration/account.behavior.t.sol
+        id: integration-test

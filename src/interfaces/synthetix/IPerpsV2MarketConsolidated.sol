@@ -1,14 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
+
+import "./IPerpsV2MarketBaseTypes.sol";
 pragma experimental ABIEncoderV2;
 
 // Helper Interface, only used in tests and to provide a consolidated interface to PerpsV2 users/integrators
 
 interface IPerpsV2MarketConsolidated {
     /* ========== TYPES ========== */
+    enum OrderType {
+        Atomic,
+        Delayed,
+        Offchain
+    }
+
     enum Status {
         Ok,
         InvalidPrice,
+        InvalidOrderPrice,
         PriceOutOfBounds,
         CanLiquidate,
         CannotLiquidate,
@@ -80,7 +89,7 @@ interface IPerpsV2MarketConsolidated {
     function currentFundingVelocity()
         external
         view
-        returns (int256 fundingRateVelocity);
+        returns (int256 fundingVelocity);
 
     function unrecordedFunding()
         external
@@ -125,14 +134,15 @@ interface IPerpsV2MarketConsolidated {
 
     function canLiquidate(address account) external view returns (bool);
 
-    function orderFee(int256 sizeDelta)
-        external
-        view
-        returns (uint256 fee, bool invalid);
+    function orderFee(
+        int256 sizeDelta,
+        IPerpsV2MarketBaseTypes.OrderType orderType
+    ) external view returns (uint256 fee, bool invalid);
 
     function postTradeDetails(
         int256 sizeDelta,
         uint256 tradePrice,
+        IPerpsV2MarketBaseTypes.OrderType orderType,
         address sender
     )
         external
@@ -207,4 +217,66 @@ interface IPerpsV2MarketConsolidated {
         address account,
         bytes[] calldata priceUpdateData
     ) external payable;
+
+    /* ========== Events ========== */
+
+    event PositionModified(
+        uint256 indexed id,
+        address indexed account,
+        uint256 margin,
+        int256 size,
+        int256 tradeSize,
+        uint256 lastPrice,
+        uint256 fundingIndex,
+        uint256 fee
+    );
+
+    event MarginTransferred(address indexed account, int256 marginDelta);
+
+    event PositionLiquidated(
+        uint256 id,
+        address account,
+        address liquidator,
+        int256 size,
+        uint256 price,
+        uint256 fee
+    );
+
+    event FundingRecomputed(
+        int256 funding,
+        int256 fundingRate,
+        uint256 index,
+        uint256 timestamp
+    );
+
+    event PerpsTracking(
+        bytes32 indexed trackingCode,
+        bytes32 baseAsset,
+        bytes32 marketKey,
+        int256 sizeDelta,
+        uint256 fee
+    );
+
+    event DelayedOrderRemoved(
+        address indexed account,
+        bool isOffchain,
+        uint256 currentRoundId,
+        int256 sizeDelta,
+        uint256 targetRoundId,
+        uint256 commitDeposit,
+        uint256 keeperDeposit,
+        bytes32 trackingCode
+    );
+
+    event DelayedOrderSubmitted(
+        address indexed account,
+        bool isOffchain,
+        int256 sizeDelta,
+        uint256 targetRoundId,
+        uint256 intentionTime,
+        uint256 executableAtTime,
+        uint256 commitDeposit,
+        uint256 keeperDeposit,
+        bytes32 trackingCode
+    );
 }
