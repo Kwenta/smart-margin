@@ -29,8 +29,8 @@ interface IMarginBase is IMarginBaseTypes {
     /// @param sizeDelta: size change
     /// @param targetPrice: targeted fill price
     /// @param orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
-    /// @param maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
     /// @param priceImpactDelta: price impact tolerance as a percentage
+    /// @param maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
     event OrderPlaced(
         address indexed account,
         uint256 orderId,
@@ -39,8 +39,8 @@ interface IMarginBase is IMarginBaseTypes {
         int256 sizeDelta,
         uint256 targetPrice,
         OrderTypes orderType,
-        uint256 maxDynamicFee,
-        uint128 priceImpactDelta
+        uint128 priceImpactDelta,
+        uint256 maxDynamicFee
     );
 
     /// @notice emitted when an advanced order is cancelled
@@ -150,8 +150,8 @@ interface IMarginBase is IMarginBaseTypes {
         int256 _sizeDelta,
         uint256 _targetPrice,
         OrderTypes _orderType,
-        uint256 _maxDynamicFee,
-        uint128 _priceImpactDelta
+        uint128 _priceImpactDelta,
+        uint256 _maxDynamicFee
     ) external payable returns (uint256);
 
     function cancelOrder(uint256 _orderId) external;

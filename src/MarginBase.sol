@@ -583,8 +583,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                 _sizeDelta: _sizeDelta,
                 _targetPrice: _targetPrice,
                 _orderType: _orderType,
-                _maxDynamicFee: 0,
-                _priceImpactDelta: _priceImpactDelta
+                _priceImpactDelta: _priceImpactDelta,
+                _maxDynamicFee: 0
             });
     }
 
@@ -594,8 +594,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of futures position
     /// @param _targetPrice: expected limit order price
     /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
-    /// @param _maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
     /// @param _priceImpactDelta: price impact tolerance as a percentage
+    /// @param _maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
     /// @return orderId contract interface
     function placeOrderWithFeeCap(
         bytes32 _marketKey,
@@ -603,8 +603,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         int256 _sizeDelta,
         uint256 _targetPrice,
         OrderTypes _orderType,
-        uint256 _maxDynamicFee,
-        uint128 _priceImpactDelta
+        uint128 _priceImpactDelta,
+        uint256 _maxDynamicFee
     ) external payable returns (uint256) {
         return
             _placeOrder({
@@ -613,8 +613,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                 _sizeDelta: _sizeDelta,
                 _targetPrice: _targetPrice,
                 _orderType: _orderType,
-                _maxDynamicFee: _maxDynamicFee,
-                _priceImpactDelta: _priceImpactDelta
+                _priceImpactDelta: _priceImpactDelta,
+                _maxDynamicFee: _maxDynamicFee
             });
     }
 
@@ -624,8 +624,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         int256 _sizeDelta,
         uint256 _targetPrice,
         OrderTypes _orderType,
-        uint256 _maxDynamicFee,
-        uint128 _priceImpactDelta
+        uint128 _priceImpactDelta,
+        uint256 _maxDynamicFee
     )
         internal
         notZero(_abs(_sizeDelta), "_sizeDelta")
@@ -659,8 +659,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             targetPrice: _targetPrice,
             gelatoTaskId: taskId,
             orderType: _orderType,
-            maxDynamicFee: _maxDynamicFee,
-            priceImpactDelta: _priceImpactDelta
+            priceImpactDelta: _priceImpactDelta,
+            maxDynamicFee: _maxDynamicFee
         });
 
         emit OrderPlaced(
@@ -671,8 +671,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             _sizeDelta,
             _targetPrice,
             _orderType,
-            _maxDynamicFee,
-            _priceImpactDelta
+            _priceImpactDelta,
+            _maxDynamicFee
         );
 
         return orderId++;
