@@ -11,7 +11,7 @@
 [license]: https://opensource.org/licenses/MIT
 [license-badge]: https://img.shields.io/badge/License-MIT-blue.svg
 
-Contracts to manage account abstractions and features on top of Synthetix Perps v2. This will support implementations of cross margin, limit orders, and stop orders.
+Contracts to manage account abstractions and features on top of Synthetix Perps v2.
 
 ## Folder Structure
 
