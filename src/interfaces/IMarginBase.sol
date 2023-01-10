@@ -21,6 +21,11 @@ interface IMarginBase is IMarginBaseTypes {
     /// @param amount: amount of marginAsset to withdraw from marginBase account
     event Withdraw(address indexed user, uint256 amount);
 
+    /// @notice emitted after a successful ETH withdrawal
+    /// @param user: the address that withdrew from account
+    /// @param amount: amount of ETH to withdraw from marginBase account
+    event EthWithdraw(address indexed user, uint256 amount);
+
     /// @notice emitted when an advanced order is placed
     /// @param account: account placing the order
     /// @param orderId: id of order
@@ -78,6 +83,12 @@ interface IMarginBase is IMarginBaseTypes {
     /// @notice thrown when position does not exist
     error PositionDoesNotExist();
 
+    /// @notice thrown when Synthetix Perps V2 delayed order does not exist
+    error DelayedOrderDoesNotExist();
+
+    /// @notice thrown when Synthetix Perps V2 offchain delayed order does not exist
+    error OffchainDelayedOrderDoesNotExist();
+
     /// @notice thrown when margin asset transfer fails
     error FailedMarginTransfer();
 
@@ -123,31 +134,82 @@ interface IMarginBase is IMarginBaseTypes {
                                 Views
     ///////////////////////////////////////////////////////////////*/
 
+    /// @notice the current withdrawable or usable balance
     function freeMargin() external view returns (uint256);
 
+    /// @notice get up-to-date position data from Synthetix PerpsV2
+    /// @param _marketKey: key for Synthetix PerpsV2 Market
+    /// @return position struct defining current position
     function getPosition(bytes32 _marketKey)
         external
         returns (IPerpsV2MarketConsolidated.Position memory);
+
+    /// @notice get delayed order data from Synthetix PerpsV2
+    /// @param _marketKey: key for Synthetix PerpsV2 Market
+    /// @return order struct defining delayed order
+    function getDelayedOrder(bytes32 _marketKey)
+        external
+        returns (IPerpsV2MarketConsolidated.DelayedOrder memory);
+
+    /// @notice calculate fee based on both size and given market
+    /// @param _sizeDelta: size delta of given trade
+    /// @param _market: Synthetix PerpsV2 Market
+    /// @param _advancedOrderFee: additional fee charged for advanced orders
+    /// @dev _advancedOrderFee will be zero if trade is not an advanced order
+    /// @return fee to be imposed based on size delta
+    function calculateTradeFee(
+        int256 _sizeDelta,
+        IPerpsV2MarketConsolidated _market,
+        uint256 _advancedOrderFee
+    ) external view returns (uint256);
+
+    /// @notice signal to a keeper that an order is valid/invalid for execution
+    /// @param _orderId: key for an active order
+    /// @return canExec boolean that signals to keeper an order can be executed
+    /// @return execPayload calldata for executing an order
+    function checker(uint256 _orderId)
+        external
+        view
+        returns (bool canExec, bytes memory execPayload);
 
     /*///////////////////////////////////////////////////////////////
                                 Mutative
     ///////////////////////////////////////////////////////////////*/
 
+    /// @notice deposit margin asset to trade with into this contract
+    /// @param _amount: amount of marginAsset to deposit into marginBase account
     function deposit(uint256 _amount) external;
 
+    /// @notice attmept to withdraw non-committed margin from account to user
+    /// @param _amount: amount of marginAsset to withdraw from marginBase account
     function withdraw(uint256 _amount) external;
 
+    /// @notice allow users to withdraw ETH deposited for keeper fees
+    /// @param _amount: amount to withdraw
     function withdrawEth(uint256 _amount) external;
 
-    function distributeMargin(NewPosition[] memory _newPositions) external;
+    /// @notice executes commands along with provided inputs
+    /// @param commands: array of commands, each represented as an enum
+    /// @param inputs: array of byte strings containing abi encoded inputs for each command
+    function execute(Command[] calldata commands, bytes[] calldata inputs)
+        external
+        payable;
 
-    function depositAndDistribute(
-        uint256 _amount,
-        NewPosition[] memory _newPositions
-    ) external;
-
+    /// @notice order logic condition checker
+    /// @dev this is where order type logic checks are handled
+    /// @param _orderId: key for an active order
+    /// @return true if order is valid by execution rules
+    /// @return price that the order will be filled at (only valid if prev is true)
     function validOrder(uint256 _orderId) external view returns (bool, uint256);
 
+    /// @notice register a limit order internally and with gelato
+    /// @param _marketKey: Synthetix futures market id/key
+    /// @param _marginDelta: amount of margin (in sUSD) to deposit or withdraw
+    /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of futures position
+    /// @param _targetPrice: expected limit order price
+    /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
+    /// @param _priceImpactDelta: price impact tolerance as a percentage
+    /// @return orderId contract interface
     function placeOrder(
         bytes32 _marketKey,
         int256 _marginDelta,
@@ -157,6 +219,15 @@ interface IMarginBase is IMarginBaseTypes {
         uint128 _priceImpactDelta
     ) external payable returns (uint256);
 
+    /// @notice register a limit order internally and with gelato
+    /// @param _marketKey: Synthetix futures market id/key
+    /// @param _marginDelta: amount of margin (in sUSD) to deposit or withdraw
+    /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of futures position
+    /// @param _targetPrice: expected limit order price
+    /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
+    /// @param _priceImpactDelta: price impact tolerance as a percentage
+    /// @param _maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
+    /// @return orderId contract interface
     function placeOrderWithFeeCap(
         bytes32 _marketKey,
         int256 _marginDelta,
@@ -167,10 +238,12 @@ interface IMarginBase is IMarginBaseTypes {
         uint256 _maxDynamicFee
     ) external payable returns (uint256);
 
+    /// @notice cancel a gelato queued order
+    /// @param _orderId: key for an active order
     function cancelOrder(uint256 _orderId) external;
 
-    function checker(uint256 _orderId)
-        external
-        view
-        returns (bool canExec, bytes memory execPayload);
+    /// @notice execute a gelato queued order
+    /// @notice only keepers can trigger this function
+    /// @param _orderId: key for an active order
+    function executeOrder(uint256 _orderId) external;
 }

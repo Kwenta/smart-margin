@@ -121,14 +121,12 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice the current withdrawable or usable balance
+    /// @inheritdoc IMarginBase
     function freeMargin() public view returns (uint256) {
         return marginAsset.balanceOf(address(this)) - committedMargin;
     }
 
-    /// @notice get up-to-date position data from Synthetix PerpsV2
-    /// @param _marketKey: key for Synthetix PerpsV2 Market
-    /// @return position struct defining current position
+    /// @inheritdoc IMarginBase
     function getPosition(bytes32 _marketKey)
         public
         view
@@ -138,9 +136,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         position = getPerpsV2Market(_marketKey).positions(address(this));
     }
 
-    /// @notice get delayed order data from Synthetix PerpsV2
-    /// @param _marketKey: key for Synthetix PerpsV2 Market
-    /// @return order struct defining delayed order
+    /// @inheritdoc IMarginBase
     function getDelayedOrder(bytes32 _marketKey)
         public
         view
@@ -150,17 +146,46 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         order = getPerpsV2Market(_marketKey).delayedOrders(address(this));
     }
 
+    /// @inheritdoc IMarginBase
+    function calculateTradeFee(
+        int256 _sizeDelta,
+        IPerpsV2MarketConsolidated _market,
+        uint256 _advancedOrderFee
+    ) public view returns (uint256 fee) {
+        fee =
+            (_abs(_sizeDelta) *
+                (marginBaseSettings.tradeFee() + _advancedOrderFee)) /
+            MAX_BPS;
+
+        /// @notice fee is currently measured in the underlying base asset of the market
+        /// @dev fee will be measured in sUSD, thus exchange rate is needed
+        fee = (sUSDRate(_market) * fee) / 1e18;
+    }
+
+    /// @inheritdoc IMarginBase
+    function checker(uint256 _orderId)
+        external
+        view
+        returns (bool canExec, bytes memory execPayload)
+    {
+        (canExec, ) = validOrder(_orderId);
+        // calldata for execute func
+        execPayload = abi.encodeWithSelector(
+            this.executeOrder.selector,
+            _orderId
+        );
+    }
+
     /*//////////////////////////////////////////////////////////////
                         ACCOUNT DEPOSIT/WITHDRAW
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice deposit margin asset to trade with into this contract
-    /// @param _amount: amount of marginAsset to deposit into marginBase account
-    function deposit(uint256 _amount) public onlyOwner {
-        _deposit(_amount);
-    }
-
-    function _deposit(uint256 _amount) internal notZero(_amount, "_amount") {
+    /// @inheritdoc IMarginBase
+    function deposit(uint256 _amount)
+        public
+        onlyOwner
+        notZero(_amount, "_amount")
+    {
         // attempt to transfer margin asset from user into this account
         bool success = marginAsset.transferFrom(
             owner(),
@@ -172,7 +197,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         emit Deposit(msg.sender, _amount);
     }
 
-    /// @param _amount: amount of marginAsset to withdraw from marginBase account
+    /// @inheritdoc IMarginBase
     function withdraw(uint256 _amount)
         external
         notZero(_amount, "_amount")
@@ -190,17 +215,23 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         emit Withdraw(msg.sender, _amount);
     }
 
-    /// @notice allow users to withdraw ETH deposited for keeper fees
-    /// @param _amount: amount to withdraw
-    function withdrawEth(uint256 _amount) external onlyOwner {
+    /// @inheritdoc IMarginBase
+    function withdrawEth(uint256 _amount)
+        external
+        onlyOwner
+        notZero(_amount, "_amount")
+    {
         (bool success, ) = payable(owner()).call{value: _amount}("");
         if (!success) revert EthWithdrawalFailed();
+
+        emit EthWithdraw(msg.sender, _amount);
     }
 
     /*//////////////////////////////////////////////////////////////
                                EXECUTION
     //////////////////////////////////////////////////////////////*/
 
+    /// @inheritdoc IMarginBase
     function execute(Command[] calldata commands, bytes[] calldata inputs)
         external
         payable
@@ -215,7 +246,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
 
             bytes memory input = inputs[commandIndex];
 
-            dispatch(command, input);
+            _dispatch(command, input);
 
             unchecked {
                 commandIndex++;
@@ -223,39 +254,64 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         }
     }
 
-    function dispatch(Command command, bytes memory inputs) internal {
+    function _dispatch(Command command, bytes memory inputs) internal {
         // if-else logic to dispatch commands
         if (command == Command.PERPS_V2_DEPOSIT) {
             (address market, int256 amount) = abi.decode(
                 inputs,
                 (address, int256)
             );
-            perpsV2Deposit({_market: market, _amount: amount});
+            _perpsV2Deposit({_market: market, _amount: amount});
         } else if (command == Command.PERPS_V2_WITHDRAW) {
             (address market, int256 amount) = abi.decode(
                 inputs,
                 (address, int256)
             );
-            perpsV2Withdraw({_market: market, _amount: amount});
+            _perpsV2Withdraw({_market: market, _amount: amount});
         } else if (command == Command.PERPS_V2_EXIT) {
             (address market, uint256 priceImpactDelta) = abi.decode(
                 inputs,
                 (address, uint256)
             );
-            perpsV2ExitPosition({
+            _perpsV2ExitPosition({
                 _market: market,
                 _priceImpactDelta: priceImpactDelta
             });
         } else if (command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
-            perpsV2AtomicOrder();
+            (address market, int256 sizeDelta, uint256 priceImpactDelta) = abi
+                .decode(inputs, (address, int256, uint256));
+            _perpsV2SubmitAtomicOrder({
+                _market: market,
+                _sizeDelta: sizeDelta,
+                _priceImpactDelta: priceImpactDelta
+            });
         } else if (command == Command.PERPS_V2_SUBMIT_DELAYED_ORDER) {
-            perpsV2DelayedOrder();
+            (
+                address market,
+                int256 sizeDelta,
+                uint256 priceImpactDelta,
+                uint256 desiredTimeDelta
+            ) = abi.decode(inputs, (address, int256, uint256, uint256));
+            _perpsV2SubmitDelayedOrder({
+                _market: market,
+                _sizeDelta: sizeDelta,
+                _priceImpactDelta: priceImpactDelta,
+                _desiredTimeDelta: desiredTimeDelta
+            });
         } else if (command == Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER) {
-            perpsV2OffchainDelayedOrder();
+            (address market, int256 sizeDelta, uint256 priceImpactDelta) = abi
+                .decode(inputs, (address, int256, uint256));
+            _perpsV2SubmitOffchainDelayedOrder({
+                _market: market,
+                _sizeDelta: sizeDelta,
+                _priceImpactDelta: priceImpactDelta
+            });
         } else if (command == Command.PERPS_V2_CANCEL_DELAYED_ORDER) {
-            perpsV2OffchainDelayedOrder();
+            address market = abi.decode(inputs, (address));
+            _perpsV2CancelDelayedOrder({_market: market});
         } else if (command == Command.PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER) {
-            perpsV2OffchainDelayedOrder();
+            address market = abi.decode(inputs, (address));
+            _perpsV2CancelOffchainDelayedOrder({_market: market});
         } else {
             // placeholder area for further commands
             revert InvalidCommandType(uint256(command));
@@ -266,7 +322,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                                 COMMANDS
     //////////////////////////////////////////////////////////////*/
 
-    function perpsV2Deposit(address _market, int256 _amount) internal {
+    function _perpsV2Deposit(address _market, int256 _amount) internal {
         if (_amount <= 0) {
             revert InvalidMarginDelta();
         } else if (_abs(_amount) > freeMargin()) {
@@ -276,7 +332,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         }
     }
 
-    function perpsV2Withdraw(address _market, int256 _amount) internal {
+    function _perpsV2Withdraw(address _market, int256 _amount) internal {
         if (_amount >= 0) {
             revert InvalidMarginDelta();
         } else {
@@ -284,7 +340,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         }
     }
 
-    function perpsV2ExitPosition(address _market, uint256 _priceImpactDelta)
+    function _perpsV2ExitPosition(address _market, uint256 _priceImpactDelta)
         internal
     {
         // establish position
@@ -305,8 +361,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             // withdraw margin from market back to this account
             IPerpsV2MarketConsolidated(_market).withdrawAllMargin();
 
-            // impose fee
-            imposeFee(
+            // impose fee (comes from account's margin)
+            _imposeFee(
                 calculateTradeFee({
                     _sizeDelta: position.size,
                     _market: IPerpsV2MarketConsolidated(_market),
@@ -316,315 +372,95 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         }
     }
 
-    function perpsV2AtomicOrder() internal {
-        // @TODO
-        // take fee from account margin
-        // submit order
-    }
-
-    function perpsV2DelayedOrder() internal {
-        // @TODO
-        // take fee from account margin
-        // submit order
-    }
-
-    function perpsV2OffchainDelayedOrder() internal {
-        // @TODO
-        // take fee from account margin
-        // submit order
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                          MARGIN DISTRIBUTION
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice accept a deposit amount and open new
-    /// Synthetix PerpsV2 Market position(s) all in a single tx
-    /// @param _amount: amount of marginAsset to deposit into marginBase account
-    /// @param _newPositions: an array of NewPosition's used to modify active market positions
-    function depositAndDistribute(
-        uint256 _amount,
-        NewPosition[] memory _newPositions
-    ) external onlyOwner {
-        _deposit(_amount);
-        _distributeMargin(_newPositions, 0);
-    }
-
-    /// @notice distribute margin across all/some positions specified via _newPositions
-    /// @dev _newPositions may contain any number of new or existing positions
-    /// @dev close and withdraw all margin from position if resulting position size is zero post trade
-    /// @param _newPositions: an array of NewPosition's used to modify active market positions
-    function distributeMargin(NewPosition[] memory _newPositions)
-        external
-        onlyOwner
-    {
-        _distributeMargin(_newPositions, 0);
-    }
-
-    function _distributeMargin(
-        NewPosition[] memory _newPositions,
-        uint256 _advancedOrderFee
-    ) internal {
-        /// @notice tracking variable for calculating trading fee(s)
-        uint256 tradingFee = 0;
-
-        // store length of new positions in memory
-        uint256 newPositionsLength = _newPositions.length;
-
-        // for each new position in _newPositions, distribute margin accordingly
-        for (uint256 i = newPositionsLength; i != 0; ) {
-            unchecked {
-                --i;
-            }
-
-            // define market params to be used to create or modify a position
-            bytes32 marketKey = _newPositions[i].marketKey;
-            int256 sizeDelta = _newPositions[i].sizeDelta;
-            int256 marginDelta = _newPositions[i].marginDelta;
-            uint256 priceImpactDelta = _newPositions[i].priceImpactDelta;
-
-            // define market
-            IPerpsV2MarketConsolidated market = getPerpsV2Market(marketKey);
-
-            // fetch position size from Synthetix
-            int128 size = getPosition(marketKey).size;
-
-            // if size is zero, then trade must specify non-zero sizeDelta
-            if (size == 0 && sizeDelta == 0) {
-                revert ValueCannotBeZero("sizeDelta");
-            }
-
-            // if this trade results in zero size,
-            // close position and withdraw all margin from market
-            if (size + sizeDelta == 0) {
-                // close position and withdraw margin
-                market.closePositionWithTracking({
-                    priceImpactDelta: priceImpactDelta,
-                    trackingCode: TRACKING_CODE
-                });
-                market.withdrawAllMargin();
-
-                // determine trade fee based on size delta
-                tradingFee += calculateTradeFee(
-                    sizeDelta,
-                    market,
-                    _advancedOrderFee
-                );
-
-                // continue to next newPosition
-                continue;
-            }
-
-            /// @notice submit trade
-            /// @dev following trades will not result in position being closed
-            /// @dev following trades may either modify or create a position
-            if (marginDelta < 0) {
-                // remove margin from market and potentially adjust position size
-                tradingFee += modifyPositionForMarketAndWithdraw(
-                    marginDelta,
-                    sizeDelta,
-                    market,
-                    _advancedOrderFee,
-                    priceImpactDelta
-                );
-            } else if (marginDelta > 0) {
-                // deposit margin into market and potentially adjust position size
-                tradingFee += depositAndModifyPositionForMarket(
-                    marginDelta,
-                    sizeDelta,
-                    market,
-                    _advancedOrderFee,
-                    priceImpactDelta
-                );
-            } else if (sizeDelta != 0) {
-                /// @notice adjust position size
-                /// @notice no margin deposited nor withdrawn from market
-                tradingFee += modifyPositionForMarket(
-                    sizeDelta,
-                    market,
-                    _advancedOrderFee,
-                    priceImpactDelta
-                );
-            }
-        }
-
-        /// @notice impose fee
-        /// @dev send fee to Kwenta's treasury
-        if (tradingFee > 0) {
-            // fee canot be greater than available margin
-            if (tradingFee > freeMargin()) {
-                revert CannotPayFee();
-            }
-
-            // attempt to transfer margin asset from user to Kwenta's treasury
-            bool success = marginAsset.transfer(
-                marginBaseSettings.treasury(),
-                tradingFee
-            );
-            if (!success) revert FailedMarginTransfer();
-
-            emit FeeImposed(address(this), tradingFee);
-        }
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                             SUBMIT ORDERS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice modify market position's size
-    /// @dev _sizeDelta will always be non-zero
-    /// @param _sizeDelta: size and position type (long/short) denominated in market synth
-    /// @param _market: Synthetix PerpsV2 Market
-    /// @param _advancedOrderFee: if additional fee charged for advanced orders
-    /// @param _priceImpactDelta: price impact tolerance as a percentage
-    /// @return fee *in sUSD*
-    function modifyPositionForMarket(
+    function _perpsV2SubmitAtomicOrder(
+        address _market,
         int256 _sizeDelta,
-        IPerpsV2MarketConsolidated _market,
-        uint256 _advancedOrderFee,
         uint256 _priceImpactDelta
-    ) internal returns (uint256 fee) {
-        // modify position in specific market with KWENTA tracking code
-        _market.submitOffchainDelayedOrderWithTracking({
+    ) internal {
+        // impose fee (comes from account's margin)
+        _imposeFee(
+            calculateTradeFee({
+                _sizeDelta: _sizeDelta,
+                _market: IPerpsV2MarketConsolidated(_market),
+                _advancedOrderFee: 0
+            })
+        );
+
+        IPerpsV2MarketConsolidated(_market).modifyPositionWithTracking({
             sizeDelta: _sizeDelta,
             priceImpactDelta: _priceImpactDelta,
             trackingCode: TRACKING_CODE
         });
-
-        // determine trade fee based on size delta
-        fee = calculateTradeFee(_sizeDelta, _market, _advancedOrderFee);
-
-        /// @notice alter the amount of margin in specific market position
-        /// @dev positive input triggers a deposit; a negative one, a withdrawal
-        _market.transferMargin(int256(fee) * -1);
     }
 
-    /// @notice deposit margin into specific market and potentially modify position size
-    /// @dev _depositSize will always be greater than zero
-    /// @dev _sizeDelta may be zero (i.e. market position goes unchanged)
-    /// @param _depositSize: size of deposit in sUSD
-    /// @param _sizeDelta: size and position type (long/short) denominated in market synth
-    /// @param _market: Synthetix PerpsV2 Market
-    /// @param _advancedOrderFee: if additional fee charged for advanced orders
-    /// @param _priceImpactDelta: price impact tolerance as a percentage
-    /// @return fee *in sUSD*
-    function depositAndModifyPositionForMarket(
-        int256 _depositSize,
+    function _perpsV2SubmitDelayedOrder(
+        address _market,
         int256 _sizeDelta,
-        IPerpsV2MarketConsolidated _market,
-        uint256 _advancedOrderFee,
+        uint256 _priceImpactDelta,
+        uint256 _desiredTimeDelta
+    ) internal {
+        // impose fee (comes from account's margin)
+        _imposeFee(
+            calculateTradeFee({
+                _sizeDelta: _sizeDelta,
+                _market: IPerpsV2MarketConsolidated(_market),
+                _advancedOrderFee: 0
+            })
+        );
+
+        IPerpsV2MarketConsolidated(_market).submitDelayedOrderWithTracking({
+            sizeDelta: _sizeDelta,
+            priceImpactDelta: _priceImpactDelta,
+            desiredTimeDelta: _desiredTimeDelta,
+            trackingCode: TRACKING_CODE
+        });
+    }
+
+    function _perpsV2SubmitOffchainDelayedOrder(
+        address _market,
+        int256 _sizeDelta,
         uint256 _priceImpactDelta
-    ) internal returns (uint256 fee) {
-        /// @dev ensure trade doesn't spend margin which is not available
-        uint256 absDepositSize = _abs(_depositSize);
-        if (absDepositSize > freeMargin()) {
-            revert InsufficientFreeMargin(freeMargin(), absDepositSize);
-        }
+    ) internal {
+        // impose fee (comes from account's margin)
+        _imposeFee(
+            calculateTradeFee({
+                _sizeDelta: _sizeDelta,
+                _market: IPerpsV2MarketConsolidated(_market),
+                _advancedOrderFee: 0
+            })
+        );
 
-        /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
-        if (_sizeDelta != 0) {
-            // determine trade fee based on size delta
-            fee = calculateTradeFee(_sizeDelta, _market, _advancedOrderFee);
-
-            /// @notice alter the amount of margin in specific market position
-            /// @dev positive input triggers a deposit; a negative one, a withdrawal
-            /// @dev subtracting fee ensures margin account has enough margin to pay
-            /// the fee (i.e. effectively fee comes from position)
-            _market.transferMargin(_depositSize - int256(fee));
-
-            // modify position in specific market with KWENTA tracking code
-            _market.submitOffchainDelayedOrderWithTracking({
+        IPerpsV2MarketConsolidated(_market)
+            .submitOffchainDelayedOrderWithTracking({
                 sizeDelta: _sizeDelta,
                 priceImpactDelta: _priceImpactDelta,
                 trackingCode: TRACKING_CODE
             });
-        } else {
-            /// @notice alter the amount of margin in specific market position
-            /// @dev positive input triggers a deposit; a negative one, a withdrawal
-            _market.transferMargin(_depositSize);
-        }
     }
 
-    /// @notice potentially modify position size and withdraw margin from market
-    /// @dev _withdrawalSize will always be less than zero
-    /// @dev _sizeDelta may be zero (i.e. market position goes unchanged)
-    /// @param _withdrawalSize: size of sUSD to withdraw from market into account
-    /// @param _sizeDelta: size and position type (long//short) denominated in market synth
-    /// @param _market: Synthetix PerpsV2 Market
-    /// @param _advancedOrderFee: if additional fee charged for advanced orders
-    /// @param _priceImpactDelta: price impact tolerance as a percentage
-    /// @return fee *in sUSD*
-    function modifyPositionForMarketAndWithdraw(
-        int256 _withdrawalSize,
-        int256 _sizeDelta,
-        IPerpsV2MarketConsolidated _market,
-        uint256 _advancedOrderFee,
-        uint256 _priceImpactDelta
-    ) internal returns (uint256 fee) {
-        /// @dev if _sizeDelta is 0, then we do not want to modify position size, only margin
-        if (_sizeDelta != 0) {
-            // modify position in specific market with KWENTA tracking code
-            _market.submitOffchainDelayedOrderWithTracking({
-                sizeDelta: _sizeDelta,
-                priceImpactDelta: _priceImpactDelta,
-                trackingCode: TRACKING_CODE
-            });
-
-            // determine trade fee based on size delta
-            fee = calculateTradeFee(_sizeDelta, _market, _advancedOrderFee);
-
-            /// @notice alter the amount of margin in specific market position
-            /// @dev positive input triggers a deposit; a negative one, a withdrawal
-            /// @dev subtracting fee ensures margin account has enough margin to pay
-            /// the fee (i.e. effectively fee comes from position)
-            _market.transferMargin(_withdrawalSize - int256(fee));
+    function _perpsV2CancelDelayedOrder(address _market) internal {
+        if (
+            getDelayedOrder(IPerpsV2MarketConsolidated(_market).marketKey())
+                .sizeDelta == 0
+        ) {
+            revert DelayedOrderDoesNotExist();
         } else {
-            /// @notice alter the amount of margin in specific market position
-            /// @dev positive input triggers a deposit; a negative one, a withdrawal
-            _market.transferMargin(_withdrawalSize);
-        }
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            FEE CALCULATION
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice calculate fee based on both size and given market
-    /// @param _sizeDelta: size delta of given trade
-    /// @param _market: Synthetix PerpsV2 Market
-    /// @param _advancedOrderFee: additional fee charged for advanced orders
-    /// @dev _advancedOrderFee will be zero if trade is not an advanced order
-    /// @return fee to be imposed based on size delta
-    function calculateTradeFee(
-        int256 _sizeDelta,
-        IPerpsV2MarketConsolidated _market,
-        uint256 _advancedOrderFee
-    ) internal view returns (uint256 fee) {
-        fee =
-            (_abs(_sizeDelta) *
-                (marginBaseSettings.tradeFee() + _advancedOrderFee)) /
-            MAX_BPS;
-        /// @notice fee is currently measured in the underlying base asset of the market
-        /// @dev fee will be measured in sUSD, thus exchange rate is needed
-        fee = (sUSDRate(_market) * fee) / 1e18;
-    }
-
-    function imposeFee(uint256 _fee) internal {
-        /// @dev send fee to Kwenta's treasury
-        if (_fee < 0) {
-            revert ValueCannotBeZero("Fee");
-        } else if (_fee > freeMargin()) {
-            // fee canot be greater than available margin
-            revert CannotPayFee();
-        } else {
-            // attempt to transfer margin asset from user to Kwenta's treasury
-            bool success = marginAsset.transfer(
-                marginBaseSettings.treasury(),
-                _fee
+            IPerpsV2MarketConsolidated(_market).cancelDelayedOrder(
+                address(this)
             );
-            if (!success) revert FailedMarginTransfer();
+        }
+    }
 
-            emit FeeImposed(address(this), _fee);
+    function _perpsV2CancelOffchainDelayedOrder(address _market) internal {
+        if (
+            getDelayedOrder(IPerpsV2MarketConsolidated(_market).marketKey())
+                .sizeDelta == 0
+        ) {
+            revert OffchainDelayedOrderDoesNotExist();
+        } else {
+            IPerpsV2MarketConsolidated(_market).cancelDelayedOrder(
+                address(this)
+            );
         }
     }
 
@@ -632,11 +468,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                             ADVANCED ORDERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice order logic condition checker
-    /// @dev this is where order type logic checks are handled
-    /// @param _orderId: key for an active order
-    /// @return true if order is valid by execution rules
-    /// @return price that the order will be filled at (only valid if prev is true)
+    /// @inheritdoc IMarginBase
     function validOrder(uint256 _orderId) public view returns (bool, uint256) {
         Order memory order = orders[_orderId];
 
@@ -715,14 +547,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         return (false, price);
     }
 
-    /// @notice register a limit order internally and with gelato
-    /// @param _marketKey: Synthetix futures market id/key
-    /// @param _marginDelta: amount of margin (in sUSD) to deposit or withdraw
-    /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of futures position
-    /// @param _targetPrice: expected limit order price
-    /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
-    /// @param _priceImpactDelta: price impact tolerance as a percentage
-    /// @return orderId contract interface
+    /// @inheritdoc IMarginBase
     function placeOrder(
         bytes32 _marketKey,
         int256 _marginDelta,
@@ -743,15 +568,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             });
     }
 
-    /// @notice register a limit order internally and with gelato
-    /// @param _marketKey: Synthetix futures market id/key
-    /// @param _marginDelta: amount of margin (in sUSD) to deposit or withdraw
-    /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of futures position
-    /// @param _targetPrice: expected limit order price
-    /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
-    /// @param _priceImpactDelta: price impact tolerance as a percentage
-    /// @param _maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
-    /// @return orderId contract interface
+    /// @inheritdoc IMarginBase
     function placeOrderWithFeeCap(
         bytes32 _marketKey,
         int256 _marginDelta,
@@ -833,8 +650,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         return orderId++;
     }
 
-    /// @notice cancel a gelato queued order
-    /// @param _orderId: key for an active order
+    /// @inheritdoc IMarginBase
     function cancelOrder(uint256 _orderId) external onlyOwner {
         Order memory order = orders[_orderId];
 
@@ -850,9 +666,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         emit OrderCancelled(address(this), _orderId);
     }
 
-    /// @notice execute a gelato queued order
-    /// @notice only keepers can trigger this function
-    /// @param _orderId: key for an active order
+    /// @inheritdoc IMarginBase
     function executeOrder(uint256 _orderId) external onlyOps {
         (bool isValidOrder, uint256 fillPrice) = validOrder(_orderId);
         if (!isValidOrder) {
@@ -882,12 +696,12 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         // delete order from orders
         delete orders[_orderId];
 
-        uint256 advancedOrderFee = order.orderType == OrderTypes.LIMIT
-            ? marginBaseSettings.limitOrderFee()
-            : marginBaseSettings.stopOrderFee();
+        // uint256 advancedOrderFee = order.orderType == OrderTypes.LIMIT
+        //     ? marginBaseSettings.limitOrderFee()
+        //     : marginBaseSettings.stopOrderFee();
 
         // execute trade
-        _distributeMargin(newPositions, advancedOrderFee);
+        //_distributeMargin(newPositions, advancedOrderFee);
 
         // pay fee
         (uint256 fee, address feeToken) = IOps(ops).getFeeDetails();
@@ -896,21 +710,27 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         emit OrderFilled(address(this), _orderId, fillPrice, fee);
     }
 
-    /// @notice signal to a keeper that an order is valid/invalid for execution
-    /// @param _orderId: key for an active order
-    /// @return canExec boolean that signals to keeper an order can be executed
-    /// @return execPayload calldata for executing an order
-    function checker(uint256 _orderId)
-        external
-        view
-        returns (bool canExec, bytes memory execPayload)
-    {
-        (canExec, ) = validOrder(_orderId);
-        // calldata for execute func
-        execPayload = abi.encodeWithSelector(
-            this.executeOrder.selector,
-            _orderId
-        );
+    /*//////////////////////////////////////////////////////////////
+                             FEE UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    function _imposeFee(uint256 _fee) internal {
+        /// @dev send fee to Kwenta's treasury
+        if (_fee < 0) {
+            revert ValueCannotBeZero("Fee");
+        } else if (_fee > freeMargin()) {
+            // fee canot be greater than available margin
+            revert CannotPayFee();
+        } else {
+            // attempt to transfer margin asset from user to Kwenta's treasury
+            bool success = marginAsset.transfer(
+                marginBaseSettings.treasury(),
+                _fee
+            );
+            if (!success) revert FailedMarginTransfer();
+
+            emit FeeImposed(address(this), _fee);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
