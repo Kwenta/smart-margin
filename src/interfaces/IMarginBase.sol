@@ -75,6 +75,9 @@ interface IMarginBase is IMarginBaseTypes {
     /// positive/zero for withdrawals or negative/zero for deposits
     error InvalidMarginDelta();
 
+    /// @notice thrown when position does not exist
+    error PositionDoesNotExist();
+
     /// @notice thrown when margin asset transfer fails
     error FailedMarginTransfer();
 

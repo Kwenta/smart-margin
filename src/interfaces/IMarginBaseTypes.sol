@@ -13,10 +13,12 @@ interface IMarginBaseTypes {
     enum Command {
         PERPS_V2_DEPOSIT,
         PERPS_V2_WITHDRAW,
-        PERPS_V2_CLOSE,
-        PERPS_V2_ATOMIC_ORDER,
-        PERPS_V2_DELAYED_ORDER,
-        PERPS_V2_OFFCHAIN_DELAYED_ORDER
+        PERPS_V2_EXIT,
+        PERPS_V2_SUBMIT_ATOMIC_ORDER,
+        PERPS_V2_SUBMIT_DELAYED_ORDER,
+        PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER,
+        PERPS_V2_CANCEL_DELAYED_ORDER,
+        PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER
     }
     
     // denotes order types for code clarity

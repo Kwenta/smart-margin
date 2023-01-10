@@ -224,25 +224,37 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     }
 
     function dispatch(Command command, bytes memory inputs) internal {
+        // if-else logic to dispatch commands
         if (command == Command.PERPS_V2_DEPOSIT) {
-            (int256 amount, address market) = abi.decode(
+            (address market, int256 amount) = abi.decode(
                 inputs,
-                (int256, address)
+                (address, int256)
             );
-            perpsV2Deposit(amount, market);
+            perpsV2Deposit({_market: market, _amount: amount});
         } else if (command == Command.PERPS_V2_WITHDRAW) {
-            (int256 amount, address market) = abi.decode(
+            (address market, int256 amount) = abi.decode(
                 inputs,
-                (int256, address)
+                (address, int256)
             );
-            perpsV2Withdraw(amount, market);
-        } else if (command == Command.PERPS_V2_CLOSE) {
-            perpsV2ClosePosition();
-        } else if (command == Command.PERPS_V2_ATOMIC_ORDER) {
+            perpsV2Withdraw({_market: market, _amount: amount});
+        } else if (command == Command.PERPS_V2_EXIT) {
+            (address market, uint256 priceImpactDelta) = abi.decode(
+                inputs,
+                (address, uint256)
+            );
+            perpsV2ExitPosition({
+                _market: market,
+                _priceImpactDelta: priceImpactDelta
+            });
+        } else if (command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
             perpsV2AtomicOrder();
-        } else if (command == Command.PERPS_V2_DELAYED_ORDER) {
+        } else if (command == Command.PERPS_V2_SUBMIT_DELAYED_ORDER) {
             perpsV2DelayedOrder();
-        } else if (command == Command.PERPS_V2_OFFCHAIN_DELAYED_ORDER) {
+        } else if (command == Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER) {
+            perpsV2OffchainDelayedOrder();
+        } else if (command == Command.PERPS_V2_CANCEL_DELAYED_ORDER) {
+            perpsV2OffchainDelayedOrder();
+        } else if (command == Command.PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER) {
             perpsV2OffchainDelayedOrder();
         } else {
             // placeholder area for further commands
@@ -254,43 +266,70 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                                 COMMANDS
     //////////////////////////////////////////////////////////////*/
 
-    function perpsV2Deposit(int256 _amount, address _market) internal {
-        if (_amount <= 0) revert InvalidMarginDelta();
-        if (_abs(_amount) > freeMargin()) {
+    function perpsV2Deposit(address _market, int256 _amount) internal {
+        if (_amount <= 0) {
+            revert InvalidMarginDelta();
+        } else if (_abs(_amount) > freeMargin()) {
             revert InsufficientFreeMargin(freeMargin(), _abs(_amount));
+        } else {
+            IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
         }
-        IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
     }
 
-    function perpsV2Withdraw(int256 _amount, address _market) internal {
-        if (_amount >= 0) revert InvalidMarginDelta();
-        IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
+    function perpsV2Withdraw(address _market, int256 _amount) internal {
+        if (_amount >= 0) {
+            revert InvalidMarginDelta();
+        } else {
+            IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
+        }
     }
 
-    function perpsV2ClosePosition() internal {
-        // @TODO
+    function perpsV2ExitPosition(address _market, uint256 _priceImpactDelta)
+        internal
+    {
+        // establish position
+        bytes32 marketKey = IPerpsV2MarketConsolidated(_market).marketKey();
+        IPerpsV2MarketConsolidated.Position memory position = getPosition(
+            marketKey
+        );
 
-        // close position
-        // take fee
+        if (position.size == 0) {
+            revert PositionDoesNotExist();
+        } else {
+            // close position (i.e. reduce size to zero)
+            /// @dev this does not remove margin from market
+            IPerpsV2MarketConsolidated(_market).closePosition(
+                _priceImpactDelta
+            );
+
+            // withdraw margin from market back to this account
+            IPerpsV2MarketConsolidated(_market).withdrawAllMargin();
+
+            // impose fee
+            imposeFee(
+                calculateTradeFee({
+                    _sizeDelta: position.size,
+                    _market: IPerpsV2MarketConsolidated(_market),
+                    _advancedOrderFee: 0
+                })
+            );
+        }
     }
 
     function perpsV2AtomicOrder() internal {
         // @TODO
-
         // take fee from account margin
         // submit order
     }
 
     function perpsV2DelayedOrder() internal {
         // @TODO
-
         // take fee from account margin
         // submit order
     }
 
     function perpsV2OffchainDelayedOrder() internal {
         // @TODO
-
         // take fee from account margin
         // submit order
     }
@@ -568,6 +607,25 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         /// @notice fee is currently measured in the underlying base asset of the market
         /// @dev fee will be measured in sUSD, thus exchange rate is needed
         fee = (sUSDRate(_market) * fee) / 1e18;
+    }
+
+    function imposeFee(uint256 _fee) internal {
+        /// @dev send fee to Kwenta's treasury
+        if (_fee < 0) {
+            revert ValueCannotBeZero("Fee");
+        } else if (_fee > freeMargin()) {
+            // fee canot be greater than available margin
+            revert CannotPayFee();
+        } else {
+            // attempt to transfer margin asset from user to Kwenta's treasury
+            bool success = marginAsset.transfer(
+                marginBaseSettings.treasury(),
+                _fee
+            );
+            if (!success) revert FailedMarginTransfer();
+
+            emit FeeImposed(address(this), _fee);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
