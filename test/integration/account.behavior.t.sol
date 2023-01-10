@@ -315,75 +315,63 @@ contract AccountBehaviorTest is Test {
         return account;
     }
 
-    /// @notice submit offchain delayed order
-    function testSubmitOffchainDelayedOrder() external {
+    /// @notice submit atomic order
+    function testSubmitAtomicOrder() external {
+        // market and order related params
+        address market = address(
+            IPerpsV2MarketConsolidated(
+                IFuturesMarketManager(
+                    ADDRESS_RESOLVER.getAddress("FuturesMarketManager")
+                ).marketForKey(sETHPERP)
+            )
+        );
+        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 sizeDelta = 1 ether;
+        uint256 priceImpactDelta = 10 ether;
+
         // get account for trading
         MarginBase account = createAccountAndDepositSUSD();
 
-        // define position details
-        IMarginBaseTypes.NewPosition memory longPosition = IMarginBaseTypes
-            .NewPosition({
-                marketKey: sETHPERP,
-                marginDelta: int256(AMOUNT) / 10,
-                sizeDelta: 1 ether,
-                priceImpactDelta: 1
-            });
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](2);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
 
-        // define positions array
-        IMarginBaseTypes.NewPosition[]
-            memory positions = new IMarginBaseTypes.NewPosition[](1);
-        positions[0] = longPosition;
+        // define inputs
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(market, marginDelta);
+        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
 
-        /// @dev SUBMIT ORDER
-
-        // place trade
-        account.distributeMargin(positions);
+        // call execute
+        account.execute(commands, inputs);
 
         // get position details
         IPerpsV2MarketConsolidated.Position memory position = account
             .getPosition(sETHPERP);
 
         // expect only margin to be non-zero since order has not been executed
-        assert(position.id == 0);
-        assert(position.lastFundingIndex == 0);
+        assert(position.id != 0);
+        assert(position.lastFundingIndex != 0);
         assert(position.margin != 0);
-        assert(position.lastPrice == 0);
-        assert(position.size == 0);
+        assert(position.lastPrice != 0);
+        assert(position.size != 0);
     }
+
+    function testSubmitDelayedOrder() external {}
+
+    function testExecuteDelayedOrder() external {}
+
+    function testSubmitOffchainDelayedOrder() external {}
 
     /// @notice submit and then execute offchain delayed order
     function testExecuteOffchainDelayedOrder() external {
-        // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
-
-        // define position details
-        IMarginBaseTypes.NewPosition memory longPosition = IMarginBaseTypes
-            .NewPosition({
-                marketKey: sETHPERP,
-                marginDelta: int256(AMOUNT) / 10,
-                sizeDelta: 1 ether,
-                priceImpactDelta: 1
-            });
-
-        // define positions array
-        IMarginBaseTypes.NewPosition[]
-            memory positions = new IMarginBaseTypes.NewPosition[](1);
-        positions[0] = longPosition;
-
-        /// @dev SUBMIT ORDER
-
-        // place trade
-        account.distributeMargin(positions);
-
-        // get position details
-        IPerpsV2MarketConsolidated.Position memory position = account
-            .getPosition(sETHPERP);
-
-        // @TODO fetch delayed order and check details
-
-        /// @dev EXECUTE ORDER
-
-        /* @TODO
+        // @TODO define market and order related params
+        // @TODO create account
+        // @TODO create order
+        // @TODO submit order
+        // @TODO confirm delayed order details
+        /* @TODO execute order
 
         // adjust Synthetix PerpsV2 sETHPERP Market Settings as contract owner
         address marketSettings = ADDRESS_RESOLVER.getAddress(
