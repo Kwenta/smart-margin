@@ -36,24 +36,6 @@ contract MarginAccountFactory is IMarginAccountFactory, MinimalProxyFactory {
     address payable public immutable ops;
 
     /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice emitted when new account is created
-    /// @param owner: account creator
-    /// @param account: address of account that was created
-    event NewAccount(address indexed owner, address indexed account);
-
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice thrown when newAccount() is called
-    /// by an address which has already made an account
-    /// @param account: address of account previously created
-    error AlreadyCreatedAccount(address account);
-
-    /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
@@ -88,10 +70,12 @@ contract MarginAccountFactory is IMarginAccountFactory, MinimalProxyFactory {
                            ACCOUNT DEPLOYMENT
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice clone MarginBase (i.e. create new account for user)
-    /// @dev this contract is the initial owner of cloned MarginBase,
-    /// but ownership is transferred after successful initialization
-    function newAccount() external returns (address payable accountAddress) {
+    /// @inheritdoc IMarginAccountFactory
+    function newAccount()
+        external
+        override
+        returns (address payable accountAddress)
+    {
         // ensure one account per address
         if (store.deployedMarginAccounts(msg.sender) != address(0)) {
             revert AlreadyCreatedAccount(

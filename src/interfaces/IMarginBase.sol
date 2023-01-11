@@ -130,9 +130,9 @@ interface IMarginBase is IMarginBaseTypes {
     /// @param minimum: min required ETH balance
     error InsufficientEthBalance(uint256 balance, uint256 minimum);
 
-    /*///////////////////////////////////////////////////////////////
-                                Views
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                                 VIEWS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice the current withdrawable or usable balance
     function freeMargin() external view returns (uint256);
@@ -172,9 +172,9 @@ interface IMarginBase is IMarginBaseTypes {
         view
         returns (bool canExec, bytes memory execPayload);
 
-    /*///////////////////////////////////////////////////////////////
-                                Mutative
-    ///////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                                MUTATIVE
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice deposit margin asset to trade with into this contract
     /// @param _amount: amount of marginAsset to deposit into marginBase account

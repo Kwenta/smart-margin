@@ -122,7 +122,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IMarginBase
-    function freeMargin() public view returns (uint256) {
+    function freeMargin() public view override returns (uint256) {
         return marginAsset.balanceOf(address(this)) - committedMargin;
     }
 
@@ -130,6 +130,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     function getPosition(bytes32 _marketKey)
         public
         view
+        override
         returns (IPerpsV2MarketConsolidated.Position memory position)
     {
         // fetch position data from Synthetix
@@ -140,6 +141,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     function getDelayedOrder(bytes32 _marketKey)
         public
         view
+        override
         returns (IPerpsV2MarketConsolidated.DelayedOrder memory order)
     {
         // fetch delayed order data from Synthetix
@@ -151,7 +153,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         int256 _sizeDelta,
         IPerpsV2MarketConsolidated _market,
         uint256 _advancedOrderFee
-    ) public view returns (uint256 fee) {
+    ) public view override returns (uint256 fee) {
         fee =
             (_abs(_sizeDelta) *
                 (marginBaseSettings.tradeFee() + _advancedOrderFee)) /
@@ -166,6 +168,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     function checker(uint256 _orderId)
         external
         view
+        override
         returns (bool canExec, bytes memory execPayload)
     {
         (canExec, ) = validOrder(_orderId);
@@ -183,6 +186,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @inheritdoc IMarginBase
     function deposit(uint256 _amount)
         public
+        override
         onlyOwner
         notZero(_amount, "_amount")
     {
@@ -200,6 +204,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @inheritdoc IMarginBase
     function withdraw(uint256 _amount)
         external
+        override
         notZero(_amount, "_amount")
         onlyOwner
     {
@@ -218,6 +223,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @inheritdoc IMarginBase
     function withdrawEth(uint256 _amount)
         external
+        override
         onlyOwner
         notZero(_amount, "_amount")
     {
@@ -235,6 +241,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     function execute(Command[] calldata commands, bytes[] calldata inputs)
         external
         payable
+        override
         onlyOwner
     {
         uint256 numCommands = commands.length;
@@ -469,7 +476,12 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IMarginBase
-    function validOrder(uint256 _orderId) public view returns (bool, uint256) {
+    function validOrder(uint256 _orderId)
+        public
+        view
+        override
+        returns (bool, uint256)
+    {
         Order memory order = orders[_orderId];
 
         if (order.maxDynamicFee != 0) {
@@ -555,7 +567,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         uint256 _targetPrice,
         OrderTypes _orderType,
         uint128 _priceImpactDelta
-    ) external payable returns (uint256) {
+    ) external payable override returns (uint256) {
         return
             _placeOrder({
                 _marketKey: _marketKey,
@@ -577,7 +589,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         OrderTypes _orderType,
         uint128 _priceImpactDelta,
         uint256 _maxDynamicFee
-    ) external payable returns (uint256) {
+    ) external payable override returns (uint256) {
         return
             _placeOrder({
                 _marketKey: _marketKey,
@@ -651,7 +663,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     }
 
     /// @inheritdoc IMarginBase
-    function cancelOrder(uint256 _orderId) external onlyOwner {
+    function cancelOrder(uint256 _orderId) external override onlyOwner {
         Order memory order = orders[_orderId];
 
         // if margin was committed, free it
@@ -667,7 +679,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     }
 
     /// @inheritdoc IMarginBase
-    function executeOrder(uint256 _orderId) external onlyOps {
+    function executeOrder(uint256 _orderId) external override onlyOps {
         (bool isValidOrder, uint256 fillPrice) = validOrder(_orderId);
         if (!isValidOrder) {
             revert OrderInvalid();

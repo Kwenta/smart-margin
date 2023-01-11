@@ -23,16 +23,13 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
     // @notice Kwenta's Treasury Address
     address public treasury;
 
-    /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
     /// @dev fee imposed on all trades
     /// @dev trades: defined as changes made to IMarginBaseTypes.ActiveMarketPosition.size
     uint256 public tradeFee;
 
-    /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
     /// @dev fee imposed on limit orders
     uint256 public limitOrderFee;
 
-    /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
     /// @dev fee imposed on stop losses
     uint256 public stopOrderFee;
 
@@ -73,7 +70,7 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IMarginBaseSettings
-    function setTreasury(address _treasury) external onlyOwner {
+    function setTreasury(address _treasury) external override onlyOwner {
         /// @notice ensure valid address for Kwenta Treasury
         if (_treasury == address(0)) revert ZeroAddress();
 
@@ -87,7 +84,7 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
     }
 
     /// @inheritdoc IMarginBaseSettings
-    function setTradeFee(uint256 _fee) external onlyOwner {
+    function setTradeFee(uint256 _fee) external override onlyOwner {
         /// @notice ensure valid fee
         if (_fee > MAX_BPS) revert InvalidFee(_fee);
 
@@ -101,7 +98,7 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
     }
 
     /// @inheritdoc IMarginBaseSettings
-    function setLimitOrderFee(uint256 _fee) external onlyOwner {
+    function setLimitOrderFee(uint256 _fee) external override onlyOwner {
         /// @notice ensure valid fee
         if (_fee > MAX_BPS) revert InvalidFee(_fee);
 
@@ -115,7 +112,7 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
     }
 
     /// @inheritdoc IMarginBaseSettings
-    function setStopOrderFee(uint256 _fee) external onlyOwner {
+    function setStopOrderFee(uint256 _fee) external override onlyOwner {
         /// @notice ensure valid fee
         if (_fee > MAX_BPS) revert InvalidFee(_fee);
 

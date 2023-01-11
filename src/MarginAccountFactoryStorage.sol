@@ -20,11 +20,8 @@ contract MarginAccountFactoryStorage is IMarginAccountFactoryStorage, Ownable {
     mapping(address => bool) public verifiedFactories;
 
     /*//////////////////////////////////////////////////////////////
-                              FACTORY AUTH
+                               MODIFIERS
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice thrown if non-verified factory is the function caller
-    error FactoryOnly();
 
     /// @notice ensure caller is a verified factory
     modifier onlyFactory() {
@@ -49,21 +46,17 @@ contract MarginAccountFactoryStorage is IMarginAccountFactoryStorage, Ownable {
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice update store to track new account
-    /// @dev can only be called by verified factory
-    /// @param _creator: address which created margin account
-    /// @param _account: address of newly created margin account
+    /// @inheritdoc IMarginAccountFactoryStorage
     function addDeployedAccount(address _creator, address _account)
         external
+        override
         onlyFactory
     {
         deployedMarginAccounts[_creator] = _account;
     }
 
-    /// @notice update store to track new verified factory
-    /// @dev can only be called by the owner
-    /// @param _factory: address of factory
-    function addVerifiedFactory(address _factory) external onlyOwner {
+    /// @inheritdoc IMarginAccountFactoryStorage
+    function addVerifiedFactory(address _factory) external override onlyOwner {
         verifiedFactories[_factory] = true;
     }
 }

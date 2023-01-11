@@ -3,6 +3,7 @@ pragma solidity 0.8.17;
 
 /// @title Kwenta MarginBaseSettings Interface
 /// @author JaredBorders (jaredborders@proton.me)
+/// @dev all fees are denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
 interface IMarginBaseSettings {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -45,39 +46,35 @@ interface IMarginBaseSettings {
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
-    // @notice Kwenta's Treasury Address
+    // @return Kwenta's Treasury Address
     function treasury() external view returns (address);
 
-    /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
-    /// @dev fee imposed on all trades
-    /// @dev trades: defined as changes made to IMarginBaseTypes.ActiveMarketPosition.size
+    /// @return fee imposed on all trades
     function tradeFee() external view returns (uint256);
 
-    /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
-    /// @dev fee imposed on limit orders
+    /// @return fee imposed on limit orders
     function limitOrderFee() external view returns (uint256);
 
-    /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
-    /// @dev fee imposed on stop losses
+    /// @return fee imposed on stop losses
     function stopOrderFee() external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                                 MUTATIVE
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice set new limit order fee
-    /// @param _fee: fee denoted in BPS
-    function setLimitOrderFee(uint256 _fee) external;
-
-    /// @notice set new stop loss fee
-    /// @param _fee: fee denoted in BPS
-    function setStopOrderFee(uint256 _fee) external;
-
-    /// @notice set new trade fee
-    /// @param _fee: fee denoted in BPS
-    function setTradeFee(uint256 _fee) external;
-
     /// @notice set new treasury address
     /// @param _treasury: new treasury address
     function setTreasury(address _treasury) external;
+
+    /// @notice set new trade fee
+    /// @param _fee: fee imposed on all trades
+    function setTradeFee(uint256 _fee) external;
+
+    /// @notice set new limit order fee
+    /// @param _fee: fee imposed on limit orders
+    function setLimitOrderFee(uint256 _fee) external;
+
+    /// @notice set new stop loss fee
+    /// @param _fee: fee imposed on stop losses
+    function setStopOrderFee(uint256 _fee) external;
 }
