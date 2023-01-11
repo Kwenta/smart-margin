@@ -64,8 +64,9 @@ Developer documentation to give a detailed explanation of the inputs for every c
 #### Diagram
 
 <p align="center">
-  <img src="/diagrams/Order-Logic.jpg?raw=true" width="600" height="600" alt="MarginBase Command Execution"/>
+  <img src="/diagrams/Order-Logic.jpg?raw=true" width="1000" height="600" alt="MarginBase Command Execution"/>
 </p>
+
 #### Reference
 
 The command execution design was inspired by Uniswap's [Universal Router](https://github.com/Uniswap/universal-router).
