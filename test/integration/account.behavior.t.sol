@@ -512,7 +512,7 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(AMOUNT) / 10;
         int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 10 ether;
+        uint256 priceImpactDelta = 1 ether / 2;
 
         // get account for trading
         MarginBase account = createAccountAndDepositSUSD();
@@ -550,7 +550,7 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(AMOUNT) / 10;
         int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 10 ether;
+        uint256 priceImpactDelta = 1 ether / 2;
         uint256 desiredTimeDelta = 0;
 
         // get account for trading
@@ -598,7 +598,7 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(AMOUNT) / 10;
         int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 10 ether;
+        uint256 priceImpactDelta = 1 ether;
 
         // get account for trading
         MarginBase account = createAccountAndDepositSUSD();
@@ -643,7 +643,7 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(AMOUNT) / 10;
         int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 10 ether;
+       uint256 priceImpactDelta = 1 ether / 2;
 
         // get account for trading
         MarginBase account = createAccountAndDepositSUSD();
@@ -679,7 +679,7 @@ contract AccountBehaviorTest is Test {
 
         // redefine inputs
         inputs = new bytes[](1);
-        inputs[0] = abi.encode(market, 0);
+        inputs[0] = abi.encode(market, priceImpactDelta);
 
         // call execute
         account.execute(commands, inputs);
@@ -703,7 +703,7 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(AMOUNT) / 10;
         int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 10 ether;
+        uint256 priceImpactDelta = 1 ether / 2;
 
         // get account for trading
         MarginBase account = createAccountAndDepositSUSD();
@@ -731,7 +731,7 @@ contract AccountBehaviorTest is Test {
 
         // redefine inputs
         inputs = new bytes[](1);
-        inputs[0] = abi.encode(market, 0);
+        inputs[0] = abi.encode(market, priceImpactDelta);
 
         // call execute
         account.execute(commands, inputs);
