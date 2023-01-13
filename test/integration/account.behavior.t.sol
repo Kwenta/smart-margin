@@ -274,7 +274,7 @@ contract AccountBehaviorTest is Test {
         // call factory to create account
         MarginBase account = createAccount();
 
-        // get position details
+        // get delayed order details
         IPerpsV2MarketConsolidated.DelayedOrder memory order = account
             .getDelayedOrder(sETHPERP);
 
@@ -315,16 +315,28 @@ contract AccountBehaviorTest is Test {
         return account;
     }
 
-    /// @notice submit atomic order
-    function testSubmitAtomicOrder() external {
+    // @HELPER
+    /// @notice get address of market
+    /// @return market address
+    function getMarketAddressFromKey(bytes32 key)
+        private
+        view
+        returns (address market)
+    {
         // market and order related params
-        address market = address(
+        market = address(
             IPerpsV2MarketConsolidated(
                 IFuturesMarketManager(
                     ADDRESS_RESOLVER.getAddress("FuturesMarketManager")
-                ).marketForKey(sETHPERP)
+                ).marketForKey(key)
             )
         );
+    }
+
+    /// @notice submit atomic order
+    function testSubmitAtomicOrder() external {
+        // market and order related params
+        address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(AMOUNT) / 10;
         int256 sizeDelta = 1 ether;
         uint256 priceImpactDelta = 10 ether;
@@ -358,11 +370,95 @@ contract AccountBehaviorTest is Test {
         assert(position.size != 0);
     }
 
-    function testSubmitDelayedOrder() external {}
+    function testSubmitDelayedOrder() external {
+        // market and order related params
+        address market = getMarketAddressFromKey(sETHPERP);
+        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 sizeDelta = 1 ether;
+        uint256 priceImpactDelta = 10 ether;
+        uint256 desiredTimeDelta = 0;
+
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](2);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_DELAYED_ORDER;
+
+        // define inputs
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(market, marginDelta);
+        inputs[1] = abi.encode(
+            market,
+            sizeDelta,
+            priceImpactDelta,
+            desiredTimeDelta
+        );
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // get delayed order details
+        IPerpsV2MarketConsolidated.DelayedOrder memory order = account
+            .getDelayedOrder(sETHPERP);
+
+        // expect all details to be unset
+        assert(order.isOffchain == false);
+        assert(order.sizeDelta == sizeDelta);
+        assert(order.priceImpactDelta == priceImpactDelta);
+        assert(order.targetRoundId != 0);
+        assert(order.commitDeposit != 0);
+        assert(order.keeperDeposit != 0);
+        assert(order.executableAtTime != 0);
+        assert(order.intentionTime != 0);
+        assert(order.trackingCode == TRACKING_CODE);
+    }
 
     function testExecuteDelayedOrder() external {}
 
-    function testSubmitOffchainDelayedOrder() external {}
+    function testSubmitOffchainDelayedOrder() external {
+        // market and order related params
+        address market = getMarketAddressFromKey(sETHPERP);
+        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 sizeDelta = 1 ether;
+        uint256 priceImpactDelta = 10 ether;
+
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](2);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[1] = IMarginBaseTypes
+            .Command
+            .PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
+
+        // define inputs
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(market, marginDelta);
+        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // get delayed order details
+        IPerpsV2MarketConsolidated.DelayedOrder memory order = account
+            .getDelayedOrder(sETHPERP);
+
+        // expect all details to be unset
+        assert(order.isOffchain == true);
+        assert(order.sizeDelta == sizeDelta);
+        assert(order.priceImpactDelta == priceImpactDelta);
+        assert(order.targetRoundId != 0);
+        assert(order.commitDeposit != 0);
+        assert(order.keeperDeposit != 0);
+        assert(order.executableAtTime != 0);
+        assert(order.intentionTime != 0);
+        assert(order.trackingCode == TRACKING_CODE);
+    }
 
     /// @notice submit and then execute offchain delayed order
     function testExecuteOffchainDelayedOrder() external {
