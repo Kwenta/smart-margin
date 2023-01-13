@@ -52,6 +52,32 @@ contract AccountBehaviorTest is Test {
     bytes32 private constant sBTCPERP = "sBTCPERP";
 
     /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+    event Deposit(address indexed user, uint256 amount);
+    event Withdraw(address indexed user, uint256 amount);
+    event EthWithdraw(address indexed user, uint256 amount);
+    event OrderPlaced(
+        address indexed account,
+        uint256 orderId,
+        bytes32 marketKey,
+        int256 marginDelta,
+        int256 sizeDelta,
+        uint256 targetPrice,
+        IMarginBaseTypes.OrderTypes orderType,
+        uint128 priceImpactDelta,
+        uint256 maxDynamicFee
+    );
+    event OrderCancelled(address indexed account, uint256 orderId);
+    event OrderFilled(
+        address indexed account,
+        uint256 orderId,
+        uint256 fillPrice,
+        uint256 keeperFee
+    );
+    event FeeImposed(address indexed account, uint256 amount);
+
+    /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
@@ -151,6 +177,7 @@ contract AccountBehaviorTest is Test {
     }
 
     /// @notice create account via the MarginAccountFactory
+    /// @dev also tests that state variables properly set in constructor
     function testAccountCreated() external {
         // call factory to create account
         MarginBase account = createAccount();
@@ -204,12 +231,36 @@ contract AccountBehaviorTest is Test {
         // approve account to spend AMOUNT
         sUSD.approve(address(account), AMOUNT);
 
+        // check account has no sUSD
         assert(sUSD.balanceOf(address(account)) == 0);
+
+        // check deposit event emitted
+        vm.expectEmit(true, false, false, true);
+        emit Deposit(address(this), AMOUNT);
 
         // deposit sUSD into account
         account.deposit(AMOUNT);
 
+        // check account has sUSD
         assert(sUSD.balanceOf(address(account)) == AMOUNT);
+    }
+
+    /// @notice attempt to deposit zero sUSD into account
+    function testCannotDepositZeroSUSD() external {
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // expect revert
+        bytes32 valueName = "_amount";
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IMarginBase.ValueCannotBeZero.selector,
+                valueName
+            )
+        );
+
+        // attempt to deposit zero sUSD into account
+        account.deposit(0);
     }
 
     /// @notice withdraw sUSD from account
@@ -226,11 +277,59 @@ contract AccountBehaviorTest is Test {
         // deposit sUSD into account
         account.deposit(AMOUNT);
 
+        // check withdraw event emitted
+        vm.expectEmit(true, false, false, true);
+        emit Withdraw(address(this), AMOUNT);
+
         // withdraw sUSD from account
         account.withdraw(AMOUNT);
 
+        // check account has no sUSD
         assert(sUSD.balanceOf(address(this)) == AMOUNT);
         assert(sUSD.balanceOf(address(account)) == 0);
+    }
+
+    /// @notice attempt to withdraw zero sUSD from account
+    function testCannotWithdrawZeroSUSD() external {
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // mint sUSD and transfer to this address
+        mintSUSD(address(this), AMOUNT);
+
+        // approve account to spend AMOUNT
+        sUSD.approve(address(account), AMOUNT);
+
+        // deposit sUSD into account
+        account.deposit(AMOUNT);
+
+        // expect revert
+        bytes32 valueName = "_amount";
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IMarginBase.ValueCannotBeZero.selector,
+                valueName
+            )
+        );
+
+        // attempt to withdraw zero sUSD from account
+        account.withdraw(0);
+    }
+
+    /// @notice deposit ETH into account
+    function testDepositETH() external {
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // check account has no ETH
+        assert(address(account).balance == 0);
+
+        // deposit ETH into account
+        (bool s, ) = address(account).call{value: 1 ether}("");
+        assert(s);
+
+        // check account has ETH
+        assert(address(account).balance == 1 ether);
     }
 
     /// @notice withdraw ETH from account
@@ -242,18 +341,63 @@ contract AccountBehaviorTest is Test {
         (bool s, ) = address(account).call{value: 1 ether}("");
         assert(s);
 
+        // check account has ETH
         assert(address(account).balance == 1 ether);
+
+        // check EthWithdraw event emitted
+        vm.expectEmit(true, false, false, true);
+        emit EthWithdraw(address(this), 1 ether);
 
         // withdraw ETH
         account.withdrawEth(1 ether);
 
+        // check account has no ETH
         assert(address(account).balance == 0);
     }
 
+    /// @notice attempt to withdraw more ETH than account has
+    function testCannotWithdrawMoreETHThanAccountHas() external {
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // send ETH to account
+        (bool s, ) = address(account).call{value: 1 ether}("");
+        assert(s);
+
+        // expect revert
+        vm.expectRevert(IMarginBase.EthWithdrawalFailed.selector);
+
+        // withdraw ETH
+        account.withdrawEth(2 ether);
+    }
+
+    /// @notice attempt to withdraw zero ETH from account
+    function testCannotWithdrawZeroETH() external {
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // send ETH to account
+        (bool s, ) = address(account).call{value: 1 ether}("");
+        assert(s);
+
+        // expect revert
+        bytes32 valueName = "_amount";
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IMarginBase.ValueCannotBeZero.selector,
+                valueName
+            )
+        );
+
+        // withdraw ETH
+        account.withdrawEth(0);
+    }
+
     /*//////////////////////////////////////////////////////////////
-                    FETCHING ORDER/POSITION DETAILS
+                                 VIEWS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice test fetching position details
     function testCanFetchPositionDetails() external {
         // call factory to create account
         MarginBase account = createAccount();
@@ -270,6 +414,7 @@ contract AccountBehaviorTest is Test {
         assert(position.size == 0);
     }
 
+    /// @notice test fetching submitted order details
     function testCanFetchDelayedOrderDetails() external {
         // call factory to create account
         MarginBase account = createAccount();
@@ -288,6 +433,27 @@ contract AccountBehaviorTest is Test {
         assert(order.executableAtTime == 0);
         assert(order.intentionTime == 0);
         assert(order.trackingCode == "");
+    }
+
+    /// @notice test fetching free margin
+    function testCanFetchFreeMargin() external {
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // expect free margin to be zero
+        assert(account.freeMargin() == 0);
+
+        // mint sUSD and transfer to this address
+        mintSUSD(address(this), AMOUNT);
+
+        // approve account to spend AMOUNT
+        sUSD.approve(address(account), AMOUNT);
+
+        // deposit sUSD into account
+        account.deposit(AMOUNT);
+
+        // expect free margin to be equal to AMOUNT
+        assert(account.freeMargin() == AMOUNT);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -333,7 +499,14 @@ contract AccountBehaviorTest is Test {
         );
     }
 
-    /// @notice submit atomic order
+    /// @notice test depositing margin into PerpsV2 market
+    /// @dev test command: PERPS_V2_DEPOSIT
+
+    /// @notice test withdrawing margin from PerpsV2 market
+    /// @dev test command: PERPS_V2_WITHDRAW
+
+    /// @notice test submitting atomic order
+    /// @dev test command: PERPS_V2_SUBMIT_ATOMIC_ORDER
     function testSubmitAtomicOrder() external {
         // market and order related params
         address market = getMarketAddressFromKey(sETHPERP);
@@ -370,6 +543,8 @@ contract AccountBehaviorTest is Test {
         assert(position.size != 0);
     }
 
+    /// @notice test submitting delayed order
+    /// @dev test command: PERPS_V2_SUBMIT_DELAYED_ORDER
     function testSubmitDelayedOrder() external {
         // market and order related params
         address market = getMarketAddressFromKey(sETHPERP);
@@ -416,6 +591,8 @@ contract AccountBehaviorTest is Test {
         assert(order.trackingCode == TRACKING_CODE);
     }
 
+    /// @notice test submitting offchain delayed order
+    /// @dev test command: PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
     function testSubmitOffchainDelayedOrder() external {
         // market and order related params
         address market = getMarketAddressFromKey(sETHPERP);
@@ -458,7 +635,9 @@ contract AccountBehaviorTest is Test {
         assert(order.trackingCode == TRACKING_CODE);
     }
 
-    /// @notice close position
+    /// @notice test opening and then closing a position
+    /// @notice specifically test Synthetix PerpsV2 position details after closing
+    /// @dev test command: PERPS_V2_EXIT
     function testClosePosition() external {
         // market and order related params
         address market = getMarketAddressFromKey(sETHPERP);
@@ -516,6 +695,9 @@ contract AccountBehaviorTest is Test {
         assert(position.size == 0);
     }
 
+    /// @notice test opening and then closing a position
+    /// @notice specifically tests that the margin is returned to the account
+    /// @dev test command: PERPS_V2_EXIT
     function testClosingPositionReturnsMarginToAccount() external {
         // market and order related params
         address market = getMarketAddressFromKey(sETHPERP);
@@ -561,65 +743,9 @@ contract AccountBehaviorTest is Test {
         assertApproxEqAbs(preBalance, postBalance, preBalance / 100);
     }
 
-    /// @notice open a single long position and then add margin
-    /// @param x: fuzzed value respresenting amount of margin to add
-    function testAddMarginToLong(uint256 x) external {}
+    /// @notice test submitting a delayed order and then cancelling it
+    /// @dev test command: PERPS_V2_CANCEL_DELAYED_ORDER
 
-    /// @notice open a single short position and then add margin
-    /// @param x: fuzzed value respresenting amount of margin to add
-    function testAddMarginToShort(uint256 x) external {}
-
-    /// @notice open a single long position and then withdraw margin
-    /// @param x: fuzzed value respresenting amount of margin to withdraw
-    function testWithdrawMarginFromLong(uint256 x) external {}
-
-    /// @notice open a single short position and then withdraw margin
-    /// @param x: fuzzed value respresenting amount of margin to withdraw
-    function testWithdrawMarginFromShort(uint256 x) external {}
-
-    /// @notice open a single long position and attempt to withdraw all margin
-    function testRemoveAllMarginFromLong() external {}
-
-    /// @notice open a single short position and attempt to withdraw all margin
-    function testRemoveAllMarginFromShort() external {}
-
-    /// @notice open long and short positions in different markets
-    /// and in a single trade:
-    /// (1) + margin to some positions
-    /// (2) - margin from some positions
-    function testModifyMultiplePositionsMargin() external {}
-
-    ///
-    /// MODIFYING POSITION SIZE
-    ///
-
-    /// @notice open a single long position and then increase size
-    /// @param x: fuzzed value respresenting size increase
-    function testIncSizeOfLong(uint256 x) external {}
-
-    /// @notice open a single short position and then increase size
-    /// @param x: fuzzed value respresenting size increase
-    function testIncSizeOfShort(uint256 x) external {}
-
-    /// @notice open a single long position and then decrease size
-    /// @param x: fuzzed value respresenting size decrease
-    function testDecSizeOfLong(uint256 x) external {}
-
-    /// @notice open a single short position and then decrease size
-    /// @param x: fuzzed value respresenting size decrease
-    function testDecSizeOfShort(uint256 x) external {}
-
-    /// @notice open a single long position and attempt to decrease
-    /// size to zero
-    function testDecSizeToZeroOfLong() external {}
-
-    /// @notice open a single short position and attempt to decrease
-    /// size to zero
-    function testDecSizeToZeroOfShort() external {}
-
-    /// @notice open long and short positions in different markets
-    /// and in a single trade:
-    /// (1) + size of some positions
-    /// (2) - size of some positions
-    function testModifyMultiplePositionsSize() external {}
+    /// @notice test submitting an off-chain delayed order and then cancelling it
+    /// @dev test command: PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER
 }
