@@ -362,7 +362,7 @@ contract AccountBehaviorTest is Test {
         IPerpsV2MarketConsolidated.Position memory position = account
             .getPosition(sETHPERP);
 
-        // expect only margin to be non-zero since order has not been executed
+        // confirm position details are non-zero
         assert(position.id != 0);
         assert(position.lastFundingIndex != 0);
         assert(position.margin != 0);
@@ -404,7 +404,7 @@ contract AccountBehaviorTest is Test {
         IPerpsV2MarketConsolidated.DelayedOrder memory order = account
             .getDelayedOrder(sETHPERP);
 
-        // expect all details to be unset
+        // confirm delayed order details are non-zero
         assert(order.isOffchain == false);
         assert(order.sizeDelta == sizeDelta);
         assert(order.priceImpactDelta == priceImpactDelta);
@@ -415,8 +415,6 @@ contract AccountBehaviorTest is Test {
         assert(order.intentionTime != 0);
         assert(order.trackingCode == TRACKING_CODE);
     }
-
-    function testExecuteDelayedOrder() external {}
 
     function testSubmitOffchainDelayedOrder() external {
         // market and order related params
@@ -448,7 +446,7 @@ contract AccountBehaviorTest is Test {
         IPerpsV2MarketConsolidated.DelayedOrder memory order = account
             .getDelayedOrder(sETHPERP);
 
-        // expect all details to be unset
+        // confirm delayed order details are non-zero
         assert(order.isOffchain == true);
         assert(order.sizeDelta == sizeDelta);
         assert(order.priceImpactDelta == priceImpactDelta);
@@ -460,53 +458,108 @@ contract AccountBehaviorTest is Test {
         assert(order.trackingCode == TRACKING_CODE);
     }
 
-    /// @notice submit and then execute offchain delayed order
-    function testExecuteOffchainDelayedOrder() external {
-        // @TODO define market and order related params
-        // @TODO create account
-        // @TODO create order
-        // @TODO submit order
-        // @TODO confirm delayed order details
-        /* @TODO execute order
+    /// @notice close position
+    function testClosePosition() external {
+        // market and order related params
+        address market = getMarketAddressFromKey(sETHPERP);
+        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 sizeDelta = 1 ether;
+        uint256 priceImpactDelta = 10 ether;
 
-        // adjust Synthetix PerpsV2 sETHPERP Market Settings as contract owner
-        address marketSettings = ADDRESS_RESOLVER.getAddress(
-            "PerpsV2MarketSettings"
-        );
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
 
-        // determine min age order must be to allow execution
-        uint256 minAge = IPerpsV2MarketSettings(marketSettings)
-            .offchainDelayedOrderMinAge(sETHPERP);
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](2);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
 
-        // increase time passed
-        vm.warp(minAge + 1);
+        // define inputs
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(market, marginDelta);
+        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
 
-        // generate authentic price-feed to submit
-        bytes[] memory priceUpdateData;
+        // call execute
+        account.execute(commands, inputs);
 
-        // attempt to execute order
-        // ADDRESS_RESOLVER: 0x95A6a3f44a70172E7d50a9e28c85Dfd712756B8C
-        // FuturesMarketManager: 0xdb89f3fc45A707Dd49781495f77f8ae69bF5cA6e
-        IFuturesMarketManager manager = IFuturesMarketManager(
-            ADDRESS_RESOLVER.getAddress("FuturesMarketManager")
-        );
-        // (ProxyPerpsV2) sETHPERP: 0x2B3bb4c683BFc5239B029131EEf3B1d214478d93::dfa723cc
-        IPerpsV2MarketConsolidated market = IPerpsV2MarketConsolidated(
-            manager.marketForKey(sETHPERP)
-        );
-        // PerpsV2MarketDelayedOrdersOffchain: 0x36841F7Ff6fBD318202A5101F8426eBb051d5e4d
-        // PerpsV2MarketState: 0x038dC05D68ED32F23e6856c0D44b0696B325bfC8
-        // PerpsV2ExchangeRate: 0x4aD2d14Bed21062Ef7B85C378F69cDdf6ED7489C
-        // FlexibleStorage: 0x47649022380d182DA8010Ae5d257fea4227b21ff
-        // ERC1967Proxy: 0xff1a0f4744e8582DF1aE09D5611b887B6a12925C
-        // PythUpgradable: 0x47C409845b57BA4004c26A5841e59Dc15BB39E7b
-        market.executeOffchainDelayedOrder{value: 1 ether}(address(account), priceUpdateData);
-        
-        */
+        // get position details
+        IPerpsV2MarketConsolidated.Position memory position = account
+            .getPosition(sETHPERP);
+
+        // confirm position details are non-zero
+        assert(position.id != 0);
+        assert(position.lastFundingIndex != 0);
+        assert(position.margin != 0);
+        assert(position.lastPrice != 0);
+        assert(position.size != 0);
+
+        // redefine commands
+        commands = new IMarginBaseTypes.Command[](1);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_EXIT;
+
+        // redefine inputs
+        inputs = new bytes[](1);
+        inputs[0] = abi.encode(market, 0);
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // get position details
+        position = account.getPosition(sETHPERP);
+
+        // expect margin and size to be zero
+        assert(position.id == 0);
+        assert(position.lastFundingIndex == 0);
+        assert(position.margin == 0);
+        assert(position.lastPrice == 0);
+        assert(position.size == 0);
     }
 
-    /// @notice close long and short positions
-    function testClosePositions() external {}
+    function testClosingPositionReturnsMarginToAccount() external {
+        // market and order related params
+        address market = getMarketAddressFromKey(sETHPERP);
+        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 sizeDelta = 1 ether;
+        uint256 priceImpactDelta = 10 ether;
+
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // establish account margin balance pre-trades
+        uint256 preBalance = sUSD.balanceOf(address(account));
+
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](2);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+
+        // define inputs
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(market, marginDelta);
+        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // redefine commands
+        commands = new IMarginBaseTypes.Command[](1);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_EXIT;
+
+        // redefine inputs
+        inputs = new bytes[](1);
+        inputs[0] = abi.encode(market, 0);
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // establish account margin balance post-trades
+        uint256 postBalance = sUSD.balanceOf(address(account));
+
+        // confirm post balance is within 1% of pre balance
+        assertApproxEqAbs(preBalance, postBalance, preBalance / 100);
+    }
 
     /// @notice open a single long position and then add margin
     /// @param x: fuzzed value respresenting amount of margin to add
