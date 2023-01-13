@@ -357,12 +357,14 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         );
 
         if (position.size == 0) {
+            // @TODO consider removing this check
             revert PositionDoesNotExist();
         } else {
             // close position (i.e. reduce size to zero)
             /// @dev this does not remove margin from market
-            IPerpsV2MarketConsolidated(_market).closePosition(
-                _priceImpactDelta
+            IPerpsV2MarketConsolidated(_market).closePositionWithTracking(
+                _priceImpactDelta,
+                TRACKING_CODE
             );
 
             // withdraw margin from market back to this account
