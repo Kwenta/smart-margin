@@ -23,55 +23,15 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
     // @notice Kwenta's Treasury Address
     address public treasury;
 
-    /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
     /// @dev fee imposed on all trades
     /// @dev trades: defined as changes made to IMarginBaseTypes.ActiveMarketPosition.size
     uint256 public tradeFee;
 
-    /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
     /// @dev fee imposed on limit orders
     uint256 public limitOrderFee;
 
-    /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
     /// @dev fee imposed on stop losses
     uint256 public stopOrderFee;
-
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice emitted after changing treasury address
-    /// @param treasury: new treasury address
-    event TreasuryAddressChanged(address treasury);
-
-    /// @notice emitted after a successful trade fee change
-    /// @param fee: fee denoted in BPS
-    event TradeFeeChanged(uint256 fee);
-
-    /// @notice emitted after a successful limit order fee change
-    /// @param fee: fee denoted in BPS
-    event LimitOrderFeeChanged(uint256 fee);
-
-    /// @notice emitted after a successful stop loss fee change
-    /// @param fee: fee denoted in BPS
-    event StopOrderFeeChanged(uint256 fee);
-
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice zero address cannot be used
-    error ZeroAddress();
-
-    /// @notice invalid fee (fee > MAX_BPS)
-    /// @param fee: fee denoted in BPS
-    error InvalidFee(uint256 fee);
-
-    /// @notice new fee cannot be the same as the old fee
-    error DuplicateFee();
-
-    /// @notice new address cannot be the same as the old address
-    error DuplicateAddress();
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -109,9 +69,8 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice set new treasury address
-    /// @param _treasury: new treasury address
-    function setTreasury(address _treasury) external onlyOwner {
+    /// @inheritdoc IMarginBaseSettings
+    function setTreasury(address _treasury) external override onlyOwner {
         /// @notice ensure valid address for Kwenta Treasury
         if (_treasury == address(0)) revert ZeroAddress();
 
@@ -124,9 +83,8 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
         emit TreasuryAddressChanged(_treasury);
     }
 
-    /// @notice set new trade fee
-    /// @param _fee: fee denoted in BPS
-    function setTradeFee(uint256 _fee) external onlyOwner {
+    /// @inheritdoc IMarginBaseSettings
+    function setTradeFee(uint256 _fee) external override onlyOwner {
         /// @notice ensure valid fee
         if (_fee > MAX_BPS) revert InvalidFee(_fee);
 
@@ -139,9 +97,8 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
         emit TradeFeeChanged(_fee);
     }
 
-    /// @notice set new limit order fee
-    /// @param _fee: fee denoted in BPS
-    function setLimitOrderFee(uint256 _fee) external onlyOwner {
+    /// @inheritdoc IMarginBaseSettings
+    function setLimitOrderFee(uint256 _fee) external override onlyOwner {
         /// @notice ensure valid fee
         if (_fee > MAX_BPS) revert InvalidFee(_fee);
 
@@ -154,9 +111,8 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
         emit LimitOrderFeeChanged(_fee);
     }
 
-    /// @notice set new stop loss fee
-    /// @param _fee: fee denoted in BPS
-    function setStopOrderFee(uint256 _fee) external onlyOwner {
+    /// @inheritdoc IMarginBaseSettings
+    function setStopOrderFee(uint256 _fee) external override onlyOwner {
         /// @notice ensure valid fee
         if (_fee > MAX_BPS) revert InvalidFee(_fee);
 

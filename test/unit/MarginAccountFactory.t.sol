@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 
 import "../../src/MarginBaseSettings.sol";
 import "../../src/MarginAccountFactory.sol";
+import "../../src/interfaces/IMarginAccountFactory.sol";
 import "../../src/MarginAccountFactoryStorage.sol";
 import "../../src/MarginBase.sol";
 
@@ -31,7 +32,6 @@ contract MarginAccountFactoryTest is Test {
      */
     function mockAddressResolverCalls() internal {
         bytes32 futuresManagerKey = "FuturesMarketManager";
-
         // @mock addressResolver.requireAndGetAddress()
         vm.mockCall(
             address(addressResolver),
@@ -46,7 +46,6 @@ contract MarginAccountFactoryTest is Test {
 
     function setUp() public {
         mockAddressResolverCalls();
-
         /// @notice denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
         uint256 tradeFee = 5; // 5 BPS
         uint256 limitOrderFee = 5; // 5 BPS
@@ -57,11 +56,9 @@ contract MarginAccountFactoryTest is Test {
             _limitOrderFee: limitOrderFee,
             _stopOrderFee: stopLossFee
         });
-
         marginAccountFactoryStorage = new MarginAccountFactoryStorage({
             _owner: address(this)
         });
-
         marginAccountFactory = new MarginAccountFactory({
             _store: address(marginAccountFactoryStorage),
             _marginAsset: address(0),
@@ -81,6 +78,20 @@ contract MarginAccountFactoryTest is Test {
             marginAccountFactoryStorage.deployedMarginAccounts(address(this)) ==
                 address(account)
         );
+    }
+
+    function testCannotCreateTwoAccounts() public {
+        marginAccountFactoryStorage.addVerifiedFactory(
+            address(marginAccountFactory)
+        );
+        address account = marginAccountFactory.newAccount();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IMarginAccountFactory.AlreadyCreatedAccount.selector,
+                account
+            )
+        );
+        marginAccountFactory.newAccount();
     }
 
     // Assert proxy is less than implementation

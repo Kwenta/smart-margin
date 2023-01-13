@@ -6,6 +6,7 @@ import "forge-std/Test.sol";
 import "../../src/MarginBaseSettings.sol";
 import "../../src/MarginAccountFactory.sol";
 import "../../src/MarginAccountFactoryStorage.sol";
+import "../../src/interfaces/IMarginAccountFactoryStorage.sol";
 import "../../src/MarginBase.sol";
 
 contract MarginAccountFactoryStorageTest is Test {
@@ -100,7 +101,7 @@ contract MarginAccountFactoryStorageTest is Test {
     function testNonVerifiedFactoryCannotCreate() public {
         vm.expectRevert(
             abi.encodeWithSelector(
-                MarginAccountFactoryStorage.FactoryOnly.selector
+                IMarginAccountFactoryStorage.FactoryOnly.selector
             )
         );
         marginAccountFactory.newAccount();

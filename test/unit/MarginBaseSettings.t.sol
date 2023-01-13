@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 
 import "../../src/MarginBaseSettings.sol";
 import "../../src/MarginAccountFactory.sol";
+import "../../src/interfaces/IMarginBaseSettings.sol";
 import "../../src/MarginBase.sol";
 
 contract MarginBaseSettingsTest is Test {
@@ -55,7 +56,7 @@ contract MarginBaseSettingsTest is Test {
 
     function testShouldFailSettingTreasuryAddressToZero() public {
         vm.expectRevert(
-            abi.encodeWithSelector(MarginBaseSettings.ZeroAddress.selector)
+            abi.encodeWithSelector(IMarginBaseSettings.ZeroAddress.selector)
         );
         marginBaseSettings.setTreasury(address(0));
     }
@@ -81,7 +82,9 @@ contract MarginBaseSettingsTest is Test {
     function testSettingTradeFee(uint256 x) public {
         if (x == marginBaseSettings.tradeFee()) {
             vm.expectRevert(
-                abi.encodeWithSelector(MarginBaseSettings.DuplicateFee.selector)
+                abi.encodeWithSelector(
+                    IMarginBaseSettings.DuplicateFee.selector
+                )
             );
             marginBaseSettings.setTradeFee(x);
             return;
@@ -89,7 +92,7 @@ contract MarginBaseSettingsTest is Test {
         if (x > 10_000) {
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    MarginBaseSettings.InvalidFee.selector,
+                    IMarginBaseSettings.InvalidFee.selector,
                     x
                 )
             );
@@ -126,16 +129,18 @@ contract MarginBaseSettingsTest is Test {
     function testSettingLimitOrderFee(uint256 x) public {
         if (x == marginBaseSettings.limitOrderFee()) {
             vm.expectRevert(
-                abi.encodeWithSelector(MarginBaseSettings.DuplicateFee.selector)
+                abi.encodeWithSelector(
+                    IMarginBaseSettings.DuplicateFee.selector
+                )
             );
             marginBaseSettings.setLimitOrderFee(x);
             return;
         }
-        
+
         if (x > 10_000) {
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    MarginBaseSettings.InvalidFee.selector,
+                    IMarginBaseSettings.InvalidFee.selector,
                     x
                 )
             );
@@ -172,7 +177,9 @@ contract MarginBaseSettingsTest is Test {
     function testSettingStopOrderFee(uint256 x) public {
         if (x == marginBaseSettings.stopOrderFee()) {
             vm.expectRevert(
-                abi.encodeWithSelector(MarginBaseSettings.DuplicateFee.selector)
+                abi.encodeWithSelector(
+                    IMarginBaseSettings.DuplicateFee.selector
+                )
             );
             marginBaseSettings.setStopOrderFee(x);
             return;
@@ -181,7 +188,7 @@ contract MarginBaseSettingsTest is Test {
         if (x > 10_000) {
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    MarginBaseSettings.InvalidFee.selector,
+                    IMarginBaseSettings.InvalidFee.selector,
                     x
                 )
             );
