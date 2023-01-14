@@ -834,7 +834,120 @@ contract AccountBehaviorTest is Test {
 
     /// @notice test submitting a delayed order and then cancelling it
     /// @dev test command: PERPS_V2_CANCEL_DELAYED_ORDER
+    function testCancelDelayedOrder() external {
+        // market and order related params
+        address market = getMarketAddressFromKey(sETHPERP);
+        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 sizeDelta = 1 ether;
+        uint256 priceImpactDelta = 1 ether / 2;
+        uint256 desiredTimeDelta = 0;
+
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](2);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_DELAYED_ORDER;
+
+        // define inputs
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(market, marginDelta);
+        inputs[1] = abi.encode(
+            market,
+            sizeDelta,
+            priceImpactDelta,
+            desiredTimeDelta
+        );
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // define commands
+        commands = new IMarginBaseTypes.Command[](1);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_CANCEL_DELAYED_ORDER;
+
+        // define inputs
+        inputs = new bytes[](1);
+        inputs[0] = abi.encode(market);
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // get delayed order details
+        IPerpsV2MarketConsolidated.DelayedOrder memory order = account
+            .getDelayedOrder(sETHPERP);
+
+        // expect all details to be unset
+        assert(order.isOffchain == false);
+        assert(order.sizeDelta == 0);
+        assert(order.priceImpactDelta == 0);
+        assert(order.targetRoundId == 0);
+        assert(order.commitDeposit == 0);
+        assert(order.keeperDeposit == 0);
+        assert(order.executableAtTime == 0);
+        assert(order.intentionTime == 0);
+        assert(order.trackingCode == "");
+    }
 
     /// @notice test submitting an off-chain delayed order and then cancelling it
     /// @dev test command: PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER
+    function testCancelOffchainDelayedOrder() external {
+        // market and order related params
+        address market = getMarketAddressFromKey(sETHPERP);
+        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 sizeDelta = 1 ether;
+        uint256 priceImpactDelta = 1 ether;
+
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](2);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[1] = IMarginBaseTypes
+            .Command
+            .PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
+
+        // define inputs
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(market, marginDelta);
+        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // fast forward time
+        vm.warp(block.timestamp + 600 seconds);
+
+        // define commands
+        commands = new IMarginBaseTypes.Command[](1);
+        commands[0] = IMarginBaseTypes
+            .Command
+            .PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER;
+
+        // define inputs
+        inputs = new bytes[](1);
+        inputs[0] = abi.encode(market);
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // get delayed order details
+        IPerpsV2MarketConsolidated.DelayedOrder memory order = account
+            .getDelayedOrder(sETHPERP);
+
+        // expect all details to be unset
+        assert(order.isOffchain == false);
+        assert(order.sizeDelta == 0);
+        assert(order.priceImpactDelta == 0);
+        assert(order.targetRoundId == 0);
+        assert(order.commitDeposit == 0);
+        assert(order.keeperDeposit == 0);
+        assert(order.executableAtTime == 0);
+        assert(order.intentionTime == 0);
+        assert(order.trackingCode == "");
+    }
 }
