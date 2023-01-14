@@ -457,7 +457,7 @@ contract AccountBehaviorTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                             BASIC TRADING
+                                COMMANDS
     //////////////////////////////////////////////////////////////*/
     /// @dev basic trading excludes advanced/conditional
     /// orders such as limit/stop-loss
@@ -499,11 +499,100 @@ contract AccountBehaviorTest is Test {
         );
     }
 
+    /// @notice test providing non-matching command and input lengths
+    function testCannotProvideNonMatchingCommandAndInputLengths() external {
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](1);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+
+        // define inputs
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(address(0), 0);
+        inputs[1] = abi.encode(address(0), 0);
+
+        // expect revert
+        vm.expectRevert(
+            abi.encodeWithSelector(IMarginBase.LengthMismatch.selector)
+        );
+
+        // call execute
+        account.execute(commands, inputs);
+    }
+
     /// @notice test depositing margin into PerpsV2 market
     /// @dev test command: PERPS_V2_DEPOSIT
+    function testDepositMarginIntoMarket() external {
+        // market and order related params
+        address market = getMarketAddressFromKey(sETHPERP);
+        int256 marginDelta = int256(AMOUNT) / 10;
+
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](1);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+
+        // define inputs
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(market, marginDelta);
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // get position details
+        IPerpsV2MarketConsolidated.Position memory position = account
+            .getPosition(sETHPERP);
+
+        // confirm position margin are non-zero
+        assert(position.margin != 0);
+    }
 
     /// @notice test withdrawing margin from PerpsV2 market
     /// @dev test command: PERPS_V2_WITHDRAW
+    function testWithdrawMarginFromMarket() external {
+        // market and order related params
+        address market = getMarketAddressFromKey(sETHPERP);
+        int256 marginDelta = int256(AMOUNT) / 10;
+
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](1);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+
+        // define inputs
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(market, marginDelta);
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // define commands
+        commands = new IMarginBaseTypes.Command[](1);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_WITHDRAW;
+
+        // define inputs
+        inputs = new bytes[](1);
+        inputs[0] = abi.encode(market, (marginDelta * -1));
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // get position details
+        IPerpsV2MarketConsolidated.Position memory position = account
+            .getPosition(sETHPERP);
+
+        // confirm position margin are decreased
+        assert(position.margin == 0);
+    }
 
     /// @notice test submitting atomic order
     /// @dev test command: PERPS_V2_SUBMIT_ATOMIC_ORDER
@@ -643,7 +732,7 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(AMOUNT) / 10;
         int256 sizeDelta = 1 ether;
-       uint256 priceImpactDelta = 1 ether / 2;
+        uint256 priceImpactDelta = 1 ether / 2;
 
         // get account for trading
         MarginBase account = createAccountAndDepositSUSD();
