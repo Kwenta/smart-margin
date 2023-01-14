@@ -467,7 +467,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         ) {
             revert OffchainDelayedOrderDoesNotExist();
         } else {
-            IPerpsV2MarketConsolidated(_market).cancelDelayedOrder(
+            IPerpsV2MarketConsolidated(_market).cancelOffchainDelayedOrder(
                 address(this)
             );
         }
