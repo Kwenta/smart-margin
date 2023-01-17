@@ -210,6 +210,8 @@ contract AccountBehaviorTest is Test {
                        ACCOUNT DEPOSITS/WITHDRAWS
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev add tests for error FailedMarginTransfer()
+
     /// @notice use helper function defined in this test contract
     /// to mint sUSD
     function testCanMintSUSD() external {
@@ -287,15 +289,6 @@ contract AccountBehaviorTest is Test {
     function testOnlyOwnerCanWithdrawSUSD() external {
         // call factory to create account
         MarginBase account = createAccount();
-
-        // mint sUSD and transfer to this address
-        mintSUSD(address(this), AMOUNT);
-
-        // approve account to spend AMOUNT
-        sUSD.approve(address(account), AMOUNT);
-
-        // deposit sUSD into account
-        account.deposit(AMOUNT);
 
         // transfer ownership to another address
         account.transferOwnership(KWENTA_TREASURY);
@@ -397,10 +390,6 @@ contract AccountBehaviorTest is Test {
     function testOnlyOwnerCanWithdrawETH() external {
         // call factory to create account
         MarginBase account = createAccount();
-
-        // send ETH to account
-        (bool s, ) = address(account).call{value: 1 ether}("");
-        assert(s);
 
         // transfer ownership to another address
         account.transferOwnership(KWENTA_TREASURY);
