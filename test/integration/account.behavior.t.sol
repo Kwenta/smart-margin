@@ -12,7 +12,8 @@ import "../../src/MarginAccountFactoryStorage.sol";
 import "../../src/MarginBase.sol";
 import "../../src/interfaces/IMarginBaseTypes.sol";
 
-// Functions tagged with @HELPER are helper functions and not tests
+// functions tagged with @HELPER are helper functions and not tests
+// tests tagged with @AUDITOR are flags for desired increased scrutiny by the auditors
 contract AccountBehaviorTest is Test {
     receive() external payable {}
 
@@ -212,16 +213,33 @@ contract AccountBehaviorTest is Test {
     /// @notice use helper function defined in this test contract
     /// to mint sUSD
     function testCanMintSUSD() external {
+        // check this address has no sUSD
         assert(sUSD.balanceOf(address(this)) == 0);
 
         // mint sUSD and transfer to this address
         mintSUSD(address(this), AMOUNT);
 
+        // check this address has sUSD
         assert(sUSD.balanceOf(address(this)) == AMOUNT);
+    }
+
+    /// @notice test only owner can deposit sUSD into account
+    function testOnlyOwnerCanDepositSUSD() external {
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // transfer ownership to another address
+        account.transferOwnership(KWENTA_TREASURY);
+
+        // expect revert
+        vm.expectRevert("Ownable: caller is not the owner");
+
+        // deposit sUSD into account
+        account.deposit(AMOUNT);
     }
 
     /// @notice deposit sUSD into account
-    function testDepositSUSD() external {
+    function testDepositSUSD(uint256 x) external {
         // call factory to create account
         MarginBase account = createAccount();
 
@@ -234,37 +252,39 @@ contract AccountBehaviorTest is Test {
         // check account has no sUSD
         assert(sUSD.balanceOf(address(account)) == 0);
 
-        // check deposit event emitted
-        vm.expectEmit(true, false, false, true);
-        emit Deposit(address(this), AMOUNT);
+        if (x == 0) {
+            // expect revert
+            bytes32 valueName = "_amount";
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    IMarginBase.ValueCannotBeZero.selector,
+                    valueName
+                )
+            );
 
-        // deposit sUSD into account
-        account.deposit(AMOUNT);
+            // attempt to deposit zero sUSD into account
+            account.deposit(x);
+        } else if (x > AMOUNT) {
+            // expect revert
+            vm.expectRevert();
 
-        // check account has sUSD
-        assert(sUSD.balanceOf(address(account)) == AMOUNT);
+            // deposit sUSD into account
+            account.deposit(x);
+        } else {
+            // check deposit event emitted
+            vm.expectEmit(true, false, false, true);
+            emit Deposit(address(this), x);
+
+            // deposit sUSD into account
+            account.deposit(x);
+
+            // check account has sUSD
+            assert(sUSD.balanceOf(address(account)) == x);
+        }
     }
 
-    /// @notice attempt to deposit zero sUSD into account
-    function testCannotDepositZeroSUSD() external {
-        // call factory to create account
-        MarginBase account = createAccount();
-
-        // expect revert
-        bytes32 valueName = "_amount";
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IMarginBase.ValueCannotBeZero.selector,
-                valueName
-            )
-        );
-
-        // attempt to deposit zero sUSD into account
-        account.deposit(0);
-    }
-
-    /// @notice withdraw sUSD from account
-    function testWithdrawSUSD() external {
+    /// @notice test only owner can withdraw sUSD from account
+    function testOnlyOwnerCanWithdrawSUSD() external {
         // call factory to create account
         MarginBase account = createAccount();
 
@@ -277,20 +297,18 @@ contract AccountBehaviorTest is Test {
         // deposit sUSD into account
         account.deposit(AMOUNT);
 
-        // check withdraw event emitted
-        vm.expectEmit(true, false, false, true);
-        emit Withdraw(address(this), AMOUNT);
+        // transfer ownership to another address
+        account.transferOwnership(KWENTA_TREASURY);
+
+        // expect revert
+        vm.expectRevert("Ownable: caller is not the owner");
 
         // withdraw sUSD from account
         account.withdraw(AMOUNT);
-
-        // check account has no sUSD
-        assert(sUSD.balanceOf(address(this)) == AMOUNT);
-        assert(sUSD.balanceOf(address(account)) == 0);
     }
 
-    /// @notice attempt to withdraw zero sUSD from account
-    function testCannotWithdrawZeroSUSD() external {
+    /// @notice withdraw sUSD from account
+    function testWithdrawSUSD(uint256 x) external {
         // call factory to create account
         MarginBase account = createAccount();
 
@@ -303,17 +321,60 @@ contract AccountBehaviorTest is Test {
         // deposit sUSD into account
         account.deposit(AMOUNT);
 
-        // expect revert
-        bytes32 valueName = "_amount";
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IMarginBase.ValueCannotBeZero.selector,
-                valueName
-            )
-        );
+        if (x == 0) {
+            // expect revert
+            bytes32 valueName = "_amount";
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    IMarginBase.ValueCannotBeZero.selector,
+                    valueName
+                )
+            );
 
-        // attempt to withdraw zero sUSD from account
-        account.withdraw(0);
+            // attempt to withdraw zero sUSD from account
+            account.withdraw(x);
+        } else if (x > AMOUNT) {
+            // expect revert
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    IMarginBase.InsufficientFreeMargin.selector,
+                    AMOUNT,
+                    x
+                )
+            );
+
+            // withdraw sUSD
+            account.withdraw(x);
+        } else {
+            // check withdraw event emitted
+            vm.expectEmit(true, false, false, true);
+            emit Withdraw(address(this), x);
+
+            // withdraw sUSD from account
+            account.withdraw(x);
+
+            // check this address has sUSD
+            assert(sUSD.balanceOf(address(this)) == x);
+
+            // check account sUSD balance has decreased
+            assert(sUSD.balanceOf(address(account)) == AMOUNT - x);
+        }
+    }
+
+    /// @notice test only owner can deposit ETH into account
+    function testOnlyOwnerCanDepositETH() external {
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // transfer ownership to another address
+        account.transferOwnership(KWENTA_TREASURY);
+
+        // expect revert
+        vm.expectRevert("Ownable: caller is not the owner");
+
+        // try to deposit ETH into account
+        (bool s, ) = address(account).call{value: 1 ether}("");
+        assert(s);
     }
 
     /// @notice deposit ETH into account
@@ -332,8 +393,26 @@ contract AccountBehaviorTest is Test {
         assert(address(account).balance == 1 ether);
     }
 
-    /// @notice withdraw ETH from account
-    function testWithdrawETH() external {
+    /// @notice test only owner can withdraw ETH from account
+    function testOnlyOwnerCanWithdrawETH() external {
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // send ETH to account
+        (bool s, ) = address(account).call{value: 1 ether}("");
+        assert(s);
+
+        // transfer ownership to another address
+        account.transferOwnership(KWENTA_TREASURY);
+
+        // expect revert
+        vm.expectRevert("Ownable: caller is not the owner");
+
+        // try to withdraw ETH
+        account.withdrawEth(1 ether);
+    }
+
+    function testWithdrawEth(uint256 x) external {
         // call factory to create account
         MarginBase account = createAccount();
 
@@ -342,55 +421,38 @@ contract AccountBehaviorTest is Test {
         assert(s);
 
         // check account has ETH
-        assert(address(account).balance == 1 ether);
+        uint256 balance = address(account).balance;
+        assert(balance == 1 ether);
 
-        // check EthWithdraw event emitted
-        vm.expectEmit(true, false, false, true);
-        emit EthWithdraw(address(this), 1 ether);
+        if (x > 1 ether) {
+            // expect revert
+            vm.expectRevert(IMarginBase.EthWithdrawalFailed.selector);
 
-        // withdraw ETH
-        account.withdrawEth(1 ether);
+            // withdraw ETH
+            account.withdrawEth(x);
+        } else if (x == 0) {
+            // expect revert
+            bytes32 valueName = "_amount";
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    IMarginBase.ValueCannotBeZero.selector,
+                    valueName
+                )
+            );
 
-        // check account has no ETH
-        assert(address(account).balance == 0);
-    }
+            // withdraw ETH
+            account.withdrawEth(x);
+        } else {
+            // check EthWithdraw event emitted
+            vm.expectEmit(true, false, false, true);
+            emit EthWithdraw(address(this), x);
 
-    /// @notice attempt to withdraw more ETH than account has
-    function testCannotWithdrawMoreETHThanAccountHas() external {
-        // call factory to create account
-        MarginBase account = createAccount();
+            // withdraw ETH
+            account.withdrawEth(x);
 
-        // send ETH to account
-        (bool s, ) = address(account).call{value: 1 ether}("");
-        assert(s);
-
-        // expect revert
-        vm.expectRevert(IMarginBase.EthWithdrawalFailed.selector);
-
-        // withdraw ETH
-        account.withdrawEth(2 ether);
-    }
-
-    /// @notice attempt to withdraw zero ETH from account
-    function testCannotWithdrawZeroETH() external {
-        // call factory to create account
-        MarginBase account = createAccount();
-
-        // send ETH to account
-        (bool s, ) = address(account).call{value: 1 ether}("");
-        assert(s);
-
-        // expect revert
-        bytes32 valueName = "_amount";
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IMarginBase.ValueCannotBeZero.selector,
-                valueName
-            )
-        );
-
-        // withdraw ETH
-        account.withdrawEth(0);
+            // check account lost x ETH
+            assert(address(account).balance == balance - x);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -454,13 +516,17 @@ contract AccountBehaviorTest is Test {
 
         // expect free margin to be equal to AMOUNT
         assert(account.freeMargin() == AMOUNT);
+
+        // withdraw all sUSD from account
+        account.withdraw(AMOUNT);
+
+        // expect free margin to be zero
+        assert(account.freeMargin() == 0);
     }
 
     /*//////////////////////////////////////////////////////////////
                                 COMMANDS
     //////////////////////////////////////////////////////////////*/
-    /// @dev basic trading excludes advanced/conditional
-    /// orders such as limit/stop-loss
 
     // @HELPER
     /// @notice create margin base account and fund it with sUSD
@@ -499,6 +565,62 @@ contract AccountBehaviorTest is Test {
         );
     }
 
+    /// @notice test invalid command
+    function testCannotExecuteInvalidCommand() external {
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // define calldata
+        bytes memory dataWithInvalidCommand = abi.encodeWithSignature(
+            "execute(uint256,bytes)",
+            69, // enums are rep as uint256 and there are not enough commands to reach 69
+            abi.encode(address(0))
+        );
+
+        // expect revert (69 is the uint256 value for the invalid enum)
+        vm.expectRevert(
+            abi.encodeWithSelector(IMarginBase.InvalidCommandType.selector, 69)
+        );
+
+        // call execute
+        (bool s, ) = address(account).call(dataWithInvalidCommand);
+        assert(!s);
+    }
+
+    // @AUDITOR increased scrutiny requested for invalid inputs.
+    /// @notice test invalid input with valid command
+    function testFailExecuteInvalidInputWithValidCommand() external {
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](1);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+
+        // define invalid inputs
+        bytes[] memory inputs = new bytes[](1);
+
+        // correct:
+        // inputs[0] = abi.encode(market, marginDelta);
+
+        // seemingly incorrect but actually works @AUDITOR:
+        // inputs[0] = abi.encode(market, marginDelta, 69, address(0));
+
+        // incorrect:
+        inputs[0] = abi.encode(69);
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // get position details
+        IPerpsV2MarketConsolidated.Position memory position = account
+            .getPosition(sETHPERP);
+
+        // confirm position margin are non-zero
+        assert(position.margin != 0);
+    }
+
     /// @notice test providing non-matching command and input lengths
     function testCannotProvideNonMatchingCommandAndInputLengths() external {
         // get account for trading
@@ -525,13 +647,15 @@ contract AccountBehaviorTest is Test {
 
     /// @notice test depositing margin into PerpsV2 market
     /// @dev test command: PERPS_V2_DEPOSIT
-    function testDepositMarginIntoMarket() external {
+    function testDepositMarginIntoMarket(int256 fuzzedMarginDelta) external {
         // market and order related params
         address market = getMarketAddressFromKey(sETHPERP);
-        int256 marginDelta = int256(AMOUNT) / 10;
 
         // get account for trading
         MarginBase account = createAccountAndDepositSUSD();
+
+        // get account margin balance
+        uint256 accountBalance = sUSD.balanceOf(address(account));
 
         // define commands
         IMarginBaseTypes.Command[]
@@ -540,17 +664,39 @@ contract AccountBehaviorTest is Test {
 
         // define inputs
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(market, marginDelta);
+        inputs[0] = abi.encode(market, fuzzedMarginDelta);
 
-        // call execute
-        account.execute(commands, inputs);
+        // define expected reverts based on margin delta
+        if (fuzzedMarginDelta <= 0) {
+            vm.expectRevert(IMarginBase.InvalidMarginDelta.selector);
 
-        // get position details
-        IPerpsV2MarketConsolidated.Position memory position = account
-            .getPosition(sETHPERP);
+            // call execute
+            account.execute(commands, inputs);
+            return;
+        } else if (fuzzedMarginDelta > int256(accountBalance)) {
+            // expect revert
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    IMarginBase.InsufficientFreeMargin.selector,
+                    accountBalance,
+                    fuzzedMarginDelta
+                )
+            );
 
-        // confirm position margin are non-zero
-        assert(position.margin != 0);
+            // call execute
+            account.execute(commands, inputs);
+            return;
+        } else {
+            // call execute
+            account.execute(commands, inputs);
+
+            // get position details
+            IPerpsV2MarketConsolidated.Position memory position = account
+                .getPosition(sETHPERP);
+
+            // confirm position margin are non-zero
+            assert(position.margin != 0);
+        }
     }
 
     /// @notice test withdrawing margin from PerpsV2 market
