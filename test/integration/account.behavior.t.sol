@@ -448,6 +448,33 @@ contract AccountBehaviorTest is Test {
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice test fetching free margin
+    function testCanFetchFreeMargin() external {
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // expect free margin to be zero
+        assert(account.freeMargin() == 0);
+
+        // mint sUSD and transfer to this address
+        mintSUSD(address(this), AMOUNT);
+
+        // approve account to spend AMOUNT
+        sUSD.approve(address(account), AMOUNT);
+
+        // deposit sUSD into account
+        account.deposit(AMOUNT);
+
+        // expect free margin to be equal to AMOUNT
+        assert(account.freeMargin() == AMOUNT);
+
+        // withdraw all sUSD from account
+        account.withdraw(AMOUNT);
+
+        // expect free margin to be zero
+        assert(account.freeMargin() == 0);
+    }
+
     /// @notice test fetching position details
     function testCanFetchPositionDetails() external {
         // call factory to create account
@@ -486,31 +513,14 @@ contract AccountBehaviorTest is Test {
         assert(order.trackingCode == "");
     }
 
-    /// @notice test fetching free margin
-    function testCanFetchFreeMargin() external {
-        // call factory to create account
-        MarginBase account = createAccount();
+    /// @notice test trade fee calculation
+    function testCanCalculateTradeFee() external {
+        // @TODO calculateTradeFee()
+    }
 
-        // expect free margin to be zero
-        assert(account.freeMargin() == 0);
-
-        // mint sUSD and transfer to this address
-        mintSUSD(address(this), AMOUNT);
-
-        // approve account to spend AMOUNT
-        sUSD.approve(address(account), AMOUNT);
-
-        // deposit sUSD into account
-        account.deposit(AMOUNT);
-
-        // expect free margin to be equal to AMOUNT
-        assert(account.freeMargin() == AMOUNT);
-
-        // withdraw all sUSD from account
-        account.withdraw(AMOUNT);
-
-        // expect free margin to be zero
-        assert(account.freeMargin() == 0);
+    /// @notice test if an order can be executed
+    function canCheckIfOrderCanBeExecuted() external {
+        // @TODO checker()
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -585,7 +595,7 @@ contract AccountBehaviorTest is Test {
         // define commands
         IMarginBaseTypes.Command[]
             memory commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
 
         // define invalid inputs
         bytes[] memory inputs = new bytes[](1);
@@ -618,7 +628,7 @@ contract AccountBehaviorTest is Test {
         // define commands
         IMarginBaseTypes.Command[]
             memory commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
 
         // define inputs
         bytes[] memory inputs = new bytes[](2);
@@ -635,7 +645,7 @@ contract AccountBehaviorTest is Test {
     }
 
     /// @notice test depositing margin into PerpsV2 market
-    /// @dev test command: PERPS_V2_DEPOSIT
+    /// @dev test command: PERPS_V2_MODIFY_MARGIN
     function testDepositMarginIntoMarket(int256 fuzzedMarginDelta) external {
         // market and order related params
         address market = getMarketAddressFromKey(sETHPERP);
@@ -649,42 +659,48 @@ contract AccountBehaviorTest is Test {
         // define commands
         IMarginBaseTypes.Command[]
             memory commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
 
         // define inputs
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(market, fuzzedMarginDelta);
 
-        // define expected reverts based on margin delta
-        if (fuzzedMarginDelta <= 0) {
-            vm.expectRevert(IMarginBase.InvalidMarginDelta.selector);
+        /// @dev define & test outcomes:
 
-            // call execute
-            account.execute(commands, inputs);
-            return;
-        } else if (fuzzedMarginDelta > int256(accountBalance)) {
-            // expect revert
+        // outcome 1: margin delta cannot be zero
+        if (fuzzedMarginDelta == 0) {
             vm.expectRevert(
-                abi.encodeWithSelector(
-                    IMarginBase.InsufficientFreeMargin.selector,
-                    accountBalance,
-                    fuzzedMarginDelta
-                )
+                abi.encodeWithSelector(IMarginBase.InvalidMarginDelta.selector)
             );
-
-            // call execute
             account.execute(commands, inputs);
-            return;
-        } else {
-            // call execute
+        }
+
+        // outcome 2: margin delta positive
+        if (fuzzedMarginDelta > 0) {
+            if (fuzzedMarginDelta > int256(accountBalance)) {
+                // outcome 2.1: margin delta larger than what is available
+                vm.expectRevert(
+                    abi.encodeWithSelector(
+                        IMarginBase.InsufficientFreeMargin.selector,
+                        accountBalance,
+                        fuzzedMarginDelta
+                    )
+                );
+                account.execute(commands, inputs);
+            } else {
+                // outcome 2.2: margin delta deposited into market
+                account.execute(commands, inputs);
+                IPerpsV2MarketConsolidated.Position memory position = account
+                    .getPosition(sETHPERP);
+                assert(int256(uint256(position.margin)) == fuzzedMarginDelta);
+            }
+        }
+
+        // outcome 3: margin is negative and execute will attempt to withdraw margin
+        if (fuzzedMarginDelta < 0) {
+            // outcome 3.1: there is no margin in market to withdraw
+            vm.expectRevert();
             account.execute(commands, inputs);
-
-            // get position details
-            IPerpsV2MarketConsolidated.Position memory position = account
-                .getPosition(sETHPERP);
-
-            // confirm position margin are non-zero
-            assert(position.margin != 0);
         }
     }
 
@@ -701,7 +717,7 @@ contract AccountBehaviorTest is Test {
         // define commands
         IMarginBaseTypes.Command[]
             memory commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
 
         // define inputs
         bytes[] memory inputs = new bytes[](1);
@@ -710,11 +726,7 @@ contract AccountBehaviorTest is Test {
         // call execute
         account.execute(commands, inputs);
 
-        // define commands
-        commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_WITHDRAW;
-
-        // define inputs
+        // define new inputs
         inputs = new bytes[](1);
         inputs[0] = abi.encode(market, (marginDelta * -1));
 
@@ -744,7 +756,7 @@ contract AccountBehaviorTest is Test {
         // define commands
         IMarginBaseTypes.Command[]
             memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
         commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
 
         // define inputs
@@ -783,7 +795,7 @@ contract AccountBehaviorTest is Test {
         // define commands
         IMarginBaseTypes.Command[]
             memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
         commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_DELAYED_ORDER;
 
         // define inputs
@@ -830,7 +842,7 @@ contract AccountBehaviorTest is Test {
         // define commands
         IMarginBaseTypes.Command[]
             memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
         commands[1] = IMarginBaseTypes
             .Command
             .PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
@@ -875,7 +887,7 @@ contract AccountBehaviorTest is Test {
         // define commands
         IMarginBaseTypes.Command[]
             memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
         commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
 
         // define inputs
@@ -938,7 +950,7 @@ contract AccountBehaviorTest is Test {
         // define commands
         IMarginBaseTypes.Command[]
             memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
         commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
 
         // define inputs
@@ -983,7 +995,7 @@ contract AccountBehaviorTest is Test {
         // define commands
         IMarginBaseTypes.Command[]
             memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
         commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_DELAYED_ORDER;
 
         // define inputs
@@ -1041,7 +1053,7 @@ contract AccountBehaviorTest is Test {
         // define commands
         IMarginBaseTypes.Command[]
             memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_DEPOSIT;
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
         commands[1] = IMarginBaseTypes
             .Command
             .PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;

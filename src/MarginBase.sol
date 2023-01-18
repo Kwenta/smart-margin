@@ -263,18 +263,12 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
 
     function _dispatch(Command command, bytes memory inputs) internal {
         // if-else logic to dispatch commands
-        if (command == Command.PERPS_V2_DEPOSIT) {
+        if (command == Command.PERPS_V2_MODIFY_MARGIN) {
             (address market, int256 amount) = abi.decode(
                 inputs,
                 (address, int256)
             );
-            _perpsV2Deposit({_market: market, _amount: amount});
-        } else if (command == Command.PERPS_V2_WITHDRAW) {
-            (address market, int256 amount) = abi.decode(
-                inputs,
-                (address, int256)
-            );
-            _perpsV2Withdraw({_market: market, _amount: amount});
+            _perpsV2ModifyMargin({_market: market, _amount: amount});
         } else if (command == Command.PERPS_V2_EXIT) {
             (address market, uint256 priceImpactDelta) = abi.decode(
                 inputs,
@@ -329,21 +323,18 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                                 COMMANDS
     //////////////////////////////////////////////////////////////*/
 
-    function _perpsV2Deposit(address _market, int256 _amount) internal {
-        if (_amount <= 0) {
-            revert InvalidMarginDelta();
-        } else if (_abs(_amount) > freeMargin()) {
-            revert InsufficientFreeMargin(freeMargin(), _abs(_amount));
-        } else {
+    function _perpsV2ModifyMargin(address _market, int256 _amount) internal {
+        if (_amount > 0) {
+            if (_abs(_amount) > freeMargin()) {
+                revert InsufficientFreeMargin(freeMargin(), _abs(_amount));
+            } else {
+                IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
+            }
+        } else if (_amount < 0) {
             IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
-        }
-    }
-
-    function _perpsV2Withdraw(address _market, int256 _amount) internal {
-        if (_amount >= 0) {
-            revert InvalidMarginDelta();
         } else {
-            IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
+            // _amount == 0
+            revert InvalidMarginDelta();
         }
     }
 
