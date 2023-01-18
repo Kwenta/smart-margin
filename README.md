@@ -31,8 +31,7 @@ Calls to `MarginBase.execute`, the entrypoint to the contracts, provide 2 main p
 The supported commands can be found below:
 
 ```
-PERPS_V2_DEPOSIT
-PERPS_V2_WITHDRAW
+PERPS_V2_MODIFY_MARGIN
 PERPS_V2_EXIT
 PERPS_V2_SUBMIT_ATOMIC_ORDER
 PERPS_V2_SUBMIT_DELAYED_ORDER
