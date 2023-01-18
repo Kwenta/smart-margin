@@ -528,6 +528,12 @@ contract AccountBehaviorTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     // @HELPER
+    /// @notice takes int and returns absolute value uint
+    function abs(int256 x) internal pure returns (uint256) {
+        return uint256(x < 0 ? -x : x);
+    }
+
+    // @HELPER
     /// @notice create margin base account and fund it with sUSD
     /// @return MarginBase account
     function createAccountAndDepositSUSD() private returns (MarginBase) {
@@ -675,10 +681,10 @@ contract AccountBehaviorTest is Test {
             account.execute(commands, inputs);
         }
 
-        // outcome 2: margin delta positive
+        // outcome 2: margin delta is positive; thus a deposit
         if (fuzzedMarginDelta > 0) {
             if (fuzzedMarginDelta > int256(accountBalance)) {
-                // outcome 2.1: margin delta larger than what is available
+                // outcome 2.1: margin delta larger than what is available in account
                 vm.expectRevert(
                     abi.encodeWithSelector(
                         IMarginBase.InsufficientFreeMargin.selector,
@@ -696,7 +702,7 @@ contract AccountBehaviorTest is Test {
             }
         }
 
-        // outcome 3: margin is negative and execute will attempt to withdraw margin
+        // outcome 3: margin delta is negative; thus a withdrawal
         if (fuzzedMarginDelta < 0) {
             // outcome 3.1: there is no margin in market to withdraw
             vm.expectRevert();
@@ -706,13 +712,15 @@ contract AccountBehaviorTest is Test {
 
     /// @notice test withdrawing margin from PerpsV2 market
     /// @dev test command: PERPS_V2_WITHDRAW
-    function testWithdrawMarginFromMarket() external {
+    function testWithdrawMarginFromMarket(int256 fuzzedMarginDelta) external {
         // market and order related params
         address market = getMarketAddressFromKey(sETHPERP);
-        int256 marginDelta = int256(AMOUNT) / 10;
 
         // get account for trading
         MarginBase account = createAccountAndDepositSUSD();
+
+        // get account margin balance
+        int256 balance = int256(sUSD.balanceOf(address(account)));
 
         // define commands
         IMarginBaseTypes.Command[]
@@ -721,24 +729,53 @@ contract AccountBehaviorTest is Test {
 
         // define inputs
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(market, marginDelta);
+        inputs[0] = abi.encode(market, balance);
 
         // call execute
+        /// @dev depositing full margin account `balance` into market
         account.execute(commands, inputs);
 
         // define new inputs
         inputs = new bytes[](1);
-        inputs[0] = abi.encode(market, (marginDelta * -1));
+        inputs[0] = abi.encode(market, fuzzedMarginDelta);
 
-        // call execute
-        account.execute(commands, inputs);
+        /// @dev define & test outcomes:
 
-        // get position details
-        IPerpsV2MarketConsolidated.Position memory position = account
-            .getPosition(sETHPERP);
+        // outcome 1: margin delta cannot be zero
+        if (fuzzedMarginDelta == 0) {
+            vm.expectRevert(
+                abi.encodeWithSelector(IMarginBase.InvalidMarginDelta.selector)
+            );
+            account.execute(commands, inputs);
+        }
 
-        // confirm position margin are decreased
-        assert(position.margin == 0);
+        // outcome 2: margin delta is positive; thus a deposit
+        if (fuzzedMarginDelta > 0) {
+            // outcome 2.1: there is no margin in account to deposit
+            vm.expectRevert();
+            account.execute(commands, inputs);
+        }
+
+        // outcome 3: margin delta is negative; thus a withdrawal
+        if (fuzzedMarginDelta < 0) {
+            if (fuzzedMarginDelta < balance * -1) {
+                // outcome 3.1: margin delta larger than what is available in market
+                vm.expectRevert();
+                account.execute(commands, inputs);
+            } else {
+                // outcome 3.2: margin delta withdrawn from market
+                account.execute(commands, inputs);
+                IPerpsV2MarketConsolidated.Position memory position = account
+                    .getPosition(sETHPERP);
+                assert(
+                    int256(uint256(position.margin)) ==
+                        balance + fuzzedMarginDelta
+                );
+                assert(
+                    sUSD.balanceOf(address(account)) == abs(fuzzedMarginDelta)
+                );
+            }
+        }
     }
 
     /// @notice test submitting atomic order
