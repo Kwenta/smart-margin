@@ -17,13 +17,13 @@ import "../../src/interfaces/IMarginBaseTypes.sol";
 contract AccountBehaviorTest is Test {
     receive() external payable {}
 
-    /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
-    /// @dev hard coded addresses are only guaranteed for this block
-    uint256 private constant BLOCK_NUMBER = 60242268;
-
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
+    /// @dev hard coded addresses are only guaranteed for this block
+    uint256 private constant BLOCK_NUMBER = 60242268;
 
     // tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
@@ -55,6 +55,7 @@ contract AccountBehaviorTest is Test {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
+
     event Deposit(address indexed user, uint256 amount);
     event Withdraw(address indexed user, uint256 amount);
     event EthWithdraw(address indexed user, uint256 amount);
@@ -89,35 +90,6 @@ contract AccountBehaviorTest is Test {
 
     /// @notice other contracts
     ERC20 private sUSD;
-
-    /*//////////////////////////////////////////////////////////////
-                               MINT SUSD
-    //////////////////////////////////////////////////////////////*/
-
-    // @HELPER
-    /// @notice mint sUSD and transfer to address specified
-    /// @dev Issuer.sol is an auxiliary helper contract that performs
-    /// the issuing and burning functionality.
-    /// Synth.sol is the base ERC20 token contract comprising most of
-    /// the behaviour of all synths.
-    /// Issuer is considered an "internal contract" therefore,
-    /// it is permitted to call Synth.issue() which is restricted by
-    /// the onlyInternalContracts modifier. Synth.issue() updates the
-    /// token state (i.e. balance and total existing tokens) which effectively
-    /// can be used to "mint" an account the underlying synth.
-    /// @param to: address to mint and transfer sUSD to
-    /// @param amount: amount to mint and transfer
-    function mintSUSD(address to, uint256 amount) private {
-        // fetch addresses needed
-        address issuer = ADDRESS_RESOLVER.getAddress("Issuer");
-        ISynth synthsUSD = ISynth(ADDRESS_RESOLVER.getAddress("SynthsUSD"));
-
-        // set caller as issuer
-        vm.prank(issuer);
-
-        // mint sUSD
-        synthsUSD.issue(to, amount);
-    }
 
     /*//////////////////////////////////////////////////////////////
                                  SETUP
@@ -168,14 +140,6 @@ contract AccountBehaviorTest is Test {
     /*//////////////////////////////////////////////////////////////
                             ACCOUNT CREATION
     //////////////////////////////////////////////////////////////*/
-
-    // @HELPER
-    /// @notice create margin base account
-    /// @return account - MarginBase account
-    function createAccount() private returns (MarginBase account) {
-        // call factory to create account
-        account = MarginBase(payable(marginAccountFactory.newAccount()));
-    }
 
     /// @notice create account via the MarginAccountFactory
     /// @dev also tests that state variables properly set in constructor
@@ -524,51 +488,36 @@ contract AccountBehaviorTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                COMMANDS
+                                EXECUTE
     //////////////////////////////////////////////////////////////*/
 
-    // @HELPER
-    /// @notice takes int and returns absolute value uint
-    function abs(int256 x) internal pure returns (uint256) {
-        return uint256(x < 0 ? -x : x);
-    }
+    /// @notice test providing non-matching command and input lengths
+    function testCannotProvideNonMatchingCommandAndInputLengths() external {
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
 
-    // @HELPER
-    /// @notice create margin base account and fund it with sUSD
-    /// @return MarginBase account
-    function createAccountAndDepositSUSD() private returns (MarginBase) {
-        // call factory to create account
-        MarginBase account = createAccount();
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](1);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
 
-        // mint sUSD and transfer to this address
-        mintSUSD(address(this), AMOUNT);
+        // define inputs
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(address(0), 0);
+        inputs[1] = abi.encode(address(0), 0);
 
-        // approve account to spend AMOUNT
-        sUSD.approve(address(account), AMOUNT);
-
-        // deposit sUSD into account
-        account.deposit(AMOUNT);
-
-        return account;
-    }
-
-    // @HELPER
-    /// @notice get address of market
-    /// @return market address
-    function getMarketAddressFromKey(bytes32 key)
-        private
-        view
-        returns (address market)
-    {
-        // market and order related params
-        market = address(
-            IPerpsV2MarketConsolidated(
-                IFuturesMarketManager(
-                    ADDRESS_RESOLVER.getAddress("FuturesMarketManager")
-                ).marketForKey(key)
-            )
+        // expect revert
+        vm.expectRevert(
+            abi.encodeWithSelector(IMarginBase.LengthMismatch.selector)
         );
+
+        // call execute
+        account.execute(commands, inputs);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                DISPATCH
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice test invalid command
     function testCannotExecuteInvalidCommand() external {
@@ -626,29 +575,13 @@ contract AccountBehaviorTest is Test {
         assert(position.margin != 0);
     }
 
-    /// @notice test providing non-matching command and input lengths
-    function testCannotProvideNonMatchingCommandAndInputLengths() external {
-        // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+    /*//////////////////////////////////////////////////////////////
+                                COMMANDS
+    //////////////////////////////////////////////////////////////*/
 
-        // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
-
-        // define inputs
-        bytes[] memory inputs = new bytes[](2);
-        inputs[0] = abi.encode(address(0), 0);
-        inputs[1] = abi.encode(address(0), 0);
-
-        // expect revert
-        vm.expectRevert(
-            abi.encodeWithSelector(IMarginBase.LengthMismatch.selector)
-        );
-
-        // call execute
-        account.execute(commands, inputs);
-    }
+    /*
+        PERPS_V2_MODIFY_MARGIN
+    */
 
     /// @notice test depositing margin into PerpsV2 market
     /// @dev test command: PERPS_V2_MODIFY_MARGIN
@@ -711,7 +644,7 @@ contract AccountBehaviorTest is Test {
     }
 
     /// @notice test withdrawing margin from PerpsV2 market
-    /// @dev test command: PERPS_V2_WITHDRAW
+    /// @dev test command: PERPS_V2_MODIFY_MARGIN
     function testWithdrawMarginFromMarket(int256 fuzzedMarginDelta) external {
         // market and order related params
         address market = getMarketAddressFromKey(sETHPERP);
@@ -778,6 +711,85 @@ contract AccountBehaviorTest is Test {
         }
     }
 
+    /*
+        PERPS_V2_WITHDRAW_ALL_MARGIN
+    */
+
+    /// @notice test attempting to withdraw all account margin from PerpsV2 market that has none
+    /// @dev test command: PERPS_V2_WITHDRAW_ALL_MARGIN
+    function testWithdrawAllMarginFromMarketWithNoMargin() external {
+        // market and order related params
+        address market = getMarketAddressFromKey(sETHPERP);
+
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // get account margin balance
+        uint256 preBalance = sUSD.balanceOf(address(account));
+
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](1);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_WITHDRAW_ALL_MARGIN;
+
+        // define inputs
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(market);
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // get account margin balance
+        uint256 postBalance = sUSD.balanceOf(address(account));
+
+        // check margin account has same margin balance as before
+        assertEq(preBalance, postBalance);
+    }
+
+    /// @notice test submitting and then withdrawing all account margin from PerpsV2 market
+    /// @dev test command: PERPS_V2_WITHDRAW_ALL_MARGIN
+    function testWithdrawAllMarginFromMarket() external {
+        // market and order related params
+        address market = getMarketAddressFromKey(sETHPERP);
+
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // get account margin balance
+        uint256 preBalance = sUSD.balanceOf(address(account));
+
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](1);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
+
+        // define inputs
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(market, int256(AMOUNT));
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // define commands
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_WITHDRAW_ALL_MARGIN;
+
+        // define inputs
+        inputs[0] = abi.encode(market);
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // get account margin balance
+        uint256 postBalance = sUSD.balanceOf(address(account));
+
+        // check margin account has same margin balance as before
+        assertEq(preBalance, postBalance);
+    }
+
+    /*
+        PERPS_V2_SUBMIT_ATOMIC_ORDER
+    */
+
     /// @notice test submitting atomic order
     /// @dev test command: PERPS_V2_SUBMIT_ATOMIC_ORDER
     function testSubmitAtomicOrder() external {
@@ -815,6 +827,10 @@ contract AccountBehaviorTest is Test {
         assert(position.lastPrice != 0);
         assert(position.size != 0);
     }
+
+    /*
+        PERPS_V2_SUBMIT_DELAYED_ORDER
+    */
 
     /// @notice test submitting delayed order
     /// @dev test command: PERPS_V2_SUBMIT_DELAYED_ORDER
@@ -864,6 +880,10 @@ contract AccountBehaviorTest is Test {
         assert(order.trackingCode == TRACKING_CODE);
     }
 
+    /*
+        PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
+    */
+
     /// @notice test submitting offchain delayed order
     /// @dev test command: PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
     function testSubmitOffchainDelayedOrder() external {
@@ -908,112 +928,33 @@ contract AccountBehaviorTest is Test {
         assert(order.trackingCode == TRACKING_CODE);
     }
 
-    /// @notice test opening and then closing a position
-    /// @notice specifically test Synthetix PerpsV2 position details after closing
-    /// @dev test command: PERPS_V2_EXIT
-    function testClosePosition() external {
+    /*
+        PERPS_V2_CANCEL_DELAYED_ORDER
+    */
+
+    /// @notice test attempting to cancel a delayed order when none exists
+    /// @dev test command: PERPS_V2_CANCEL_DELAYED_ORDER
+    function testCancelDelayedOrderWhenNoneExists() external {
         // market and order related params
         address market = getMarketAddressFromKey(sETHPERP);
-        int256 marginDelta = int256(AMOUNT) / 10;
-        int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 1 ether / 2;
 
         // get account for trading
         MarginBase account = createAccountAndDepositSUSD();
 
         // define commands
         IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+            memory commands = new IMarginBaseTypes.Command[](1);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_CANCEL_DELAYED_ORDER;
 
         // define inputs
-        bytes[] memory inputs = new bytes[](2);
-        inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(market);
+
+        // expect revert
+        vm.expectRevert("no previous order");
 
         // call execute
         account.execute(commands, inputs);
-
-        // get position details
-        IPerpsV2MarketConsolidated.Position memory position = account
-            .getPosition(sETHPERP);
-
-        // confirm position details are non-zero
-        assert(position.id != 0);
-        assert(position.lastFundingIndex != 0);
-        assert(position.margin != 0);
-        assert(position.lastPrice != 0);
-        assert(position.size != 0);
-
-        // redefine commands
-        commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_EXIT;
-
-        // redefine inputs
-        inputs = new bytes[](1);
-        inputs[0] = abi.encode(market, priceImpactDelta);
-
-        // call execute
-        account.execute(commands, inputs);
-
-        // get position details
-        position = account.getPosition(sETHPERP);
-
-        // expect margin and size to be zero
-        assert(position.id == 0);
-        assert(position.lastFundingIndex == 0);
-        assert(position.margin == 0);
-        assert(position.lastPrice == 0);
-        assert(position.size == 0);
-    }
-
-    /// @notice test opening and then closing a position
-    /// @notice specifically tests that the margin is returned to the account
-    /// @dev test command: PERPS_V2_EXIT
-    function testClosingPositionReturnsMarginToAccount() external {
-        // market and order related params
-        address market = getMarketAddressFromKey(sETHPERP);
-        int256 marginDelta = int256(AMOUNT) / 10;
-        int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 1 ether / 2;
-
-        // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
-
-        // establish account margin balance pre-trades
-        uint256 preBalance = sUSD.balanceOf(address(account));
-
-        // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
-
-        // define inputs
-        bytes[] memory inputs = new bytes[](2);
-        inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
-
-        // call execute
-        account.execute(commands, inputs);
-
-        // redefine commands
-        commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_EXIT;
-
-        // redefine inputs
-        inputs = new bytes[](1);
-        inputs[0] = abi.encode(market, priceImpactDelta);
-
-        // call execute
-        account.execute(commands, inputs);
-
-        // establish account margin balance post-trades
-        uint256 postBalance = sUSD.balanceOf(address(account));
-
-        // confirm post balance is within 1% of pre balance
-        assertApproxEqAbs(preBalance, postBalance, preBalance / 100);
     }
 
     /// @notice test submitting a delayed order and then cancelling it
@@ -1075,6 +1016,37 @@ contract AccountBehaviorTest is Test {
         assert(order.trackingCode == "");
     }
 
+    /*
+        PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER
+    */
+
+    /// @notice test attempting to cancel an off-chain delayed order when none exists
+    /// @dev test command: PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER
+    function testCancelOffchainDelayedOrderWhenNoneExists() external {
+        // market and order related params
+        address market = getMarketAddressFromKey(sETHPERP);
+
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](1);
+        commands[0] = IMarginBaseTypes
+            .Command
+            .PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER;
+
+        // define inputs
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(market);
+
+        // expect revert
+        vm.expectRevert("no previous order");
+
+        // call execute
+        account.execute(commands, inputs);
+    }
+
     /// @notice test submitting an off-chain delayed order and then cancelling it
     /// @dev test command: PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER
     function testCancelOffchainDelayedOrder() external {
@@ -1133,5 +1105,171 @@ contract AccountBehaviorTest is Test {
         assert(order.executableAtTime == 0);
         assert(order.intentionTime == 0);
         assert(order.trackingCode == "");
+    }
+
+    /*
+        PERPS_V2_CLOSE_POSITION
+    */
+
+    /// @notice test attempting to close a position when none exists
+    /// @dev test command: PERPS_V2_CLOSE_POSITION
+    function testClosePositionWhenNoneExists() external {
+        // market and order related params
+        address market = getMarketAddressFromKey(sETHPERP);
+        uint256 priceImpactDelta = 1 ether / 2;
+
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](1);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_CLOSE_POSITION;
+
+        // // define inputs
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(market, priceImpactDelta);
+
+        // expect revert
+        vm.expectRevert();
+
+        // call execute
+        account.execute(commands, inputs);
+    }
+
+    /// @notice test opening and then closing a position
+    /// @notice specifically test Synthetix PerpsV2 position details after closing
+    /// @dev test command: PERPS_V2_CLOSE_POSITION
+    function testClosePosition() external {
+        // market and order related params
+        address market = getMarketAddressFromKey(sETHPERP);
+        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 sizeDelta = 1 ether;
+        uint256 priceImpactDelta = 1 ether / 2;
+
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](2);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+
+        // define inputs
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(market, marginDelta);
+        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // redefine commands
+        commands = new IMarginBaseTypes.Command[](1);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_CLOSE_POSITION;
+
+        // redefine inputs
+        inputs = new bytes[](1);
+        inputs[0] = abi.encode(market, priceImpactDelta);
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // get position details
+        IPerpsV2MarketConsolidated.Position memory position = account
+            .getPosition(sETHPERP);
+
+        // expect size to be zero and margin to be non-zero
+        assert(position.size == 0);
+        assert(position.margin != 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              TRADING FEES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice test trading fee is imposed when size delta is non-zero
+    function testFeeImposedWhenSizeDeltaNonZero() internal {
+        // @TODO _imposeFee(), calculateTradeFee()
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    // @HELPER
+    /// @notice mint sUSD and transfer to address specified
+    /// @dev Issuer.sol is an auxiliary helper contract that performs
+    /// the issuing and burning functionality.
+    /// Synth.sol is the base ERC20 token contract comprising most of
+    /// the behaviour of all synths.
+    /// Issuer is considered an "internal contract" therefore,
+    /// it is permitted to call Synth.issue() which is restricted by
+    /// the onlyInternalContracts modifier. Synth.issue() updates the
+    /// token state (i.e. balance and total existing tokens) which effectively
+    /// can be used to "mint" an account the underlying synth.
+    /// @param to: address to mint and transfer sUSD to
+    /// @param amount: amount to mint and transfer
+    function mintSUSD(address to, uint256 amount) private {
+        // fetch addresses needed
+        address issuer = ADDRESS_RESOLVER.getAddress("Issuer");
+        ISynth synthsUSD = ISynth(ADDRESS_RESOLVER.getAddress("SynthsUSD"));
+
+        // set caller as issuer
+        vm.prank(issuer);
+
+        // mint sUSD
+        synthsUSD.issue(to, amount);
+    }
+
+    // @HELPER
+    /// @notice create margin base account
+    /// @return account - MarginBase account
+    function createAccount() private returns (MarginBase account) {
+        // call factory to create account
+        account = MarginBase(payable(marginAccountFactory.newAccount()));
+    }
+
+    // @HELPER
+    /// @notice create margin base account and fund it with sUSD
+    /// @return MarginBase account
+    function createAccountAndDepositSUSD() private returns (MarginBase) {
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // mint sUSD and transfer to this address
+        mintSUSD(address(this), AMOUNT);
+
+        // approve account to spend AMOUNT
+        sUSD.approve(address(account), AMOUNT);
+
+        // deposit sUSD into account
+        account.deposit(AMOUNT);
+
+        return account;
+    }
+
+    // @HELPER
+    /// @notice get address of market
+    /// @return market address
+    function getMarketAddressFromKey(bytes32 key)
+        private
+        view
+        returns (address market)
+    {
+        // market and order related params
+        market = address(
+            IPerpsV2MarketConsolidated(
+                IFuturesMarketManager(
+                    ADDRESS_RESOLVER.getAddress("FuturesMarketManager")
+                ).marketForKey(key)
+            )
+        );
+    }
+
+    // @HELPER
+    /// @notice takes int and returns absolute value uint
+    function abs(int256 x) internal pure returns (uint256) {
+        return uint256(x < 0 ? -x : x);
     }
 }
