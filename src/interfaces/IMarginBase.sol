@@ -80,25 +80,12 @@ interface IMarginBase is IMarginBaseTypes {
     /// positive/zero for withdrawals or negative/zero for deposits
     error InvalidMarginDelta();
 
-    /// @notice thrown when position does not exist
-    error PositionDoesNotExist();
-
-    /// @notice thrown when Synthetix Perps V2 delayed order does not exist
-    error DelayedOrderDoesNotExist();
-
-    /// @notice thrown when Synthetix Perps V2 offchain delayed order does not exist
-    error OffchainDelayedOrderDoesNotExist();
-
     /// @notice thrown when margin asset transfer fails
     error FailedMarginTransfer();
 
     /// @notice given value cannot be zero
     /// @param valueName: name of the variable that cannot be zero
     error ValueCannotBeZero(bytes32 valueName);
-
-    /// @notice limit size of new position specs passed into distribute margin
-    /// @param numberOfNewPositions: number of new position specs
-    error MaxNewPositionsExceeded(uint256 numberOfNewPositions);
 
     /// @notice exceeds useable margin
     /// @param available: amount of useable margin asset
@@ -118,9 +105,6 @@ interface IMarginBase is IMarginBaseTypes {
     ///      3. if there is no valid stored rate, w.r.t. to previous 3 oracle rates
     ///      4. Price is zero
     error InvalidPrice();
-
-    /// @notice cannot rescue underlying margin asset token
-    error CannotRescueMarginAsset();
 
     /// @notice Insufficient margin to pay fee
     error CannotPayFee();
