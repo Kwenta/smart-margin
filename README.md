@@ -63,9 +63,7 @@ Developer documentation to give a detailed explanation of the inputs for every c
 
 #### Diagram
 
-<p align="center">
-  <img src="/diagrams/Order-Logic.jpg?raw=true" width="1000" height="500" alt="MarginBase Command Execution"/>
-</p>
+coming soon ✨
 
 #### Reference
 
