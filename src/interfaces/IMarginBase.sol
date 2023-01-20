@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-import "./IMarginBaseTypes.sol";
-import "@synthetix/IPerpsV2MarketConsolidated.sol";
+import {IMarginBaseTypes} from "./IMarginBaseTypes.sol";
+import {IPerpsV2MarketConsolidated} from "@synthetix/IPerpsV2MarketConsolidated.sol";
 
 /// @title Kwenta MarginBase Interface
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)

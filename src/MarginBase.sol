@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@synthetix/IAddressResolver.sol";
-import "@synthetix/IExchanger.sol";
-import "@synthetix/IFuturesMarketManager.sol";
-import "./interfaces/IMarginBaseTypes.sol";
-import "./interfaces/IMarginBase.sol";
-import "./interfaces/IMarginBaseSettings.sol";
-import "./utils/MinimalProxyable.sol";
-import "./utils/OpsReady.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
+import {IExchanger} from "@synthetix/IExchanger.sol";
+import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
+import {IMarginBaseTypes} from "./interfaces/IMarginBaseTypes.sol";
+import {IMarginBase, IPerpsV2MarketConsolidated} from "./interfaces/IMarginBase.sol";
+import {IMarginBaseSettings} from "./interfaces/IMarginBaseSettings.sol";
+import {MinimalProxyable} from "./utils/MinimalProxyable.sol";
+import {OpsReady, IOps} from "./utils/OpsReady.sol";
 
 /// @title Kwenta MarginBase Account
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)

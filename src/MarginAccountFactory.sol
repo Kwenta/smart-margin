@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./interfaces/IMarginAccountFactory.sol";
-import "./interfaces/IMarginAccountFactoryStorage.sol";
-import "./MarginBase.sol";
-import "./utils/MinimalProxyFactory.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IMarginAccountFactory} from "./interfaces/IMarginAccountFactory.sol";
+import {IMarginAccountFactoryStorage} from "./interfaces/IMarginAccountFactoryStorage.sol";
+import {MarginBase} from "./MarginBase.sol";
+import {MinimalProxyFactory} from "./utils/MinimalProxyFactory.sol";
 
 /// @title Kwenta MarginBase Factory
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
