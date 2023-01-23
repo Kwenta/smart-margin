@@ -708,9 +708,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
 
     function _imposeFee(uint256 _fee) internal {
         /// @dev send fee to Kwenta's treasury
-        if (_fee < 0) {
-            revert ValueCannotBeZero("Fee");
-        } else if (_fee > freeMargin()) {
+        if (_fee > freeMargin()) {
             // fee canot be greater than available margin
             revert CannotPayFee();
         } else {
