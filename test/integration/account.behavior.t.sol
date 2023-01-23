@@ -25,6 +25,12 @@ contract AccountBehaviorTest is Test {
     /// @dev hard coded addresses are only guaranteed for this block
     uint256 private constant BLOCK_NUMBER = 60242268;
 
+    /// @notice max BPS; used for decimals calculations
+    uint256 private constant MAX_BPS = 10000;
+
+    /// @notice max uint256
+    uint256 MAX_INT = 2**256 - 1;
+
     // tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
 
@@ -475,11 +481,6 @@ contract AccountBehaviorTest is Test {
         assert(order.executableAtTime == 0);
         assert(order.intentionTime == 0);
         assert(order.trackingCode == "");
-    }
-
-    /// @notice test trade fee calculation
-    function testCanCalculateTradeFee() external {
-        // @TODO calculateTradeFee()
     }
 
     /// @notice test if an order can be executed
@@ -1076,6 +1077,7 @@ contract AccountBehaviorTest is Test {
         account.execute(commands, inputs);
 
         // fast forward time
+        // solhint-disable-next-line not-rely-on-time
         vm.warp(block.timestamp + 600 seconds);
 
         // define commands
@@ -1188,9 +1190,47 @@ contract AccountBehaviorTest is Test {
                               TRADING FEES
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice test trading fee calculation
+    /// @param fuzzedSizeDelta: fuzzed size delta
+    function testCalculateTradeFee(int128 fuzzedSizeDelta) external {
+        // advanced order fee
+        uint256 advancedOrderFee = MAX_BPS / 99; // 1% fee
+
+        // define market
+        IPerpsV2MarketConsolidated market = IPerpsV2MarketConsolidated(
+            getMarketAddressFromKey(sETHPERP)
+        );
+
+        // call factory to create account
+        MarginBase account = createAccount();
+
+        // calculate expected fee
+        uint256 percentToTake = marginBaseSettings.tradeFee() +
+            advancedOrderFee;
+        uint256 fee = (abs(int256(fuzzedSizeDelta)) * percentToTake) / MAX_BPS;
+        (uint256 price, bool invalid) = market.assetPrice();
+        assert(!invalid);
+        uint256 feeInSUSD = (price * fee) / 1e18;
+
+        // call calculateTradeFee()
+        uint256 actualFee = account.calculateTradeFee({
+            _sizeDelta: fuzzedSizeDelta,
+            _market: market,
+            _advancedOrderFee: advancedOrderFee
+        });
+
+        assertEq(actualFee, feeInSUSD);
+    }
+
     /// @notice test trading fee is imposed when size delta is non-zero
-    function testFeeImposedWhenSizeDeltaNonZero() internal {
-        // @TODO _imposeFee(), calculateTradeFee()
+    function testTradeFeeImposedWhenSizeDeltaNonZero() external {
+        // @TODO test fee transfer
+        // @TODO test FeeImposed event
+    }
+
+    /// @notice test CannotPayFee error is emitted when fee exceeds free margin
+    function testTradeFeeCannotExceedFreeMargin() external {
+        // @TODO test CannotPayFee error
     }
 
     /*//////////////////////////////////////////////////////////////
