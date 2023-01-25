@@ -330,8 +330,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
 
     function _perpsV2ModifyMargin(address _market, int256 _amount) internal {
         if (_amount > 0) {
-            if (_abs(_amount) > freeMargin()) {
-                revert InsufficientFreeMargin(freeMargin(), _abs(_amount));
+            if (uint256(_amount) > freeMargin()) {
+                revert InsufficientFreeMargin(freeMargin(), uint256(_amount));
             } else {
                 IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
             }
@@ -602,8 +602,11 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
             // ensure margin doesn't exceed max
-            if (_abs(_marginDelta) > freeMargin()) {
-                revert InsufficientFreeMargin(freeMargin(), _abs(_marginDelta));
+            if (uint256(_marginDelta) > freeMargin()) {
+                revert InsufficientFreeMargin(
+                    freeMargin(),
+                    uint256(_marginDelta)
+                );
             }
             committedMargin += _abs(_marginDelta);
         }
