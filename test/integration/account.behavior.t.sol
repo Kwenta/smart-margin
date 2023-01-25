@@ -1224,13 +1224,74 @@ contract AccountBehaviorTest is Test {
 
     /// @notice test trading fee is imposed when size delta is non-zero
     function testTradeFeeImposedWhenSizeDeltaNonZero() external {
-        // @TODO test fee transfer
-        // @TODO test FeeImposed event
+        // define market
+        IPerpsV2MarketConsolidated market = IPerpsV2MarketConsolidated(
+            getMarketAddressFromKey(sETHPERP)
+        );
+
+        // market and order related params
+        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 sizeDelta = 1 ether;
+        uint256 priceImpactDelta = 1 ether / 2;
+
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](2);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+
+        // define inputs
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(address(market), marginDelta);
+        inputs[1] = abi.encode(address(market), sizeDelta, priceImpactDelta);
+
+        // calculate expected fee
+        uint256 percentToTake = marginBaseSettings.tradeFee();
+        uint256 fee = (abs(sizeDelta) * percentToTake) / MAX_BPS;
+        (uint256 price, bool invalid) = market.assetPrice();
+        assert(!invalid);
+        uint256 feeInSUSD = (price * fee) / 1e18;
+
+        // expect FeeImposed event on calling execute
+        vm.expectEmit(true, true, true, true);
+        emit FeeImposed(address(account), feeInSUSD);
+
+        // call execute
+        account.execute(commands, inputs);
     }
 
     /// @notice test CannotPayFee error is emitted when fee exceeds free margin
     function testTradeFeeCannotExceedFreeMargin() external {
-        // @TODO test CannotPayFee error
+        // market and order related params
+        address market = getMarketAddressFromKey(sETHPERP);
+        int256 marginDelta = int256(AMOUNT); // deposit all SUSD from margin account into market
+        int256 sizeDelta = 1 ether;
+        uint256 priceImpactDelta = 1 ether / 2;
+
+        // get account for trading
+        MarginBase account = createAccountAndDepositSUSD();
+
+        // define commands
+        IMarginBaseTypes.Command[]
+            memory commands = new IMarginBaseTypes.Command[](2);
+        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+
+        // define inputs
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(market, marginDelta);
+        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+
+        // expect CannotPayFee error on calling execute
+        vm.expectRevert(
+            abi.encodeWithSelector(IMarginBase.CannotPayFee.selector)
+        );
+
+        // call execute
+        account.execute(commands, inputs);
     }
 
     /*//////////////////////////////////////////////////////////////
