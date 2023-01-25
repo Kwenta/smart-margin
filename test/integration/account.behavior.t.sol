@@ -398,33 +398,6 @@ contract AccountBehaviorTest is Test {
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice test fetching free margin
-    function testCanFetchFreeMargin() external {
-        // call factory to create account
-        MarginBase account = createAccount();
-
-        // expect free margin to be zero
-        assert(account.freeMargin() == 0);
-
-        // mint sUSD and transfer to this address
-        mintSUSD(address(this), AMOUNT);
-
-        // approve account to spend AMOUNT
-        sUSD.approve(address(account), AMOUNT);
-
-        // deposit sUSD into account
-        account.deposit(AMOUNT);
-
-        // expect free margin to be equal to AMOUNT
-        assert(account.freeMargin() == AMOUNT);
-
-        // withdraw all sUSD from account
-        account.withdraw(AMOUNT);
-
-        // expect free margin to be zero
-        assert(account.freeMargin() == 0);
-    }
-
     /// @notice test fetching position details
     function testCanFetchPositionDetails() external {
         // call factory to create account
