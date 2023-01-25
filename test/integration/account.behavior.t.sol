@@ -1105,7 +1105,7 @@ contract AccountBehaviorTest is Test {
         inputs[0] = abi.encode(market, priceImpactDelta);
 
         // call execute (attempt to close position when none exists)
-        vm.expectRevert();
+        vm.expectRevert("No position open");
         account.execute(commands, inputs);
     }
 
