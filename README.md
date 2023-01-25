@@ -31,13 +31,13 @@ Calls to `MarginBase.execute`, the entrypoint to the contracts, provide 2 main p
 The supported commands can be found below:
 
 ```
-PERPS_V2_DEPOSIT
-PERPS_V2_WITHDRAW
-PERPS_V2_EXIT
-PERPS_V2_SUBMIT_ATOMIC_ORDER
-PERPS_V2_SUBMIT_DELAYED_ORDER
-PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
-PERPS_V2_CANCEL_DELAYED_ORDER
+PERPS_V2_MODIFY_MARGIN,
+PERPS_V2_CLOSE_POSITION,
+PERPS_V2_WITHDRAW_ALL_MARGIN,
+PERPS_V2_SUBMIT_ATOMIC_ORDER,
+PERPS_V2_SUBMIT_DELAYED_ORDER,
+PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER,
+PERPS_V2_CANCEL_DELAYED_ORDER,
 PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER
 ```
 
@@ -63,9 +63,7 @@ Developer documentation to give a detailed explanation of the inputs for every c
 
 #### Diagram
 
-<p align="center">
-  <img src="/diagrams/Order-Logic.jpg?raw=true" width="1000" height="500" alt="MarginBase Command Execution"/>
-</p>
+coming soon ✨
 
 #### Reference
 

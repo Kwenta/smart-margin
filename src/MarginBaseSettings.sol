@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "./interfaces/IMarginBaseSettings.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IMarginBaseSettings} from "./interfaces/IMarginBaseSettings.sol";
 
 /// @title Kwenta Settings for MarginBase Accounts
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)

@@ -11,16 +11,16 @@ interface IMarginBaseTypes {
 
     /// @notice Command Flags used to decode commands to execute
     enum Command {
-        PERPS_V2_DEPOSIT,
-        PERPS_V2_WITHDRAW,
-        PERPS_V2_EXIT,
+        PERPS_V2_MODIFY_MARGIN,
+        PERPS_V2_WITHDRAW_ALL_MARGIN,
         PERPS_V2_SUBMIT_ATOMIC_ORDER,
         PERPS_V2_SUBMIT_DELAYED_ORDER,
         PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER,
         PERPS_V2_CANCEL_DELAYED_ORDER,
-        PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER
+        PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER,
+        PERPS_V2_CLOSE_POSITION
     }
-    
+
     // denotes order types for code clarity
     /// @dev under the hood LIMIT = 0, STOP = 1
     enum OrderTypes {
