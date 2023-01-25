@@ -203,10 +203,8 @@ contract AccountBehaviorTest is Test {
         // transfer ownership to another address
         account.transferOwnership(KWENTA_TREASURY);
 
-        // expect revert
-        vm.expectRevert("Ownable: caller is not the owner");
-
         // deposit sUSD into account
+        vm.expectRevert("Ownable: caller is not the owner");
         account.deposit(AMOUNT);
     }
 
@@ -225,7 +223,7 @@ contract AccountBehaviorTest is Test {
         assert(sUSD.balanceOf(address(account)) == 0);
 
         if (x == 0) {
-            // expect revert
+            // attempt to deposit zero sUSD into account
             bytes32 valueName = "_amount";
             vm.expectRevert(
                 abi.encodeWithSelector(
@@ -233,14 +231,10 @@ contract AccountBehaviorTest is Test {
                     valueName
                 )
             );
-
-            // attempt to deposit zero sUSD into account
             account.deposit(x);
         } else if (x > AMOUNT) {
-            // expect revert
+            // attempt to deposit sUSD into account
             vm.expectRevert();
-
-            // deposit sUSD into account
             account.deposit(x);
         } else {
             // check deposit event emitted
@@ -263,10 +257,8 @@ contract AccountBehaviorTest is Test {
         // transfer ownership to another address
         account.transferOwnership(KWENTA_TREASURY);
 
-        // expect revert
+        // attempt to withdraw sUSD from account
         vm.expectRevert("Ownable: caller is not the owner");
-
-        // withdraw sUSD from account
         account.withdraw(AMOUNT);
     }
 
@@ -285,7 +277,7 @@ contract AccountBehaviorTest is Test {
         account.deposit(AMOUNT);
 
         if (x == 0) {
-            // expect revert
+            // attempt to withdraw zero sUSD from account
             bytes32 valueName = "_amount";
             vm.expectRevert(
                 abi.encodeWithSelector(
@@ -293,11 +285,9 @@ contract AccountBehaviorTest is Test {
                     valueName
                 )
             );
-
-            // attempt to withdraw zero sUSD from account
             account.withdraw(x);
         } else if (x > AMOUNT) {
-            // expect revert
+            // attempt to withdraw sUSD
             vm.expectRevert(
                 abi.encodeWithSelector(
                     IMarginBase.InsufficientFreeMargin.selector,
@@ -305,8 +295,6 @@ contract AccountBehaviorTest is Test {
                     x
                 )
             );
-
-            // withdraw sUSD
             account.withdraw(x);
         } else {
             // check withdraw event emitted
@@ -332,10 +320,8 @@ contract AccountBehaviorTest is Test {
         // transfer ownership to another address
         account.transferOwnership(KWENTA_TREASURY);
 
-        // expect revert
+        // attempt to deposit ETH into account
         vm.expectRevert("Ownable: caller is not the owner");
-
-        // try to deposit ETH into account
         (bool s, ) = address(account).call{value: 1 ether}("");
         assert(s);
     }
@@ -364,10 +350,8 @@ contract AccountBehaviorTest is Test {
         // transfer ownership to another address
         account.transferOwnership(KWENTA_TREASURY);
 
-        // expect revert
+        // attempt to withdraw ETH
         vm.expectRevert("Ownable: caller is not the owner");
-
-        // try to withdraw ETH
         account.withdrawEth(1 ether);
     }
 
@@ -384,13 +368,11 @@ contract AccountBehaviorTest is Test {
         assert(balance == 1 ether);
 
         if (x > 1 ether) {
-            // expect revert
+            // attempt to withdraw ETH
             vm.expectRevert(IMarginBase.EthWithdrawalFailed.selector);
-
-            // withdraw ETH
             account.withdrawEth(x);
         } else if (x == 0) {
-            // expect revert
+            // attempt to withdraw ETH
             bytes32 valueName = "_amount";
             vm.expectRevert(
                 abi.encodeWithSelector(
@@ -398,8 +380,6 @@ contract AccountBehaviorTest is Test {
                     valueName
                 )
             );
-
-            // withdraw ETH
             account.withdrawEth(x);
         } else {
             // check EthWithdraw event emitted
@@ -507,12 +487,10 @@ contract AccountBehaviorTest is Test {
         inputs[0] = abi.encode(address(0), 0);
         inputs[1] = abi.encode(address(0), 0);
 
-        // expect revert
+        // call execute (attempt to execute 1 command with 2 inputs)
         vm.expectRevert(
             abi.encodeWithSelector(IMarginBase.LengthMismatch.selector)
         );
-
-        // call execute
         account.execute(commands, inputs);
     }
 
@@ -532,12 +510,10 @@ contract AccountBehaviorTest is Test {
             abi.encode(address(0))
         );
 
-        // expect revert (69 is the uint256 value for the invalid enum)
+        // call execute (attempt to execute invalid command)
         vm.expectRevert(
             abi.encodeWithSelector(IMarginBase.InvalidCommandType.selector, 69)
         );
-
-        // call execute
         (bool s, ) = address(account).call(dataWithInvalidCommand);
         assert(!s);
     }
@@ -951,10 +927,8 @@ contract AccountBehaviorTest is Test {
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(market);
 
-        // expect revert
+        // call execute (attempt to cancel delayed order)
         vm.expectRevert("no previous order");
-
-        // call execute
         account.execute(commands, inputs);
     }
 
@@ -1041,10 +1015,8 @@ contract AccountBehaviorTest is Test {
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(market);
 
-        // expect revert
+        // call execute (attempt to cancel off-chain delayed order)
         vm.expectRevert("no previous order");
-
-        // call execute
         account.execute(commands, inputs);
     }
 
@@ -1128,14 +1100,12 @@ contract AccountBehaviorTest is Test {
             memory commands = new IMarginBaseTypes.Command[](1);
         commands[0] = IMarginBaseTypes.Command.PERPS_V2_CLOSE_POSITION;
 
-        // // define inputs
+        // define inputs
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(market, priceImpactDelta);
 
-        // expect revert
+        // call execute (attempt to close position when none exists)
         vm.expectRevert();
-
-        // call execute
         account.execute(commands, inputs);
     }
 
