@@ -2,13 +2,13 @@
 pragma solidity 0.8.17;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IMarginBaseSettings} from "./interfaces/IMarginBaseSettings.sol";
+import {IAccountSettings} from "./interfaces/IAccountSettings.sol";
 
-/// @title Kwenta Settings for MarginBase Accounts
+/// @title Kwenta Settings for Accounts
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
-/// @notice Contract (owned by the deployer) for controlling the settings of MarginBase account(s)
-/// @dev This contract will require deployment prior to MarginBase account creation
-contract MarginBaseSettings is IMarginBaseSettings, Ownable {
+/// @notice Contract (owned by the deployer) for controlling the settings of account(s)
+/// @dev This contract will require deployment prior to account creation
+contract AccountSettings is IAccountSettings, Ownable {
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -37,7 +37,7 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice set initial margin base account fees
+    /// @notice set initial account fees
     /// @param _treasury: Kwenta's Treasury Address
     /// @param _tradeFee: fee denoted in BPS
     /// @param _limitOrderFee: fee denoted in BPS
@@ -69,7 +69,7 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc IMarginBaseSettings
+    /// @inheritdoc IAccountSettings
     function setTreasury(address _treasury) external override onlyOwner {
         /// @notice ensure valid address for Kwenta Treasury
         if (_treasury == address(0)) revert ZeroAddress();
@@ -83,7 +83,7 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
         emit TreasuryAddressChanged(_treasury);
     }
 
-    /// @inheritdoc IMarginBaseSettings
+    /// @inheritdoc IAccountSettings
     function setTradeFee(uint256 _fee) external override onlyOwner {
         /// @notice ensure valid fee
         if (_fee > MAX_BPS) revert InvalidFee(_fee);
@@ -97,7 +97,7 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
         emit TradeFeeChanged(_fee);
     }
 
-    /// @inheritdoc IMarginBaseSettings
+    /// @inheritdoc IAccountSettings
     function setLimitOrderFee(uint256 _fee) external override onlyOwner {
         /// @notice ensure valid fee
         if (_fee > MAX_BPS) revert InvalidFee(_fee);
@@ -111,7 +111,7 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
         emit LimitOrderFeeChanged(_fee);
     }
 
-    /// @inheritdoc IMarginBaseSettings
+    /// @inheritdoc IAccountSettings
     function setStopOrderFee(uint256 _fee) external override onlyOwner {
         /// @notice ensure valid fee
         if (_fee > MAX_BPS) revert InvalidFee(_fee);
