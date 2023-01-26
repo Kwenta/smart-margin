@@ -6,13 +6,14 @@ import "@solmate/tokens/ERC20.sol";
 import "@synthetix/ISynth.sol";
 import "@synthetix/IAddressResolver.sol";
 import "@synthetix/IPerpsV2MarketSettings.sol";
-import "../../src/MarginBaseSettings.sol";
-import "../../src/MarginAccountFactory.sol";
-import "../../src/MarginAccountFactoryStorage.sol";
-import "../../src/MarginBase.sol";
-import "../../src/interfaces/IMarginBaseTypes.sol";
+import "../../src/Settings.sol";
+import "../../src/interfaces/ISettings.sol";
+import "../../src/Factory.sol";
+import "../../src/interfaces/IFactory.sol";
+import "../../src/Account.sol";
+import "../../src/interfaces/IAccount.sol";
 
-contract MarginBaseTest is Test {
+contract AccountTest is Test {
     receive() external payable {}
 
     /*//////////////////////////////////////////////////////////////
@@ -70,7 +71,7 @@ contract MarginBaseTest is Test {
         int256 marginDelta,
         int256 sizeDelta,
         uint256 targetPrice,
-        IMarginBaseTypes.OrderTypes orderType,
+        IAccount.OrderTypes orderType,
         uint128 priceImpactDelta,
         uint256 maxDynamicFee
     );
@@ -87,12 +88,8 @@ contract MarginBaseTest is Test {
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice KWENTA contracts
-    MarginBaseSettings private marginBaseSettings;
-    MarginAccountFactory private marginAccountFactory;
-    MarginAccountFactoryStorage private marginAccountFactoryStorage;
-
-    /// @notice other contracts
+    Settings private settings;
+    Factory private factory;
     ERC20 private sUSD;
 
     /*//////////////////////////////////////////////////////////////
@@ -110,31 +107,22 @@ contract MarginBaseTest is Test {
         sUSD = ERC20(ADDRESS_RESOLVER.getAddress("ProxyERC20sUSD"));
 
         // deploy settings
-        marginBaseSettings = new MarginBaseSettings({
+        settings = new Settings({
             _treasury: KWENTA_TREASURY,
             _tradeFee: TRADE_FEE,
             _limitOrderFee: LIMIT_ORDER_FEE,
             _stopOrderFee: STOP_LOSS_FEE
         });
 
-        // deploy storage
-        marginAccountFactoryStorage = new MarginAccountFactoryStorage({
-            _owner: address(this)
-        });
-
         // deploy factory
-        marginAccountFactory = new MarginAccountFactory({
-            _store: address(marginAccountFactoryStorage),
+        factory = new Factory({
+            _owner: address(this),
+            _version: "2.0.0",
             _marginAsset: address(sUSD),
             _addressResolver: address(ADDRESS_RESOLVER),
-            _marginBaseSettings: address(marginBaseSettings),
+            _settings: address(settings),
             _ops: payable(GELATO_OPS)
         });
-
-        // add factory to list of verified factories
-        marginAccountFactoryStorage.addVerifiedFactory(
-            address(marginAccountFactory)
-        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -144,7 +132,7 @@ contract MarginBaseTest is Test {
     /// @notice test fetching free margin
     function testCanFetchFreeMargin() external {
         // call factory to create account
-        MarginBase account = createAccount();
+        Account account = createAccount();
 
         // expect free margin to be zero
         assert(account.freeMargin() == 0);
@@ -199,18 +187,18 @@ contract MarginBaseTest is Test {
 
     // @HELPER
     /// @notice create margin base account
-    /// @return account - MarginBase account
-    function createAccount() private returns (MarginBase account) {
+    /// @return account - Account account
+    function createAccount() private returns (Account account) {
         // call factory to create account
-        account = MarginBase(payable(marginAccountFactory.newAccount()));
+        account = Account(payable(factory.newAccount()));
     }
 
     // @HELPER
     /// @notice create margin base account and fund it with sUSD
-    /// @return MarginBase account
-    function createAccountAndDepositSUSD() private returns (MarginBase) {
+    /// @return Account account
+    function createAccountAndDepositSUSD() private returns (Account) {
         // call factory to create account
-        MarginBase account = createAccount();
+        Account account = createAccount();
 
         // mint sUSD and transfer to this address
         mintSUSD(address(this), AMOUNT);

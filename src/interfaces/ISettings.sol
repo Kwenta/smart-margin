@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-/// @title Kwenta AccountSettings Interface
+/// @title Kwenta Settings Interface
 /// @author JaredBorders (jaredborders@proton.me)
-/// @dev all fees are denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
-interface IAccountSettings {
+/// @dev all fees are denoted in Basis points (BPS)
+interface ISettings {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/

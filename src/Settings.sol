@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
+import {ISettings} from "./interfaces/ISettings.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IAccountSettings} from "./interfaces/IAccountSettings.sol";
 
 /// @title Kwenta Settings for Accounts
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
-/// @notice Contract (owned by the deployer) for controlling the settings of account(s)
-/// @dev This contract will require deployment prior to account creation
-contract AccountSettings is IAccountSettings, Ownable {
+contract Settings is ISettings, Ownable {
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -23,8 +21,7 @@ contract AccountSettings is IAccountSettings, Ownable {
     // @notice Kwenta's Treasury Address
     address public treasury;
 
-    /// @dev fee imposed on all trades
-    /// @dev trades: defined as changes made to IMarginBaseTypes.ActiveMarketPosition.size
+    /// @dev fee imposed on all trades where sizeDelta is non-zero
     uint256 public tradeFee;
 
     /// @dev fee imposed on limit orders
@@ -69,7 +66,7 @@ contract AccountSettings is IAccountSettings, Ownable {
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc IAccountSettings
+    /// @inheritdoc ISettings
     function setTreasury(address _treasury) external override onlyOwner {
         /// @notice ensure valid address for Kwenta Treasury
         if (_treasury == address(0)) revert ZeroAddress();
@@ -83,7 +80,7 @@ contract AccountSettings is IAccountSettings, Ownable {
         emit TreasuryAddressChanged(_treasury);
     }
 
-    /// @inheritdoc IAccountSettings
+    /// @inheritdoc ISettings
     function setTradeFee(uint256 _fee) external override onlyOwner {
         /// @notice ensure valid fee
         if (_fee > MAX_BPS) revert InvalidFee(_fee);
@@ -97,7 +94,7 @@ contract AccountSettings is IAccountSettings, Ownable {
         emit TradeFeeChanged(_fee);
     }
 
-    /// @inheritdoc IAccountSettings
+    /// @inheritdoc ISettings
     function setLimitOrderFee(uint256 _fee) external override onlyOwner {
         /// @notice ensure valid fee
         if (_fee > MAX_BPS) revert InvalidFee(_fee);
@@ -111,7 +108,7 @@ contract AccountSettings is IAccountSettings, Ownable {
         emit LimitOrderFeeChanged(_fee);
     }
 
-    /// @inheritdoc IAccountSettings
+    /// @inheritdoc ISettings
     function setStopOrderFee(uint256 _fee) external override onlyOwner {
         /// @notice ensure valid fee
         if (_fee > MAX_BPS) revert InvalidFee(_fee);

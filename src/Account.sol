@@ -1,21 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IAccount, IPerpsV2MarketConsolidated} from "./interfaces/IAccount.sol";
 import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IExchanger} from "@synthetix/IExchanger.sol";
 import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
-import {IMarginBaseTypes} from "./interfaces/IMarginBaseTypes.sol";
-import {IMarginBase, IPerpsV2MarketConsolidated} from "./interfaces/IMarginBase.sol";
-import {IMarginBaseSettings} from "./interfaces/IMarginBaseSettings.sol";
+import {ISettings} from "./interfaces/ISettings.sol";
 import {MinimalProxyable} from "./utils/MinimalProxyable.sol";
 import {OpsReady, IOps} from "./utils/OpsReady.sol";
 
-/// @title Kwenta MarginBase Account
+/// @title Kwenta Smart Margin Account
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
-/// @notice Flexible, minimalist, and gas-optimized cross-margin enabled account
-/// for managing perpetual futures positions
-contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
+/// @notice flexible smart margin account enabling users to trade on-chain derivatives
+contract Account is IAccount, MinimalProxyable, OpsReady {
     string public constant VERSION = "2.0.0";
 
     /*//////////////////////////////////////////////////////////////
@@ -43,11 +41,11 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
 
     /// @notice Synthetix futures market manager
     /// @dev responsible for storing all registered markets and provides overview
-    /// views to get market summaries. MarginBase uses this to fetch for deployed market addresses
+    /// views to get market summaries. Account uses this to fetch for deployed market addresses
     IFuturesMarketManager public futuresMarketManager;
 
-    /// @notice native settings for MarginBase account
-    IMarginBaseSettings public marginBaseSettings;
+    /// @notice native settings for account
+    ISettings public settings;
 
     /// @notice token contract used for account margin
     IERC20 public marginAsset;
@@ -90,12 +88,12 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
     /// @dev ensure resolver and sUSD addresses are set to their proxies and not implementations
     /// @param _marginAsset: token contract address used for account margin
     /// @param _addressResolver: contract address for Synthetix address resolver
-    /// @param _marginBaseSettings: contract address for MarginBase account settings
+    /// @param _settings: contract address for account settings
     /// @param _ops: gelato ops address
     function initialize(
         address _marginAsset,
         address _addressResolver,
-        address _marginBaseSettings,
+        address _settings,
         address payable _ops
     ) external initOnce {
         marginAsset = IERC20(_marginAsset);
@@ -103,12 +101,12 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         futuresMarketManager = IFuturesMarketManager(
             addressResolver.requireAndGetAddress(
                 FUTURES_MARKET_MANAGER,
-                "MarginBase: Could not get Futures Market Manager"
+                "Account: Could not get Futures Market Manager"
             )
         );
 
-        /// @dev MarginBaseSettings must exist prior to MarginBase account creation
-        marginBaseSettings = IMarginBaseSettings(_marginBaseSettings);
+        /// @dev Settings must exist prior to account creation
+        settings = ISettings(_settings);
 
         /// @dev the Ownable constructor is never called when we create minimal proxies
         _transferOwnership(msg.sender);
@@ -121,12 +119,12 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc IMarginBase
+    /// @inheritdoc IAccount
     function freeMargin() public view override returns (uint256) {
         return marginAsset.balanceOf(address(this)) - committedMargin;
     }
 
-    /// @inheritdoc IMarginBase
+    /// @inheritdoc IAccount
     function getPosition(bytes32 _marketKey)
         public
         view
@@ -137,7 +135,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         position = getPerpsV2Market(_marketKey).positions(address(this));
     }
 
-    /// @inheritdoc IMarginBase
+    /// @inheritdoc IAccount
     function getDelayedOrder(bytes32 _marketKey)
         public
         view
@@ -148,15 +146,14 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         order = getPerpsV2Market(_marketKey).delayedOrders(address(this));
     }
 
-    /// @inheritdoc IMarginBase
+    /// @inheritdoc IAccount
     function calculateTradeFee(
         int256 _sizeDelta,
         IPerpsV2MarketConsolidated _market,
         uint256 _advancedOrderFee
     ) public view override returns (uint256 fee) {
         fee =
-            (_abs(_sizeDelta) *
-                (marginBaseSettings.tradeFee() + _advancedOrderFee)) /
+            (_abs(_sizeDelta) * (settings.tradeFee() + _advancedOrderFee)) /
             MAX_BPS;
 
         /// @notice fee is currently measured in the underlying base asset of the market
@@ -164,7 +161,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         fee = (sUSDRate(_market) * fee) / 1e18;
     }
 
-    /// @inheritdoc IMarginBase
+    /// @inheritdoc IAccount
     function checker(uint256 _orderId)
         external
         view
@@ -183,7 +180,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                         ACCOUNT DEPOSIT/WITHDRAW
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc IMarginBase
+    /// @inheritdoc IAccount
     function deposit(uint256 _amount)
         public
         override
@@ -201,7 +198,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         emit Deposit(msg.sender, _amount);
     }
 
-    /// @inheritdoc IMarginBase
+    /// @inheritdoc IAccount
     function withdraw(uint256 _amount)
         external
         override
@@ -220,7 +217,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         emit Withdraw(msg.sender, _amount);
     }
 
-    /// @inheritdoc IMarginBase
+    /// @inheritdoc IAccount
     function withdrawEth(uint256 _amount)
         external
         override
@@ -237,7 +234,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                                EXECUTION
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc IMarginBase
+    /// @inheritdoc IAccount
     function execute(Command[] calldata commands, bytes[] calldata inputs)
         external
         payable
@@ -455,7 +452,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
                             ADVANCED ORDERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc IMarginBase
+    /// @inheritdoc IAccount
     function validOrder(uint256 _orderId)
         public
         view
@@ -539,7 +536,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         return (false, price);
     }
 
-    /// @inheritdoc IMarginBase
+    /// @inheritdoc IAccount
     function placeOrder(
         bytes32 _marketKey,
         int256 _marginDelta,
@@ -560,7 +557,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             });
     }
 
-    /// @inheritdoc IMarginBase
+    /// @inheritdoc IAccount
     function placeOrderWithFeeCap(
         bytes32 _marketKey,
         int256 _marginDelta,
@@ -645,7 +642,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         return orderId++;
     }
 
-    /// @inheritdoc IMarginBase
+    /// @inheritdoc IAccount
     function cancelOrder(uint256 _orderId) external override onlyOwner {
         Order memory order = orders[_orderId];
 
@@ -661,7 +658,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         emit OrderCancelled(address(this), _orderId);
     }
 
-    /// @inheritdoc IMarginBase
+    /// @inheritdoc IAccount
     function executeOrder(uint256 _orderId) external override onlyOps {
         (bool isValidOrder, uint256 fillPrice) = validOrder(_orderId);
         if (!isValidOrder) {
@@ -675,8 +672,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         }
 
         // prep new position
-        MarginBase.NewPosition[]
-            memory newPositions = new MarginBase.NewPosition[](1);
+        NewPosition[] memory newPositions = new NewPosition[](1);
         newPositions[0] = NewPosition({
             marketKey: order.marketKey,
             marginDelta: order.marginDelta,
@@ -692,8 +688,8 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
         delete orders[_orderId];
 
         // uint256 advancedOrderFee = order.orderType == OrderTypes.LIMIT
-        //     ? marginBaseSettings.limitOrderFee()
-        //     : marginBaseSettings.stopOrderFee();
+        //     ? settings.limitOrderFee()
+        //     : settings.stopOrderFee();
 
         // execute trade
         //_distributeMargin(newPositions, advancedOrderFee);
@@ -716,10 +712,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             revert CannotPayFee();
         } else {
             // attempt to transfer margin asset from user to Kwenta's treasury
-            bool success = marginAsset.transfer(
-                marginBaseSettings.treasury(),
-                _fee
-            );
+            bool success = marginAsset.transfer(settings.treasury(), _fee);
             if (!success) revert FailedMarginTransfer();
 
             emit FeeImposed(address(this), _fee);
@@ -765,7 +758,7 @@ contract MarginBase is MinimalProxyable, IMarginBase, OpsReady {
             IExchanger(
                 addressResolver.requireAndGetAddress(
                     "Exchanger",
-                    "MarginBase: Could not get Exchanger"
+                    "Account: Could not get Exchanger"
                 )
             );
     }
