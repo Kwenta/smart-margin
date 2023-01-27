@@ -5,10 +5,13 @@ import {IFactory, Account} from "./interfaces/IFactory.sol";
 import {MinimalProxyFactory} from "./utils/MinimalProxyFactory.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+
 /// @title Kwenta Account Factory
 /// @author JaredBorders (jaredborders@pm.me)
 /// @notice Mutable factory for creating new accounts
-contract Factory is IFactory, MinimalProxyFactory, Ownable {
+contract Factory is IFactory, Initializable, UUPSUpgradeable, MinimalProxyFactory, Ownable {
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
@@ -45,14 +48,14 @@ contract Factory is IFactory, MinimalProxyFactory, Ownable {
     /// @param _addressResolver: address of synthetix address resolver
     /// @param _settings: address of settings for accounts
     /// @param _ops: contract address for gelato ops -- must be payable
-    constructor(
+    function initialize(
         address _owner,
         bytes32 _version,
         address _marginAsset,
         address _addressResolver,
         address _settings,
         address payable _ops
-    ) {
+    ) public initializer {
         /// @dev transfer ownership to owner
         transferOwnership(_owner);
 
@@ -65,6 +68,8 @@ contract Factory is IFactory, MinimalProxyFactory, Ownable {
         /// @dev deploy logic for proxy
         logic = new Account();
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     /*//////////////////////////////////////////////////////////////
                            ACCOUNT DEPLOYMENT
