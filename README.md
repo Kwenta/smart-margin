@@ -17,13 +17,13 @@ Contracts to manage account abstractions and features on top of [Synthetix Perps
 
 ## Contract Overview
 
-The Margin Manager codebase consists of the `MarginAccountFactory` and `MarginBase` contracts, and all of the associated dependencies. The purpose of the `MarginAccountFactory` is to create/deploy trading accounts (`MarginBase` contracts) for users that support features ranging from cross-margin, conditional orders, copy trading, etc..
+The Margin Manager codebase consists of the `Factory` and `Account` contracts, and all of the associated dependencies. The purpose of the `Factory` is to create/deploy trading accounts (`Account` contracts) for users that support features ranging from cross-margin, conditional orders, copy trading, etc..
 
 ### MarginBase Command Execution
 
-Calls to `MarginBase.execute`, the entrypoint to the contracts, provide 2 main parameters:
+Calls to `Account.execute`, the entrypoint to the contracts, provide 2 main parameters:
 
-`IMarginBaseTypes.Command commands`: An array of `enum`. Each enum represents 1 command that the transaction will execute.
+`IAccount.Command commands`: An array of `enum`. Each enum represents 1 command that the transaction will execute.
 `bytes[] inputs`: An array of `bytes` strings. Each element in the array is the encoded parameters for a command.
 
 `commands[i]` is the command that will use `inputs[i]` as its encoded input parameters.
@@ -57,7 +57,7 @@ Whereas in contrast `PERPS_V2_CANCEL_DELAYED_ORDER` has just 1 parameter encoded
 
 Encoding parameters in a bytes string in this way gives us maximum flexiblity to be able to support many commands which require different datatypes in a gas-efficient way.
 
-For a more detailed breakdown of which parameters you should provide for each command take a look at the `MarginBase.dispatch` function.
+For a more detailed breakdown of which parameters you should provide for each command take a look at the `Account.dispatch` function.
 
 Developer documentation to give a detailed explanation of the inputs for every command will be coming soon ✨!
 
