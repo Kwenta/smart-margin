@@ -12,7 +12,7 @@ contract Settings is ISettings, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice max BPS; used for decimals calculations
-    uint256 private constant MAX_BPS = 10000;
+    uint256 public constant MAX_BPS = 10000;
 
     /*//////////////////////////////////////////////////////////////
                                 SETTINGS

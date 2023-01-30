@@ -46,6 +46,10 @@ interface ISettings {
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
+    /// @return max BPS; used for decimals calculations
+    // solhint-disable-next-line func-name-mixedcase
+    function MAX_BPS() external view returns (uint256);
+
     // @return Kwenta's Treasury Address
     function treasury() external view returns (address);
 
