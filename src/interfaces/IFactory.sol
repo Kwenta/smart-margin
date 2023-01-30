@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-import {Account} from "../Account.sol";
 import {IFactory} from "./IFactory.sol";
 
 /// @title Kwenta Factory Interface
@@ -13,11 +12,25 @@ interface IFactory {
 
     /// @notice emitted when new account is created
     /// @param creator: account creator (address that called newAccount())
-    /// @param account: address of account that was created
+    /// @param account: address of account that was created (will be address of proxy)
     event NewAccount(
         address indexed creator,
         address indexed account,
         bytes32 version
+    );
+
+    /// @notice emitted when system is upgraded
+    /// @param implementation: address of new implementation
+    /// @param settings: address of new settings
+    /// @param marginAsset: address of new margin asset
+    /// @param addressResolver: new synthetix address resolver
+    /// @param ops: new gelato ops -- must be payable
+    event SystemUpgraded(
+        address implementation,
+        address settings,
+        address marginAsset,
+        address addressResolver,
+        address ops
     );
 
     /*//////////////////////////////////////////////////////////////
@@ -29,15 +42,22 @@ interface IFactory {
     /// @param account: address of account previously created
     error AlreadyCreatedAccount(address account);
 
+    /// @notice thrown when Account creation fails
+    /// @param data: data returned from failed low-level call
+    error AccountCreationFailed(bytes data);
+
+    /// @notice thrown when factory is not upgradable
+    error CannotUpgrade();
+
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
-    /// @return version: version of factory/account
-    function version() external view returns (bytes32);
+    /// @return canUpgrade: bool to determine if factory can be upgraded
+    function canUpgrade() external view returns (bool);
 
     /// @return logic: account logic address
-    function logic() external view returns (Account);
+    function implementation() external view returns (address);
 
     /// @return settings: address of settings for accounts
     function settings() external view returns (address);
@@ -58,33 +78,23 @@ interface IFactory {
                                 MUTATIVE
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice clone Account (i.e. create new account for user)
-    /// @dev this contract is the initial owner of cloned Account,
-    /// but ownership is transferred after successful initialization
+    /// @notice create unique account proxy for function caller
     /// @return accountAddress address of account created
     function newAccount() external returns (address payable accountAddress);
 
-    /// @notice set new version of factory/account
-    /// @param _version: new version of factory/account
-    function setVersion(bytes32 _version) external;
-
-    /// @notice set new account logic
-    /// @param _logic: new account logic address
-    function setLogic(address payable _logic) external;
-
-    /// @notice set new settings for accounts
-    /// @param _settings: new settings for accounts
-    function setSettings(address _settings) external;
-
-    /// @notice set new ERC20 token used to interact with markets
-    /// @param _marginAsset: new ERC20 token used to interact with markets
-    function setMarginAsset(address _marginAsset) external;
-
-    /// @notice set new synthetix address resolver
+    /// @notice upgrade system (implementation, settings, marginAsset, addressResolver, ops)
+    /// @dev *DANGER* this function does not check any of the parameters for validity,
+    /// thus, a bad upgrade could result in severe consequences. 
+    /// @param _implementation: address of new implementation
+    /// @param _settings: address of new settings
+    /// @param _marginAsset: address of new margin asset
     /// @param _addressResolver: new synthetix address resolver
-    function setAddressResolver(address _addressResolver) external;
-
-    /// @notice set new gelato ops
-    /// @param _ops: new gelato ops -- must be payable
-    function setOps(address payable _ops) external;
+    /// @param _ops: new gelato ops
+    function upgradeSystem(
+        address payable _implementation,
+        address _settings,
+        address _marginAsset,
+        address _addressResolver,
+        address payable _ops
+    ) external;
 }

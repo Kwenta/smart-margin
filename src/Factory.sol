@@ -1,26 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-import {IFactory, Account} from "./interfaces/IFactory.sol";
-import {MinimalProxyFactory} from "./utils/MinimalProxyFactory.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import {AccountProxy} from "./AccountProxy.sol";
+import {IFactory} from "./interfaces/IFactory.sol";
+import {Owned} from "./utils/Owned.sol";
 
 /// @title Kwenta Account Factory
 /// @author JaredBorders (jaredborders@pm.me)
-/// @notice Mutable factory for creating new accounts
-contract Factory is IFactory, Initializable, UUPSUpgradeable, MinimalProxyFactory, Ownable {
+/// @notice Mutable factory for creating smart margin accounts
+/// @dev This contract acts as a Beacon for the {AccountProxy.sol} contract
+contract Factory is IFactory, Owned {
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice current version of factory/account
-    bytes32 public version;
+    /// @notice bool to determine if factory can be upgraded
+    bool public canUpgrade = true;
 
-    /// @notice account logic
-    Account public logic;
+    /// @notice account implementation
+    address public implementation;
 
     /// @notice settings for accounts
     address public settings;
@@ -38,38 +36,41 @@ contract Factory is IFactory, Initializable, UUPSUpgradeable, MinimalProxyFactor
     mapping(address => address) public creatorToAccount;
 
     /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+    modifier isUpgradable() {
+        if (!canUpgrade) revert CannotUpgrade();
+
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
     /// @notice constructor for factory
     /// @param _owner: owner of factory
-    /// @param _version: version of factory/account
     /// @param _marginAsset: address of ERC20 token used to interact with markets
     /// @param _addressResolver: address of synthetix address resolver
     /// @param _settings: address of settings for accounts
     /// @param _ops: contract address for gelato ops -- must be payable
-    function initialize(
+    /// @param _implementation: address of account implementation
+    constructor(
         address _owner,
-        bytes32 _version,
         address _marginAsset,
         address _addressResolver,
         address _settings,
-        address payable _ops
-    ) public initializer {
-        /// @dev transfer ownership to owner
+        address payable _ops,
+        address _implementation
+    ) {
         transferOwnership(_owner);
-
-        version = _version;
         marginAsset = _marginAsset;
         addressResolver = _addressResolver;
         settings = _settings;
         ops = _ops;
-
-        /// @dev deploy logic for proxy
-        logic = new Account();
+        implementation = _implementation;
     }
-
-    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     /*//////////////////////////////////////////////////////////////
                            ACCOUNT DEPLOYMENT
@@ -86,69 +87,68 @@ contract Factory is IFactory, Initializable, UUPSUpgradeable, MinimalProxyFactor
             revert AlreadyCreatedAccount(creatorToAccount[msg.sender]);
         }
 
-        // create account
-        accountAddress = payable(
-            _cloneAsMinimalProxy(address(logic), "Creation failure")
-        );
+        // create account and set beacon to this address (i.e. factory address)
+        accountAddress = payable(address(new AccountProxy(address(this))));
 
         // update creator to account mapping
         creatorToAccount[msg.sender] = accountAddress;
 
         // initialize new account
-        Account account = Account(accountAddress);
-        account.initialize(
-            address(marginAsset),
-            addressResolver,
-            settings,
-            ops
+        (bool success, bytes memory data) = accountAddress.call(
+            abi.encodeWithSignature(
+                "initialize(address,address,address,address,address)",
+                msg.sender,
+                marginAsset,
+                addressResolver,
+                settings,
+                ops
+            )
         );
+        if (!success) revert AccountCreationFailed(data);
 
-        // transfer ownership of account to caller
-        account.transferOwnership(msg.sender);
+        // determine version for the following event
+        (success, data) = accountAddress.call(
+            abi.encodeWithSignature("VERSION()")
+        );
+        if (!success) revert AccountCreationFailed(data);
 
-        emit NewAccount(msg.sender, accountAddress, version);
+        emit NewAccount({
+            creator: msg.sender,
+            account: accountAddress,
+            version: abi.decode(data, (bytes32))
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice
-    /// Factory state is mutable to allow for upgrades. The following setters
-    /// will *NOT* impact existing accounts. Only *NEW* accounts will be affected.
-    /// The setters are only callable by the owner of the factory.
-
     /// @inheritdoc IFactory
-    function setVersion(bytes32 _version) external override onlyOwner {
-        version = _version;
-    }
+    function upgradeSystem(
+        address payable _implementation,
+        address _settings,
+        address _marginAsset,
+        address _addressResolver,
+        address payable _ops
+    ) external onlyOwner isUpgradable {
+        require(_implementation != address(0), "Invalid implementation");
+        require(_settings != address(0), "Invalid settings");
+        require(_marginAsset != address(0), "Invalid marginAsset");
+        require(_addressResolver != address(0), "Invalid addressResolver");
+        require(_ops != address(0), "Invalid ops");
 
-    /// @inheritdoc IFactory
-    function setLogic(address payable _logic) external override onlyOwner {
-        logic = Account(_logic);
-    }
-
-    /// @inheritdoc IFactory
-    function setSettings(address _settings) external override onlyOwner {
+        implementation = _implementation;
         settings = _settings;
-    }
-
-    /// @inheritdoc IFactory
-    function setMarginAsset(address _marginAsset) external override onlyOwner {
         marginAsset = _marginAsset;
-    }
-
-    /// @inheritdoc IFactory
-    function setAddressResolver(address _addressResolver)
-        external
-        override
-        onlyOwner
-    {
         addressResolver = _addressResolver;
-    }
-
-    /// @inheritdoc IFactory
-    function setOps(address payable _ops) external override onlyOwner {
         ops = _ops;
+
+        emit SystemUpgraded({
+            implementation: _implementation,
+            settings: _settings,
+            marginAsset: _marginAsset,
+            addressResolver: _addressResolver,
+            ops: _ops
+        });
     }
 }
