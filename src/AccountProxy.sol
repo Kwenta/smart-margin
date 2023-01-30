@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
+import {IAccountProxy} from "./interfaces/IAccountProxy.sol";
+
 /// @title Kwenta Account Proxy
 /// @author OpenZeppelin, JaredBorders (jaredborders@pm.me)
 /// @dev This contract implements a proxy that gets the
@@ -9,7 +11,7 @@ pragma solidity 0.8.17;
 /// The beacon address is stored in the storage slot
 /// `uint256(keccak256('eip1967.proxy.beacon')) - 1`, so that it doesn't
 /// conflict with the storage layout of the implementation behind this proxy.
-contract AccountProxy {
+contract AccountProxy is IAccountProxy {
     /*//////////////////////////////////////////////////////////////
                            STORAGE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
@@ -50,9 +52,6 @@ contract AccountProxy {
                               BEACON LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev thrown if beacon is not set to a valid address
-    error BeaconNotSet();
-
     /// @return beacon address (i.e. the factory address)
     function _beacon() internal view returns (address beacon) {
         beacon = _getAddressSlot(_BEACON_STORAGE_SLOT).value;
@@ -62,12 +61,6 @@ contract AccountProxy {
     /*//////////////////////////////////////////////////////////////
                           IMPLEMENTATION LOGIC
     //////////////////////////////////////////////////////////////*/
-
-    /// @dev thrown if implementation is not set to a valid address
-    error ImplementationNotSet();
-
-    /// @dev thrown if beacon call fails
-    error BeaconCallFailed();
 
     /// @return implementation address (i.e. the account logic address)
     function _implementation() internal returns (address implementation) {
