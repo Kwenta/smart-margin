@@ -7,14 +7,15 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IExchanger} from "@synthetix/IExchanger.sol";
 import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
 import {ISettings} from "./interfaces/ISettings.sol";
-import {MinimalProxyable} from "./utils/MinimalProxyable.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {OpsReady, IOps} from "./utils/OpsReady.sol";
+import {Owned} from "./utils/Owned.sol";
 
-/// @title Kwenta Smart Margin Account
+/// @title Kwenta Smart Margin Account Implementation
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice flexible smart margin account enabling users to trade on-chain derivatives
-contract Account is IAccount, MinimalProxyable, OpsReady {
-    string public constant VERSION = "2.0.0";
+contract Account is IAccount, OpsReady, Owned, Initializable {
+    bytes32 public constant VERSION = "2.0.0";
 
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
@@ -25,9 +26,6 @@ contract Account is IAccount, MinimalProxyable, OpsReady {
 
     /// @notice name for futures market manager
     bytes32 private constant FUTURES_MARKET_MANAGER = "FuturesMarketManager";
-
-    /// @notice max BPS; used for decimals calculations
-    uint256 private constant MAX_BPS = 10000;
 
     /// @notice constant for sUSD currency key
     bytes32 private constant SUSD = "sUSD";
@@ -67,9 +65,8 @@ contract Account is IAccount, MinimalProxyable, OpsReady {
     /// @param value: value to check if zero
     modifier notZero(uint256 value, bytes32 valueName) {
         /// @notice value cannot be zero
-        if (value == 0) {
-            revert ValueCannotBeZero(valueName);
-        }
+        if (value == 0) revert ValueCannotBeZero(valueName);
+
         _;
     }
 
@@ -77,25 +74,31 @@ contract Account is IAccount, MinimalProxyable, OpsReady {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice constructor never used except for first CREATE
-    constructor() MinimalProxyable() {}
+    /// @notice disable initializers on initial contract deployment
+    constructor() {
+        // recommended to use this to lock implementation contracts
+        // that are designed to be called through proxies
+        _disableInitializers();
+    }
 
     /// @notice allows ETH to be deposited directly into a margin account
     /// @notice ETH can be withdrawn
     receive() external payable onlyOwner {}
 
-    /// @notice initialize contract (only once) and transfer ownership to caller
+    /// @notice initialize contract (only once) and transfer ownership to specified address
     /// @dev ensure resolver and sUSD addresses are set to their proxies and not implementations
+    /// @param _owner: account owner
     /// @param _marginAsset: token contract address used for account margin
     /// @param _addressResolver: contract address for Synthetix address resolver
     /// @param _settings: contract address for account settings
     /// @param _ops: gelato ops address
     function initialize(
+        address _owner,
         address _marginAsset,
         address _addressResolver,
         address _settings,
         address payable _ops
-    ) external initOnce {
+    ) external initializer {
         marginAsset = IERC20(_marginAsset);
         addressResolver = IAddressResolver(_addressResolver);
         futuresMarketManager = IFuturesMarketManager(
@@ -108,8 +111,8 @@ contract Account is IAccount, MinimalProxyable, OpsReady {
         /// @dev Settings must exist prior to account creation
         settings = ISettings(_settings);
 
-        /// @dev the Ownable constructor is never called when we create minimal proxies
-        _transferOwnership(msg.sender);
+        /// @dev the Owned constructor is never called when we create proxies
+        transferOwnership(_owner);
 
         // set Gelato's ops address to create/remove tasks
         ops = _ops;
@@ -154,7 +157,7 @@ contract Account is IAccount, MinimalProxyable, OpsReady {
     ) public view override returns (uint256 fee) {
         fee =
             (_abs(_sizeDelta) * (settings.tradeFee() + _advancedOrderFee)) /
-            MAX_BPS;
+            settings.MAX_BPS();
 
         /// @notice fee is currently measured in the underlying base asset of the market
         /// @dev fee will be measured in sUSD, thus exchange rate is needed
@@ -188,11 +191,7 @@ contract Account is IAccount, MinimalProxyable, OpsReady {
         notZero(_amount, "_amount")
     {
         // attempt to transfer margin asset from user into this account
-        bool success = marginAsset.transferFrom(
-            owner(),
-            address(this),
-            _amount
-        );
+        bool success = marginAsset.transferFrom(owner, address(this), _amount);
         if (!success) revert FailedMarginTransfer();
 
         emit Deposit(msg.sender, _amount);
@@ -211,7 +210,7 @@ contract Account is IAccount, MinimalProxyable, OpsReady {
         }
 
         // attempt to transfer margin asset from this account to the user
-        bool success = marginAsset.transfer(owner(), _amount);
+        bool success = marginAsset.transfer(owner, _amount);
         if (!success) revert FailedMarginTransfer();
 
         emit Withdraw(msg.sender, _amount);
@@ -224,7 +223,7 @@ contract Account is IAccount, MinimalProxyable, OpsReady {
         onlyOwner
         notZero(_amount, "_amount")
     {
-        (bool success, ) = payable(owner()).call{value: _amount}("");
+        (bool success, ) = payable(owner).call{value: _amount}("");
         if (!success) revert EthWithdrawalFailed();
 
         emit EthWithdraw(msg.sender, _amount);
