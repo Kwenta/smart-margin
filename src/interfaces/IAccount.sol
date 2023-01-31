@@ -1,9 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
+import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IExchanger} from "@synthetix/IExchanger.sol";
+import {IFactory} from "./IFactory.sol";
+import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
 import {IPerpsV2MarketConsolidated} from "@synthetix/IPerpsV2MarketConsolidated.sol";
+import {ISettings} from "./ISettings.sol";
 
-/// @title Kwenta Account Interface
+/// @title Kwenta Smart Margin Account Interface
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
 interface IAccount {
     /*///////////////////////////////////////////////////////////////
@@ -168,6 +174,33 @@ interface IAccount {
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
+    /// @return returns the address of the factory
+    function factory() external view returns (IFactory);
+
+    /// @return returns the address of the address resolver
+    function addressResolver() external view returns (IAddressResolver);
+
+    /// @return returns the address of the futures market manager
+    function futuresMarketManager()
+        external
+        view
+        returns (IFuturesMarketManager);
+
+    /// @return returns the address of the native settings for account
+    function settings() external view returns (ISettings);
+
+    /// @return returns the token contract used for account margin
+    function marginAsset() external view returns (IERC20);
+
+    /// @return returns the amount of margin locked for future events (ie. limit orders)
+    function committedMargin() external view returns (uint256);
+
+    /// @return returns current order id
+    function orderId() external view returns (uint256);
+
+    // @TODO why does this not work?
+    // function orders(uint256 _orderId) external view returns (Order memory orders);
+
     /// @notice the current withdrawable or usable balance
     function freeMargin() external view returns (uint256);
 
@@ -210,6 +243,11 @@ interface IAccount {
                                 MUTATIVE
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice transfer ownership of this account to a new address
+    /// @dev will update factory's mapping record of owner to account
+    /// @param _newOwner: address to transfer ownership to
+    function transferAccountOwnership(address _newOwner) external;
+
     /// @notice deposit margin asset to trade with into this contract
     /// @param _amount: amount of marginAsset to deposit into account
     function deposit(uint256 _amount) external;
@@ -223,9 +261,9 @@ interface IAccount {
     function withdrawEth(uint256 _amount) external;
 
     /// @notice executes commands along with provided inputs
-    /// @param commands: array of commands, each represented as an enum
-    /// @param inputs: array of byte strings containing abi encoded inputs for each command
-    function execute(Command[] calldata commands, bytes[] calldata inputs)
+    /// @param _commands: array of commands, each represented as an enum
+    /// @param _inputs: array of byte strings containing abi encoded inputs for each command
+    function execute(Command[] calldata _commands, bytes[] calldata _inputs)
         external
         payable;
 

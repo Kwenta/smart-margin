@@ -64,7 +64,8 @@ contract FactoryTest is Test {
             _marginAsset: SUSD,
             _addressResolver: ADDRESS_RESOLVER,
             _settings: address(settings),
-            _ops: payable(GELATO_OPS)
+            _ops: payable(GELATO_OPS),
+            _factory: address(factory)
         });
     }
 

@@ -1,12 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-import {IAccount, IPerpsV2MarketConsolidated} from "./interfaces/IAccount.sol";
-import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IExchanger} from "@synthetix/IExchanger.sol";
-import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
-import {ISettings} from "./interfaces/ISettings.sol";
+import {IAccount, IAddressResolver, IERC20, IExchanger, IFactory, IFuturesMarketManager, IPerpsV2MarketConsolidated, ISettings} from "./interfaces/IAccount.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {OpsReady, IOps} from "./utils/OpsReady.sol";
 import {Owned} from "@solmate/auth/Owned.sol";
@@ -34,28 +29,29 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    // @notice Synthetix address resolver
+    /// @inheritdoc IAccount
+    IFactory public factory;
+
+    /// @inheritdoc IAccount
     IAddressResolver public addressResolver;
 
-    /// @notice Synthetix futures market manager
-    /// @dev responsible for storing all registered markets and provides overview
-    /// views to get market summaries. Account uses this to fetch for deployed market addresses
+    //// @inheritdoc IAccount
     IFuturesMarketManager public futuresMarketManager;
 
-    /// @notice native settings for account
+    /// @inheritdoc IAccount
     ISettings public settings;
 
-    /// @notice token contract used for account margin
+    /// @inheritdoc IAccount
     IERC20 public marginAsset;
 
-    /// @notice margin locked for future events (ie. limit orders)
+    /// @inheritdoc IAccount
     uint256 public committedMargin;
 
-    /// @notice limit orders
-    mapping(uint256 => Order) public orders;
-
-    /// @notice sequentially id orders
+    /// @inheritdoc IAccount
     uint256 public orderId;
+
+    /// @notice order id mapped to order
+    mapping(uint256 => Order) public orders;
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -93,16 +89,18 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /// @param _addressResolver: contract address for Synthetix address resolver
     /// @param _settings: contract address for account settings
     /// @param _ops: gelato ops address
+    /// @param _factory: contract address for account factory
     function initialize(
         address _owner,
         address _marginAsset,
         address _addressResolver,
         address _settings,
-        address payable _ops
+        address payable _ops,
+        address _factory
     ) external initializer {
         owner = _owner;
         emit OwnershipTransferred(address(0), _owner);
-        
+
         marginAsset = IERC20(_marginAsset);
         addressResolver = IAddressResolver(_addressResolver);
 
@@ -111,6 +109,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
         // set Gelato's ops address to create/remove tasks
         ops = _ops;
+
+        factory = IFactory(_factory);
 
         // get address for futures market manager
         futuresMarketManager = IFuturesMarketManager(
@@ -180,6 +180,20 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             this.executeOrder.selector,
             _orderId
         );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           ACCOUNT OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IAccount
+    function transferAccountOwnership(address _newOwner)
+        external
+        override
+        onlyOwner
+    {
+        transferOwnership(_newOwner);
+        factory.updateAccountOwner({_newOwner: _newOwner});
     }
 
     /*//////////////////////////////////////////////////////////////

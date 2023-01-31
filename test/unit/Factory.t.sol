@@ -110,6 +110,7 @@ contract FactoryTest is Test {
         assertEq(address(account.addressResolver()), ADDRESS_RESOLVER);
         assertEq(address(account.settings()), address(settings));
         assertEq(account.ops(), GELATO_OPS);
+        assertEq(address(account.factory()), address(factory));
         assertEq(account.VERSION(), bytes32("2.0.0"));
     }
 

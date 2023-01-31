@@ -32,8 +32,8 @@ contract Factory is IFactory, Owned {
     /// @notice gelato ops
     address payable public ops;
 
-    /// @notice mapping of account creator to account created
-    mapping(address => address) public creatorToAccount;
+    /// @notice mapping of account owner to account created
+    mapping(address => address) public ownerToAccount;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -72,25 +72,26 @@ contract Factory is IFactory, Owned {
         returns (address payable accountAddress)
     {
         /// @dev ensure one account per address
-        if (creatorToAccount[msg.sender] != address(0)) {
-            revert AlreadyCreatedAccount(creatorToAccount[msg.sender]);
+        if (ownerToAccount[msg.sender] != address(0)) {
+            revert AlreadyCreatedAccount(ownerToAccount[msg.sender]);
         }
 
         // create account and set beacon to this address (i.e. factory address)
         accountAddress = payable(address(new AccountProxy(address(this))));
 
-        // update creator to account mapping
-        creatorToAccount[msg.sender] = accountAddress;
+        // update owner to account mapping
+        ownerToAccount[msg.sender] = accountAddress;
 
         // initialize new account
         (bool success, bytes memory data) = accountAddress.call(
             abi.encodeWithSignature(
-                "initialize(address,address,address,address,address)",
-                msg.sender,
+                "initialize(address,address,address,address,address,address)",
+                msg.sender, // caller will be set as owner
                 marginAsset,
                 addressResolver,
                 settings,
-                ops
+                ops,
+                address(this)
             )
         );
         if (!success) revert AccountFailedToInitialize(data);
@@ -106,6 +107,18 @@ contract Factory is IFactory, Owned {
             account: accountAddress,
             version: abi.decode(data, (bytes32))
         });
+    }
+
+    /// @inheritdoc IFactory
+    function updateAccountOwner(address _newOwner)
+        external
+        override
+        onlyOwner
+    {
+        if (msg.sender == _newOwner) revert InvalidNewOwner();
+        address account = ownerToAccount[msg.sender];
+        delete ownerToAccount[msg.sender];
+        ownerToAccount[_newOwner] = account;
     }
 
     /*//////////////////////////////////////////////////////////////

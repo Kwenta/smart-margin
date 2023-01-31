@@ -50,6 +50,9 @@ interface IFactory {
     /// @param data: data returned from failed low-level call
     error AccountFailedToFetchVersion(bytes data);
 
+    /// @notice thrown when specified new owner of account is same as previous owner
+    error InvalidNewOwner();
+
     /// @notice thrown when factory is not upgradable
     error CannotUpgrade();
 
@@ -75,8 +78,9 @@ interface IFactory {
     /// @return ops: payable contract address for gelato ops
     function ops() external view returns (address payable);
 
-    /// @return accountAddress: address of account created by creator
-    function creatorToAccount(address) external view returns (address);
+    /// @return address of account owned by _owner
+    /// @param _owner: owner of account
+    function ownerToAccount(address _owner) external view returns (address);
 
     /*//////////////////////////////////////////////////////////////
                                 MUTATIVE
@@ -85,6 +89,9 @@ interface IFactory {
     /// @notice create unique account proxy for function caller
     /// @return accountAddress address of account created
     function newAccount() external returns (address payable accountAddress);
+
+    /// @notice update account owner
+    function updateAccountOwner(address _newOwner) external;
 
     /// @notice upgrade system (implementation, settings, marginAsset, addressResolver, ops)
     /// @dev *DANGER* this function does not check any of the parameters for validity,
