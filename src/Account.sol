@@ -9,7 +9,7 @@ import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
 import {ISettings} from "./interfaces/ISettings.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {OpsReady, IOps} from "./utils/OpsReady.sol";
-import {Owned} from "./utils/Owned.sol";
+import {Owned} from "@solmate/auth/Owned.sol";
 
 /// @title Kwenta Smart Margin Account Implementation
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
@@ -75,7 +75,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice disable initializers on initial contract deployment
-    constructor() {
+    /// @dev set owner of implementation to zero address
+    constructor() Owned(address(0)) {
         // recommended to use this to lock implementation contracts
         // that are designed to be called through proxies
         _disableInitializers();
@@ -99,23 +100,25 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         address _settings,
         address payable _ops
     ) external initializer {
+        owner = _owner;
+        emit OwnershipTransferred(address(0), _owner);
+        
         marginAsset = IERC20(_marginAsset);
         addressResolver = IAddressResolver(_addressResolver);
+
+        /// @dev Settings must exist prior to account creation
+        settings = ISettings(_settings);
+
+        // set Gelato's ops address to create/remove tasks
+        ops = _ops;
+
+        // get address for futures market manager
         futuresMarketManager = IFuturesMarketManager(
             addressResolver.requireAndGetAddress(
                 FUTURES_MARKET_MANAGER,
                 "Account: Could not get Futures Market Manager"
             )
         );
-
-        /// @dev Settings must exist prior to account creation
-        settings = ISettings(_settings);
-
-        /// @dev the Owned constructor is never called when we create proxies
-        transferOwnership(_owner);
-
-        // set Gelato's ops address to create/remove tasks
-        ops = _ops;
     }
 
     /*//////////////////////////////////////////////////////////////
