@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import {AccountProxy} from "./AccountProxy.sol";
 import {IFactory} from "./interfaces/IFactory.sol";
-import {Owned} from "./utils/Owned.sol";
+import {Owned} from "@solmate/auth/Owned.sol";
 
 /// @title Kwenta Account Factory
 /// @author JaredBorders (jaredborders@pm.me)
@@ -36,16 +36,6 @@ contract Factory is IFactory, Owned {
     mapping(address => address) public creatorToAccount;
 
     /*//////////////////////////////////////////////////////////////
-                               MODIFIERS
-    //////////////////////////////////////////////////////////////*/
-
-    modifier isUpgradable() {
-        if (!canUpgrade) revert CannotUpgrade();
-
-        _;
-    }
-
-    /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
@@ -63,8 +53,7 @@ contract Factory is IFactory, Owned {
         address _settings,
         address payable _ops,
         address _implementation
-    ) {
-        transferOwnership(_owner);
+    ) Owned(_owner) {
         marginAsset = _marginAsset;
         addressResolver = _addressResolver;
         settings = _settings;
@@ -104,13 +93,13 @@ contract Factory is IFactory, Owned {
                 ops
             )
         );
-        if (!success) revert AccountCreationFailed(data);
+        if (!success) revert AccountFailedToInitialize(data);
 
         // determine version for the following event
         (success, data) = accountAddress.call(
             abi.encodeWithSignature("VERSION()")
         );
-        if (!success) revert AccountCreationFailed(data);
+        if (!success) revert AccountFailedToFetchVersion(data);
 
         emit NewAccount({
             creator: msg.sender,
@@ -120,7 +109,7 @@ contract Factory is IFactory, Owned {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                SETTERS
+                             UPGRADABILITY
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IFactory
@@ -130,12 +119,8 @@ contract Factory is IFactory, Owned {
         address _marginAsset,
         address _addressResolver,
         address payable _ops
-    ) external onlyOwner isUpgradable {
-        require(_implementation != address(0), "Invalid implementation");
-        require(_settings != address(0), "Invalid settings");
-        require(_marginAsset != address(0), "Invalid marginAsset");
-        require(_addressResolver != address(0), "Invalid addressResolver");
-        require(_ops != address(0), "Invalid ops");
+    ) external override onlyOwner {
+        if (!canUpgrade) revert CannotUpgrade();
 
         implementation = _implementation;
         settings = _settings;
@@ -150,5 +135,10 @@ contract Factory is IFactory, Owned {
             addressResolver: _addressResolver,
             ops: _ops
         });
+    }
+
+    /// @inheritdoc IFactory
+    function removeUpgradability() external override onlyOwner {
+        canUpgrade = false;
     }
 }

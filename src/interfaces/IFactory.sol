@@ -42,9 +42,13 @@ interface IFactory {
     /// @param account: address of account previously created
     error AlreadyCreatedAccount(address account);
 
-    /// @notice thrown when Account creation fails
+    /// @notice thrown when Account creation fails at initialization step
     /// @param data: data returned from failed low-level call
-    error AccountCreationFailed(bytes data);
+    error AccountFailedToInitialize(bytes data);
+
+    /// @notice thrown when Account creation fails due to no version being set
+    /// @param data: data returned from failed low-level call
+    error AccountFailedToFetchVersion(bytes data);
 
     /// @notice thrown when factory is not upgradable
     error CannotUpgrade();
@@ -97,4 +101,8 @@ interface IFactory {
         address _addressResolver,
         address payable _ops
     ) external;
+
+    /// @notice remove upgradability from factory
+    /// @dev cannot be undone
+    function removeUpgradability() external;
 }
