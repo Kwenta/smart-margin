@@ -96,16 +96,11 @@ Make sure to create an `.env` file following the example given in `.env.example`
 npm run compile
 ```
 
-3. Execute unit tests
+3. Execute both unit and integration tests (both run in forked environments)
 ```
-npm run unit-test
+npm run test
 ```
-
-4. Execute integration tests
-```
-npm run integration-test
-```
-> integration tests will fail if you have not set up your .env (see .env.example)
+> tests will fail if you have not set up your .env (see .env.example)
 
 ### Deployment and Verification
 
