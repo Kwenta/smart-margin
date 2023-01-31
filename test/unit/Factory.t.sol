@@ -2,106 +2,151 @@
 pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
-import "../../src/Settings.sol";
-import "../../src/interfaces/ISettings.sol";
-import "../../src/Factory.sol";
-import "../../src/interfaces/IFactory.sol";
-import "../../src/Account.sol";
-import "../../src/interfaces/IAccount.sol";
+import {Settings} from "../../src/Settings.sol";
+import {ISettings} from "../../src/interfaces/ISettings.sol";
+import {Factory} from "../../src/Factory.sol";
+import {IFactory} from "../../src/interfaces/IFactory.sol";
+import {Account} from "../../src/Account.sol";
+import {IAccount} from "../../src/interfaces/IAccount.sol";
+import {AccountProxy} from "../../src/AccountProxy.sol";
+import {IAccountProxy} from "../../src/interfaces/IAccountProxy.sol";
 
-contract MarginAccountFactoryTest is Test {
-    Settings settings;
-    Factory factory;
+contract FactoryTest is Test {
+    /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
+    /// @dev hard coded addresses are only guaranteed for this block
+    uint256 private constant BLOCK_NUMBER = 60242268;
 
-    address constant addressResolver =
+    Settings private settings;
+    Factory private factory;
+    Account private implementation;
+
+    address private constant ADDRESS_RESOLVER =
         0x1Cb059b7e74fD21665968C908806143E744D5F30;
-    address constant KWENTA_TREASURY =
+    address private SUSD = 0x57Ab1ec28D129707052df4dF418D58a2D46d5f51;
+    address private constant GELATO_OPS =
+        0xB3f5503f93d5Ef84b06993a1975B9D21B962892F;
+    address private constant KWENTA_TREASURY =
         0x82d2242257115351899894eF384f779b5ba8c695;
-    address constant futuresManager =
+    address private constant FUTURES_MANAGER =
         0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B;
 
-    function mockAddressResolverCalls() internal {
-        bytes32 futuresManagerKey = "FuturesMarketManager";
-        vm.mockCall(
-            address(addressResolver),
-            abi.encodeWithSelector(
-                IAddressResolver.requireAndGetAddress.selector,
-                futuresManagerKey,
-                "Account: Could not get Futures Market Manager"
-            ),
-            abi.encode(futuresManager)
-        );
-    }
+    uint256 private constant TRADE_FEE = 5;
+    uint256 private constant LIMIT_ORDER_FEE = 5;
+    uint256 private constant STOP_LOSS_FEE = 10;
+
+    event NewAccount(
+        address indexed creator,
+        address indexed account,
+        bytes32 version
+    );
+    event SystemUpgraded(
+        address implementation,
+        address settings,
+        address marginAsset,
+        address addressResolver,
+        address ops
+    );
 
     function setUp() public {
-        mockAddressResolverCalls();
-
-        // establish fees
-        uint256 tradeFee = 5;
-        uint256 limitOrderFee = 5;
-        uint256 stopLossFee = 10;
-
-        // deploy settings
         settings = new Settings({
             _treasury: KWENTA_TREASURY,
-            _tradeFee: tradeFee,
-            _limitOrderFee: limitOrderFee,
-            _stopOrderFee: stopLossFee
+            _tradeFee: TRADE_FEE,
+            _limitOrderFee: LIMIT_ORDER_FEE,
+            _stopOrderFee: STOP_LOSS_FEE
         });
 
-        // deploy factory
+        implementation = new Account();
+
         factory = new Factory({
             _owner: address(this),
-            _version: "2.0.0",
-            _marginAsset: address(0),
-            _addressResolver: addressResolver,
+            _marginAsset: SUSD,
+            _addressResolver: ADDRESS_RESOLVER,
             _settings: address(settings),
-            _ops: payable(address(0))
+            _ops: payable(GELATO_OPS),
+            _implementation: address(implementation)
         });
     }
 
-    function testAccountCreation() public {
-        address account = factory.newAccount();
-        assertTrue(account != address(0));
-        assertTrue(factory.creatorToAccount(address(this)) == address(account));
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+    function testOwnerSet() public {
+        assertEq(factory.owner(), address(this));
     }
 
-    function testCannotCreateTwoAccounts() public {
-        address account = factory.newAccount();
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IFactory.AlreadyCreatedAccount.selector,
-                account
-            )
-        );
+    function testCanUpgrade() public {
+        assertEq(factory.canUpgrade(), true);
+    }
+
+    function testImplementationSet() public {
+        assertEq(factory.implementation(), address(implementation));
+    }
+
+    function testSettingsSet() public {
+        assertEq(address(factory.settings()), address(settings));
+    }
+
+    function testMarginAssetSet() public {
+        assertEq(address(factory.marginAsset()), SUSD);
+    }
+
+    function testAddressResolverSet() public {
+        assertEq(address(factory.addressResolver()), ADDRESS_RESOLVER);
+    }
+
+    function testGelatoOpsSet() public {
+        assertEq(factory.ops(), GELATO_OPS);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              NEW ACCOUNT
+    //////////////////////////////////////////////////////////////*/
+
+    function testNewAccount() public {
+        address payable accountAddress = factory.newAccount();
+        Account account = Account(accountAddress);
+        assertEq(account.owner(), address(this));
+        assertEq(address(account.marginAsset()), SUSD);
+        assertEq(address(account.addressResolver()), ADDRESS_RESOLVER);
+        assertEq(address(account.settings()), address(settings));
+        assertEq(account.ops(), GELATO_OPS);
+        assertEq(account.VERSION(), bytes32("2.0.0"));
+    }
+
+    function testAccountAddedToMapping() public {}
+
+    function testWhenAccountCannotBeInitialized() public {}
+
+    function testWhenAccountCannotFetchVersion() public {}
+
+    function testCannotCreateTwoAccounts() public {}
+
+    /*//////////////////////////////////////////////////////////////
+                             SYSTEM UPGRADE
+    //////////////////////////////////////////////////////////////*/
+    function testUpgradeSystem() public {}
+
+    function testAccountCreationPostUpgrade() public {}
+
+    function testCannotUpgradeWhenNotEnabled() public {}
+
+    function testCanRemoveUpgradability() public {}
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+    function testNewAccountEvent() public {
+        vm.expectEmit(true, false, false, false);
+        emit NewAccount(address(this), address(0), bytes32(0));
         factory.newAccount();
     }
 
-    // Assert proxy is less than implementation
-    function testAssertProxySize() public {
-        address account = factory.newAccount();
-        assertEq(account.code.length, 45); // 0age more minimal proxy is 45 bytes
-        assertLt(
-            account.code.length,
-            address(factory.logic()).code.length
-        );
-    }
+    function testSystemUpgradedEvent() public {}
 
-    function testAccountOwnerIsMsgSender() public {
-        address payable account = factory.newAccount();
-        assertEq(Account(account).owner(), address(this));
-    }
+    /*//////////////////////////////////////////////////////////////
+                                  AUTH
+    //////////////////////////////////////////////////////////////*/
+    function testCannotUpgradeWhenNotOwner() public {}
 
-    function testCannotInitAccountTwice() public {
-        address payable account = factory.newAccount();
-        vm.expectRevert();
-        Account(account).initialize(
-            address(0),
-            address(0),
-            address(0),
-            payable(address(0))
-        );
-    }
-
-    // @TODO testing...
+    function testCannotemoveUpgradabilityWhenNotOwner() public {}
 }
