@@ -9,177 +9,254 @@ import "../../src/interfaces/IFactory.sol";
 import "../../src/Account.sol";
 import "../../src/interfaces/IAccount.sol";
 
-contract settingsTest is Test {
-    // Settings settings;
+contract SettingsTest is Test {
+    /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
+    /// @dev hard coded addresses are only guaranteed for this block
+    uint256 private constant BLOCK_NUMBER = 60242268;
 
-    // address constant KWENTA_TREASURY =
-    //     0x82d2242257115351899894eF384f779b5ba8c695;
-    // address constant RANDOM_ADDRESS =
-    //     0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B;
+    Settings private settings;
 
-    // uint256 private tradeFee = 5;
-    // uint256 private limitOrderFee = 5;
-    // uint256 private stopOrderFee = 10;
+    address private constant KWENTA_TREASURY = address(0xBEEF);
+    address private constant RANDOM_ADDRESS = address(0xBAE);
 
-    // event TreasuryAddressChanged(address treasury);
-    // event TradeFeeChanged(uint256 fee);
-    // event LimitOrderFeeChanged(uint256 fee);
-    // event StopOrderFeeChanged(uint256 fee);
+    uint256 private tradeFee = 5;
+    uint256 private limitOrderFee = 5;
+    uint256 private stopOrderFee = 10;
 
-    // function setUp() public {
-    //     settings = new Settings(
-    //         KWENTA_TREASURY,
-    //         tradeFee,
-    //         limitOrderFee,
-    //         stopOrderFee
-    //     );
-    // }
+    event TreasuryAddressChanged(address treasury);
+    event TradeFeeChanged(uint256 fee);
+    event LimitOrderFeeChanged(uint256 fee);
+    event StopOrderFeeChanged(uint256 fee);
 
-    // function testSettingsOwnerIsDeployer() public {
-    //     assertEq(settings.owner(), address(this));
-    // }
+    function setUp() public {
+        // select block number
+        vm.rollFork(BLOCK_NUMBER);
 
-    // function testSettingTreasuryAddress() public {
-    //     settings.setTreasury(RANDOM_ADDRESS);
-    //     assertTrue(settings.treasury() == RANDOM_ADDRESS);
-    // }
+        settings = new Settings({
+            _owner: address(this),
+            _treasury: KWENTA_TREASURY,
+            _tradeFee: tradeFee,
+            _limitOrderFee: limitOrderFee,
+            _stopOrderFee: stopOrderFee
+        });
+    }
 
-    // function testFailSettingTreasuryAddressIfNotOwner() public {
-    //     settings.transferOwnership(RANDOM_ADDRESS); // not a zero address
-    //     settings.setTreasury(RANDOM_ADDRESS);
-    // }
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
 
-    // function testShouldFailSettingTreasuryAddressToZero() public {
-    //     vm.expectRevert(abi.encodeWithSelector(ISettings.ZeroAddress.selector));
-    //     settings.setTreasury(address(0));
-    // }
+    function testOwnerSet() public {
+        assertEq(settings.owner(), address(this));
+    }
 
-    // function testSettingTreasuryAddressEvent() public {
-    //     // only care that topic 1 matches
-    //     vm.expectEmit(true, false, false, false);
-    //     // event we expect
-    //     emit TreasuryAddressChanged(RANDOM_ADDRESS);
-    //     // event we get
-    //     settings.setTreasury(RANDOM_ADDRESS);
-    // }
+    function testTreasurySet() public {
+        assertEq(settings.treasury(), KWENTA_TREASURY);
+    }
 
-    // function testFailSetSameTreasuryAddress() public {
-    //     settings.setTreasury(KWENTA_TREASURY);
-    // }
+    function testTradeFeeSet() public {
+        assertEq(settings.tradeFee(), tradeFee);
+    }
 
-    // /// @dev fuzz test
-    // function testSettingTradeFee(uint256 x) public {
-    //     if (x == settings.tradeFee()) {
-    //         vm.expectRevert(
-    //             abi.encodeWithSelector(ISettings.DuplicateFee.selector)
-    //         );
-    //         settings.setTradeFee(x);
-    //         return;
-    //     }
-    //     if (x > 10_000) {
-    //         vm.expectRevert(
-    //             abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
-    //         );
-    //         settings.setTradeFee(x);
-    //         return;
-    //     }
-    //     settings.setTradeFee(x);
-    //     assertTrue(settings.tradeFee() == x);
-    // }
+    function testLimitOrderFeeSet() public {
+        assertEq(settings.limitOrderFee(), limitOrderFee);
+    }
 
-    // function testFailSetTradeFeeIfNotOwner() public {
-    //     settings.transferOwnership(RANDOM_ADDRESS); // not a zero address
-    //     settings.setTradeFee(1 ether);
-    // }
+    function testStopOrderFeeSet() public {
+        assertEq(settings.stopOrderFee(), stopOrderFee);
+    }
 
-    // function testFailSetSameTradeFee() public {
-    //     settings.setTradeFee(tradeFee);
-    // }
+    function testTradeFeeCannotExceedMaxBps() public {
+        uint256 invalidFee = settings.MAX_BPS() + 1;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISettings.InvalidFee.selector,
+                settings.MAX_BPS() + 1
+            )
+        );
+        settings = new Settings({
+            _owner: address(this),
+            _treasury: KWENTA_TREASURY,
+            _tradeFee: invalidFee,
+            _limitOrderFee: limitOrderFee,
+            _stopOrderFee: stopOrderFee
+        });
+    }
 
-    // function testSettingTradeFeeEvent() public {
-    //     // only care that topic 1 matches
-    //     vm.expectEmit(true, false, false, false);
-    //     // event we expect
-    //     emit TradeFeeChanged(tradeFee * 2);
-    //     // event we get
-    //     settings.setTradeFee(tradeFee * 2);
-    // }
+    function testLimitOrderFeeCannotExceedMaxBps() public {
+        uint256 invalidFee = settings.MAX_BPS() + 1;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISettings.InvalidFee.selector,
+                settings.MAX_BPS() + 1
+            )
+        );
+        settings = new Settings({
+            _owner: address(this),
+            _treasury: KWENTA_TREASURY,
+            _tradeFee: tradeFee,
+            _limitOrderFee: invalidFee,
+            _stopOrderFee: stopOrderFee
+        });
+    }
 
-    // /// @dev fuzz test
-    // function testSettingLimitOrderFee(uint256 x) public {
-    //     if (x == settings.limitOrderFee()) {
-    //         vm.expectRevert(
-    //             abi.encodeWithSelector(ISettings.DuplicateFee.selector)
-    //         );
-    //         settings.setLimitOrderFee(x);
-    //         return;
-    //     }
+    function testStopOrderFeeCannotExceedMaxBps() public {
+        uint256 invalidFee = settings.MAX_BPS() + 1;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISettings.InvalidFee.selector,
+                settings.MAX_BPS() + 1
+            )
+        );
+        settings = new Settings({
+            _owner: address(this),
+            _treasury: KWENTA_TREASURY,
+            _tradeFee: tradeFee,
+            _limitOrderFee: limitOrderFee,
+            _stopOrderFee: invalidFee
+        });
+    }
 
-    //     if (x > 10_000) {
-    //         vm.expectRevert(
-    //             abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
-    //         );
-    //         settings.setLimitOrderFee(x);
-    //         return;
-    //     }
-    //     settings.setLimitOrderFee(x);
-    //     assertTrue(settings.limitOrderFee() == x);
-    // }
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
 
-    // function testFailSetLimitOrderFeeIfNotOwner() public {
-    //     settings.transferOwnership(RANDOM_ADDRESS); // not a zero address
-    //     settings.setLimitOrderFee(1 ether);
-    // }
+    function testSettingTreasuryAddress() public {
+        settings.setTreasury(RANDOM_ADDRESS);
+        assertTrue(settings.treasury() == RANDOM_ADDRESS);
+    }
 
-    // function testFailSetSameLimitOrderFee() public {
-    //     settings.setTradeFee(limitOrderFee);
-    // }
+    function testFailSettingTreasuryAddressIfNotOwner() public {
+        vm.prank(RANDOM_ADDRESS);
+        settings.setTreasury(RANDOM_ADDRESS);
+    }
 
-    // function testSettingLimitOrderFeeEvent() public {
-    //     // only care that topic 1 matches
-    //     vm.expectEmit(true, false, false, false);
-    //     // event we expect
-    //     emit LimitOrderFeeChanged(limitOrderFee * 2);
-    //     // event we get
-    //     settings.setLimitOrderFee(limitOrderFee * 2);
-    // }
+    function testShouldFailSettingTreasuryAddressToZero() public {
+        vm.expectRevert(abi.encodeWithSelector(ISettings.ZeroAddress.selector));
+        settings.setTreasury(address(0));
+    }
 
-    // /// @dev fuzz test
-    // function testSettingStopOrderFee(uint256 x) public {
-    //     if (x == settings.stopOrderFee()) {
-    //         vm.expectRevert(
-    //             abi.encodeWithSelector(ISettings.DuplicateFee.selector)
-    //         );
-    //         settings.setStopOrderFee(x);
-    //         return;
-    //     }
+    function testFailSetSameTreasuryAddress() public {
+        settings.setTreasury(KWENTA_TREASURY);
+    }
 
-    //     if (x > 10_000) {
-    //         vm.expectRevert(
-    //             abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
-    //         );
-    //         settings.setStopOrderFee(x);
-    //         return;
-    //     }
-    //     settings.setStopOrderFee(x);
-    //     assertTrue(settings.stopOrderFee() == x);
-    // }
+    function testSettingTreasuryAddressEvent() public {
+        vm.expectEmit(true, true, true, true);
+        // event we expect
+        emit TreasuryAddressChanged(RANDOM_ADDRESS);
+        // event we get
+        settings.setTreasury(RANDOM_ADDRESS);
+    }
 
-    // function testFailSetStopOrderFeeIfNotOwner() public {
-    //     settings.transferOwnership(RANDOM_ADDRESS); // not a zero address
-    //     settings.setStopOrderFee(1 ether);
-    // }
+    /// @dev fuzz test
+    function testSettingTradeFee(uint256 x) public {
+        if (x == settings.tradeFee()) {
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.DuplicateFee.selector)
+            );
+            settings.setTradeFee(x);
+            return;
+        }
+        if (x > 10_000) {
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
+            );
+            settings.setTradeFee(x);
+            return;
+        }
+        settings.setTradeFee(x);
+        assertTrue(settings.tradeFee() == x);
+    }
 
-    // function testFailSetSameStopOrderFee() public {
-    //     settings.setStopOrderFee(stopOrderFee);
-    // }
+    function testFailSetTradeFeeIfNotOwner() public {
+        vm.prank(RANDOM_ADDRESS);
+        settings.setTradeFee(1 ether);
+    }
 
-    // function testSettingStopOrderFeeEvent() public {
-    //     // only care that topic 1 matches
-    //     vm.expectEmit(true, false, false, false);
-    //     // event we expect
-    //     emit StopOrderFeeChanged(stopOrderFee * 2);
-    //     // event we get
-    //     settings.setStopOrderFee(stopOrderFee * 2);
-    // }
+    function testFailSetSameTradeFee() public {
+        settings.setTradeFee(tradeFee);
+    }
+
+    function testSettingTradeFeeEvent() public {
+        vm.expectEmit(true, true, true, true);
+        // event we expect
+        emit TradeFeeChanged(tradeFee * 2);
+        // event we get
+        settings.setTradeFee(tradeFee * 2);
+    }
+
+    /// @dev fuzz test
+    function testSettingLimitOrderFee(uint256 x) public {
+        if (x == settings.limitOrderFee()) {
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.DuplicateFee.selector)
+            );
+            settings.setLimitOrderFee(x);
+            return;
+        }
+
+        if (x > 10_000) {
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
+            );
+            settings.setLimitOrderFee(x);
+            return;
+        }
+        settings.setLimitOrderFee(x);
+        assertTrue(settings.limitOrderFee() == x);
+    }
+
+    function testFailSetLimitOrderFeeIfNotOwner() public {
+        vm.prank(RANDOM_ADDRESS);
+        settings.setLimitOrderFee(1 ether);
+    }
+
+    function testFailSetSameLimitOrderFee() public {
+        settings.setTradeFee(limitOrderFee);
+    }
+
+    function testSettingLimitOrderFeeEvent() public {
+        vm.expectEmit(true, true, true, true);
+        // event we expect
+        emit LimitOrderFeeChanged(limitOrderFee * 2);
+        // event we get
+        settings.setLimitOrderFee(limitOrderFee * 2);
+    }
+
+    /// @dev fuzz test
+    function testSettingStopOrderFee(uint256 x) public {
+        if (x == settings.stopOrderFee()) {
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.DuplicateFee.selector)
+            );
+            settings.setStopOrderFee(x);
+            return;
+        }
+
+        if (x > 10_000) {
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
+            );
+            settings.setStopOrderFee(x);
+            return;
+        }
+        settings.setStopOrderFee(x);
+        assertTrue(settings.stopOrderFee() == x);
+    }
+
+    function testFailSetStopOrderFeeIfNotOwner() public {
+        vm.prank(RANDOM_ADDRESS);
+        settings.setStopOrderFee(1 ether);
+    }
+
+    function testFailSetSameStopOrderFee() public {
+        settings.setStopOrderFee(stopOrderFee);
+    }
+
+    function testSettingStopOrderFeeEvent() public {
+        vm.expectEmit(true, true, true, true);
+        // event we expect
+        emit StopOrderFeeChanged(stopOrderFee * 2);
+        // event we get
+        settings.setStopOrderFee(stopOrderFee * 2);
+    }
 }

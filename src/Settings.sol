@@ -2,11 +2,11 @@
 pragma solidity 0.8.17;
 
 import {ISettings} from "./interfaces/ISettings.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Owned} from "@solmate/auth/Owned.sol";
 
 /// @title Kwenta Settings for Accounts
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
-contract Settings is ISettings, Ownable {
+contract Settings is ISettings, Owned {
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -35,20 +35,18 @@ contract Settings is ISettings, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice set initial account fees
+    /// @param _owner: owner of the contract
     /// @param _treasury: Kwenta's Treasury Address
     /// @param _tradeFee: fee denoted in BPS
     /// @param _limitOrderFee: fee denoted in BPS
     /// @param _stopOrderFee: fee denoted in BPS
     constructor(
+        address _owner,
         address _treasury,
         uint256 _tradeFee,
         uint256 _limitOrderFee,
         uint256 _stopOrderFee
-    ) {
-        /// @notice ensure valid address for Kwenta Treasury
-        if (_treasury == address(0)) revert ZeroAddress();
-
-        /// @notice set Kwenta Treasury address
+    ) Owned(_owner) {
         treasury = _treasury;
 
         /// @notice ensure valid fees
@@ -70,9 +68,6 @@ contract Settings is ISettings, Ownable {
     function setTreasury(address _treasury) external override onlyOwner {
         /// @notice ensure valid address for Kwenta Treasury
         if (_treasury == address(0)) revert ZeroAddress();
-
-        // @notice ensure address will change
-        if (_treasury == treasury) revert DuplicateAddress();
 
         /// @notice set Kwenta Treasury address
         treasury = _treasury;

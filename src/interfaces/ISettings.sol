@@ -39,9 +39,6 @@ interface ISettings {
     /// @notice new fee cannot be the same as the old fee
     error DuplicateFee();
 
-    /// @notice new address cannot be the same as the old address
-    error DuplicateAddress();
-
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
