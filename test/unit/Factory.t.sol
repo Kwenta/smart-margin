@@ -11,6 +11,7 @@ import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {AccountProxy} from "../../src/AccountProxy.sol";
 import {IAccountProxy} from "../../src/interfaces/IAccountProxy.sol";
 import {MockAccount1, MockAccount2} from "./utils/MockAccounts.sol";
+import {UpgradedAccount} from "./utils/UpgradedAccount.sol";
 
 contract FactoryTest is Test {
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
@@ -254,17 +255,91 @@ contract FactoryTest is Test {
                              UPGRADABILITY
     //////////////////////////////////////////////////////////////*/
 
-    function testCannotUpgradeWhenNotOwner() public {}
+    function testCannotUpgradeWhenNotOwner() public {
+        vm.expectRevert("UNAUTHORIZED");
+        vm.prank(KWENTA_TREASURY);
+        factory.upgradeSystem({
+            _implementation: address(0),
+            _settings: address(0),
+            _marginAsset: address(0),
+            _addressResolver: address(0),
+            _ops: payable(address(0))
+        });
+    }
 
-    function testUpgradeSystem() public {}
+    function testUpgradeSystem() public {
+        address payable accountAddress = factory.newAccount();
+        UpgradedAccount newImplementation = new UpgradedAccount();
+        factory.upgradeSystem({
+            _implementation: address(newImplementation),
+            _settings: address(settings),
+            _marginAsset: SUSD,
+            _addressResolver: ADDRESS_RESOLVER,
+            _ops: payable(GELATO_OPS)
+        });
+        // check version changed
+        bytes32 newVersion = "3.0.0";
+        assertEq(Account(accountAddress).VERSION(), newVersion);
+        // check owner did not change
+        assertEq(Account(accountAddress).owner(), address(this));
+    }
 
-    function testSystemUpgradedEvent() public {}
+    function testSystemUpgradedEvent() public {
+        UpgradedAccount newImplementation = new UpgradedAccount();
+        vm.expectEmit(true, true, true, true);
+        emit SystemUpgraded(
+            address(newImplementation),
+            address(settings),
+            SUSD,
+            ADDRESS_RESOLVER,
+            GELATO_OPS
+        );
+        factory.upgradeSystem({
+            _implementation: address(newImplementation),
+            _settings: address(settings),
+            _marginAsset: SUSD,
+            _addressResolver: ADDRESS_RESOLVER,
+            _ops: payable(GELATO_OPS)
+        });
+    }
 
-    function testAccountCreationPostUpgrade() public {}
+    function testAccountCreationPostUpgrade() public {
+        UpgradedAccount newImplementation = new UpgradedAccount();
+        factory.upgradeSystem({
+            _implementation: address(newImplementation),
+            _settings: address(settings),
+            _marginAsset: SUSD,
+            _addressResolver: ADDRESS_RESOLVER,
+            _ops: payable(GELATO_OPS)
+        });
+        address payable accountAddress = factory.newAccount();
+        bytes32 newVersion = "3.0.0";
+        assertEq(Account(accountAddress).VERSION(), newVersion);
+    }
 
-    function testCannotRemoveUpgradabilityWhenNotOwner() public {}
+    function testCannotRemoveUpgradabilityWhenNotOwner() public {
+        vm.expectRevert("UNAUTHORIZED");
+        vm.prank(KWENTA_TREASURY);
+        factory.removeUpgradability();
+    }
 
-    function testCanRemoveUpgradability() public {}
+    function testCanRemoveUpgradability() public {
+        factory.removeUpgradability();
+        assertEq(factory.canUpgrade(), false);
+    }
 
-    function testCannotUpgradeWhenNotEnabled() public {}
+    function testCannotUpgradeWhenNotEnabled() public {
+        factory.removeUpgradability();
+        UpgradedAccount newImplementation = new UpgradedAccount();
+        vm.expectRevert(
+            abi.encodeWithSelector(IFactory.CannotUpgrade.selector)
+        );
+        factory.upgradeSystem({
+            _implementation: address(newImplementation),
+            _settings: address(settings),
+            _marginAsset: SUSD,
+            _addressResolver: ADDRESS_RESOLVER,
+            _ops: payable(GELATO_OPS)
+        });
+    }
 }

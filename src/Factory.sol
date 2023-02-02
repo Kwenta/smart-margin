@@ -142,7 +142,7 @@ contract Factory is IFactory, Owned {
 
     /// @inheritdoc IFactory
     function upgradeSystem(
-        address payable _implementation,
+        address _implementation,
         address _settings,
         address _marginAsset,
         address _addressResolver,

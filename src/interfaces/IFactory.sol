@@ -105,7 +105,7 @@ interface IFactory {
     /// @param _addressResolver: new synthetix address resolver
     /// @param _ops: new gelato ops
     function upgradeSystem(
-        address payable _implementation,
+        address _implementation,
         address _settings,
         address _marginAsset,
         address _addressResolver,

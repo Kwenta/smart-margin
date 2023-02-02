@@ -57,6 +57,10 @@ contract FactoryTest is Test {
         });
     }
 
+    /*//////////////////////////////////////////////////////////////
+                             CREATE ACCOUNT
+    //////////////////////////////////////////////////////////////*/
+
     function testAccountOwnerSet() public {
         address payable accountAddress = factory.newAccount();
         Account account = Account(accountAddress);
@@ -99,6 +103,14 @@ contract FactoryTest is Test {
         assertEq(account.VERSION(), bytes32("2.0.0"));
     }
 
+    /*//////////////////////////////////////////////////////////////
+                       IMPLEMENTATION INTERACTION
+    //////////////////////////////////////////////////////////////*/
+
+    function testImplementationOwnerShouldBeZeroAddress() public {
+        assertEq(implementation.owner(), address(0));
+    }
+
     function testCannotCallInitializeOnImplementation() public {
         vm.expectRevert("Initializable: contract is already initialized");
         implementation.initialize({
@@ -109,9 +121,5 @@ contract FactoryTest is Test {
             _ops: payable(GELATO_OPS),
             _factory: address(factory)
         });
-    }
-
-    function testImplementationOwnerShouldBeZeroAddress() public {
-        assertEq(implementation.owner(), address(0));
     }
 }
