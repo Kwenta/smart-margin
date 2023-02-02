@@ -18,36 +18,22 @@ contract AccountTest is Test {
     /// @dev hard coded addresses are only guaranteed for this block
     uint256 private constant BLOCK_NUMBER = 60242268;
 
-    /// @notice max BPS; used for decimals calculations
     uint256 private constant MAX_BPS = 10000;
-
-    /// @notice max uint256
-    uint256 MAX_INT = 2**256 - 1;
-
-    // tracking code used when modifying positions
+    uint256 private MAX_INT = 2**256 - 1;
     bytes32 private constant TRACKING_CODE = "KWENTA";
-
-    // test amount used throughout tests
     uint256 private constant AMOUNT = 10_000 ether;
 
-    // synthetix (ReadProxyAddressResolver)
     IAddressResolver private constant ADDRESS_RESOLVER =
         IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
-
-    // gelato
     address private constant GELATO_OPS =
         0xB3f5503f93d5Ef84b06993a1975B9D21B962892F;
-
-    // kwenta treasury multisig
     address private constant KWENTA_TREASURY =
         0x82d2242257115351899894eF384f779b5ba8c695;
 
-    // fee settings
-    uint256 private constant TRADE_FEE = 5; // 5 BPS
-    uint256 private constant LIMIT_ORDER_FEE = 5; // 5 BPS
-    uint256 private constant STOP_LOSS_FEE = 10; // 10 BPS
+    uint256 private constant TRADE_FEE = 5;
+    uint256 private constant LIMIT_ORDER_FEE = 5;
+    uint256 private constant STOP_LOSS_FEE = 10;
 
-    // Synthetix PerpsV2 market key(s)
     bytes32 private constant sETHPERP = "sETHPERP";
     bytes32 private constant sBTCPERP = "sBTCPERP";
 
@@ -84,7 +70,6 @@ contract AccountTest is Test {
         // select block number
         vm.rollFork(BLOCK_NUMBER);
 
-        // establish sUSD address
         sUSD = ERC20(ADDRESS_RESOLVER.getAddress("ProxyERC20sUSD"));
 
         settings = new Settings({
@@ -111,30 +96,14 @@ contract AccountTest is Test {
                                  TESTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice test fetching free margin
     function testCanFetchFreeMargin() external {
-        // call factory to create account
         Account account = createAccount();
-
-        // expect free margin to be zero
         assert(account.freeMargin() == 0);
-
-        // mint sUSD and transfer to this address
         mintSUSD(address(this), AMOUNT);
-
-        // approve account to spend AMOUNT
         sUSD.approve(address(account), AMOUNT);
-
-        // deposit sUSD into account
         account.deposit(AMOUNT);
-
-        // expect free margin to be equal to AMOUNT
         assert(account.freeMargin() == AMOUNT);
-
-        // withdraw all sUSD from account
         account.withdraw(AMOUNT);
-
-        // expect free margin to be zero
         assert(account.freeMargin() == 0);
     }
 
@@ -156,14 +125,9 @@ contract AccountTest is Test {
     /// @param to: address to mint and transfer sUSD to
     /// @param amount: amount to mint and transfer
     function mintSUSD(address to, uint256 amount) private {
-        // fetch addresses needed
         address issuer = ADDRESS_RESOLVER.getAddress("Issuer");
         ISynth synthsUSD = ISynth(ADDRESS_RESOLVER.getAddress("SynthsUSD"));
-
-        // set caller as issuer
         vm.prank(issuer);
-
-        // mint sUSD
         synthsUSD.issue(to, amount);
     }
 
@@ -171,7 +135,6 @@ contract AccountTest is Test {
     /// @notice create margin base account
     /// @return account - Account account
     function createAccount() private returns (Account account) {
-        // call factory to create account
         account = Account(payable(factory.newAccount()));
     }
 
@@ -179,16 +142,9 @@ contract AccountTest is Test {
     /// @notice create margin base account and fund it with sUSD
     /// @return Account account
     function createAccountAndDepositSUSD() private returns (Account) {
-        // call factory to create account
         Account account = createAccount();
-
-        // mint sUSD and transfer to this address
         mintSUSD(address(this), AMOUNT);
-
-        // approve account to spend AMOUNT
         sUSD.approve(address(account), AMOUNT);
-
-        // deposit sUSD into account
         account.deposit(AMOUNT);
 
         return account;
