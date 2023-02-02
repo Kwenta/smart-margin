@@ -50,7 +50,11 @@ contract FactoryTest is Test {
     );
 
     function setUp() public {
+        // select block number
+        vm.rollFork(BLOCK_NUMBER);
+
         settings = new Settings({
+            _owner: address(this),
             _treasury: KWENTA_TREASURY,
             _tradeFee: TRADE_FEE,
             _limitOrderFee: LIMIT_ORDER_FEE,

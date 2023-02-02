@@ -35,18 +35,19 @@ contract FactoryTest is Test {
     uint256 private constant STOP_LOSS_FEE = 10;
 
     function setUp() public {
-        // deploy settings
+        // select block number
+        vm.rollFork(BLOCK_NUMBER);
+
         settings = new Settings({
+            _owner: address(this),
             _treasury: KWENTA_TREASURY,
             _tradeFee: TRADE_FEE,
             _limitOrderFee: LIMIT_ORDER_FEE,
             _stopOrderFee: STOP_LOSS_FEE
         });
 
-        // deploy account implementation
         implementation = new Account();
 
-        // deploy factory
         factory = new Factory({
             _owner: address(this),
             _marginAsset: SUSD,
