@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-import {IFactory} from "./IFactory.sol";
-
 /// @title Kwenta Factory Interface
 /// @author JaredBorders (jaredborders@proton.me)
 interface IFactory {
@@ -40,7 +38,7 @@ interface IFactory {
     /// @notice thrown when newAccount() is called
     /// by an address which has already made an account
     /// @param account: address of account previously created
-    error AlreadyCreatedAccount(address account);
+    error OnlyOneAccountPerAddress(address account);
 
     /// @notice thrown when Account creation fails at initialization step
     /// @param data: data returned from failed low-level call
@@ -50,11 +48,14 @@ interface IFactory {
     /// @param data: data returned from failed low-level call
     error AccountFailedToFetchVersion(bytes data);
 
-    /// @notice thrown when specified new owner of account is same as previous owner
-    error InvalidNewOwner();
-
     /// @notice thrown when factory is not upgradable
     error CannotUpgrade();
+
+    /// @notice thrown account owner is unrecognized via ownerToAccount mapping
+    error AccountDoesNotExist();
+
+    /// @notice thrown when caller is not an account
+    error CallerMustBeAccount();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
@@ -91,7 +92,9 @@ interface IFactory {
     function newAccount() external returns (address payable accountAddress);
 
     /// @notice update account owner
-    function updateAccountOwner(address _newOwner) external;
+    /// @param _oldOwner: old owner of account
+    /// @param _newOwner: new owner of account
+    function updateAccountOwner(address _oldOwner, address _newOwner) external;
 
     /// @notice upgrade system (implementation, settings, marginAsset, addressResolver, ops)
     /// @dev *DANGER* this function does not check any of the parameters for validity,

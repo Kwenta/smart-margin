@@ -73,7 +73,7 @@ contract Factory is IFactory, Owned {
     {
         /// @dev ensure one account per address
         if (ownerToAccount[msg.sender] != address(0)) {
-            revert AlreadyCreatedAccount(ownerToAccount[msg.sender]);
+            revert OnlyOneAccountPerAddress(ownerToAccount[msg.sender]);
         }
 
         // create account and set beacon to this address (i.e. factory address)
@@ -109,15 +109,30 @@ contract Factory is IFactory, Owned {
         });
     }
 
+    /*//////////////////////////////////////////////////////////////
+                           ACCOUNT OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
+
     /// @inheritdoc IFactory
-    function updateAccountOwner(address _newOwner)
+    function updateAccountOwner(address _oldOwner, address _newOwner)
         external
         override
-        onlyOwner
     {
-        if (msg.sender == _newOwner) revert InvalidNewOwner();
-        address account = ownerToAccount[msg.sender];
-        delete ownerToAccount[msg.sender];
+        /// @dev ensure _newOwner does not already have an account
+        if (ownerToAccount[_newOwner] != address(0)) {
+            revert OnlyOneAccountPerAddress(ownerToAccount[_newOwner]);
+        }
+
+        // get account address
+        address account = ownerToAccount[_oldOwner];
+
+        // ensure account exists
+        if (account == address(0)) revert AccountDoesNotExist();
+
+        // ensure account owned by _oldOwner is the caller
+        if (msg.sender != account) revert CallerMustBeAccount();
+
+        delete ownerToAccount[_oldOwner];
         ownerToAccount[_newOwner] = account;
     }
 

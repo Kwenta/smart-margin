@@ -57,6 +57,48 @@ contract FactoryTest is Test {
         });
     }
 
+    function testAccountOwnerSet() public {
+        address payable accountAddress = factory.newAccount();
+        Account account = Account(accountAddress);
+        assertEq(account.owner(), address(this));
+    }
+
+    function testAccountMarginAssetSet() public {
+        address payable accountAddress = factory.newAccount();
+        Account account = Account(accountAddress);
+        assertEq(address(account.marginAsset()), SUSD);
+    }
+
+    function testAccountAddressResolverSet() public {
+        address payable accountAddress = factory.newAccount();
+        Account account = Account(accountAddress);
+        assertEq(address(account.addressResolver()), ADDRESS_RESOLVER);
+    }
+
+    function testAccountSettingsSet() public {
+        address payable accountAddress = factory.newAccount();
+        Account account = Account(accountAddress);
+        assertEq(address(account.settings()), address(settings));
+    }
+
+    function testAccountGelatoOpsSet() public {
+        address payable accountAddress = factory.newAccount();
+        Account account = Account(accountAddress);
+        assertEq(account.ops(), GELATO_OPS);
+    }
+
+    function testAccountFactorySet() public {
+        address payable accountAddress = factory.newAccount();
+        Account account = Account(accountAddress);
+        assertEq(address(account.factory()), address(factory));
+    }
+
+    function testAccountVersionSet() public {
+        address payable accountAddress = factory.newAccount();
+        Account account = Account(accountAddress);
+        assertEq(account.VERSION(), bytes32("2.0.0"));
+    }
+
     function testCannotCallInitializeOnImplementation() public {
         vm.expectRevert("Initializable: contract is already initialized");
         implementation.initialize({

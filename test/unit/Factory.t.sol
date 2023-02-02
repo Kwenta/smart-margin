@@ -10,6 +10,7 @@ import {Account} from "../../src/Account.sol";
 import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {AccountProxy} from "../../src/AccountProxy.sol";
 import {IAccountProxy} from "../../src/interfaces/IAccountProxy.sol";
+import {MockAccount1, MockAccount2} from "./utils/MockAccounts.sol";
 
 contract FactoryTest is Test {
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
@@ -22,7 +23,7 @@ contract FactoryTest is Test {
 
     address private constant ADDRESS_RESOLVER =
         0x1Cb059b7e74fD21665968C908806143E744D5F30;
-    address private SUSD = 0x57Ab1ec28D129707052df4dF418D58a2D46d5f51;
+    address private constant SUSD = 0x57Ab1ec28D129707052df4dF418D58a2D46d5f51;
     address private constant GELATO_OPS =
         0xB3f5503f93d5Ef84b06993a1975B9D21B962892F;
     address private constant KWENTA_TREASURY =
@@ -70,6 +71,7 @@ contract FactoryTest is Test {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
+
     function testOwnerSet() public {
         assertEq(factory.owner(), address(this));
     }
@@ -99,55 +101,170 @@ contract FactoryTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                              NEW ACCOUNT
+                           FACTORY OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
+
+    function testCanTransferOwnership() public {
+        factory.transferOwnership(address(0xCAFEBAE));
+        assertEq(factory.owner(), address(0xCAFEBAE));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           ACCOUNT DEPLOYMENT
     //////////////////////////////////////////////////////////////*/
 
     function testNewAccount() public {
         address payable accountAddress = factory.newAccount();
-        Account account = Account(accountAddress);
-        assertEq(account.owner(), address(this));
-        assertEq(address(account.marginAsset()), SUSD);
-        assertEq(address(account.addressResolver()), ADDRESS_RESOLVER);
-        assertEq(address(account.settings()), address(settings));
-        assertEq(account.ops(), GELATO_OPS);
-        assertEq(address(account.factory()), address(factory));
-        assertEq(account.VERSION(), bytes32("2.0.0"));
+        assert(accountAddress != address(0));
     }
 
-    function testAccountAddedToMapping() public {}
+    function testAccountAddedToMapping() public {
+        address payable accountAddress = factory.newAccount();
+        assertEq(factory.ownerToAccount(address(this)), accountAddress);
+    }
 
-    function testWhenAccountCannotBeInitialized() public {}
+    function testCannotCreateTwoAccounts() public {
+        address payable accountAddress = factory.newAccount();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IFactory.OnlyOneAccountPerAddress.selector,
+                accountAddress
+            )
+        );
+        factory.newAccount();
+    }
 
-    function testWhenAccountCannotFetchVersion() public {}
+    /// @dev this error does not catch 100% of scenarios.
+    /// it is possible for an implementation to lack an
+    /// initialize() function but contain a fallback()
+    /// function and AccountFailedToInitialize error
+    /// would *NOT* be triggered.
+    ///
+    /// Given this, it is up to the factory owner to take
+    /// extra care when creating the implementation to be used
+    function testWhenAccountCannotBeInitialized() public {
+        MockAccount1 mockAccount = new MockAccount1();
 
-    function testCannotCreateTwoAccounts() public {}
+        factory = new Factory({
+            _owner: address(this),
+            _marginAsset: SUSD,
+            _addressResolver: ADDRESS_RESOLVER,
+            _settings: address(settings),
+            _ops: payable(GELATO_OPS),
+            _implementation: address(mockAccount)
+        });
 
-    /*//////////////////////////////////////////////////////////////
-                             SYSTEM UPGRADE
-    //////////////////////////////////////////////////////////////*/
-    function testUpgradeSystem() public {}
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IFactory.AccountFailedToInitialize.selector,
+                ""
+            )
+        );
+        factory.newAccount();
+    }
 
-    function testAccountCreationPostUpgrade() public {}
+    /// @dev this error does not catch 100% of scenarios.
+    /// it is possible for an implementation to lack a
+    /// VERSION() function but contain a fallback()
+    /// function and AccountFailedToFetchVersion error
+    /// would *NOT* be triggered.
+    ///
+    /// Given this, it is up to the factory owner to take
+    /// extra care when creating the implementation to be used
+    function testWhenAccountCannotFetchVersion() public {
+        MockAccount2 mockAccount = new MockAccount2();
 
-    function testCannotUpgradeWhenNotEnabled() public {}
+        factory = new Factory({
+            _owner: address(this),
+            _marginAsset: SUSD,
+            _addressResolver: ADDRESS_RESOLVER,
+            _settings: address(settings),
+            _ops: payable(GELATO_OPS),
+            _implementation: address(mockAccount)
+        });
 
-    function testCanRemoveUpgradability() public {}
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IFactory.AccountFailedToFetchVersion.selector,
+                ""
+            )
+        );
+        factory.newAccount();
+    }
 
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
     function testNewAccountEvent() public {
         vm.expectEmit(true, false, false, false);
         emit NewAccount(address(this), address(0), bytes32(0));
         factory.newAccount();
     }
 
-    function testSystemUpgradedEvent() public {}
+    /*//////////////////////////////////////////////////////////////
+                           ACCOUNT OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
+
+    function testAccountCanTransferAccountOwnership() public {
+        address payable accountAddress = factory.newAccount();
+        Account(accountAddress).transferOwnership({
+            _newOwner: address(0xCAFEBAE)
+        });
+        assertEq(factory.ownerToAccount(address(this)), address(0));
+        assertEq(factory.ownerToAccount(address(0xCAFEBAE)), accountAddress);
+        assertEq(Account(accountAddress).owner(), address(0xCAFEBAE));
+    }
+
+    function testAccountCannotTransferOwnershipToAnotherAccountOwningAddress()
+        public
+    {
+        address payable accountAddress1 = factory.newAccount();
+        vm.prank(KWENTA_TREASURY);
+        address payable accountAddress2 = factory.newAccount();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IFactory.OnlyOneAccountPerAddress.selector,
+                accountAddress2
+            )
+        );
+        Account(accountAddress1).transferOwnership({
+            _newOwner: KWENTA_TREASURY
+        });
+    }
+
+    function testCannotUpdateAccountThatDoesNotExist() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(IFactory.AccountDoesNotExist.selector)
+        );
+        factory.updateAccountOwner({
+            _oldOwner: address(0xCAFEBAE),
+            _newOwner: address(0xBEEF)
+        });
+    }
+
+    function testCannotDirectlyUpdateAccount() public {
+        factory.newAccount();
+        vm.expectRevert(
+            abi.encodeWithSelector(IFactory.CallerMustBeAccount.selector)
+        );
+        factory.updateAccountOwner({
+            _oldOwner: address(this),
+            _newOwner: address(0xBEEF)
+        });
+    }
 
     /*//////////////////////////////////////////////////////////////
-                                  AUTH
+                             UPGRADABILITY
     //////////////////////////////////////////////////////////////*/
+
     function testCannotUpgradeWhenNotOwner() public {}
 
-    function testCannotemoveUpgradabilityWhenNotOwner() public {}
+    function testUpgradeSystem() public {}
+
+    function testSystemUpgradedEvent() public {}
+
+    function testAccountCreationPostUpgrade() public {}
+
+    function testCannotRemoveUpgradabilityWhenNotOwner() public {}
+
+    function testCanRemoveUpgradability() public {}
+
+    function testCannotUpgradeWhenNotEnabled() public {}
 }
