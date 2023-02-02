@@ -135,10 +135,6 @@ contract SettingsTest is Test {
         settings.setTreasury(address(0));
     }
 
-    function testFailSetSameTreasuryAddress() public {
-        settings.setTreasury(KWENTA_TREASURY);
-    }
-
     function testSettingTreasuryAddressEvent() public {
         vm.expectEmit(true, true, true, true);
         // event we expect

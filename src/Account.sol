@@ -50,8 +50,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /// @inheritdoc IAccount
     uint256 public orderId;
 
-    /// @notice order id mapped to order
-    mapping(uint256 => Order) public orders;
+    /// @notice order id mapped to order struct
+    mapping(uint256 => Order) private orders;
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -126,6 +126,32 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
+    function getDelayedOrder(bytes32 _marketKey)
+        external
+        view
+        override
+        returns (IPerpsV2MarketConsolidated.DelayedOrder memory order)
+    {
+        // fetch delayed order data from Synthetix
+        order = getPerpsV2Market(_marketKey).delayedOrders(address(this));
+    }
+
+    /// @inheritdoc IAccount
+    function checker(uint256 _orderId)
+        external
+        view
+        override
+        returns (bool canExec, bytes memory execPayload)
+    {
+        (canExec, ) = validOrder(_orderId);
+        // calldata for execute func
+        execPayload = abi.encodeWithSelector(
+            this.executeOrder.selector,
+            _orderId
+        );
+    }
+
+    /// @inheritdoc IAccount
     function freeMargin() public view override returns (uint256) {
         return marginAsset.balanceOf(address(this)) - committedMargin;
     }
@@ -139,17 +165,6 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     {
         // fetch position data from Synthetix
         position = getPerpsV2Market(_marketKey).positions(address(this));
-    }
-
-    /// @inheritdoc IAccount
-    function getDelayedOrder(bytes32 _marketKey)
-        public
-        view
-        override
-        returns (IPerpsV2MarketConsolidated.DelayedOrder memory order)
-    {
-        // fetch delayed order data from Synthetix
-        order = getPerpsV2Market(_marketKey).delayedOrders(address(this));
     }
 
     /// @inheritdoc IAccount
@@ -168,32 +183,25 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     }
 
     /// @inheritdoc IAccount
-    function checker(uint256 _orderId)
-        external
+    function getOrder(uint256 _orderId)
+        public
         view
         override
-        returns (bool canExec, bytes memory execPayload)
+        returns (Order memory)
     {
-        (canExec, ) = validOrder(_orderId);
-        // calldata for execute func
-        execPayload = abi.encodeWithSelector(
-            this.executeOrder.selector,
-            _orderId
-        );
+        return orders[_orderId];
     }
 
     /*//////////////////////////////////////////////////////////////
                            ACCOUNT OWNERSHIP
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc IAccount
-    function transferAccountOwnership(address _newOwner)
-        external
-        override
-        onlyOwner
-    {
-        transferOwnership(_newOwner);
-        factory.updateAccountOwner({_newOwner: _newOwner});
+    /// @notice transfer ownership of this account to a new address
+    /// @dev will update factory's mapping record of owner to account
+    /// @param _newOwner: address to transfer ownership to
+    function transferOwnership(address _newOwner) public override onlyOwner {
+        factory.updateAccountOwner({_oldOwner: owner, _newOwner: _newOwner});
+        super.transferOwnership(_newOwner);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -475,7 +483,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         override
         returns (bool, uint256)
     {
-        Order memory order = orders[_orderId];
+        Order memory order = getOrder(_orderId);
 
         if (order.maxDynamicFee != 0) {
             (uint256 dynamicFee, bool tooVolatile) = exchanger()
@@ -660,7 +668,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
     /// @inheritdoc IAccount
     function cancelOrder(uint256 _orderId) external override onlyOwner {
-        Order memory order = orders[_orderId];
+        Order memory order = getOrder(_orderId);
 
         // if margin was committed, free it
         if (order.marginDelta > 0) {
@@ -680,7 +688,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         if (!isValidOrder) {
             revert OrderInvalid();
         }
-        Order memory order = orders[_orderId];
+        Order memory order = getOrder(_orderId);
 
         // if margin was committed, free it
         if (order.marginDelta > 0) {

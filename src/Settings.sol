@@ -11,23 +11,23 @@ contract Settings is ISettings, Owned {
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice max BPS; used for decimals calculations
+    /// @inheritdoc ISettings
     uint256 public constant MAX_BPS = 10000;
 
     /*//////////////////////////////////////////////////////////////
                                 SETTINGS
     //////////////////////////////////////////////////////////////*/
 
-    // @notice Kwenta's Treasury Address
+    /// @inheritdoc ISettings
     address public treasury;
 
-    /// @dev fee imposed on all trades where sizeDelta is non-zero
+    /// @inheritdoc ISettings
     uint256 public tradeFee;
 
-    /// @dev fee imposed on limit orders
+    /// @inheritdoc ISettings
     uint256 public limitOrderFee;
 
-    /// @dev fee imposed on stop losses
+    /// @inheritdoc ISettings
     uint256 public stopOrderFee;
 
     /*//////////////////////////////////////////////////////////////

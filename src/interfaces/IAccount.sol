@@ -198,8 +198,21 @@ interface IAccount {
     /// @return returns current order id
     function orderId() external view returns (uint256);
 
-    // @TODO why does this not work?
-    // function orders(uint256 _orderId) external view returns (Order memory orders);
+    /// @notice get delayed order data from Synthetix PerpsV2
+    /// @param _marketKey: key for Synthetix PerpsV2 Market
+    /// @return order struct defining delayed order
+    function getDelayedOrder(bytes32 _marketKey)
+        external
+        returns (IPerpsV2MarketConsolidated.DelayedOrder memory);
+
+    /// @notice signal to a keeper that an order is valid/invalid for execution
+    /// @param _orderId: key for an active order
+    /// @return canExec boolean that signals to keeper an order can be executed
+    /// @return execPayload calldata for executing an order
+    function checker(uint256 _orderId)
+        external
+        view
+        returns (bool canExec, bytes memory execPayload);
 
     /// @notice the current withdrawable or usable balance
     function freeMargin() external view returns (uint256);
@@ -210,13 +223,6 @@ interface IAccount {
     function getPosition(bytes32 _marketKey)
         external
         returns (IPerpsV2MarketConsolidated.Position memory);
-
-    /// @notice get delayed order data from Synthetix PerpsV2
-    /// @param _marketKey: key for Synthetix PerpsV2 Market
-    /// @return order struct defining delayed order
-    function getDelayedOrder(bytes32 _marketKey)
-        external
-        returns (IPerpsV2MarketConsolidated.DelayedOrder memory);
 
     /// @notice calculate fee based on both size and given market
     /// @param _sizeDelta: size delta of given trade
@@ -230,23 +236,12 @@ interface IAccount {
         uint256 _advancedOrderFee
     ) external view returns (uint256);
 
-    /// @notice signal to a keeper that an order is valid/invalid for execution
-    /// @param _orderId: key for an active order
-    /// @return canExec boolean that signals to keeper an order can be executed
-    /// @return execPayload calldata for executing an order
-    function checker(uint256 _orderId)
-        external
-        view
-        returns (bool canExec, bytes memory execPayload);
+    /// @notice order id mapped to order
+    function getOrder(uint256 _orderId) external view returns (Order memory);
 
     /*//////////////////////////////////////////////////////////////
                                 MUTATIVE
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice transfer ownership of this account to a new address
-    /// @dev will update factory's mapping record of owner to account
-    /// @param _newOwner: address to transfer ownership to
-    function transferAccountOwnership(address _newOwner) external;
 
     /// @notice deposit margin asset to trade with into this contract
     /// @param _amount: amount of marginAsset to deposit into account

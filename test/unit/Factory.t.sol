@@ -282,7 +282,7 @@ contract FactoryTest is Test {
             _ops: payable(GELATO_OPS)
         });
         // check version changed
-        bytes32 newVersion = "3.0.0";
+        bytes32 newVersion = "2.0.1";
         assertEq(Account(accountAddress).VERSION(), newVersion);
         // check owner did not change
         assertEq(Account(accountAddress).owner(), address(this));
@@ -317,7 +317,7 @@ contract FactoryTest is Test {
             _ops: payable(GELATO_OPS)
         });
         address payable accountAddress = factory.newAccount();
-        bytes32 newVersion = "3.0.0";
+        bytes32 newVersion = "2.0.1";
         assertEq(Account(accountAddress).VERSION(), newVersion);
     }
 
