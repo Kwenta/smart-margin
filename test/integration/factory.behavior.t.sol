@@ -11,7 +11,7 @@ import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {AccountProxy} from "../../src/AccountProxy.sol";
 import {IAccountProxy} from "../../src/interfaces/IAccountProxy.sol";
 
-contract FactoryTest is Test {
+contract FactoryBehaviorTest is Test {
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
     /// @dev hard coded addresses are only guaranteed for this block
     uint256 private constant BLOCK_NUMBER = 60242268;
