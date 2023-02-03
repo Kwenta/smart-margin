@@ -216,6 +216,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         notZero(_amount, "_amount")
     {
         // attempt to transfer margin asset from user into this account
+        /// @dev marginAsset defined by factory owner thus 
+        /// reentrancy is not protected against here
         bool success = marginAsset.transferFrom(owner, address(this), _amount);
         if (!success) revert FailedMarginTransfer();
 
