@@ -232,6 +232,20 @@ contract FactoryTest is Test {
         Account(accountAddress1).transferOwnership({_newOwner: TEST_ACCOUNT});
     }
 
+    function testAccountOwnerCannotTransferAnotherAccount() public {
+        factory.newAccount();
+        vm.prank(TEST_ACCOUNT);
+        factory.newAccount();
+        vm.expectRevert(
+            abi.encodeWithSelector(IFactory.CallerMustBeAccount.selector)
+        );
+        // try to brick account owned by TEST_ACCOUNT
+        factory.updateAccountOwner({
+            _oldOwner: TEST_ACCOUNT,
+            _newOwner: address(0)
+        });
+    }
+
     function testCannotUpdateAccountThatDoesNotExist() public {
         vm.expectRevert(
             abi.encodeWithSelector(IFactory.AccountDoesNotExist.selector)
