@@ -336,18 +336,12 @@ contract FactoryTest is Test {
         address payable accountAddress = factory.newAccount();
         factory.upgradeMarginAsset({_marginAsset: address(0)});
         // check margin asset address did *NOT* change
-        assertEq(
-            address(Account(accountAddress).marginAsset()),
-            SUSD
-        );
+        assertEq(address(Account(accountAddress).marginAsset()), SUSD);
         // check new account uses new margin asset
         vm.prank(TEST_ACCOUNT);
         address payable accountAddress2 = factory.newAccount();
         // check margin asset address did change
-        assertEq(
-            address(Account(accountAddress2).marginAsset()),
-            address(0)
-        );
+        assertEq(address(Account(accountAddress2).marginAsset()), address(0));
     }
 
     function testUpgradeMarginAssetEvent() public {
@@ -359,6 +353,26 @@ contract FactoryTest is Test {
     function testCannotUpgradeAddressResolverWhenNotOwner() public {
         vm.expectRevert("UNAUTHORIZED");
         vm.prank(TEST_ACCOUNT);
+        factory.upgradeAddressResolver({_addressResolver: address(0)});
+    }
+
+    function testUpgradeAddressResolver() public {
+        address payable accountAddress = factory.newAccount();
+        factory.upgradeAddressResolver({_addressResolver: address(0)});
+        // check address resolver address did *NOT* change
+        assertEq(
+            address(Account(accountAddress).addressResolver()),
+            ADDRESS_RESOLVER
+        );
+        // check new account uses new address resolver
+        vm.prank(TEST_ACCOUNT);
+        vm.expectRevert(); // revert from invalid address resolver
+        factory.newAccount();
+    }
+
+    function testUpgradeMAddressResolverEvent() public {
+        vm.expectEmit(true, true, true, true);
+        emit AddressResolverUpgraded(address(0));
         factory.upgradeAddressResolver({_addressResolver: address(0)});
     }
 
