@@ -332,6 +332,30 @@ contract FactoryTest is Test {
         factory.upgradeMarginAsset({_marginAsset: address(0)});
     }
 
+    function testUpgradeMarginAsset() public {
+        address payable accountAddress = factory.newAccount();
+        factory.upgradeMarginAsset({_marginAsset: address(0)});
+        // check margin asset address did *NOT* change
+        assertEq(
+            address(Account(accountAddress).marginAsset()),
+            SUSD
+        );
+        // check new account uses new margin asset
+        vm.prank(TEST_ACCOUNT);
+        address payable accountAddress2 = factory.newAccount();
+        // check margin asset address did change
+        assertEq(
+            address(Account(accountAddress2).marginAsset()),
+            address(0)
+        );
+    }
+
+    function testUpgradeMarginAssetEvent() public {
+        vm.expectEmit(true, true, true, true);
+        emit MarginAssetUpgraded(address(0));
+        factory.upgradeMarginAsset({_marginAsset: address(0)});
+    }
+
     function testCannotUpgradeAddressResolverWhenNotOwner() public {
         vm.expectRevert("UNAUTHORIZED");
         vm.prank(TEST_ACCOUNT);
