@@ -370,7 +370,7 @@ contract FactoryTest is Test {
         factory.newAccount();
     }
 
-    function testUpgradeMAddressResolverEvent() public {
+    function testUpgradeAddressResolverEvent() public {
         vm.expectEmit(true, true, true, true);
         emit AddressResolverUpgraded(address(0));
         factory.upgradeAddressResolver({_addressResolver: address(0)});
@@ -379,6 +379,24 @@ contract FactoryTest is Test {
     function testCannotUpgradeOpsWhenNotOwner() public {
         vm.expectRevert("UNAUTHORIZED");
         vm.prank(TEST_ACCOUNT);
+        factory.upgradeOps({_ops: payable(address(0))});
+    }
+
+    function testUpgradeOps() public {
+        address payable accountAddress = factory.newAccount();
+        factory.upgradeOps({_ops: payable(address(0))});
+        // check ops address did *NOT* change
+        assertEq(address(Account(accountAddress).ops()), GELATO_OPS);
+        // check new account uses new ops
+        vm.prank(TEST_ACCOUNT);
+        address payable accountAddress2 = factory.newAccount();
+        // check ops address did change
+        assertEq(address(Account(accountAddress2).ops()), address(0));
+    }
+
+    function testUpgradeOpsEvent() public {
+        vm.expectEmit(true, true, true, true);
+        emit OpsUpgraded(payable(address(0)));
         factory.upgradeOps({_ops: payable(address(0))});
     }
 
