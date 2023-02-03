@@ -22,6 +22,8 @@ contract FactoryTest is Test {
     Factory private factory;
     Account private implementation;
 
+    address private constant TEST_ACCOUNT =
+        0x42f9134E9d3Bf7eEE1f8A5Ac2a4328B059E7468c;
     address private constant ADDRESS_RESOLVER =
         0x1Cb059b7e74fD21665968C908806143E744D5F30;
     address private constant SUSD = 0x57Ab1ec28D129707052df4dF418D58a2D46d5f51;
@@ -41,13 +43,11 @@ contract FactoryTest is Test {
         address indexed account,
         bytes32 version
     );
-    event SystemUpgraded(
-        address implementation,
-        address settings,
-        address marginAsset,
-        address addressResolver,
-        address ops
-    );
+    event AccountImplementationUpgraded(address implementation);
+    event SettingsUpgraded(address settings);
+    event MarginAssetUpgraded(address marginAsset);
+    event AddressResolverUpgraded(address addressResolver);
+    event OpsUpgraded(address payable ops);
 
     function setUp() public {
         // select block number
@@ -221,7 +221,7 @@ contract FactoryTest is Test {
         public
     {
         address payable accountAddress1 = factory.newAccount();
-        vm.prank(KWENTA_TREASURY);
+        vm.prank(TEST_ACCOUNT);
         address payable accountAddress2 = factory.newAccount();
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -229,9 +229,7 @@ contract FactoryTest is Test {
                 accountAddress2
             )
         );
-        Account(accountAddress1).transferOwnership({
-            _newOwner: KWENTA_TREASURY
-        });
+        Account(accountAddress1).transferOwnership({_newOwner: TEST_ACCOUNT});
     }
 
     function testCannotUpdateAccountThatDoesNotExist() public {
@@ -259,71 +257,96 @@ contract FactoryTest is Test {
                              UPGRADABILITY
     //////////////////////////////////////////////////////////////*/
 
-    function testCannotUpgradeWhenNotOwner() public {
+    function testCannotUpgradeAccountImplementationWhenNotOwner() public {
         vm.expectRevert("UNAUTHORIZED");
-        vm.prank(KWENTA_TREASURY);
-        factory.upgradeSystem({
-            _implementation: address(0),
-            _settings: address(0),
-            _marginAsset: address(0),
-            _addressResolver: address(0),
-            _ops: payable(address(0))
-        });
+        vm.prank(TEST_ACCOUNT);
+        factory.upgradeAccountImplementation({_implementation: address(0)});
     }
 
-    function testUpgradeSystem() public {
+    function testUpgradeAccountImplementation() public {
         address payable accountAddress = factory.newAccount();
         UpgradedAccount newImplementation = new UpgradedAccount();
-        factory.upgradeSystem({
-            _implementation: address(newImplementation),
-            _settings: address(settings),
-            _marginAsset: SUSD,
-            _addressResolver: ADDRESS_RESOLVER,
-            _ops: payable(GELATO_OPS)
+        factory.upgradeAccountImplementation({
+            _implementation: address(newImplementation)
         });
         // check version changed
         bytes32 newVersion = "2.0.1";
         assertEq(Account(accountAddress).VERSION(), newVersion);
         // check owner did not change
         assertEq(Account(accountAddress).owner(), address(this));
+        // check new account uses new implementation
+        vm.prank(TEST_ACCOUNT);
+        address payable accountAddress2 = factory.newAccount();
+        assertEq(Account(accountAddress2).VERSION(), newVersion);
+        assertEq(Account(accountAddress2).owner(), TEST_ACCOUNT);
     }
 
-    function testSystemUpgradedEvent() public {
-        UpgradedAccount newImplementation = new UpgradedAccount();
+    function testUpgradeAccountImplementationEvent() public {
         vm.expectEmit(true, true, true, true);
-        emit SystemUpgraded(
-            address(newImplementation),
-            address(settings),
-            SUSD,
-            ADDRESS_RESOLVER,
-            GELATO_OPS
-        );
-        factory.upgradeSystem({
-            _implementation: address(newImplementation),
-            _settings: address(settings),
-            _marginAsset: SUSD,
-            _addressResolver: ADDRESS_RESOLVER,
-            _ops: payable(GELATO_OPS)
-        });
+        emit AccountImplementationUpgraded(address(0));
+        factory.upgradeAccountImplementation({_implementation: address(0)});
     }
 
-    function testAccountCreationPostUpgrade() public {
-        UpgradedAccount newImplementation = new UpgradedAccount();
-        factory.upgradeSystem({
-            _implementation: address(newImplementation),
-            _settings: address(settings),
-            _marginAsset: SUSD,
-            _addressResolver: ADDRESS_RESOLVER,
-            _ops: payable(GELATO_OPS)
-        });
+    function testCannotUpgradeSettingsWhenNotOwner() public {
+        vm.expectRevert("UNAUTHORIZED");
+        vm.prank(KWENTA_TREASURY);
+        factory.upgradeSettings({_settings: address(0)});
+    }
+
+    function testUpgradeSettings() public {
         address payable accountAddress = factory.newAccount();
-        bytes32 newVersion = "2.0.1";
-        assertEq(Account(accountAddress).VERSION(), newVersion);
+        address newSettings = address(
+            new Settings({
+                _owner: TEST_ACCOUNT, // change owner
+                _treasury: KWENTA_TREASURY,
+                _tradeFee: TRADE_FEE,
+                _limitOrderFee: LIMIT_ORDER_FEE,
+                _stopOrderFee: STOP_LOSS_FEE
+            })
+        );
+        factory.upgradeSettings({_settings: newSettings});
+        // check settings owner did *NOT* change
+        assertEq(
+            Settings(address(Account(accountAddress).settings())).owner(),
+            address(this)
+        );
+        // check new account uses new settings
+        vm.prank(TEST_ACCOUNT);
+        address payable accountAddress2 = factory.newAccount();
+        // check new accounts settings owner did change
+        assertEq(
+            Settings(address(Account(accountAddress2).settings())).owner(),
+            TEST_ACCOUNT
+        );
+    }
+
+    function testUpgradeSettingsEvent() public {
+        vm.expectEmit(true, true, true, true);
+        emit SettingsUpgraded(address(0));
+        factory.upgradeSettings({_settings: address(0)});
+    }
+
+    function testCannotUpgradeMarginAssetWhenNotOwner() public {
+        vm.expectRevert("UNAUTHORIZED");
+        vm.prank(TEST_ACCOUNT);
+        factory.upgradeMarginAsset({_marginAsset: address(0)});
+    }
+
+    function testCannotUpgradeAddressResolverWhenNotOwner() public {
+        vm.expectRevert("UNAUTHORIZED");
+        vm.prank(TEST_ACCOUNT);
+        factory.upgradeAddressResolver({_addressResolver: address(0)});
+    }
+
+    function testCannotUpgradeOpsWhenNotOwner() public {
+        vm.expectRevert("UNAUTHORIZED");
+        vm.prank(TEST_ACCOUNT);
+        factory.upgradeOps({_ops: payable(address(0))});
     }
 
     function testCannotRemoveUpgradabilityWhenNotOwner() public {
         vm.expectRevert("UNAUTHORIZED");
-        vm.prank(KWENTA_TREASURY);
+        vm.prank(TEST_ACCOUNT);
         factory.removeUpgradability();
     }
 
@@ -332,18 +355,43 @@ contract FactoryTest is Test {
         assertEq(factory.canUpgrade(), false);
     }
 
-    function testCannotUpgradeWhenNotEnabled() public {
+    function testCannotUpgradeAccountImplementationWhenNotEnabled() public {
         factory.removeUpgradability();
-        UpgradedAccount newImplementation = new UpgradedAccount();
         vm.expectRevert(
             abi.encodeWithSelector(IFactory.CannotUpgrade.selector)
         );
-        factory.upgradeSystem({
-            _implementation: address(newImplementation),
-            _settings: address(settings),
-            _marginAsset: SUSD,
-            _addressResolver: ADDRESS_RESOLVER,
-            _ops: payable(GELATO_OPS)
-        });
+        factory.upgradeAccountImplementation({_implementation: address(0)});
+    }
+
+    function testCannotUpgradeSettingsWhenNotEnabled() public {
+        factory.removeUpgradability();
+        vm.expectRevert(
+            abi.encodeWithSelector(IFactory.CannotUpgrade.selector)
+        );
+        factory.upgradeSettings({_settings: address(0)});
+    }
+
+    function testCannotUpgradeMarginAssetWhenNotEnabled() public {
+        factory.removeUpgradability();
+        vm.expectRevert(
+            abi.encodeWithSelector(IFactory.CannotUpgrade.selector)
+        );
+        factory.upgradeMarginAsset({_marginAsset: address(0)});
+    }
+
+    function testCannotUpgradeAddressResolverWhenNotEnabled() public {
+        factory.removeUpgradability();
+        vm.expectRevert(
+            abi.encodeWithSelector(IFactory.CannotUpgrade.selector)
+        );
+        factory.upgradeAddressResolver({_addressResolver: address(0)});
+    }
+
+    function testCannotOpsWhenNotEnabled() public {
+        factory.removeUpgradability();
+        vm.expectRevert(
+            abi.encodeWithSelector(IFactory.CannotUpgrade.selector)
+        );
+        factory.upgradeOps({_ops: payable(address(0))});
     }
 }

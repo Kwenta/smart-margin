@@ -17,19 +17,25 @@ interface IFactory {
         bytes32 version
     );
 
-    /// @notice emitted when system is upgraded
+    /// @notice emitted when implementation is upgraded
     /// @param implementation: address of new implementation
+    event AccountImplementationUpgraded(address implementation);
+
+    /// @notice emitted when settings is upgraded
     /// @param settings: address of new settings
+    event SettingsUpgraded(address settings);
+
+    /// @notice emitted when marginAsset is upgraded
     /// @param marginAsset: address of new margin asset
+    event MarginAssetUpgraded(address marginAsset);
+
+    /// @notice emitted when addressResolver is upgraded
     /// @param addressResolver: new synthetix address resolver
+    event AddressResolverUpgraded(address addressResolver);
+
+    /// @notice emitted when ops is upgraded
     /// @param ops: new gelato ops -- must be payable
-    event SystemUpgraded(
-        address implementation,
-        address settings,
-        address marginAsset,
-        address addressResolver,
-        address ops
-    );
+    event OpsUpgraded(address payable ops);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -96,21 +102,38 @@ interface IFactory {
     /// @param _newOwner: new owner of account
     function updateAccountOwner(address _oldOwner, address _newOwner) external;
 
-    /// @notice upgrade system (implementation, settings, marginAsset, addressResolver, ops)
-    /// @dev *DANGER* this function does not check any of the parameters for validity,
-    /// thus, a bad upgrade could result in severe consequences. 
+    /*//////////////////////////////////////////////////////////////
+                             UPGRADABILITY
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice upgrade implementation of account which all account proxies currently point to
+    /// @dev this *will* impact all existing accounts
+    /// @dev future accounts will also point to this new implementation (until 
+    /// upgradeAccountImplementation() is called again with a newer implementation)
+    /// @dev *DANGER* this function does not check the new implementation for validity,
+    /// thus, a bad upgrade could result in severe consequences.
     /// @param _implementation: address of new implementation
+    function upgradeAccountImplementation(address _implementation) external;
+
+    /// @dev upgrade settings for all future accounts; existing accounts will not be affected
+    /// and will point to settings address they were initially deployed with
     /// @param _settings: address of new settings
+    function upgradeSettings(address _settings) external;
+
+    /// @dev upgrade margin asset for all future accounts; existing accounts will not be affected
+    /// and will point to margin asset address they were initially deployed with
     /// @param _marginAsset: address of new margin asset
+    function upgradeMarginAsset(address _marginAsset) external;
+
+    /// @dev upgrade address resolver for all future accounts; existing accounts will not be affected
+    /// and will point to address resolver address they were initially deployed with
     /// @param _addressResolver: new synthetix address resolver
+    function upgradeAddressResolver(address _addressResolver) external;
+
+    /// @dev upgrade ops for all future accounts; existing accounts will not be affected
+    /// and will point to ops address they were initially deployed with
     /// @param _ops: new gelato ops
-    function upgradeSystem(
-        address _implementation,
-        address _settings,
-        address _marginAsset,
-        address _addressResolver,
-        address payable _ops
-    ) external;
+    function upgradeOps(address payable _ops) external;
 
     /// @notice remove upgradability from factory
     /// @dev cannot be undone
