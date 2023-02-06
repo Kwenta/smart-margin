@@ -12,6 +12,8 @@ import "../../src/Factory.sol";
 import "../../src/interfaces/IFactory.sol";
 import "../../src/Account.sol";
 import "../../src/interfaces/IAccount.sol";
+import {Events} from "../../src/Events.sol";
+import {IEvents} from "../../src/interfaces/IEvents.sol";
 
 contract AccountTest is Test {
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
@@ -56,6 +58,7 @@ contract AccountTest is Test {
     event FeeImposed(address indexed account, uint256 amount);
 
     Settings private settings;
+    Events private events;
     Factory private factory;
     ERC20 private sUSD;
 
@@ -75,11 +78,14 @@ contract AccountTest is Test {
             _stopOrderFee: STOP_LOSS_FEE
         });
 
+        events = new Events();
+
         address implementation = address(new Account());
 
         factory = new Factory({
             _owner: address(this),
             _settings: address(settings),
+            _events: address(events),
             _implementation: implementation
         });
     }

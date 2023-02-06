@@ -24,6 +24,9 @@ contract Factory is IFactory, Owned {
     address public settings;
 
     /// @inheritdoc IFactory
+    address public events;
+
+    /// @inheritdoc IFactory
     mapping(address => address) public ownerToAccount;
 
     /*//////////////////////////////////////////////////////////////
@@ -32,14 +35,17 @@ contract Factory is IFactory, Owned {
 
     /// @notice constructor for factory
     /// @param _owner: owner of factory
-    /// @param _settings: address of settings for accounts
+    /// @param _settings: address of settings contract for accounts
+    /// @param _events: address of events contract for accounts
     /// @param _implementation: address of account implementation
     constructor(
         address _owner,
         address _settings,
+        address _events,
         address _implementation
     ) Owned(_owner) {
         settings = _settings;
+        events = _events;
         implementation = _implementation;
     }
 
@@ -67,9 +73,10 @@ contract Factory is IFactory, Owned {
         // initialize new account
         (bool success, bytes memory data) = accountAddress.call(
             abi.encodeWithSignature(
-                "initialize(address,address,address)",
+                "initialize(address,address,address,address)",
                 msg.sender, // caller will be set as owner
                 settings,
+                events,
                 address(this)
             )
         );
@@ -135,6 +142,13 @@ contract Factory is IFactory, Owned {
         if (!canUpgrade) revert CannotUpgrade();
         settings = _settings;
         emit SettingsUpgraded({settings: _settings});
+    }
+
+    /// @inheritdoc IFactory
+    function upgradeEvents(address _events) external override onlyOwner {
+        if (!canUpgrade) revert CannotUpgrade();
+        events = _events;
+        emit EventsUpgraded({events: _events});
     }
 
     /// @inheritdoc IFactory

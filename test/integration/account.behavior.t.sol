@@ -12,6 +12,8 @@ import "../../src/Factory.sol";
 import "../../src/interfaces/IFactory.sol";
 import "../../src/Account.sol";
 import "../../src/interfaces/IAccount.sol";
+import "../../src/Events.sol";
+import "../../src/interfaces/IEvents.sol";
 
 // functions tagged with @HELPER are helper functions and not tests
 // tests tagged with @AUDITOR are flags for desired increased scrutiny by the auditors
@@ -84,6 +86,7 @@ contract AccountBehaviorTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     Settings private settings;
+    Events private events;
     Factory private factory;
     ERC20 private sUSD;
 
@@ -109,11 +112,14 @@ contract AccountBehaviorTest is Test {
             _stopOrderFee: STOP_LOSS_FEE
         });
 
+        events = new Events();
+
         address implementation = address(new Account());
 
         factory = new Factory({
             _owner: address(this),
             _settings: address(settings),
+            _events: address(events),
             _implementation: implementation
         });
     }
@@ -207,7 +213,7 @@ contract AccountBehaviorTest is Test {
         } else {
             // check deposit event emitted
             vm.expectEmit(true, false, false, true);
-            emit Deposit(address(this), x);
+            emit Deposit(address(account), x);
 
             // deposit sUSD into account
             account.deposit(x);
@@ -267,7 +273,7 @@ contract AccountBehaviorTest is Test {
         } else {
             // check withdraw event emitted
             vm.expectEmit(true, false, false, true);
-            emit Withdraw(address(this), x);
+            emit Withdraw(address(account), x);
 
             // withdraw sUSD from account
             account.withdraw(x);
@@ -352,7 +358,7 @@ contract AccountBehaviorTest is Test {
         } else {
             // check EthWithdraw event emitted
             vm.expectEmit(true, false, false, true);
-            emit EthWithdraw(address(this), x);
+            emit EthWithdraw(address(account), x);
 
             // withdraw ETH
             account.withdrawEth(x);

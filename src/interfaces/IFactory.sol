@@ -21,9 +21,13 @@ interface IFactory {
     /// @param implementation: address of new implementation
     event AccountImplementationUpgraded(address implementation);
 
-    /// @notice emitted when settings is upgraded
-    /// @param settings: address of new settings
+    /// @notice emitted when settings contract is upgraded
+    /// @param settings: address of new settings contract
     event SettingsUpgraded(address settings);
+
+    /// @notice emitted when events contract is upgraded
+    /// @param events: address of new events contract
+    event EventsUpgraded(address events);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -61,8 +65,11 @@ interface IFactory {
     /// @return logic: account logic address
     function implementation() external view returns (address);
 
-    /// @return settings: address of settings for accounts
+    /// @return settings: address of settings contract for accounts
     function settings() external view returns (address);
+
+    /// @return events: address of events contract for accounts
+    function events() external view returns (address);
 
     /// @return address of account owned by _owner
     /// @param _owner: owner of account
@@ -87,17 +94,22 @@ interface IFactory {
 
     /// @notice upgrade implementation of account which all account proxies currently point to
     /// @dev this *will* impact all existing accounts
-    /// @dev future accounts will also point to this new implementation (until 
+    /// @dev future accounts will also point to this new implementation (until
     /// upgradeAccountImplementation() is called again with a newer implementation)
     /// @dev *DANGER* this function does not check the new implementation for validity,
     /// thus, a bad upgrade could result in severe consequences.
     /// @param _implementation: address of new implementation
     function upgradeAccountImplementation(address _implementation) external;
 
-    /// @dev upgrade settings for all future accounts; existing accounts will not be affected
+    /// @dev upgrade settings contract for all future accounts; existing accounts will not be affected
     /// and will point to settings address they were initially deployed with
-    /// @param _settings: address of new settings
+    /// @param _settings: address of new settings contract
     function upgradeSettings(address _settings) external;
+
+    /// @dev upgrade events contract for all future accounts; existing accounts will not be affected
+    /// and will point to events address they were initially deployed with
+    /// @param _events: address of new events contract
+    function upgradeEvents(address _events) external;
 
     /// @notice remove upgradability from factory
     /// @dev cannot be undone

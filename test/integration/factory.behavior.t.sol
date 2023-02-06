@@ -10,6 +10,8 @@ import {Account} from "../../src/Account.sol";
 import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {AccountProxy} from "../../src/AccountProxy.sol";
 import {IAccountProxy} from "../../src/interfaces/IAccountProxy.sol";
+import {Events} from "../../src/Events.sol";
+import {IEvents} from "../../src/interfaces/IEvents.sol";
 
 contract FactoryBehaviorTest is Test {
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
@@ -17,6 +19,7 @@ contract FactoryBehaviorTest is Test {
     uint256 private constant BLOCK_NUMBER = 60242268;
 
     Settings private settings;
+    Events private events;
     Factory private factory;
     Account private implementation;
 
@@ -39,11 +42,14 @@ contract FactoryBehaviorTest is Test {
             _stopOrderFee: STOP_LOSS_FEE
         });
 
+        events = new Events();
+
         implementation = new Account();
 
         factory = new Factory({
             _owner: address(this),
             _settings: address(settings),
+            _events: address(events),
             _implementation: address(implementation)
         });
     }
@@ -89,6 +95,7 @@ contract FactoryBehaviorTest is Test {
         implementation.initialize({
             _owner: address(this),
             _settings: address(settings),
+            _events: address(events),
             _factory: address(factory)
         });
     }

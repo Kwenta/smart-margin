@@ -8,6 +8,7 @@ import {IFactory} from "./IFactory.sol";
 import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
 import {IPerpsV2MarketConsolidated} from "@synthetix/IPerpsV2MarketConsolidated.sol";
 import {ISettings} from "./ISettings.sol";
+import {IEvents} from "./IEvents.sol";
 
 /// @title Kwenta Smart Margin Account Interface
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
@@ -194,6 +195,9 @@ interface IAccount {
 
     /// @return returns the address of the native settings for account
     function settings() external view returns (ISettings);
+
+    /// @return returns the address of events contract for accounts
+    function events() external view returns (IEvents);
 
     /// @return returns the amount of margin locked for future events (ie. limit orders)
     function committedMargin() external view returns (uint256);

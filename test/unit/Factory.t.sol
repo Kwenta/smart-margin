@@ -8,6 +8,8 @@ import {Factory} from "../../src/Factory.sol";
 import {IFactory} from "../../src/interfaces/IFactory.sol";
 import {Account} from "../../src/Account.sol";
 import {IAccount} from "../../src/interfaces/IAccount.sol";
+import {Events} from "../../src/Events.sol";
+import {IEvents} from "../../src/interfaces/IEvents.sol";
 import {AccountProxy} from "../../src/AccountProxy.sol";
 import {IAccountProxy} from "../../src/interfaces/IAccountProxy.sol";
 import {MockAccount1, MockAccount2} from "./utils/MockAccounts.sol";
@@ -19,6 +21,7 @@ contract FactoryTest is Test {
     uint256 private constant BLOCK_NUMBER = 60242268;
 
     Settings private settings;
+    Events private events;
     Factory private factory;
     Account private implementation;
 
@@ -53,11 +56,14 @@ contract FactoryTest is Test {
             _stopOrderFee: STOP_LOSS_FEE
         });
 
+        events = new Events();
+
         implementation = new Account();
 
         factory = new Factory({
             _owner: address(this),
             _settings: address(settings),
+            _events: address(events),
             _implementation: address(implementation)
         });
     }
@@ -130,6 +136,7 @@ contract FactoryTest is Test {
         factory = new Factory({
             _owner: address(this),
             _settings: address(settings),
+            _events: address(events),
             _implementation: address(mockAccount)
         });
 
@@ -156,6 +163,7 @@ contract FactoryTest is Test {
         factory = new Factory({
             _owner: address(this),
             _settings: address(settings),
+            _events: address(events),
             _implementation: address(mockAccount)
         });
 

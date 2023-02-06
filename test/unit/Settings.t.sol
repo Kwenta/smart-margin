@@ -2,12 +2,16 @@
 pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
-import "../../src/Settings.sol";
-import "../../src/interfaces/ISettings.sol";
-import "../../src/Factory.sol";
-import "../../src/interfaces/IFactory.sol";
-import "../../src/Account.sol";
-import "../../src/interfaces/IAccount.sol";
+import {Settings} from "../../src/Settings.sol";
+import {ISettings} from "../../src/interfaces/ISettings.sol";
+import {Factory} from "../../src/Factory.sol";
+import {IFactory} from "../../src/interfaces/IFactory.sol";
+import {Account} from "../../src/Account.sol";
+import {IAccount} from "../../src/interfaces/IAccount.sol";
+import {AccountProxy} from "../../src/AccountProxy.sol";
+import {IAccountProxy} from "../../src/interfaces/IAccountProxy.sol";
+import {Events} from "../../src/Events.sol";
+import {IEvents} from "../../src/interfaces/IEvents.sol";
 
 contract SettingsTest is Test {
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
@@ -16,12 +20,12 @@ contract SettingsTest is Test {
 
     Settings private settings;
 
-    address private constant KWENTA_TREASURY = address(0xBEEF);
-    address private constant RANDOM_ADDRESS = address(0xBAE);
+    address private constant KWENTA_TREASURY = address(0xA);
+    address private constant RANDOM_ADDRESS = address(0xB);
 
-    uint256 private tradeFee = 5;
-    uint256 private limitOrderFee = 5;
-    uint256 private stopOrderFee = 10;
+    uint256 private tradeFee = 1;
+    uint256 private limitOrderFee = 2;
+    uint256 private stopOrderFee = 3;
 
     event TreasuryAddressChanged(address treasury);
     event TradeFeeChanged(uint256 fee);
@@ -207,7 +211,7 @@ contract SettingsTest is Test {
     }
 
     function testFailSetSameLimitOrderFee() public {
-        settings.setTradeFee(limitOrderFee);
+        settings.setLimitOrderFee(limitOrderFee);
     }
 
     function testSettingLimitOrderFeeEvent() public {

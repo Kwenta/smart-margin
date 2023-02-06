@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-import {IAccount, IAddressResolver, IERC20, IExchanger, IFactory, IFuturesMarketManager, IPerpsV2MarketConsolidated, ISettings} from "./interfaces/IAccount.sol";
+import {IAccount, IAddressResolver, IERC20, IExchanger, IFactory, IFuturesMarketManager, IPerpsV2MarketConsolidated, ISettings, IEvents} from "./interfaces/IAccount.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {OpsReady, IOps} from "./utils/OpsReady.sol";
 import {Owned} from "@solmate/auth/Owned.sol";
@@ -48,6 +48,9 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     ISettings public settings;
 
     /// @inheritdoc IAccount
+    IEvents public events;
+
+    /// @inheritdoc IAccount
     uint256 public committedMargin;
 
     /// @inheritdoc IAccount
@@ -89,16 +92,19 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /// @dev ensure resolver and sUSD addresses are set to their proxies and not implementations
     /// @param _owner: account owner
     /// @param _settings: contract address for account settings
+    /// @param _events: address of events contract for accounts
     /// @param _factory: contract address for account factory
     function initialize(
         address _owner,
         address _settings,
+        address _events,
         address _factory
     ) external initializer {
         owner = _owner;
         emit OwnershipTransferred(address(0), _owner);
 
         settings = ISettings(_settings);
+        events = IEvents(_events);
         factory = IFactory(_factory);
 
         // get address for futures market manager
@@ -208,7 +214,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         bool success = MARGIN_ASSET.transferFrom(owner, address(this), _amount);
         if (!success) revert FailedMarginTransfer();
 
-        emit Deposit(msg.sender, _amount);
+        events.emitDeposit({account: address(this), amountDeposited: _amount});
     }
 
     /// @inheritdoc IAccount
@@ -227,7 +233,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         bool success = MARGIN_ASSET.transfer(owner, _amount);
         if (!success) revert FailedMarginTransfer();
 
-        emit Withdraw(msg.sender, _amount);
+        events.emitWithdraw({account: address(this), amountWithdrawn: _amount});
     }
 
     /// @inheritdoc IAccount
@@ -240,7 +246,10 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         (bool success, ) = payable(owner).call{value: _amount}("");
         if (!success) revert EthWithdrawalFailed();
 
-        emit EthWithdraw(msg.sender, _amount);
+        events.emitEthWithdraw({
+            account: address(this),
+            amountWithdrawn: _amount
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -640,17 +649,17 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             maxDynamicFee: _maxDynamicFee
         });
 
-        emit OrderPlaced(
-            address(this),
-            orderId,
-            _marketKey,
-            _marginDelta,
-            _sizeDelta,
-            _targetPrice,
-            _orderType,
-            _priceImpactDelta,
-            _maxDynamicFee
-        );
+        events.emitOrderPlaced({
+            account: address(this),
+            orderId: orderId,
+            marketKey: _marketKey,
+            marginDelta: _marginDelta,
+            sizeDelta: _sizeDelta,
+            targetPrice: _targetPrice,
+            orderType: _orderType,
+            priceImpactDelta: _priceImpactDelta,
+            maxDynamicFee: _maxDynamicFee
+        });
 
         return orderId++;
     }
@@ -668,7 +677,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         // delete order from orders
         delete orders[_orderId];
 
-        emit OrderCancelled(address(this), _orderId);
+        events.emitOrderCancelled({account: address(this), orderId: _orderId});
     }
 
     /// @inheritdoc IAccount
@@ -711,7 +720,12 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
         _transfer(fee, feeToken);
 
-        emit OrderFilled(address(this), _orderId, fillPrice, fee);
+        events.emitOrderFilled({
+            account: address(this),
+            orderId: _orderId,
+            fillPrice: fillPrice,
+            keeperFee: fee
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -728,7 +742,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             bool success = MARGIN_ASSET.transfer(settings.treasury(), _fee);
             if (!success) revert FailedMarginTransfer();
 
-            emit FeeImposed(address(this), _fee);
+            events.emitFeeImposed({account: address(this), amount: _fee});
         }
     }
 
