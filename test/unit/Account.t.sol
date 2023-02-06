@@ -2,24 +2,20 @@
 pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
-import "@solmate/tokens/ERC20.sol";
-import "@synthetix/ISynth.sol";
-import "@synthetix/IAddressResolver.sol";
-import "@synthetix/IPerpsV2MarketSettings.sol";
-import "../../src/Settings.sol";
-import "../../src/interfaces/ISettings.sol";
-import "../../src/Factory.sol";
-import "../../src/interfaces/IFactory.sol";
-import "../../src/Account.sol";
-import "../../src/interfaces/IAccount.sol";
+import {ERC20} from "@solmate/tokens/ERC20.sol";
+import {ISynth} from "@synthetix/ISynth.sol";
+import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
+import {Settings} from "../../src/Settings.sol";
+import {Factory} from "../../src/Factory.sol";
+import {Account} from "../../src/Account.sol";
+import {IAccount, IPerpsV2MarketConsolidated, IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
 import {Events} from "../../src/Events.sol";
-import {IEvents} from "../../src/interfaces/IEvents.sol";
 
 contract AccountTest is Test {
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
     /// @dev hard coded addresses are only guaranteed for this block
     uint256 private constant BLOCK_NUMBER = 60242268;
-    
+
     uint256 private constant AMOUNT = 10_000 ether;
 
     IAddressResolver private constant ADDRESS_RESOLVER =
