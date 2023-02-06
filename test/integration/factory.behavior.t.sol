@@ -3,15 +3,9 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 import {Settings} from "../../src/Settings.sol";
-import {ISettings} from "../../src/interfaces/ISettings.sol";
 import {Factory} from "../../src/Factory.sol";
-import {IFactory} from "../../src/interfaces/IFactory.sol";
 import {Account} from "../../src/Account.sol";
-import {IAccount} from "../../src/interfaces/IAccount.sol";
-import {AccountProxy} from "../../src/AccountProxy.sol";
-import {IAccountProxy} from "../../src/interfaces/IAccountProxy.sol";
 import {Events} from "../../src/Events.sol";
-import {IEvents} from "../../src/interfaces/IEvents.sol";
 
 contract FactoryBehaviorTest is Test {
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
@@ -68,6 +62,12 @@ contract FactoryBehaviorTest is Test {
         address payable accountAddress = factory.newAccount();
         Account account = Account(accountAddress);
         assertEq(address(account.settings()), address(settings));
+    }
+
+    function testAccountEventsSet() public {
+        address payable accountAddress = factory.newAccount();
+        Account account = Account(accountAddress);
+        assertEq(address(account.events()), address(events));
     }
 
     function testAccountFactorySet() public {
