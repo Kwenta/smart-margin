@@ -7,9 +7,6 @@ contract MockAccount2 {
     function initialize(
         address a,
         address b,
-        address c,
-        address d,
-        address e,
-        address f
+        address c
     ) external {}
 }

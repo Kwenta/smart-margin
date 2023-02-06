@@ -29,9 +29,6 @@ contract AccountBehaviorTest is Test {
     /// @notice max BPS; used for decimals calculations
     uint256 private constant MAX_BPS = 10000;
 
-    /// @notice max uint256
-    uint256 MAX_INT = 2**256 - 1;
-
     // tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
 
@@ -41,10 +38,6 @@ contract AccountBehaviorTest is Test {
     // synthetix (ReadProxyAddressResolver)
     IAddressResolver private constant ADDRESS_RESOLVER =
         IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
-
-    // gelato
-    address private constant GELATO_OPS =
-        0xB3f5503f93d5Ef84b06993a1975B9D21B962892F;
 
     // kwenta treasury multisig
     address private constant KWENTA_TREASURY =
@@ -120,10 +113,7 @@ contract AccountBehaviorTest is Test {
 
         factory = new Factory({
             _owner: address(this),
-            _marginAsset: address(sUSD),
-            _addressResolver: address(ADDRESS_RESOLVER),
             _settings: address(settings),
-            _ops: payable(GELATO_OPS),
             _implementation: implementation
         });
     }
@@ -146,11 +136,8 @@ contract AccountBehaviorTest is Test {
         assert(address(account) != address(0));
 
         // check correct values set in constructor
-        assert(address(account.addressResolver()) == address(ADDRESS_RESOLVER));
         assert(address(account.settings()) == address(settings));
-        assert(address(account.marginAsset()) == address(sUSD));
         assert(address(account.owner()) == address(this));
-        assert(address(account.ops()) == GELATO_OPS);
         assert(
             address(account.futuresMarketManager()) ==
                 ADDRESS_RESOLVER.getAddress("FuturesMarketManager")

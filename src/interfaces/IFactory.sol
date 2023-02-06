@@ -25,18 +25,6 @@ interface IFactory {
     /// @param settings: address of new settings
     event SettingsUpgraded(address settings);
 
-    /// @notice emitted when marginAsset is upgraded
-    /// @param marginAsset: address of new margin asset
-    event MarginAssetUpgraded(address marginAsset);
-
-    /// @notice emitted when addressResolver is upgraded
-    /// @param addressResolver: new synthetix address resolver
-    event AddressResolverUpgraded(address addressResolver);
-
-    /// @notice emitted when ops is upgraded
-    /// @param ops: new gelato ops -- must be payable
-    event OpsUpgraded(address payable ops);
-
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -76,15 +64,6 @@ interface IFactory {
     /// @return settings: address of settings for accounts
     function settings() external view returns (address);
 
-    /// @return marginAsset: address of ERC20 token used to interact with markets
-    function marginAsset() external view returns (address);
-
-    /// @return addressResolver: address of synthetix address resolver
-    function addressResolver() external view returns (address);
-
-    /// @return ops: payable contract address for gelato ops
-    function ops() external view returns (address payable);
-
     /// @return address of account owned by _owner
     /// @param _owner: owner of account
     function ownerToAccount(address _owner) external view returns (address);
@@ -119,21 +98,6 @@ interface IFactory {
     /// and will point to settings address they were initially deployed with
     /// @param _settings: address of new settings
     function upgradeSettings(address _settings) external;
-
-    /// @dev upgrade margin asset for all future accounts; existing accounts will not be affected
-    /// and will point to margin asset address they were initially deployed with
-    /// @param _marginAsset: address of new margin asset
-    function upgradeMarginAsset(address _marginAsset) external;
-
-    /// @dev upgrade address resolver for all future accounts; existing accounts will not be affected
-    /// and will point to address resolver address they were initially deployed with
-    /// @param _addressResolver: new synthetix address resolver
-    function upgradeAddressResolver(address _addressResolver) external;
-
-    /// @dev upgrade ops for all future accounts; existing accounts will not be affected
-    /// and will point to ops address they were initially deployed with
-    /// @param _ops: new gelato ops
-    function upgradeOps(address payable _ops) external;
 
     /// @notice remove upgradability from factory
     /// @dev cannot be undone

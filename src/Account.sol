@@ -10,11 +10,20 @@ import {Owned} from "@solmate/auth/Owned.sol";
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice flexible smart margin account enabling users to trade on-chain derivatives
 contract Account is IAccount, OpsReady, Owned, Initializable {
-    bytes32 public constant VERSION = "2.0.0";
-
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IAccount
+    bytes32 public constant VERSION = "2.0.0";
+
+    /// @inheritdoc IAccount
+    IAddressResolver public constant ADDRESS_RESOLVER =
+        IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
+
+    /// @inheritdoc IAccount
+    IERC20 public constant MARGIN_ASSET =
+        IERC20(0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9);
 
     /// @notice tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
@@ -32,17 +41,11 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /// @inheritdoc IAccount
     IFactory public factory;
 
-    /// @inheritdoc IAccount
-    IAddressResolver public addressResolver;
-
     //// @inheritdoc IAccount
     IFuturesMarketManager public futuresMarketManager;
 
     /// @inheritdoc IAccount
     ISettings public settings;
-
-    /// @inheritdoc IAccount
-    IERC20 public marginAsset;
 
     /// @inheritdoc IAccount
     uint256 public committedMargin;
@@ -85,36 +88,22 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /// @notice initialize contract (only once) and transfer ownership to specified address
     /// @dev ensure resolver and sUSD addresses are set to their proxies and not implementations
     /// @param _owner: account owner
-    /// @param _marginAsset: token contract address used for account margin
-    /// @param _addressResolver: contract address for Synthetix address resolver
     /// @param _settings: contract address for account settings
-    /// @param _ops: gelato ops address
     /// @param _factory: contract address for account factory
     function initialize(
         address _owner,
-        address _marginAsset,
-        address _addressResolver,
         address _settings,
-        address payable _ops,
         address _factory
     ) external initializer {
         owner = _owner;
         emit OwnershipTransferred(address(0), _owner);
 
-        marginAsset = IERC20(_marginAsset);
-        addressResolver = IAddressResolver(_addressResolver);
-
-        /// @dev Settings must exist prior to account creation
         settings = ISettings(_settings);
-
-        // set Gelato's ops address to create/remove tasks
-        ops = _ops;
-
         factory = IFactory(_factory);
 
         // get address for futures market manager
         futuresMarketManager = IFuturesMarketManager(
-            addressResolver.requireAndGetAddress(
+            ADDRESS_RESOLVER.requireAndGetAddress(
                 FUTURES_MARKET_MANAGER,
                 "Account: Could not get Futures Market Manager"
             )
@@ -153,7 +142,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
     /// @inheritdoc IAccount
     function freeMargin() public view override returns (uint256) {
-        return marginAsset.balanceOf(address(this)) - committedMargin;
+        return MARGIN_ASSET.balanceOf(address(this)) - committedMargin;
     }
 
     /// @inheritdoc IAccount
@@ -216,9 +205,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         notZero(_amount, "_amount")
     {
         // attempt to transfer margin asset from user into this account
-        /// @dev marginAsset defined by factory owner thus 
-        /// reentrancy is not protected against here
-        bool success = marginAsset.transferFrom(owner, address(this), _amount);
+        bool success = MARGIN_ASSET.transferFrom(owner, address(this), _amount);
         if (!success) revert FailedMarginTransfer();
 
         emit Deposit(msg.sender, _amount);
@@ -237,7 +224,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         }
 
         // attempt to transfer margin asset from this account to the user
-        bool success = marginAsset.transfer(owner, _amount);
+        bool success = MARGIN_ASSET.transfer(owner, _amount);
         if (!success) revert FailedMarginTransfer();
 
         emit Withdraw(msg.sender, _amount);
@@ -634,7 +621,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             committedMargin += _abs(_marginDelta);
         }
 
-        bytes32 taskId = IOps(ops).createTaskNoPrepayment(
+        bytes32 taskId = IOps(OPS).createTaskNoPrepayment(
             address(this), // execution function address
             this.executeOrder.selector, // execution function selector
             address(this), // checker (resolver) address
@@ -676,7 +663,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         if (order.marginDelta > 0) {
             committedMargin -= _abs(order.marginDelta);
         }
-        IOps(ops).cancelTask(order.gelatoTaskId);
+        IOps(OPS).cancelTask(order.gelatoTaskId);
 
         // delete order from orders
         delete orders[_orderId];
@@ -708,7 +695,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
         // remove task from gelato's side
         /// @dev optimization done for gelato
-        IOps(ops).cancelTask(order.gelatoTaskId);
+        IOps(OPS).cancelTask(order.gelatoTaskId);
 
         // delete order from orders
         delete orders[_orderId];
@@ -721,7 +708,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         //_distributeMargin(newPositions, advancedOrderFee);
 
         // pay fee
-        (uint256 fee, address feeToken) = IOps(ops).getFeeDetails();
+        (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
         _transfer(fee, feeToken);
 
         emit OrderFilled(address(this), _orderId, fillPrice, fee);
@@ -738,7 +725,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             revert CannotPayFee();
         } else {
             // attempt to transfer margin asset from user to Kwenta's treasury
-            bool success = marginAsset.transfer(settings.treasury(), _fee);
+            bool success = MARGIN_ASSET.transfer(settings.treasury(), _fee);
             if (!success) revert FailedMarginTransfer();
 
             emit FeeImposed(address(this), _fee);
@@ -749,7 +736,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
                             GETTER UTILITIES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice addressResolver fetches PerpsV2Market market defined by market key
+    /// @notice fetch PerpsV2Market market defined by market key
     /// @param _marketKey: key for Synthetix PerpsV2 market
     /// @return IPerpsV2Market contract interface
     function getPerpsV2Market(bytes32 _marketKey)
@@ -782,7 +769,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     function exchanger() internal view returns (IExchanger) {
         return
             IExchanger(
-                addressResolver.requireAndGetAddress(
+                ADDRESS_RESOLVER.requireAndGetAddress(
                     "Exchanger",
                     "Account: Could not get Exchanger"
                 )

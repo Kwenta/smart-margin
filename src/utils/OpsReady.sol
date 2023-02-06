@@ -6,16 +6,18 @@ import {IOps} from "../interfaces/IOps.sol";
 
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
 abstract contract OpsReady {
-    address public ops;
+    /// @notice address of Gelato Automate contract address on Optimism
+    address public constant OPS = 0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c;
+
     address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     modifier onlyOps() {
-        require(msg.sender == ops, "OpsReady: onlyOps");
+        require(msg.sender == OPS, "OpsReady: onlyOps");
         _;
     }
 
     function gelato() public view returns (address payable) {
-        return IOps(ops).gelato();
+        return IOps(OPS).gelato();
     }
 
     function _transfer(uint256 _amount, address _paymentToken) internal {

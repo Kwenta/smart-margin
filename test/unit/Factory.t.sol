@@ -24,11 +24,6 @@ contract FactoryTest is Test {
 
     address private constant TEST_ACCOUNT =
         0x42f9134E9d3Bf7eEE1f8A5Ac2a4328B059E7468c;
-    address private constant ADDRESS_RESOLVER =
-        0x1Cb059b7e74fD21665968C908806143E744D5F30;
-    address private constant SUSD = 0x57Ab1ec28D129707052df4dF418D58a2D46d5f51;
-    address private constant GELATO_OPS =
-        0xB3f5503f93d5Ef84b06993a1975B9D21B962892F;
     address private constant KWENTA_TREASURY =
         0x82d2242257115351899894eF384f779b5ba8c695;
     address private constant FUTURES_MANAGER =
@@ -45,9 +40,6 @@ contract FactoryTest is Test {
     );
     event AccountImplementationUpgraded(address implementation);
     event SettingsUpgraded(address settings);
-    event MarginAssetUpgraded(address marginAsset);
-    event AddressResolverUpgraded(address addressResolver);
-    event OpsUpgraded(address payable ops);
 
     function setUp() public {
         // select block number
@@ -65,10 +57,7 @@ contract FactoryTest is Test {
 
         factory = new Factory({
             _owner: address(this),
-            _marginAsset: SUSD,
-            _addressResolver: ADDRESS_RESOLVER,
             _settings: address(settings),
-            _ops: payable(GELATO_OPS),
             _implementation: address(implementation)
         });
     }
@@ -91,18 +80,6 @@ contract FactoryTest is Test {
 
     function testSettingsSet() public {
         assertEq(address(factory.settings()), address(settings));
-    }
-
-    function testMarginAssetSet() public {
-        assertEq(address(factory.marginAsset()), SUSD);
-    }
-
-    function testAddressResolverSet() public {
-        assertEq(address(factory.addressResolver()), ADDRESS_RESOLVER);
-    }
-
-    function testGelatoOpsSet() public {
-        assertEq(factory.ops(), GELATO_OPS);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -152,10 +129,7 @@ contract FactoryTest is Test {
 
         factory = new Factory({
             _owner: address(this),
-            _marginAsset: SUSD,
-            _addressResolver: ADDRESS_RESOLVER,
             _settings: address(settings),
-            _ops: payable(GELATO_OPS),
             _implementation: address(mockAccount)
         });
 
@@ -181,10 +155,7 @@ contract FactoryTest is Test {
 
         factory = new Factory({
             _owner: address(this),
-            _marginAsset: SUSD,
-            _addressResolver: ADDRESS_RESOLVER,
             _settings: address(settings),
-            _ops: payable(GELATO_OPS),
             _implementation: address(mockAccount)
         });
 
@@ -340,80 +311,6 @@ contract FactoryTest is Test {
         factory.upgradeSettings({_settings: address(0)});
     }
 
-    function testCannotUpgradeMarginAssetWhenNotOwner() public {
-        vm.expectRevert("UNAUTHORIZED");
-        vm.prank(TEST_ACCOUNT);
-        factory.upgradeMarginAsset({_marginAsset: address(0)});
-    }
-
-    function testUpgradeMarginAsset() public {
-        address payable accountAddress = factory.newAccount();
-        factory.upgradeMarginAsset({_marginAsset: address(0)});
-        // check margin asset address did *NOT* change
-        assertEq(address(Account(accountAddress).marginAsset()), SUSD);
-        // check new account uses new margin asset
-        vm.prank(TEST_ACCOUNT);
-        address payable accountAddress2 = factory.newAccount();
-        // check margin asset address did change
-        assertEq(address(Account(accountAddress2).marginAsset()), address(0));
-    }
-
-    function testUpgradeMarginAssetEvent() public {
-        vm.expectEmit(true, true, true, true);
-        emit MarginAssetUpgraded(address(0));
-        factory.upgradeMarginAsset({_marginAsset: address(0)});
-    }
-
-    function testCannotUpgradeAddressResolverWhenNotOwner() public {
-        vm.expectRevert("UNAUTHORIZED");
-        vm.prank(TEST_ACCOUNT);
-        factory.upgradeAddressResolver({_addressResolver: address(0)});
-    }
-
-    function testUpgradeAddressResolver() public {
-        address payable accountAddress = factory.newAccount();
-        factory.upgradeAddressResolver({_addressResolver: address(0)});
-        // check address resolver address did *NOT* change
-        assertEq(
-            address(Account(accountAddress).addressResolver()),
-            ADDRESS_RESOLVER
-        );
-        // check new account uses new address resolver
-        vm.prank(TEST_ACCOUNT);
-        vm.expectRevert(); // revert from invalid address resolver
-        factory.newAccount();
-    }
-
-    function testUpgradeAddressResolverEvent() public {
-        vm.expectEmit(true, true, true, true);
-        emit AddressResolverUpgraded(address(0));
-        factory.upgradeAddressResolver({_addressResolver: address(0)});
-    }
-
-    function testCannotUpgradeOpsWhenNotOwner() public {
-        vm.expectRevert("UNAUTHORIZED");
-        vm.prank(TEST_ACCOUNT);
-        factory.upgradeOps({_ops: payable(address(0))});
-    }
-
-    function testUpgradeOps() public {
-        address payable accountAddress = factory.newAccount();
-        factory.upgradeOps({_ops: payable(address(0))});
-        // check ops address did *NOT* change
-        assertEq(address(Account(accountAddress).ops()), GELATO_OPS);
-        // check new account uses new ops
-        vm.prank(TEST_ACCOUNT);
-        address payable accountAddress2 = factory.newAccount();
-        // check ops address did change
-        assertEq(address(Account(accountAddress2).ops()), address(0));
-    }
-
-    function testUpgradeOpsEvent() public {
-        vm.expectEmit(true, true, true, true);
-        emit OpsUpgraded(payable(address(0)));
-        factory.upgradeOps({_ops: payable(address(0))});
-    }
-
     function testCannotRemoveUpgradabilityWhenNotOwner() public {
         vm.expectRevert("UNAUTHORIZED");
         vm.prank(TEST_ACCOUNT);
@@ -439,29 +336,5 @@ contract FactoryTest is Test {
             abi.encodeWithSelector(IFactory.CannotUpgrade.selector)
         );
         factory.upgradeSettings({_settings: address(0)});
-    }
-
-    function testCannotUpgradeMarginAssetWhenNotEnabled() public {
-        factory.removeUpgradability();
-        vm.expectRevert(
-            abi.encodeWithSelector(IFactory.CannotUpgrade.selector)
-        );
-        factory.upgradeMarginAsset({_marginAsset: address(0)});
-    }
-
-    function testCannotUpgradeAddressResolverWhenNotEnabled() public {
-        factory.removeUpgradability();
-        vm.expectRevert(
-            abi.encodeWithSelector(IFactory.CannotUpgrade.selector)
-        );
-        factory.upgradeAddressResolver({_addressResolver: address(0)});
-    }
-
-    function testCannotOpsWhenNotEnabled() public {
-        factory.removeUpgradability();
-        vm.expectRevert(
-            abi.encodeWithSelector(IFactory.CannotUpgrade.selector)
-        );
-        factory.upgradeOps({_ops: payable(address(0))});
     }
 }

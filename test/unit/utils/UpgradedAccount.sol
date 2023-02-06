@@ -7,63 +7,122 @@ import {OpsReady, IOps} from "../../../src/utils/OpsReady.sol";
 import {Owned} from "@solmate/auth/Owned.sol";
 
 contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IAccount
     bytes32 public constant VERSION = "2.0.1";
+
+    /// @inheritdoc IAccount
+    IAddressResolver public constant ADDRESS_RESOLVER =
+        IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
+
+    /// @inheritdoc IAccount
+    IERC20 public constant MARGIN_ASSET =
+        IERC20(0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9);
+
+    /// @notice tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
+
+    /// @notice name for futures market manager
     bytes32 private constant FUTURES_MARKET_MANAGER = "FuturesMarketManager";
+
+    /// @notice constant for sUSD currency key
     bytes32 private constant SUSD = "sUSD";
 
+    /*//////////////////////////////////////////////////////////////
+                                 STATE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IAccount
     IFactory public factory;
-    IAddressResolver public addressResolver;
+
+    //// @inheritdoc IAccount
     IFuturesMarketManager public futuresMarketManager;
+
+    /// @inheritdoc IAccount
     ISettings public settings;
-    IERC20 public marginAsset;
+
+    /// @inheritdoc IAccount
     uint256 public committedMargin;
+
+    /// @inheritdoc IAccount
     uint256 public orderId;
+
+    /// @notice order id mapped to order struct
     mapping(uint256 => Order) private orders;
 
+    /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice helpful modifier to check non-zero values
+    /// @param value: value to check if zero
     modifier notZero(uint256 value, bytes32 valueName) {
+        /// @notice value cannot be zero
         if (value == 0) revert ValueCannotBeZero(valueName);
+
         _;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice disable initializers on initial contract deployment
+    /// @dev set owner of implementation to zero address
     constructor() Owned(address(0)) {
+        // recommended to use this to lock implementation contracts
+        // that are designed to be called through proxies
         _disableInitializers();
     }
 
+    /// @notice allows ETH to be deposited directly into a margin account
+    /// @notice ETH can be withdrawn
     receive() external payable onlyOwner {}
 
+    /// @notice initialize contract (only once) and transfer ownership to specified address
+    /// @dev ensure resolver and sUSD addresses are set to their proxies and not implementations
+    /// @param _owner: account owner
+    /// @param _settings: contract address for account settings
+    /// @param _factory: contract address for account factory
     function initialize(
         address _owner,
-        address _marginAsset,
-        address _addressResolver,
         address _settings,
-        address payable _ops,
         address _factory
     ) external initializer {
         owner = _owner;
         emit OwnershipTransferred(address(0), _owner);
-        marginAsset = IERC20(_marginAsset);
-        addressResolver = IAddressResolver(_addressResolver);
+
         settings = ISettings(_settings);
-        ops = _ops;
         factory = IFactory(_factory);
+
+        // get address for futures market manager
         futuresMarketManager = IFuturesMarketManager(
-            addressResolver.requireAndGetAddress(
+            ADDRESS_RESOLVER.requireAndGetAddress(
                 FUTURES_MARKET_MANAGER,
                 "Account: Could not get Futures Market Manager"
             )
         );
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 VIEWS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IAccount
     function getDelayedOrder(bytes32 _marketKey)
         external
         view
         override
         returns (IPerpsV2MarketConsolidated.DelayedOrder memory order)
     {
+        // fetch delayed order data from Synthetix
         order = getPerpsV2Market(_marketKey).delayedOrders(address(this));
     }
 
+    /// @inheritdoc IAccount
     function checker(uint256 _orderId)
         external
         view
@@ -71,25 +130,30 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         returns (bool canExec, bytes memory execPayload)
     {
         (canExec, ) = validOrder(_orderId);
+        // calldata for execute func
         execPayload = abi.encodeWithSelector(
             this.executeOrder.selector,
             _orderId
         );
     }
 
+    /// @inheritdoc IAccount
     function freeMargin() public view override returns (uint256) {
-        return marginAsset.balanceOf(address(this)) - committedMargin;
+        return MARGIN_ASSET.balanceOf(address(this)) - committedMargin;
     }
 
+    /// @inheritdoc IAccount
     function getPosition(bytes32 _marketKey)
         public
         view
         override
         returns (IPerpsV2MarketConsolidated.Position memory position)
     {
+        // fetch position data from Synthetix
         position = getPerpsV2Market(_marketKey).positions(address(this));
     }
 
+    /// @inheritdoc IAccount
     function calculateTradeFee(
         int256 _sizeDelta,
         IPerpsV2MarketConsolidated _market,
@@ -98,9 +162,13 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         fee =
             (_abs(_sizeDelta) * (settings.tradeFee() + _advancedOrderFee)) /
             settings.MAX_BPS();
+
+        /// @notice fee is currently measured in the underlying base asset of the market
+        /// @dev fee will be measured in sUSD, thus exchange rate is needed
         fee = (sUSDRate(_market) * fee) / 1e18;
     }
 
+    /// @inheritdoc IAccount
     function getOrder(uint256 _orderId)
         public
         view
@@ -110,36 +178,56 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         return orders[_orderId];
     }
 
+    /*//////////////////////////////////////////////////////////////
+                           ACCOUNT OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice transfer ownership of this account to a new address
+    /// @dev will update factory's mapping record of owner to account
+    /// @param _newOwner: address to transfer ownership to
     function transferOwnership(address _newOwner) public override onlyOwner {
         factory.updateAccountOwner({_oldOwner: owner, _newOwner: _newOwner});
         super.transferOwnership(_newOwner);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        ACCOUNT DEPOSIT/WITHDRAW
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IAccount
     function deposit(uint256 _amount)
         public
         override
         onlyOwner
         notZero(_amount, "_amount")
     {
-        bool success = marginAsset.transferFrom(owner, address(this), _amount);
+        // attempt to transfer margin asset from user into this account
+        bool success = MARGIN_ASSET.transferFrom(owner, address(this), _amount);
         if (!success) revert FailedMarginTransfer();
+
         emit Deposit(msg.sender, _amount);
     }
 
+    /// @inheritdoc IAccount
     function withdraw(uint256 _amount)
         external
         override
         notZero(_amount, "_amount")
         onlyOwner
     {
+        // make sure committed margin isn't withdrawn
         if (_amount > freeMargin()) {
             revert InsufficientFreeMargin(freeMargin(), _amount);
         }
-        bool success = marginAsset.transfer(owner, _amount);
+
+        // attempt to transfer margin asset from this account to the user
+        bool success = MARGIN_ASSET.transfer(owner, _amount);
         if (!success) revert FailedMarginTransfer();
+
         emit Withdraw(msg.sender, _amount);
     }
 
+    /// @inheritdoc IAccount
     function withdrawEth(uint256 _amount)
         external
         override
@@ -148,9 +236,15 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     {
         (bool success, ) = payable(owner).call{value: _amount}("");
         if (!success) revert EthWithdrawalFailed();
+
         emit EthWithdraw(msg.sender, _amount);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                               EXECUTION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IAccount
     function execute(Command[] calldata commands, bytes[] calldata inputs)
         external
         payable
@@ -159,10 +253,15 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     {
         uint256 numCommands = commands.length;
         if (inputs.length != numCommands) revert LengthMismatch();
+
+        // loop through all given commands and execute them
         for (uint256 commandIndex = 0; commandIndex < numCommands; ) {
             Command command = commands[commandIndex];
+
             bytes memory input = inputs[commandIndex];
+
             _dispatch(command, input);
+
             unchecked {
                 commandIndex++;
             }
@@ -170,6 +269,9 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     }
 
     function _dispatch(Command command, bytes memory inputs) internal {
+        // @TODO optimize via grouping commands: i.e. if uint(command) > 5, etc.
+
+        // if-else logic to dispatch commands
         if (command == Command.PERPS_V2_MODIFY_MARGIN) {
             (address market, int256 amount) = abi.decode(
                 inputs,
@@ -224,9 +326,14 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
                 _priceImpactDelta: priceImpactDelta
             });
         } else {
+            // placeholder area for further commands
             revert InvalidCommandType(uint256(command));
         }
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                COMMANDS
+    //////////////////////////////////////////////////////////////*/
 
     function _perpsV2ModifyMargin(address _market, int256 _amount) internal {
         if (_amount > 0) {
@@ -238,11 +345,14 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         } else if (_amount < 0) {
             IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
         } else {
+            // _amount == 0
             revert InvalidMarginDelta();
         }
     }
 
     function _perpsV2WithdrawAllMargin(address _market) internal {
+        // withdraw margin from market back to this account
+        /// @dev this will not fail if market has zero margin; it will just waste gas
         IPerpsV2MarketConsolidated(_market).withdrawAllMargin();
     }
 
@@ -251,6 +361,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         int256 _sizeDelta,
         uint256 _priceImpactDelta
     ) internal {
+        // impose fee (comes from account's margin)
         _imposeFee(
             calculateTradeFee({
                 _sizeDelta: _sizeDelta,
@@ -258,6 +369,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
                 _advancedOrderFee: 0
             })
         );
+
         IPerpsV2MarketConsolidated(_market).modifyPositionWithTracking({
             sizeDelta: _sizeDelta,
             priceImpactDelta: _priceImpactDelta,
@@ -271,6 +383,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         uint256 _priceImpactDelta,
         uint256 _desiredTimeDelta
     ) internal {
+        // impose fee (comes from account's margin)
         _imposeFee(
             calculateTradeFee({
                 _sizeDelta: _sizeDelta,
@@ -278,6 +391,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
                 _advancedOrderFee: 0
             })
         );
+
         IPerpsV2MarketConsolidated(_market).submitDelayedOrderWithTracking({
             sizeDelta: _sizeDelta,
             priceImpactDelta: _priceImpactDelta,
@@ -291,6 +405,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         int256 _sizeDelta,
         uint256 _priceImpactDelta
     ) internal {
+        // impose fee (comes from account's margin)
         _imposeFee(
             calculateTradeFee({
                 _sizeDelta: _sizeDelta,
@@ -298,6 +413,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
                 _advancedOrderFee: 0
             })
         );
+
         IPerpsV2MarketConsolidated(_market)
             .submitOffchainDelayedOrderWithTracking({
                 sizeDelta: _sizeDelta,
@@ -307,10 +423,12 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     }
 
     function _perpsV2CancelDelayedOrder(address _market) internal {
+        /// @dev will revert if no previous delayed order
         IPerpsV2MarketConsolidated(_market).cancelDelayedOrder(address(this));
     }
 
     function _perpsV2CancelOffchainDelayedOrder(address _market) internal {
+        /// @dev will revert if no previous offchain delayed order
         IPerpsV2MarketConsolidated(_market).cancelOffchainDelayedOrder(
             address(this)
         );
@@ -319,11 +437,18 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     function _perpsV2ClosePosition(address _market, uint256 _priceImpactDelta)
         internal
     {
+        // establish position
         bytes32 marketKey = IPerpsV2MarketConsolidated(_market).marketKey();
+
+        // close position (i.e. reduce size to zero)
+        /// @dev this does not remove margin from market
         IPerpsV2MarketConsolidated(_market).closePositionWithTracking(
             _priceImpactDelta,
             TRACKING_CODE
         );
+
+        // impose fee (comes from account's margin)
+        /// @dev this fee is based on the position's size delta
         _imposeFee(
             calculateTradeFee({
                 _sizeDelta: getPosition(marketKey).size,
@@ -333,6 +458,11 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         );
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            ADVANCED ORDERS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IAccount
     function validOrder(uint256 _orderId)
         public
         view
@@ -340,6 +470,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         returns (bool, uint256)
     {
         Order memory order = getOrder(_orderId);
+
         if (order.maxDynamicFee != 0) {
             (uint256 dynamicFee, bool tooVolatile) = exchanger()
                 .dynamicFeeRateForExchange(
@@ -350,42 +481,72 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
                 return (false, 0);
             }
         }
+
         if (order.orderType == OrderTypes.LIMIT) {
             return validLimitOrder(order);
         } else if (order.orderType == OrderTypes.STOP) {
             return validStopOrder(order);
         }
+
+        // unknown order type
+        // @notice execution should never reach here
+        // @dev needed to satisfy types
         return (false, 0);
     }
 
+    /// @notice limit order logic condition checker
+    /// @param order: struct for an active order
+    /// @return true if order is valid by execution rules
+    /// @return price that the order will be filled at (only valid if prev is true)
     function validLimitOrder(Order memory order)
         internal
         view
         returns (bool, uint256)
     {
         uint256 price = sUSDRate(getPerpsV2Market(order.marketKey));
+
+        /// @notice intent is targetPrice or better despite direction
         if (order.sizeDelta > 0) {
+            // Long
             return (price <= order.targetPrice, price);
         } else if (order.sizeDelta < 0) {
+            // Short
             return (price >= order.targetPrice, price);
         }
+
+        // sizeDelta == 0
+        // @notice execution should never reach here
+        // @dev needed to satisfy types
         return (false, price);
     }
 
+    /// @notice stop order logic condition checker
+    /// @param order: struct for an active order
+    /// @return true if order is valid by execution rules
+    /// @return price that the order will be filled at (only valid if prev is true)
     function validStopOrder(Order memory order)
         internal
         view
         returns (bool, uint256)
     {
         uint256 price = sUSDRate(getPerpsV2Market(order.marketKey));
+
+        /// @notice intent is targetPrice or worse despite direction
         if (order.sizeDelta > 0) {
+            // Long
             return (price >= order.targetPrice, price);
         } else if (order.sizeDelta < 0) {
+            // Short
             return (price <= order.targetPrice, price);
         }
+
+        // sizeDelta == 0
+        // @notice execution should never reach here
+        // @dev needed to satisfy types
         return (false, price);
     }
 
+    /// @inheritdoc IAccount
     function placeOrder(
         bytes32 _marketKey,
         int256 _marginDelta,
@@ -406,6 +567,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             });
     }
 
+    /// @inheritdoc IAccount
     function placeOrderWithFeeCap(
         bytes32 _marketKey,
         int256 _marginDelta,
@@ -444,7 +606,9 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         if (address(this).balance < 1 ether / 100) {
             revert InsufficientEthBalance(address(this).balance, 1 ether / 100);
         }
+        // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
+            // ensure margin doesn't exceed max
             if (uint256(_marginDelta) > freeMargin()) {
                 revert InsufficientFreeMargin(
                     freeMargin(),
@@ -453,13 +617,15 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             }
             committedMargin += _abs(_marginDelta);
         }
-        bytes32 taskId = IOps(ops).createTaskNoPrepayment(
-            address(this),
-            this.executeOrder.selector,
-            address(this),
-            abi.encodeWithSelector(this.checker.selector, orderId),
-            ETH
+
+        bytes32 taskId = IOps(OPS).createTaskNoPrepayment(
+            address(this), // execution function address
+            this.executeOrder.selector, // execution function selector
+            address(this), // checker (resolver) address
+            abi.encodeWithSelector(this.checker.selector, orderId), // checker (resolver) calldata
+            ETH // payment token
         );
+
         orders[orderId] = Order({
             marketKey: _marketKey,
             marginDelta: _marginDelta,
@@ -470,6 +636,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             priceImpactDelta: _priceImpactDelta,
             maxDynamicFee: _maxDynamicFee
         });
+
         emit OrderPlaced(
             address(this),
             orderId,
@@ -481,29 +648,40 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             _priceImpactDelta,
             _maxDynamicFee
         );
+
         return orderId++;
     }
 
+    /// @inheritdoc IAccount
     function cancelOrder(uint256 _orderId) external override onlyOwner {
         Order memory order = getOrder(_orderId);
+
+        // if margin was committed, free it
         if (order.marginDelta > 0) {
             committedMargin -= _abs(order.marginDelta);
         }
-        IOps(ops).cancelTask(order.gelatoTaskId);
+        IOps(OPS).cancelTask(order.gelatoTaskId);
+
+        // delete order from orders
         delete orders[_orderId];
+
         emit OrderCancelled(address(this), _orderId);
     }
 
+    /// @inheritdoc IAccount
     function executeOrder(uint256 _orderId) external override onlyOps {
         (bool isValidOrder, uint256 fillPrice) = validOrder(_orderId);
         if (!isValidOrder) {
             revert OrderInvalid();
         }
         Order memory order = getOrder(_orderId);
+
+        // if margin was committed, free it
         if (order.marginDelta > 0) {
             committedMargin -= _abs(order.marginDelta);
         }
 
+        // prep new position
         NewPosition[] memory newPositions = new NewPosition[](1);
         newPositions[0] = NewPosition({
             marketKey: order.marketKey,
@@ -512,8 +690,11 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             priceImpactDelta: order.priceImpactDelta
         });
 
-        IOps(ops).cancelTask(order.gelatoTaskId);
+        // remove task from gelato's side
+        /// @dev optimization done for gelato
+        IOps(OPS).cancelTask(order.gelatoTaskId);
 
+        // delete order from orders
         delete orders[_orderId];
 
         // uint256 advancedOrderFee = order.orderType == OrderTypes.LIMIT
@@ -524,21 +705,37 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         //_distributeMargin(newPositions, advancedOrderFee);
 
         // pay fee
-        (uint256 fee, address feeToken) = IOps(ops).getFeeDetails();
+        (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
         _transfer(fee, feeToken);
+
         emit OrderFilled(address(this), _orderId, fillPrice, fee);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                             FEE UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
     function _imposeFee(uint256 _fee) internal {
+        /// @dev send fee to Kwenta's treasury
         if (_fee > freeMargin()) {
+            // fee canot be greater than available margin
             revert CannotPayFee();
         } else {
-            bool success = marginAsset.transfer(settings.treasury(), _fee);
+            // attempt to transfer margin asset from user to Kwenta's treasury
+            bool success = MARGIN_ASSET.transfer(settings.treasury(), _fee);
             if (!success) revert FailedMarginTransfer();
+
             emit FeeImposed(address(this), _fee);
         }
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            GETTER UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice fetch PerpsV2Market market defined by market key
+    /// @param _marketKey: key for Synthetix PerpsV2 market
+    /// @return IPerpsV2Market contract interface
     function getPerpsV2Market(bytes32 _marketKey)
         internal
         view
@@ -550,6 +747,9 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             );
     }
 
+    /// @notice get exchange rate of underlying market asset in terms of sUSD
+    /// @param _market: Synthetix PerpsV2 Market
+    /// @return price in sUSD
     function sUSDRate(IPerpsV2MarketConsolidated _market)
         internal
         view
@@ -562,16 +762,23 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         return price;
     }
 
+    /// @notice exchangeRates() fetches current ExchangeRates contract
     function exchanger() internal view returns (IExchanger) {
         return
             IExchanger(
-                addressResolver.requireAndGetAddress(
+                ADDRESS_RESOLVER.requireAndGetAddress(
                     "Exchanger",
                     "Account: Could not get Exchanger"
                 )
             );
     }
 
+    /*//////////////////////////////////////////////////////////////
+                             MATH UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Absolute value of the input, returned as an unsigned number.
+    /// @param x: signed number
     function _abs(int256 x) internal pure returns (uint256) {
         return uint256(x < 0 ? -x : x);
     }

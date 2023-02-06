@@ -174,11 +174,17 @@ interface IAccount {
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice returns the version of the Account
+    function VERSION() external view returns (bytes32);
+
+    /// @return returns the address of the Synthetix ReadProxyAddressResolver
+    function ADDRESS_RESOLVER() external view returns (IAddressResolver);
+
+    /// @return returns the address of the Synthetix ProxyERC20sUSD address used as the margin asset
+    function MARGIN_ASSET() external view returns (IERC20);
+
     /// @return returns the address of the factory
     function factory() external view returns (IFactory);
-
-    /// @return returns the address of the address resolver
-    function addressResolver() external view returns (IAddressResolver);
 
     /// @return returns the address of the futures market manager
     function futuresMarketManager()
@@ -188,9 +194,6 @@ interface IAccount {
 
     /// @return returns the address of the native settings for account
     function settings() external view returns (ISettings);
-
-    /// @return returns the token contract used for account margin
-    function marginAsset() external view returns (IERC20);
 
     /// @return returns the amount of margin locked for future events (ie. limit orders)
     function committedMargin() external view returns (uint256);

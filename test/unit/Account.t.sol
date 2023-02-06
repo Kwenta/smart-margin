@@ -17,16 +17,11 @@ contract AccountTest is Test {
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
     /// @dev hard coded addresses are only guaranteed for this block
     uint256 private constant BLOCK_NUMBER = 60242268;
-
-    uint256 private constant MAX_BPS = 10000;
-    uint256 private MAX_INT = 2**256 - 1;
-    bytes32 private constant TRACKING_CODE = "KWENTA";
+    
     uint256 private constant AMOUNT = 10_000 ether;
 
     IAddressResolver private constant ADDRESS_RESOLVER =
         IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
-    address private constant GELATO_OPS =
-        0xB3f5503f93d5Ef84b06993a1975B9D21B962892F;
     address private constant KWENTA_TREASURY =
         0x82d2242257115351899894eF384f779b5ba8c695;
 
@@ -84,10 +79,7 @@ contract AccountTest is Test {
 
         factory = new Factory({
             _owner: address(this),
-            _marginAsset: address(sUSD),
-            _addressResolver: address(ADDRESS_RESOLVER),
             _settings: address(settings),
-            _ops: payable(GELATO_OPS),
             _implementation: implementation
         });
     }

@@ -24,15 +24,6 @@ contract Factory is IFactory, Owned {
     address public settings;
 
     /// @inheritdoc IFactory
-    address public marginAsset;
-
-    /// @inheritdoc IFactory
-    address public addressResolver;
-
-    /// @inheritdoc IFactory
-    address payable public ops;
-
-    /// @inheritdoc IFactory
     mapping(address => address) public ownerToAccount;
 
     /*//////////////////////////////////////////////////////////////
@@ -41,23 +32,14 @@ contract Factory is IFactory, Owned {
 
     /// @notice constructor for factory
     /// @param _owner: owner of factory
-    /// @param _marginAsset: address of ERC20 token used to interact with markets
-    /// @param _addressResolver: address of synthetix address resolver
     /// @param _settings: address of settings for accounts
-    /// @param _ops: contract address for gelato ops -- must be payable
     /// @param _implementation: address of account implementation
     constructor(
         address _owner,
-        address _marginAsset,
-        address _addressResolver,
         address _settings,
-        address payable _ops,
         address _implementation
     ) Owned(_owner) {
-        marginAsset = _marginAsset;
-        addressResolver = _addressResolver;
         settings = _settings;
-        ops = _ops;
         implementation = _implementation;
     }
 
@@ -85,12 +67,9 @@ contract Factory is IFactory, Owned {
         // initialize new account
         (bool success, bytes memory data) = accountAddress.call(
             abi.encodeWithSignature(
-                "initialize(address,address,address,address,address,address)",
+                "initialize(address,address,address)",
                 msg.sender, // caller will be set as owner
-                marginAsset,
-                addressResolver,
                 settings,
-                ops,
                 address(this)
             )
         );
@@ -156,35 +135,6 @@ contract Factory is IFactory, Owned {
         if (!canUpgrade) revert CannotUpgrade();
         settings = _settings;
         emit SettingsUpgraded({settings: _settings});
-    }
-
-    /// @inheritdoc IFactory
-    function upgradeMarginAsset(address _marginAsset)
-        external
-        override
-        onlyOwner
-    {
-        if (!canUpgrade) revert CannotUpgrade();
-        marginAsset = _marginAsset;
-        emit MarginAssetUpgraded({marginAsset: _marginAsset});
-    }
-
-    /// @inheritdoc IFactory
-    function upgradeAddressResolver(address _addressResolver)
-        external
-        override
-        onlyOwner
-    {
-        if (!canUpgrade) revert CannotUpgrade();
-        addressResolver = _addressResolver;
-        emit AddressResolverUpgraded({addressResolver: _addressResolver});
-    }
-
-    /// @inheritdoc IFactory
-    function upgradeOps(address payable _ops) external override onlyOwner {
-        if (!canUpgrade) revert CannotUpgrade();
-        ops = _ops;
-        emit OpsUpgraded({ops: _ops});
     }
 
     /// @inheritdoc IFactory
