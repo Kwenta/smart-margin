@@ -20,9 +20,9 @@ contract FactoryBehaviorTest is Test {
     address private constant KWENTA_TREASURY =
         0x82d2242257115351899894eF384f779b5ba8c695;
 
-    uint256 private constant TRADE_FEE = 5;
-    uint256 private constant LIMIT_ORDER_FEE = 5;
-    uint256 private constant STOP_LOSS_FEE = 10;
+    uint256 private tradeFee = 1;
+    uint256 private limitOrderFee = 2;
+    uint256 private stopOrderFee = 3;
 
     function setUp() public {
         // select block number
@@ -31,9 +31,9 @@ contract FactoryBehaviorTest is Test {
         settings = new Settings({
             _owner: address(this),
             _treasury: KWENTA_TREASURY,
-            _tradeFee: TRADE_FEE,
-            _limitOrderFee: LIMIT_ORDER_FEE,
-            _stopOrderFee: STOP_LOSS_FEE
+            _tradeFee: tradeFee,
+            _limitOrderFee: limitOrderFee,
+            _stopOrderFee: stopOrderFee
         });
 
         events = new Events();

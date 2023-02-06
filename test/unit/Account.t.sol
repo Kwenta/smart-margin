@@ -16,6 +16,11 @@ contract AccountTest is Test {
     /// @dev hard coded addresses are only guaranteed for this block
     uint256 private constant BLOCK_NUMBER = 60242268;
 
+    Settings private settings;
+    Events private events;
+    Factory private factory;
+    ERC20 private sUSD;
+
     uint256 private constant AMOUNT = 10_000 ether;
 
     IAddressResolver private constant ADDRESS_RESOLVER =
@@ -23,9 +28,9 @@ contract AccountTest is Test {
     address private constant KWENTA_TREASURY =
         0x82d2242257115351899894eF384f779b5ba8c695;
 
-    uint256 private constant TRADE_FEE = 5;
-    uint256 private constant LIMIT_ORDER_FEE = 5;
-    uint256 private constant STOP_LOSS_FEE = 10;
+    uint256 private tradeFee = 1;
+    uint256 private limitOrderFee = 2;
+    uint256 private stopOrderFee = 3;
 
     bytes32 private constant sETHPERP = "sETHPERP";
     bytes32 private constant sBTCPERP = "sBTCPERP";
@@ -53,11 +58,6 @@ contract AccountTest is Test {
     );
     event FeeImposed(address indexed account, uint256 amount);
 
-    Settings private settings;
-    Events private events;
-    Factory private factory;
-    ERC20 private sUSD;
-
     receive() external payable {}
 
     function setUp() public {
@@ -69,9 +69,9 @@ contract AccountTest is Test {
         settings = new Settings({
             _owner: address(this),
             _treasury: KWENTA_TREASURY,
-            _tradeFee: TRADE_FEE,
-            _limitOrderFee: LIMIT_ORDER_FEE,
-            _stopOrderFee: STOP_LOSS_FEE
+            _tradeFee: tradeFee,
+            _limitOrderFee: limitOrderFee,
+            _stopOrderFee: stopOrderFee
         });
 
         events = new Events();

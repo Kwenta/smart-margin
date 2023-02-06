@@ -2,18 +2,15 @@
 pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
-import "@solmate/tokens/ERC20.sol";
-import "@synthetix/ISynth.sol";
-import "@synthetix/IAddressResolver.sol";
-import "@synthetix/IPerpsV2MarketSettings.sol";
-import "../../src/Settings.sol";
-import "../../src/interfaces/ISettings.sol";
-import "../../src/Factory.sol";
-import "../../src/interfaces/IFactory.sol";
-import "../../src/Account.sol";
-import "../../src/interfaces/IAccount.sol";
-import "../../src/Events.sol";
-import "../../src/interfaces/IEvents.sol";
+import {ERC20} from "@solmate/tokens/ERC20.sol";
+import {ISynth} from "@synthetix/ISynth.sol";
+import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
+import {IPerpsV2MarketSettings} from "@synthetix/IPerpsV2MarketSettings.sol";
+import {Settings} from "../../src/Settings.sol";
+import {Factory} from "../../src/Factory.sol";
+import {Account} from "../../src/Account.sol";
+import {IAccount, IPerpsV2MarketConsolidated, IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
+import {Events} from "../../src/Events.sol";
 
 // functions tagged with @HELPER are helper functions and not tests
 // tests tagged with @AUDITOR are flags for desired increased scrutiny by the auditors
@@ -46,9 +43,9 @@ contract AccountBehaviorTest is Test {
         0x82d2242257115351899894eF384f779b5ba8c695;
 
     // fee settings
-    uint256 private constant TRADE_FEE = 5; // 5 BPS
-    uint256 private constant LIMIT_ORDER_FEE = 5; // 5 BPS
-    uint256 private constant STOP_LOSS_FEE = 10; // 10 BPS
+    uint256 private tradeFee = 1;
+    uint256 private limitOrderFee = 2;
+    uint256 private stopOrderFee = 3;
 
     // Synthetix PerpsV2 market key(s)
     bytes32 private constant sETHPERP = "sETHPERP";
@@ -107,9 +104,9 @@ contract AccountBehaviorTest is Test {
         settings = new Settings({
             _owner: address(this),
             _treasury: KWENTA_TREASURY,
-            _tradeFee: TRADE_FEE,
-            _limitOrderFee: LIMIT_ORDER_FEE,
-            _stopOrderFee: STOP_LOSS_FEE
+            _tradeFee: tradeFee,
+            _limitOrderFee: limitOrderFee,
+            _stopOrderFee: stopOrderFee
         });
 
         events = new Events();

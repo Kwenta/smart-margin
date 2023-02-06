@@ -2,16 +2,12 @@
 pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
-import {Settings} from "../../src/Settings.sol";
 import {ISettings} from "../../src/interfaces/ISettings.sol";
+import {Settings} from "../../src/Settings.sol";
 import {Factory} from "../../src/Factory.sol";
 import {IFactory} from "../../src/interfaces/IFactory.sol";
 import {Account} from "../../src/Account.sol";
-import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {Events} from "../../src/Events.sol";
-import {IEvents} from "../../src/interfaces/IEvents.sol";
-import {AccountProxy} from "../../src/AccountProxy.sol";
-import {IAccountProxy} from "../../src/interfaces/IAccountProxy.sol";
 import {MockAccount1, MockAccount2} from "./utils/MockAccounts.sol";
 import {UpgradedAccount} from "./utils/UpgradedAccount.sol";
 
@@ -32,9 +28,9 @@ contract FactoryTest is Test {
     address private constant FUTURES_MANAGER =
         0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B;
 
-    uint256 private constant TRADE_FEE = 5;
-    uint256 private constant LIMIT_ORDER_FEE = 5;
-    uint256 private constant STOP_LOSS_FEE = 10;
+    uint256 private tradeFee = 1;
+    uint256 private limitOrderFee = 2;
+    uint256 private stopOrderFee = 3;
 
     event NewAccount(
         address indexed creator,
@@ -51,9 +47,9 @@ contract FactoryTest is Test {
         settings = new Settings({
             _owner: address(this),
             _treasury: KWENTA_TREASURY,
-            _tradeFee: TRADE_FEE,
-            _limitOrderFee: LIMIT_ORDER_FEE,
-            _stopOrderFee: STOP_LOSS_FEE
+            _tradeFee: tradeFee,
+            _limitOrderFee: limitOrderFee,
+            _stopOrderFee: stopOrderFee
         });
 
         events = new Events();
@@ -292,9 +288,9 @@ contract FactoryTest is Test {
             new Settings({
                 _owner: TEST_ACCOUNT, // change owner
                 _treasury: KWENTA_TREASURY,
-                _tradeFee: TRADE_FEE,
-                _limitOrderFee: LIMIT_ORDER_FEE,
-                _stopOrderFee: STOP_LOSS_FEE
+                _tradeFee: tradeFee,
+                _limitOrderFee: limitOrderFee,
+                _stopOrderFee: stopOrderFee
             })
         );
         factory.upgradeSettings({_settings: newSettings});
