@@ -1,57 +1,52 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IMarginBaseSettings} from "./interfaces/IMarginBaseSettings.sol";
+import {ISettings} from "./interfaces/ISettings.sol";
+import {Owned} from "@solmate/auth/Owned.sol";
 
-/// @title Kwenta Settings for MarginBase Accounts
+/// @title Kwenta Settings for Accounts
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
-/// @notice Contract (owned by the deployer) for controlling the settings of MarginBase account(s)
-/// @dev This contract will require deployment prior to MarginBase account creation
-contract MarginBaseSettings is IMarginBaseSettings, Ownable {
+contract Settings is ISettings, Owned {
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice max BPS; used for decimals calculations
-    uint256 private constant MAX_BPS = 10000;
+    /// @inheritdoc ISettings
+    uint256 public constant MAX_BPS = 10000;
 
     /*//////////////////////////////////////////////////////////////
                                 SETTINGS
     //////////////////////////////////////////////////////////////*/
 
-    // @notice Kwenta's Treasury Address
+    /// @inheritdoc ISettings
     address public treasury;
 
-    /// @dev fee imposed on all trades
-    /// @dev trades: defined as changes made to IMarginBaseTypes.ActiveMarketPosition.size
+    /// @inheritdoc ISettings
     uint256 public tradeFee;
 
-    /// @dev fee imposed on limit orders
+    /// @inheritdoc ISettings
     uint256 public limitOrderFee;
 
-    /// @dev fee imposed on stop losses
+    /// @inheritdoc ISettings
     uint256 public stopOrderFee;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice set initial margin base account fees
+    /// @notice set initial account fees
+    /// @param _owner: owner of the contract
     /// @param _treasury: Kwenta's Treasury Address
     /// @param _tradeFee: fee denoted in BPS
     /// @param _limitOrderFee: fee denoted in BPS
     /// @param _stopOrderFee: fee denoted in BPS
     constructor(
+        address _owner,
         address _treasury,
         uint256 _tradeFee,
         uint256 _limitOrderFee,
         uint256 _stopOrderFee
-    ) {
-        /// @notice ensure valid address for Kwenta Treasury
-        if (_treasury == address(0)) revert ZeroAddress();
-
-        /// @notice set Kwenta Treasury address
+    ) Owned(_owner) {
         treasury = _treasury;
 
         /// @notice ensure valid fees
@@ -69,13 +64,10 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc IMarginBaseSettings
+    /// @inheritdoc ISettings
     function setTreasury(address _treasury) external override onlyOwner {
         /// @notice ensure valid address for Kwenta Treasury
         if (_treasury == address(0)) revert ZeroAddress();
-
-        // @notice ensure address will change
-        if (_treasury == treasury) revert DuplicateAddress();
 
         /// @notice set Kwenta Treasury address
         treasury = _treasury;
@@ -83,7 +75,7 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
         emit TreasuryAddressChanged(_treasury);
     }
 
-    /// @inheritdoc IMarginBaseSettings
+    /// @inheritdoc ISettings
     function setTradeFee(uint256 _fee) external override onlyOwner {
         /// @notice ensure valid fee
         if (_fee > MAX_BPS) revert InvalidFee(_fee);
@@ -97,7 +89,7 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
         emit TradeFeeChanged(_fee);
     }
 
-    /// @inheritdoc IMarginBaseSettings
+    /// @inheritdoc ISettings
     function setLimitOrderFee(uint256 _fee) external override onlyOwner {
         /// @notice ensure valid fee
         if (_fee > MAX_BPS) revert InvalidFee(_fee);
@@ -111,7 +103,7 @@ contract MarginBaseSettings is IMarginBaseSettings, Ownable {
         emit LimitOrderFeeChanged(_fee);
     }
 
-    /// @inheritdoc IMarginBaseSettings
+    /// @inheritdoc ISettings
     function setStopOrderFee(uint256 _fee) external override onlyOwner {
         /// @notice ensure valid fee
         if (_fee > MAX_BPS) revert InvalidFee(_fee);

@@ -1,29 +1,86 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-import {IMarginBaseTypes} from "./IMarginBaseTypes.sol";
+import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IExchanger} from "@synthetix/IExchanger.sol";
+import {IFactory} from "./IFactory.sol";
+import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
 import {IPerpsV2MarketConsolidated} from "@synthetix/IPerpsV2MarketConsolidated.sol";
+import {ISettings} from "./ISettings.sol";
+import {IEvents} from "./IEvents.sol";
 
-/// @title Kwenta MarginBase Interface
+/// @title Kwenta Smart Margin Account Interface
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
-interface IMarginBase is IMarginBaseTypes {
+interface IAccount {
+    /*///////////////////////////////////////////////////////////////
+                                Types
+    ///////////////////////////////////////////////////////////////*/
+
+    /// @notice Command Flags used to decode commands to execute
+    enum Command {
+        PERPS_V2_MODIFY_MARGIN,
+        PERPS_V2_WITHDRAW_ALL_MARGIN,
+        PERPS_V2_SUBMIT_ATOMIC_ORDER,
+        PERPS_V2_SUBMIT_DELAYED_ORDER,
+        PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER,
+        PERPS_V2_CANCEL_DELAYED_ORDER,
+        PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER,
+        PERPS_V2_CLOSE_POSITION
+    }
+
+    // denotes order types for code clarity
+    /// @dev under the hood LIMIT = 0, STOP = 1
+    enum OrderTypes {
+        LIMIT,
+        STOP
+    }
+
+    // marketKey: Synthetix PerpsV2 Market id/key
+    // marginDelta: amount of margin (in sUSD) to deposit or withdraw
+    // sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
+    struct NewPosition {
+        bytes32 marketKey;
+        int256 marginDelta; // positive indicates deposit, negative withdraw
+        int256 sizeDelta; // difference in position
+        uint128 priceImpactDelta; // price impact tolerance as a percentage used on fillPrice at execution
+    }
+
+    // marketKey: Synthetix PerpsV2 Market id/key
+    // marginDelta: amount of margin (in sUSD) to deposit or withdraw
+    // sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
+    // targetPrice: limit or stop price to fill at
+    // gelatoTaskId: unqiue taskId from gelato necessary for cancelling orders
+    // orderType: order type to determine order fill logic
+    // maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
+    struct Order {
+        bytes32 marketKey;
+        int256 marginDelta; // positive indicates deposit, negative withdraw
+        int256 sizeDelta;
+        uint256 targetPrice;
+        bytes32 gelatoTaskId;
+        OrderTypes orderType;
+        uint256 maxDynamicFee;
+        uint128 priceImpactDelta; // price impact tolerance as a percentage used on fillPrice at execution
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice emitted after a successful deposit
     /// @param user: the address that deposited into account
-    /// @param amount: amount of marginAsset to deposit into marginBase account
+    /// @param amount: amount of marginAsset to deposit into account
     event Deposit(address indexed user, uint256 amount);
 
     /// @notice emitted after a successful withdrawal
     /// @param user: the address that withdrew from account
-    /// @param amount: amount of marginAsset to withdraw from marginBase account
+    /// @param amount: amount of marginAsset to withdraw from account
     event Withdraw(address indexed user, uint256 amount);
 
     /// @notice emitted after a successful ETH withdrawal
     /// @param user: the address that withdrew from account
-    /// @param amount: amount of ETH to withdraw from marginBase account
+    /// @param amount: amount of ETH to withdraw from account
     event EthWithdraw(address indexed user, uint256 amount);
 
     /// @notice emitted when an advanced order is placed
@@ -118,6 +175,52 @@ interface IMarginBase is IMarginBaseTypes {
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice returns the version of the Account
+    function VERSION() external view returns (bytes32);
+
+    /// @return returns the address of the Synthetix ReadProxyAddressResolver
+    function ADDRESS_RESOLVER() external view returns (IAddressResolver);
+
+    /// @return returns the address of the Synthetix ProxyERC20sUSD address used as the margin asset
+    function MARGIN_ASSET() external view returns (IERC20);
+
+    /// @return returns the address of the factory
+    function factory() external view returns (IFactory);
+
+    /// @return returns the address of the futures market manager
+    function futuresMarketManager()
+        external
+        view
+        returns (IFuturesMarketManager);
+
+    /// @return returns the address of the native settings for account
+    function settings() external view returns (ISettings);
+
+    /// @return returns the address of events contract for accounts
+    function events() external view returns (IEvents);
+
+    /// @return returns the amount of margin locked for future events (ie. limit orders)
+    function committedMargin() external view returns (uint256);
+
+    /// @return returns current order id
+    function orderId() external view returns (uint256);
+
+    /// @notice get delayed order data from Synthetix PerpsV2
+    /// @param _marketKey: key for Synthetix PerpsV2 Market
+    /// @return order struct defining delayed order
+    function getDelayedOrder(bytes32 _marketKey)
+        external
+        returns (IPerpsV2MarketConsolidated.DelayedOrder memory);
+
+    /// @notice signal to a keeper that an order is valid/invalid for execution
+    /// @param _orderId: key for an active order
+    /// @return canExec boolean that signals to keeper an order can be executed
+    /// @return execPayload calldata for executing an order
+    function checker(uint256 _orderId)
+        external
+        view
+        returns (bool canExec, bytes memory execPayload);
+
     /// @notice the current withdrawable or usable balance
     function freeMargin() external view returns (uint256);
 
@@ -127,13 +230,6 @@ interface IMarginBase is IMarginBaseTypes {
     function getPosition(bytes32 _marketKey)
         external
         returns (IPerpsV2MarketConsolidated.Position memory);
-
-    /// @notice get delayed order data from Synthetix PerpsV2
-    /// @param _marketKey: key for Synthetix PerpsV2 Market
-    /// @return order struct defining delayed order
-    function getDelayedOrder(bytes32 _marketKey)
-        external
-        returns (IPerpsV2MarketConsolidated.DelayedOrder memory);
 
     /// @notice calculate fee based on both size and given market
     /// @param _sizeDelta: size delta of given trade
@@ -147,25 +243,19 @@ interface IMarginBase is IMarginBaseTypes {
         uint256 _advancedOrderFee
     ) external view returns (uint256);
 
-    /// @notice signal to a keeper that an order is valid/invalid for execution
-    /// @param _orderId: key for an active order
-    /// @return canExec boolean that signals to keeper an order can be executed
-    /// @return execPayload calldata for executing an order
-    function checker(uint256 _orderId)
-        external
-        view
-        returns (bool canExec, bytes memory execPayload);
+    /// @notice order id mapped to order
+    function getOrder(uint256 _orderId) external view returns (Order memory);
 
     /*//////////////////////////////////////////////////////////////
                                 MUTATIVE
     //////////////////////////////////////////////////////////////*/
 
     /// @notice deposit margin asset to trade with into this contract
-    /// @param _amount: amount of marginAsset to deposit into marginBase account
+    /// @param _amount: amount of marginAsset to deposit into account
     function deposit(uint256 _amount) external;
 
     /// @notice attmept to withdraw non-committed margin from account to user
-    /// @param _amount: amount of marginAsset to withdraw from marginBase account
+    /// @param _amount: amount of marginAsset to withdraw from account
     function withdraw(uint256 _amount) external;
 
     /// @notice allow users to withdraw ETH deposited for keeper fees
@@ -173,9 +263,9 @@ interface IMarginBase is IMarginBaseTypes {
     function withdrawEth(uint256 _amount) external;
 
     /// @notice executes commands along with provided inputs
-    /// @param commands: array of commands, each represented as an enum
-    /// @param inputs: array of byte strings containing abi encoded inputs for each command
-    function execute(Command[] calldata commands, bytes[] calldata inputs)
+    /// @param _commands: array of commands, each represented as an enum
+    /// @param _inputs: array of byte strings containing abi encoded inputs for each command
+    function execute(Command[] calldata _commands, bytes[] calldata _inputs)
         external
         payable;
 

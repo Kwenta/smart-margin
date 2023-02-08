@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-/// @title Kwenta MarginBaseSettings Interface
+/// @title Kwenta Settings Interface
 /// @author JaredBorders (jaredborders@proton.me)
-/// @dev all fees are denoted in Basis points (BPS) (One basis point is equal to 1/100th of 1%)
-interface IMarginBaseSettings {
+/// @dev all fees are denoted in Basis points (BPS)
+interface ISettings {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -39,12 +39,13 @@ interface IMarginBaseSettings {
     /// @notice new fee cannot be the same as the old fee
     error DuplicateFee();
 
-    /// @notice new address cannot be the same as the old address
-    error DuplicateAddress();
-
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
+
+    /// @return max BPS; used for decimals calculations
+    // solhint-disable-next-line func-name-mixedcase
+    function MAX_BPS() external view returns (uint256);
 
     // @return Kwenta's Treasury Address
     function treasury() external view returns (address);

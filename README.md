@@ -1,7 +1,7 @@
 # Kwenta Margin Manager
 
-[![Github Actions][gha-badge]][gha] 
-[![Foundry][foundry-badge]][foundry] 
+[![Github Actions][gha-badge]][gha]
+[![Foundry][foundry-badge]][foundry]
 [![License: MIT][license-badge]][license]
 
 [gha]: https://github.com/Kwenta/margin-manager/actions
@@ -17,13 +17,15 @@ Contracts to manage account abstractions and features on top of [Synthetix Perps
 
 ## Contract Overview
 
-The Margin Manager codebase consists of the `MarginAccountFactory` and `MarginBase` contracts, and all of the associated dependencies. The purpose of the `MarginAccountFactory` is to create/deploy trading accounts (`MarginBase` contracts) for users that support features ranging from cross-margin, conditional orders, copy trading, etc..
+The Margin Manager codebase consists of the `Factory` and `Account` contracts, and all of the associated dependencies. The purpose of the `Factory` is to create/deploy trading accounts (`Account` contracts) for users that support features ranging from cross-margin, conditional orders, copy trading, etc..
+
+coming soon ✨ (Factory-Beacon Account-Proxy Implementation)
 
 ### MarginBase Command Execution
 
-Calls to `MarginBase.execute`, the entrypoint to the contracts, provide 2 main parameters:
+Calls to `Account.execute`, the entrypoint to the contracts, provide 2 main parameters:
 
-`IMarginBaseTypes.Command commands`: An array of `enum`. Each enum represents 1 command that the transaction will execute.
+`IAccount.Command commands`: An array of `enum`. Each enum represents 1 command that the transaction will execute.
 `bytes[] inputs`: An array of `bytes` strings. Each element in the array is the encoded parameters for a command.
 
 `commands[i]` is the command that will use `inputs[i]` as its encoded input parameters.
@@ -57,7 +59,7 @@ Whereas in contrast `PERPS_V2_CANCEL_DELAYED_ORDER` has just 1 parameter encoded
 
 Encoding parameters in a bytes string in this way gives us maximum flexiblity to be able to support many commands which require different datatypes in a gas-efficient way.
 
-For a more detailed breakdown of which parameters you should provide for each command take a look at the `MarginBase.dispatch` function.
+For a more detailed breakdown of which parameters you should provide for each command take a look at the `Account.dispatch` function.
 
 Developer documentation to give a detailed explanation of the inputs for every command will be coming soon ✨!
 
@@ -74,16 +76,18 @@ The command execution design was inspired by Uniswap's [Universal Router](https:
     ├── ...
     ├── src                     # Source contracts
     ├── script                  # Foundry deployment scripts
-    ├── test                    # Test files (alternatively `spec` or `tests`)
-    │   ├── contracts           # Unit tests, fuzz tests using Foundry
-    │   └── integration         # End-to-end, integration tests using Foundry
+    ├── test                    # Test files
+    │   ├── integration         # End-to-end, integration tests using Foundry
+    │   └── unit                # Contract focused, fuzzed/non-fuzzed tests using Foundry
     └── ...
 
 ## Usage
 
 ### Setup
 
-Make sure to create an `.env` file following the example given in `.env.example`
+1. Make sure to create an `.env` file following the example given in `.env.example`
+
+2. Install [Slither](https://github.com/crytic/slither#how-to-install)
 
 ### Tests
 
@@ -92,20 +96,56 @@ Make sure to create an `.env` file following the example given in `.env.example`
 1. Follow the [Foundry guide to working on an existing project](https://book.getfoundry.sh/projects/working-on-an-existing-project.html)
 
 2. Build project
+
 ```
 npm run compile
 ```
 
-3. Execute unit tests
+3. Execute both unit and integration tests (both run in forked environments)
+
 ```
-npm run unit-test
+npm run test
 ```
 
-4. Execute integration tests
+> tests will fail if you have not set up your .env (see .env.example)
+
+### Upgradeability
+
+#### Account Implementation
+
+1. Create new version of `Account.sol` (ex: `AccountV2.sol`)
+
+2. Run slither analysis to ensure no storage collisions with previous version
+
 ```
-npm run integration-test
+slither-check-upgradeability . Account --new-contract-name AccountV2 --proxy-name AccountProxy
 ```
-> integration tests will fail if you have not set up your .env (see .env.example)
+
+3. Reference `./script` directory and... coming soon ✨
+
+#### Account Settings
+
+1. coming soon ✨
+
+#### Account Events
+
+1. coming soon ✨
+
+#### Factory
+
+1. coming soon ✨
+
+### Static Analysis
+
+1. [Slither](https://github.com/crytic/slither)
+```
+npm run analysis:slither
+```
+
+2. [Solsat](https://github.com/0xKitsune/solstat)
+```
+npm run analysis:solsat
+```
 
 ### Deployment and Verification
 

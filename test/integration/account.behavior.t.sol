@@ -2,15 +2,15 @@
 pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
-import "@solmate/tokens/ERC20.sol";
-import "@synthetix/ISynth.sol";
-import "@synthetix/IAddressResolver.sol";
-import "@synthetix/IPerpsV2MarketSettings.sol";
-import "../../src/MarginBaseSettings.sol";
-import "../../src/MarginAccountFactory.sol";
-import "../../src/MarginAccountFactoryStorage.sol";
-import "../../src/MarginBase.sol";
-import "../../src/interfaces/IMarginBaseTypes.sol";
+import {ERC20} from "@solmate/tokens/ERC20.sol";
+import {ISynth} from "@synthetix/ISynth.sol";
+import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
+import {IPerpsV2MarketSettings} from "@synthetix/IPerpsV2MarketSettings.sol";
+import {Settings} from "../../src/Settings.sol";
+import {Factory} from "../../src/Factory.sol";
+import {Account} from "../../src/Account.sol";
+import {IAccount, IPerpsV2MarketConsolidated, IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
+import {Events} from "../../src/Events.sol";
 
 // functions tagged with @HELPER are helper functions and not tests
 // tests tagged with @AUDITOR are flags for desired increased scrutiny by the auditors
@@ -28,9 +28,6 @@ contract AccountBehaviorTest is Test {
     /// @notice max BPS; used for decimals calculations
     uint256 private constant MAX_BPS = 10000;
 
-    /// @notice max uint256
-    uint256 MAX_INT = 2**256 - 1;
-
     // tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
 
@@ -41,18 +38,14 @@ contract AccountBehaviorTest is Test {
     IAddressResolver private constant ADDRESS_RESOLVER =
         IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
 
-    // gelato
-    address private constant GELATO_OPS =
-        0xB3f5503f93d5Ef84b06993a1975B9D21B962892F;
-
     // kwenta treasury multisig
     address private constant KWENTA_TREASURY =
         0x82d2242257115351899894eF384f779b5ba8c695;
 
     // fee settings
-    uint256 private constant TRADE_FEE = 5; // 5 BPS
-    uint256 private constant LIMIT_ORDER_FEE = 5; // 5 BPS
-    uint256 private constant STOP_LOSS_FEE = 10; // 10 BPS
+    uint256 private tradeFee = 1;
+    uint256 private limitOrderFee = 2;
+    uint256 private stopOrderFee = 3;
 
     // Synthetix PerpsV2 market key(s)
     bytes32 private constant sETHPERP = "sETHPERP";
@@ -72,7 +65,7 @@ contract AccountBehaviorTest is Test {
         int256 marginDelta,
         int256 sizeDelta,
         uint256 targetPrice,
-        IMarginBaseTypes.OrderTypes orderType,
+        IAccount.OrderTypes orderType,
         uint128 priceImpactDelta,
         uint256 maxDynamicFee
     );
@@ -89,12 +82,9 @@ contract AccountBehaviorTest is Test {
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice KWENTA contracts
-    MarginBaseSettings private marginBaseSettings;
-    MarginAccountFactory private marginAccountFactory;
-    MarginAccountFactoryStorage private marginAccountFactoryStorage;
-
-    /// @notice other contracts
+    Settings private settings;
+    Events private events;
+    Factory private factory;
     ERC20 private sUSD;
 
     /*//////////////////////////////////////////////////////////////
@@ -111,32 +101,24 @@ contract AccountBehaviorTest is Test {
         // establish sUSD address
         sUSD = ERC20(ADDRESS_RESOLVER.getAddress("ProxyERC20sUSD"));
 
-        // deploy settings
-        marginBaseSettings = new MarginBaseSettings({
+        settings = new Settings({
+            _owner: address(this),
             _treasury: KWENTA_TREASURY,
-            _tradeFee: TRADE_FEE,
-            _limitOrderFee: LIMIT_ORDER_FEE,
-            _stopOrderFee: STOP_LOSS_FEE
+            _tradeFee: tradeFee,
+            _limitOrderFee: limitOrderFee,
+            _stopOrderFee: stopOrderFee
         });
 
-        // deploy storage
-        marginAccountFactoryStorage = new MarginAccountFactoryStorage({
-            _owner: address(this)
-        });
+        events = new Events();
 
-        // deploy factory
-        marginAccountFactory = new MarginAccountFactory({
-            _store: address(marginAccountFactoryStorage),
-            _marginAsset: address(sUSD),
-            _addressResolver: address(ADDRESS_RESOLVER),
-            _marginBaseSettings: address(marginBaseSettings),
-            _ops: payable(GELATO_OPS)
-        });
+        address implementation = address(new Account());
 
-        // add factory to list of verified factories
-        marginAccountFactoryStorage.addVerifiedFactory(
-            address(marginAccountFactory)
-        );
+        factory = new Factory({
+            _owner: address(this),
+            _settings: address(settings),
+            _events: address(events),
+            _implementation: implementation
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -147,32 +129,21 @@ contract AccountBehaviorTest is Test {
                             ACCOUNT CREATION
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice create account via the MarginAccountFactory
+    /// @notice create account via the Factory
     /// @dev also tests that state variables properly set in constructor
     function testAccountCreated() external {
         // call factory to create account
-        MarginBase account = createAccount();
+        Account account = createAccount();
 
         // check account address exists
         assert(address(account) != address(0));
 
         // check correct values set in constructor
-        assert(address(account.addressResolver()) == address(ADDRESS_RESOLVER));
+        assert(address(account.settings()) == address(settings));
+        assert(address(account.owner()) == address(this));
         assert(
             address(account.futuresMarketManager()) ==
                 ADDRESS_RESOLVER.getAddress("FuturesMarketManager")
-        );
-        assert(
-            address(account.marginBaseSettings()) == address(marginBaseSettings)
-        );
-        assert(address(account.marginAsset()) == address(sUSD));
-        assert(address(account.owner()) == address(this));
-        assert(address(account.ops()) == GELATO_OPS);
-
-        // check store was updated
-        assert(
-            marginAccountFactoryStorage.deployedMarginAccounts(address(this)) ==
-                address(account)
         );
     }
 
@@ -198,20 +169,20 @@ contract AccountBehaviorTest is Test {
     /// @notice test only owner can deposit sUSD into account
     function testOnlyOwnerCanDepositSUSD() external {
         // call factory to create account
-        MarginBase account = createAccount();
+        Account account = createAccount();
 
         // transfer ownership to another address
         account.transferOwnership(KWENTA_TREASURY);
 
         // deposit sUSD into account
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert("UNAUTHORIZED");
         account.deposit(AMOUNT);
     }
 
     /// @notice deposit sUSD into account
     function testDepositSUSD(uint256 x) external {
         // call factory to create account
-        MarginBase account = createAccount();
+        Account account = createAccount();
 
         // mint sUSD and transfer to this address
         mintSUSD(address(this), AMOUNT);
@@ -227,7 +198,7 @@ contract AccountBehaviorTest is Test {
             bytes32 valueName = "_amount";
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    IMarginBase.ValueCannotBeZero.selector,
+                    IAccount.ValueCannotBeZero.selector,
                     valueName
                 )
             );
@@ -239,7 +210,7 @@ contract AccountBehaviorTest is Test {
         } else {
             // check deposit event emitted
             vm.expectEmit(true, false, false, true);
-            emit Deposit(address(this), x);
+            emit Deposit(address(account), x);
 
             // deposit sUSD into account
             account.deposit(x);
@@ -252,20 +223,20 @@ contract AccountBehaviorTest is Test {
     /// @notice test only owner can withdraw sUSD from account
     function testOnlyOwnerCanWithdrawSUSD() external {
         // call factory to create account
-        MarginBase account = createAccount();
+        Account account = createAccount();
 
         // transfer ownership to another address
         account.transferOwnership(KWENTA_TREASURY);
 
         // attempt to withdraw sUSD from account
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert("UNAUTHORIZED");
         account.withdraw(AMOUNT);
     }
 
     /// @notice withdraw sUSD from account
     function testWithdrawSUSD(uint256 x) external {
         // call factory to create account
-        MarginBase account = createAccount();
+        Account account = createAccount();
 
         // mint sUSD and transfer to this address
         mintSUSD(address(this), AMOUNT);
@@ -281,7 +252,7 @@ contract AccountBehaviorTest is Test {
             bytes32 valueName = "_amount";
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    IMarginBase.ValueCannotBeZero.selector,
+                    IAccount.ValueCannotBeZero.selector,
                     valueName
                 )
             );
@@ -290,7 +261,7 @@ contract AccountBehaviorTest is Test {
             // attempt to withdraw sUSD
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    IMarginBase.InsufficientFreeMargin.selector,
+                    IAccount.InsufficientFreeMargin.selector,
                     AMOUNT,
                     x
                 )
@@ -299,7 +270,7 @@ contract AccountBehaviorTest is Test {
         } else {
             // check withdraw event emitted
             vm.expectEmit(true, false, false, true);
-            emit Withdraw(address(this), x);
+            emit Withdraw(address(account), x);
 
             // withdraw sUSD from account
             account.withdraw(x);
@@ -315,13 +286,13 @@ contract AccountBehaviorTest is Test {
     /// @notice test only owner can deposit ETH into account
     function testOnlyOwnerCanDepositETH() external {
         // call factory to create account
-        MarginBase account = createAccount();
+        Account account = createAccount();
 
         // transfer ownership to another address
         account.transferOwnership(KWENTA_TREASURY);
 
         // attempt to deposit ETH into account
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert("UNAUTHORIZED");
         (bool s, ) = address(account).call{value: 1 ether}("");
         assert(s);
     }
@@ -329,7 +300,7 @@ contract AccountBehaviorTest is Test {
     /// @notice deposit ETH into account
     function testDepositETH() external {
         // call factory to create account
-        MarginBase account = createAccount();
+        Account account = createAccount();
 
         // check account has no ETH
         assert(address(account).balance == 0);
@@ -345,19 +316,19 @@ contract AccountBehaviorTest is Test {
     /// @notice test only owner can withdraw ETH from account
     function testOnlyOwnerCanWithdrawETH() external {
         // call factory to create account
-        MarginBase account = createAccount();
+        Account account = createAccount();
 
         // transfer ownership to another address
         account.transferOwnership(KWENTA_TREASURY);
 
         // attempt to withdraw ETH
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert("UNAUTHORIZED");
         account.withdrawEth(1 ether);
     }
 
     function testWithdrawEth(uint256 x) external {
         // call factory to create account
-        MarginBase account = createAccount();
+        Account account = createAccount();
 
         // send ETH to account
         (bool s, ) = address(account).call{value: 1 ether}("");
@@ -369,14 +340,14 @@ contract AccountBehaviorTest is Test {
 
         if (x > 1 ether) {
             // attempt to withdraw ETH
-            vm.expectRevert(IMarginBase.EthWithdrawalFailed.selector);
+            vm.expectRevert(IAccount.EthWithdrawalFailed.selector);
             account.withdrawEth(x);
         } else if (x == 0) {
             // attempt to withdraw ETH
             bytes32 valueName = "_amount";
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    IMarginBase.ValueCannotBeZero.selector,
+                    IAccount.ValueCannotBeZero.selector,
                     valueName
                 )
             );
@@ -384,7 +355,7 @@ contract AccountBehaviorTest is Test {
         } else {
             // check EthWithdraw event emitted
             vm.expectEmit(true, false, false, true);
-            emit EthWithdraw(address(this), x);
+            emit EthWithdraw(address(account), x);
 
             // withdraw ETH
             account.withdrawEth(x);
@@ -401,7 +372,7 @@ contract AccountBehaviorTest is Test {
     /// @notice test fetching position details
     function testCanFetchPositionDetails() external {
         // call factory to create account
-        MarginBase account = createAccount();
+        Account account = createAccount();
 
         // get position details
         IPerpsV2MarketConsolidated.Position memory position = account
@@ -418,7 +389,7 @@ contract AccountBehaviorTest is Test {
     /// @notice test fetching submitted order details
     function testCanFetchDelayedOrderDetails() external {
         // call factory to create account
-        MarginBase account = createAccount();
+        Account account = createAccount();
 
         // get delayed order details
         IPerpsV2MarketConsolidated.DelayedOrder memory order = account
@@ -448,12 +419,11 @@ contract AccountBehaviorTest is Test {
     /// @notice test providing non-matching command and input lengths
     function testCannotProvideNonMatchingCommandAndInputLengths() external {
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
 
         // define inputs
         bytes[] memory inputs = new bytes[](2);
@@ -462,7 +432,7 @@ contract AccountBehaviorTest is Test {
 
         // call execute (attempt to execute 1 command with 2 inputs)
         vm.expectRevert(
-            abi.encodeWithSelector(IMarginBase.LengthMismatch.selector)
+            abi.encodeWithSelector(IAccount.LengthMismatch.selector)
         );
         account.execute(commands, inputs);
     }
@@ -474,7 +444,7 @@ contract AccountBehaviorTest is Test {
     /// @notice test invalid command
     function testCannotExecuteInvalidCommand() external {
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // define calldata
         bytes memory dataWithInvalidCommand = abi.encodeWithSignature(
@@ -485,7 +455,7 @@ contract AccountBehaviorTest is Test {
 
         // call execute (attempt to execute invalid command)
         vm.expectRevert(
-            abi.encodeWithSelector(IMarginBase.InvalidCommandType.selector, 69)
+            abi.encodeWithSelector(IAccount.InvalidCommandType.selector, 69)
         );
         (bool s, ) = address(account).call(dataWithInvalidCommand);
         assert(!s);
@@ -495,12 +465,11 @@ contract AccountBehaviorTest is Test {
     /// @notice test invalid input with valid command
     function testFailExecuteInvalidInputWithValidCommand() external {
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
 
         // define invalid inputs
         bytes[] memory inputs = new bytes[](1);
@@ -540,15 +509,14 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
 
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // get account margin balance
         uint256 accountBalance = sUSD.balanceOf(address(account));
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
 
         // define inputs
         bytes[] memory inputs = new bytes[](1);
@@ -559,7 +527,7 @@ contract AccountBehaviorTest is Test {
         // outcome 1: margin delta cannot be zero
         if (fuzzedMarginDelta == 0) {
             vm.expectRevert(
-                abi.encodeWithSelector(IMarginBase.InvalidMarginDelta.selector)
+                abi.encodeWithSelector(IAccount.InvalidMarginDelta.selector)
             );
             account.execute(commands, inputs);
         }
@@ -570,7 +538,7 @@ contract AccountBehaviorTest is Test {
                 // outcome 2.1: margin delta larger than what is available in account
                 vm.expectRevert(
                     abi.encodeWithSelector(
-                        IMarginBase.InsufficientFreeMargin.selector,
+                        IAccount.InsufficientFreeMargin.selector,
                         accountBalance,
                         fuzzedMarginDelta
                     )
@@ -600,15 +568,14 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
 
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // get account margin balance
         int256 balance = int256(sUSD.balanceOf(address(account)));
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
 
         // define inputs
         bytes[] memory inputs = new bytes[](1);
@@ -627,7 +594,7 @@ contract AccountBehaviorTest is Test {
         // outcome 1: margin delta cannot be zero
         if (fuzzedMarginDelta == 0) {
             vm.expectRevert(
-                abi.encodeWithSelector(IMarginBase.InvalidMarginDelta.selector)
+                abi.encodeWithSelector(IAccount.InvalidMarginDelta.selector)
             );
             account.execute(commands, inputs);
         }
@@ -672,15 +639,14 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
 
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // get account margin balance
         uint256 preBalance = sUSD.balanceOf(address(account));
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_WITHDRAW_ALL_MARGIN;
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.PERPS_V2_WITHDRAW_ALL_MARGIN;
 
         // define inputs
         bytes[] memory inputs = new bytes[](1);
@@ -703,15 +669,14 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
 
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // get account margin balance
         uint256 preBalance = sUSD.balanceOf(address(account));
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
 
         // define inputs
         bytes[] memory inputs = new bytes[](1);
@@ -721,7 +686,7 @@ contract AccountBehaviorTest is Test {
         account.execute(commands, inputs);
 
         // define commands
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_WITHDRAW_ALL_MARGIN;
+        commands[0] = IAccount.Command.PERPS_V2_WITHDRAW_ALL_MARGIN;
 
         // define inputs
         inputs[0] = abi.encode(market);
@@ -750,13 +715,12 @@ contract AccountBehaviorTest is Test {
         uint256 priceImpactDelta = 1 ether / 2;
 
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
 
         // define inputs
         bytes[] memory inputs = new bytes[](2);
@@ -793,13 +757,12 @@ contract AccountBehaviorTest is Test {
         uint256 desiredTimeDelta = 0;
 
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_DELAYED_ORDER;
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_DELAYED_ORDER;
 
         // define inputs
         bytes[] memory inputs = new bytes[](2);
@@ -844,15 +807,12 @@ contract AccountBehaviorTest is Test {
         uint256 priceImpactDelta = 1 ether;
 
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IMarginBaseTypes
-            .Command
-            .PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
 
         // define inputs
         bytes[] memory inputs = new bytes[](2);
@@ -889,12 +849,11 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
 
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_CANCEL_DELAYED_ORDER;
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.PERPS_V2_CANCEL_DELAYED_ORDER;
 
         // define inputs
         bytes[] memory inputs = new bytes[](1);
@@ -916,13 +875,12 @@ contract AccountBehaviorTest is Test {
         uint256 desiredTimeDelta = 0;
 
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_DELAYED_ORDER;
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_DELAYED_ORDER;
 
         // define inputs
         bytes[] memory inputs = new bytes[](2);
@@ -938,8 +896,8 @@ contract AccountBehaviorTest is Test {
         account.execute(commands, inputs);
 
         // define commands
-        commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_CANCEL_DELAYED_ORDER;
+        commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.PERPS_V2_CANCEL_DELAYED_ORDER;
 
         // define inputs
         inputs = new bytes[](1);
@@ -975,14 +933,11 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
 
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes
-            .Command
-            .PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER;
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER;
 
         // define inputs
         bytes[] memory inputs = new bytes[](1);
@@ -1003,15 +958,12 @@ contract AccountBehaviorTest is Test {
         uint256 priceImpactDelta = 1 ether;
 
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IMarginBaseTypes
-            .Command
-            .PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
 
         // define inputs
         bytes[] memory inputs = new bytes[](2);
@@ -1026,10 +978,8 @@ contract AccountBehaviorTest is Test {
         vm.warp(block.timestamp + 600 seconds);
 
         // define commands
-        commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes
-            .Command
-            .PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER;
+        commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER;
 
         // define inputs
         inputs = new bytes[](1);
@@ -1066,12 +1016,11 @@ contract AccountBehaviorTest is Test {
         uint256 priceImpactDelta = 1 ether / 2;
 
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_CLOSE_POSITION;
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.PERPS_V2_CLOSE_POSITION;
 
         // define inputs
         bytes[] memory inputs = new bytes[](1);
@@ -1093,13 +1042,12 @@ contract AccountBehaviorTest is Test {
         uint256 priceImpactDelta = 1 ether / 2;
 
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
 
         // define inputs
         bytes[] memory inputs = new bytes[](2);
@@ -1110,8 +1058,8 @@ contract AccountBehaviorTest is Test {
         account.execute(commands, inputs);
 
         // redefine commands
-        commands = new IMarginBaseTypes.Command[](1);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_CLOSE_POSITION;
+        commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.PERPS_V2_CLOSE_POSITION;
 
         // redefine inputs
         inputs = new bytes[](1);
@@ -1145,11 +1093,10 @@ contract AccountBehaviorTest is Test {
         );
 
         // call factory to create account
-        MarginBase account = createAccount();
+        Account account = createAccount();
 
         // calculate expected fee
-        uint256 percentToTake = marginBaseSettings.tradeFee() +
-            advancedOrderFee;
+        uint256 percentToTake = settings.tradeFee() + advancedOrderFee;
         uint256 fee = (abs(int256(fuzzedSizeDelta)) * percentToTake) / MAX_BPS;
         (uint256 price, bool invalid) = market.assetPrice();
         assert(!invalid);
@@ -1178,13 +1125,12 @@ contract AccountBehaviorTest is Test {
         uint256 priceImpactDelta = 1 ether / 2;
 
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
 
         // define inputs
         bytes[] memory inputs = new bytes[](2);
@@ -1192,7 +1138,7 @@ contract AccountBehaviorTest is Test {
         inputs[1] = abi.encode(address(market), sizeDelta, priceImpactDelta);
 
         // calculate expected fee
-        uint256 percentToTake = marginBaseSettings.tradeFee();
+        uint256 percentToTake = settings.tradeFee();
         uint256 fee = (abs(sizeDelta) * percentToTake) / MAX_BPS;
         (uint256 price, bool invalid) = market.assetPrice();
         assert(!invalid);
@@ -1215,13 +1161,12 @@ contract AccountBehaviorTest is Test {
         uint256 priceImpactDelta = 1 ether / 2;
 
         // get account for trading
-        MarginBase account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD();
 
         // define commands
-        IMarginBaseTypes.Command[]
-            memory commands = new IMarginBaseTypes.Command[](2);
-        commands[0] = IMarginBaseTypes.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IMarginBaseTypes.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
 
         // define inputs
         bytes[] memory inputs = new bytes[](2);
@@ -1229,9 +1174,7 @@ contract AccountBehaviorTest is Test {
         inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
 
         // expect CannotPayFee error on calling execute
-        vm.expectRevert(
-            abi.encodeWithSelector(IMarginBase.CannotPayFee.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(IAccount.CannotPayFee.selector));
 
         // call execute
         account.execute(commands, inputs);
@@ -1268,18 +1211,18 @@ contract AccountBehaviorTest is Test {
 
     // @HELPER
     /// @notice create margin base account
-    /// @return account - MarginBase account
-    function createAccount() private returns (MarginBase account) {
+    /// @return account
+    function createAccount() private returns (Account account) {
         // call factory to create account
-        account = MarginBase(payable(marginAccountFactory.newAccount()));
+        account = Account(payable(factory.newAccount()));
     }
 
     // @HELPER
     /// @notice create margin base account and fund it with sUSD
-    /// @return MarginBase account
-    function createAccountAndDepositSUSD() private returns (MarginBase) {
+    /// @return Account account
+    function createAccountAndDepositSUSD() private returns (Account) {
         // call factory to create account
-        MarginBase account = createAccount();
+        Account account = createAccount();
 
         // mint sUSD and transfer to this address
         mintSUSD(address(this), AMOUNT);
