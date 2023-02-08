@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Script.sol";
 
-contract Deploy is Script {
+contract OptimismDeploy is Script {
     function setUp() public {}
 
     function run() public {
