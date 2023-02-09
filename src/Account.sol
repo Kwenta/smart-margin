@@ -481,28 +481,28 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         override
         returns (bool, uint256)
     {
-        Order memory order = getOrder(_orderId);
+        // Order memory order = getOrder(_orderId);
 
-        if (order.maxDynamicFee != 0) {
-            (uint256 dynamicFee, bool tooVolatile) = exchanger()
-                .dynamicFeeRateForExchange(
-                    SUSD,
-                    getPerpsV2Market(order.marketKey).baseAsset()
-                );
-            if (tooVolatile || dynamicFee > order.maxDynamicFee) {
-                return (false, 0);
-            }
-        }
+        // if (order.maxDynamicFee != 0) {
+        //     (uint256 dynamicFee, bool tooVolatile) = exchanger()
+        //         .dynamicFeeRateForExchange(
+        //             SUSD,
+        //             getPerpsV2Market(order.marketKey).baseAsset()
+        //         );
+        //     if (tooVolatile || dynamicFee > order.maxDynamicFee) {
+        //         return (false, 0);
+        //     }
+        // }
 
-        if (order.orderType == OrderTypes.LIMIT) {
-            return validLimitOrder(order);
-        } else if (order.orderType == OrderTypes.STOP) {
-            return validStopOrder(order);
-        }
+        // if (order.orderType == OrderTypes.LIMIT) {
+        //     return validLimitOrder(order);
+        // } else if (order.orderType == OrderTypes.STOP) {
+        //     return validStopOrder(order);
+        // }
 
-        // unknown order type
-        // @notice execution should never reach here
-        // @dev needed to satisfy types
+        // // unknown order type
+        // // @notice execution should never reach here
+        // // @dev needed to satisfy types
         return (false, 0);
     }
 
@@ -515,21 +515,22 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         view
         returns (bool, uint256)
     {
-        uint256 price = sUSDRate(getPerpsV2Market(order.marketKey));
+        // uint256 price = sUSDRate(getPerpsV2Market(order.marketKey));
 
-        /// @notice intent is targetPrice or better despite direction
-        if (order.sizeDelta > 0) {
-            // Long
-            return (price <= order.targetPrice, price);
-        } else if (order.sizeDelta < 0) {
-            // Short
-            return (price >= order.targetPrice, price);
-        }
+        // /// @notice intent is targetPrice or better despite direction
+        // if (order.sizeDelta > 0) {
+        //     // Long
+        //     return (price <= order.targetPrice, price);
+        // } else if (order.sizeDelta < 0) {
+        //     // Short
+        //     return (price >= order.targetPrice, price);
+        // }
 
-        // sizeDelta == 0
-        // @notice execution should never reach here
-        // @dev needed to satisfy types
-        return (false, price);
+        // // sizeDelta == 0
+        // // @notice execution should never reach here
+        // // @dev needed to satisfy types
+        // return (false, price);
+        return (false, 0);
     }
 
     /// @notice stop order logic condition checker
@@ -543,18 +544,18 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     {
         uint256 price = sUSDRate(getPerpsV2Market(order.marketKey));
 
-        /// @notice intent is targetPrice or worse despite direction
-        if (order.sizeDelta > 0) {
-            // Long
-            return (price >= order.targetPrice, price);
-        } else if (order.sizeDelta < 0) {
-            // Short
-            return (price <= order.targetPrice, price);
-        }
+        // /// @notice intent is targetPrice or worse despite direction
+        // if (order.sizeDelta > 0) {
+        //     // Long
+        //     return (price >= order.targetPrice, price);
+        // } else if (order.sizeDelta < 0) {
+        //     // Short
+        //     return (price <= order.targetPrice, price);
+        // }
 
-        // sizeDelta == 0
-        // @notice execution should never reach here
-        // @dev needed to satisfy types
+        // // sizeDelta == 0
+        // // @notice execution should never reach here
+        // // @dev needed to satisfy types
         return (false, price);
     }
 
@@ -615,117 +616,106 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         onlyOwner
         returns (uint256)
     {
-        if (address(this).balance < 1 ether / 100) {
-            revert InsufficientEthBalance(address(this).balance, 1 ether / 100);
-        }
-        // if more margin is desired on the position we must commit the margin
-        if (_marginDelta > 0) {
-            // ensure margin doesn't exceed max
-            if (uint256(_marginDelta) > freeMargin()) {
-                revert InsufficientFreeMargin(
-                    freeMargin(),
-                    uint256(_marginDelta)
-                );
-            }
-            committedMargin += _abs(_marginDelta);
-        }
+        // if (address(this).balance < 1 ether / 100) {
+        //     revert InsufficientEthBalance(address(this).balance, 1 ether / 100);
+        // }
+        // // if more margin is desired on the position we must commit the margin
+        // if (_marginDelta > 0) {
+        //     // ensure margin doesn't exceed max
+        //     if (uint256(_marginDelta) > freeMargin()) {
+        //         revert InsufficientFreeMargin(
+        //             freeMargin(),
+        //             uint256(_marginDelta)
+        //         );
+        //     }
+        //     committedMargin += _abs(_marginDelta);
+        // }
 
-        bytes32 taskId = IOps(OPS).createTaskNoPrepayment(
-            address(this), // execution function address
-            this.executeOrder.selector, // execution function selector
-            address(this), // checker (resolver) address
-            abi.encodeWithSelector(this.checker.selector, orderId), // checker (resolver) calldata
-            ETH // payment token
-        );
+        // bytes32 taskId = IOps(OPS).createTaskNoPrepayment(
+        //     address(this), // execution function address
+        //     this.executeOrder.selector, // execution function selector
+        //     address(this), // checker (resolver) address
+        //     abi.encodeWithSelector(this.checker.selector, orderId), // checker (resolver) calldata
+        //     ETH // payment token
+        // );
 
-        orders[orderId] = Order({
-            marketKey: _marketKey,
-            marginDelta: _marginDelta,
-            sizeDelta: _sizeDelta,
-            targetPrice: _targetPrice,
-            gelatoTaskId: taskId,
-            orderType: _orderType,
-            priceImpactDelta: _priceImpactDelta,
-            maxDynamicFee: _maxDynamicFee
-        });
+        // orders[orderId] = Order({
+        //     marketKey: _marketKey,
+        //     marginDelta: _marginDelta,
+        //     sizeDelta: _sizeDelta,
+        //     targetPrice: _targetPrice,
+        //     gelatoTaskId: taskId,
+        //     orderType: _orderType,
+        //     priceImpactDelta: _priceImpactDelta,
+        //     maxDynamicFee: _maxDynamicFee
+        // });
 
-        events.emitOrderPlaced({
-            account: address(this),
-            orderId: orderId,
-            marketKey: _marketKey,
-            marginDelta: _marginDelta,
-            sizeDelta: _sizeDelta,
-            targetPrice: _targetPrice,
-            orderType: _orderType,
-            priceImpactDelta: _priceImpactDelta,
-            maxDynamicFee: _maxDynamicFee
-        });
+        // events.emitOrderPlaced({
+        //     account: address(this),
+        //     orderId: orderId,
+        //     marketKey: _marketKey,
+        //     marginDelta: _marginDelta,
+        //     sizeDelta: _sizeDelta,
+        //     targetPrice: _targetPrice,
+        //     orderType: _orderType,
+        //     priceImpactDelta: _priceImpactDelta,
+        //     maxDynamicFee: _maxDynamicFee
+        // });
 
         return orderId++;
     }
 
     /// @inheritdoc IAccount
     function cancelOrder(uint256 _orderId) external override onlyOwner {
-        Order memory order = getOrder(_orderId);
-
-        // if margin was committed, free it
-        if (order.marginDelta > 0) {
-            committedMargin -= _abs(order.marginDelta);
-        }
-        IOps(OPS).cancelTask(order.gelatoTaskId);
-
-        // delete order from orders
-        delete orders[_orderId];
-
-        events.emitOrderCancelled({account: address(this), orderId: _orderId});
+        // Order memory order = getOrder(_orderId);
+        // // if margin was committed, free it
+        // if (order.marginDelta > 0) {
+        //     committedMargin -= _abs(order.marginDelta);
+        // }
+        // IOps(OPS).cancelTask(order.gelatoTaskId);
+        // // delete order from orders
+        // delete orders[_orderId];
+        // events.emitOrderCancelled({account: address(this), orderId: _orderId});
     }
 
     /// @inheritdoc IAccount
     function executeOrder(uint256 _orderId) external override onlyOps {
-        (bool isValidOrder, uint256 fillPrice) = validOrder(_orderId);
-        if (!isValidOrder) {
-            revert OrderInvalid();
-        }
-        Order memory order = getOrder(_orderId);
-
-        // if margin was committed, free it
-        if (order.marginDelta > 0) {
-            committedMargin -= _abs(order.marginDelta);
-        }
-
-        // prep new position
-        NewPosition[] memory newPositions = new NewPosition[](1);
-        newPositions[0] = NewPosition({
-            marketKey: order.marketKey,
-            marginDelta: order.marginDelta,
-            sizeDelta: order.sizeDelta,
-            priceImpactDelta: order.priceImpactDelta
-        });
-
-        // remove task from gelato's side
-        /// @dev optimization done for gelato
-        IOps(OPS).cancelTask(order.gelatoTaskId);
-
-        // delete order from orders
-        delete orders[_orderId];
-
+        // (bool isValidOrder, uint256 fillPrice) = validOrder(_orderId);
+        // if (!isValidOrder) {
+        //     revert OrderInvalid();
+        // }
+        // Order memory order = getOrder(_orderId);
+        // // if margin was committed, free it
+        // if (order.marginDelta > 0) {
+        //     committedMargin -= _abs(order.marginDelta);
+        // }
+        // // prep new position
+        // NewPosition[] memory newPositions = new NewPosition[](1);
+        // newPositions[0] = NewPosition({
+        //     marketKey: order.marketKey,
+        //     marginDelta: order.marginDelta,
+        //     sizeDelta: order.sizeDelta,
+        //     priceImpactDelta: order.priceImpactDelta
+        // });
+        // // remove task from gelato's side
+        // /// @dev optimization done for gelato
+        // IOps(OPS).cancelTask(order.gelatoTaskId);
+        // // delete order from orders
+        // delete orders[_orderId];
         // uint256 advancedOrderFee = order.orderType == OrderTypes.LIMIT
         //     ? settings.limitOrderFee()
         //     : settings.stopOrderFee();
-
         // execute trade
         //_distributeMargin(newPositions, advancedOrderFee);
-
-        // pay fee
-        (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
-        _transfer(fee, feeToken);
-
-        events.emitOrderFilled({
-            account: address(this),
-            orderId: _orderId,
-            fillPrice: fillPrice,
-            keeperFee: fee
-        });
+        // // pay fee
+        // (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
+        // _transfer(fee, feeToken);
+        // events.emitOrderFilled({
+        //     account: address(this),
+        //     orderId: _orderId,
+        //     fillPrice: fillPrice,
+        //     keeperFee: fee
+        // });
     }
 
     /*//////////////////////////////////////////////////////////////
