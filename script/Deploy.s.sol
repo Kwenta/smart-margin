@@ -9,14 +9,6 @@ import {Settings} from "src/Settings.sol";
 
 /// @title Script to deploy Kwenta's Smart Margin Account Factory
 /// @author JaredBorders (jaredborders@pm.me)
-///
-/// @dev steps to deploy and verify on Optimism:
-/// (1) load the variables in the .env file via `source .env`
-/// (2) run `forge script script/Deploy.s.sol:DeployOptimism --rpc-url $ARCHIVE_NODE_URL_L2 --broadcast -vvvv`
-///
-/// @dev steps to deploy and verify on Optimism Goerli:
-/// (1) load the variables in the .env file via `source .env`
-/// (2) run `forge script script/Deploy.s.sol:DeployOptimismGoerli --rpc-url $ARCHIVE_NODE_URL_GOERLI_L2 --broadcast -vvvv`
 contract Setup {
     function deploySmartMarginFactory(
         address owner,
@@ -47,6 +39,9 @@ contract Setup {
     }
 }
 
+/// @dev steps to deploy and verify on Optimism:
+/// (1) load the variables in the .env file via `source .env`
+/// (2) run `forge script script/Deploy.s.sol:DeployOptimism --rpc-url $ARCHIVE_NODE_URL_L2 --broadcast -vvvv`
 contract DeployOptimism is Script, Setup {
     address private constant KWENTA_ADMIN_DAO_MULTI_SIG =
         0xF510a2Ff7e9DD7e18629137adA4eb56B9c13E885;
@@ -73,6 +68,9 @@ contract DeployOptimism is Script, Setup {
     }
 }
 
+/// @dev steps to deploy and verify on Optimism Goerli:
+/// (1) load the variables in the .env file via `source .env`
+/// (2) run `forge script script/Deploy.s.sol:DeployOptimismGoerli --rpc-url $ARCHIVE_NODE_URL_GOERLI_L2 --broadcast -vvvv`
 contract DeployOptimismGoerli is Script, Setup {
     address private constant KWENTA_ADMIN_DAO_MULTI_SIG = address(0xCAFEBAE);
     address private constant KWENTA_TREASURY_MULTI_SIG = address(0xCAFEBAE);
@@ -96,3 +94,21 @@ contract DeployOptimismGoerli is Script, Setup {
         vm.stopBroadcast();
     }
 }
+
+
+/**
+
+STEPS:
+
+1) Add private key to .env file
+2) check OP Goerli addresses (multisig and treasury)
+3) Deploy to OP Goerli following above steps
+4) Update addresses (Account, Events, Factory, Settings) in deploy-addresses/optimism-goerli.json
+5) check OP addresses (multisig and treasury)
+6) Deploy to OP following above steps
+7) Update addresses (Account, Events, Factory, Settings) in deploy-addresses/optimism.json
+8) update README to point readers to directory with deployed addresses
+9) add broadcast info (abi, etc) to a new directory in deploy-addresses?
+10) delete this comment (:
+
+*/
