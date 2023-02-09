@@ -28,7 +28,7 @@ contract OptimismDeployScript is Script {
     /// @dev settings, events, and account implementation are deployed
     /// @dev settings, events, and account implementation addresses 
     /// can be fetched from factory
-    /// @return factory: Kwenta's Smart Margin Account Factory
+    /// @return factory Kwenta's Smart Margin Account Factory
     function deploySmartMarginFactory() public returns (Factory factory) {
         // deploy Settings
         Settings settings = new Settings({
