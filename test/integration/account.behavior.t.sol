@@ -2,15 +2,16 @@
 pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
+import {Account} from "../../src/Account.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
-import {ISynth} from "@synthetix/ISynth.sol";
+import {Events} from "../../src/Events.sol";
+import {Factory} from "../../src/Factory.sol";
+import {IAccount, IFuturesMarketManager, IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
 import {IPerpsV2MarketSettings} from "@synthetix/IPerpsV2MarketSettings.sol";
+import {ISynth} from "@synthetix/ISynth.sol";
 import {Settings} from "../../src/Settings.sol";
-import {Factory} from "../../src/Factory.sol";
-import {Account} from "../../src/Account.sol";
-import {IAccount, IPerpsV2MarketConsolidated, IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
-import {Events} from "../../src/Events.sol";
+import {Setup} from "../../script/Deploy.s.sol";
 
 // functions tagged with @HELPER are helper functions and not tests
 // tests tagged with @AUDITOR are flags for desired increased scrutiny by the auditors
@@ -101,24 +102,18 @@ contract AccountBehaviorTest is Test {
         // establish sUSD address
         sUSD = ERC20(ADDRESS_RESOLVER.getAddress("ProxyERC20sUSD"));
 
-        settings = new Settings({
-            _owner: address(this),
-            _treasury: KWENTA_TREASURY,
-            _tradeFee: tradeFee,
-            _limitOrderFee: limitOrderFee,
-            _stopOrderFee: stopOrderFee
+        // uses deployment script for tests (2 birds 1 stone)
+        Setup setup = new Setup();
+        factory = setup.deploySmartMarginFactory({
+            owner: address(this),
+            treasury: KWENTA_TREASURY,
+            tradeFee: tradeFee,
+            limitOrderFee: limitOrderFee,
+            stopOrderFee: stopOrderFee
         });
 
-        events = new Events();
-
-        address implementation = address(new Account());
-
-        factory = new Factory({
-            _owner: address(this),
-            _settings: address(settings),
-            _events: address(events),
-            _implementation: implementation
-        });
+        settings = Settings(factory.settings());
+        events = Events(factory.events());
     }
 
     /*//////////////////////////////////////////////////////////////
