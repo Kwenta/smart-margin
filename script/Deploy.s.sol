@@ -73,9 +73,9 @@ contract DeployOptimism is Script, Setup {
 /// (2) run `forge script script/Deploy.s.sol:DeployOptimismGoerli --rpc-url $ARCHIVE_NODE_URL_GOERLI_L2 --broadcast --verify -vvvv`
 contract DeployOptimismGoerli is Script, Setup {
     address private constant KWENTA_ADMIN_DAO_MULTI_SIG =
-        0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4;
+        0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4; // deployer address
     address private constant KWENTA_TREASURY_MULTI_SIG =
-        0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4;
+        0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4; // deployer address
 
     uint256 private constant SETTINGS_TRADE_FEE = 1;
     uint256 private constant SETTINGS_LIMIT_ORDER_FEE = 1;
