@@ -149,4 +149,13 @@ npm run analysis:solsat
 
 ### Deployment and Verification
 
-coming soon ✨!
+#### Optimism (WIP) (Not verified)
+Account: `0xb3E58002aAf9d21a39a19DB784f10c30c9e5bE76` <br>
+Events: `0x3e52b5f840eafD79394c6359E93Bf3FfdAE89ee4` <br>
+Factory: `0xcbDe4a95cd13fb5BC0451FCaC66c80169703f4A1` <br>
+Settings: `0xaD873e5E79df7F7a7fFE637EdaCcD5A3640B4a49` <br>
+#### Optimism Goerli (WIP) (Not verified)
+Account: `0xD67Db3cc05f626A3B7ac59A161589e2Bb2Bfd1E0` <br>
+Events: `0x769A0246AFECba504389D0D295CaE4bC951daa8e` <br>
+Factory: `0xF84CcAD694ad8F37495b25D3Dd11edAd33d69Fb2` <br>
+Settings: `0xa5Aac6b5De821E631C7Ad01f978e32e80a8461c7` <br>
