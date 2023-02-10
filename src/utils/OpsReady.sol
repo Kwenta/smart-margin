@@ -7,9 +7,7 @@ import {IOps} from "../interfaces/IOps.sol";
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
 abstract contract OpsReady {
     /// @notice address of Gelato `Automate` contract address on Optimism
-    //address public constant OPS = 0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c;
-
-    address public constant OPS = 0x255F82563b5973264e89526345EcEa766DB3baB2;
+    address public constant OPS = 0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c;
 
     address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 

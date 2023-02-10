@@ -18,18 +18,12 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     bytes32 public constant VERSION = "2.0.0";
 
     /// @inheritdoc IAccount
-    // IAddressResolver public constant ADDRESS_RESOLVER =
-    //     IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
-
     IAddressResolver public constant ADDRESS_RESOLVER =
-        IAddressResolver(0x1d551351613a28d676BaC1Af157799e201279198);
+        IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
         
     /// @inheritdoc IAccount
-    // IERC20 public constant MARGIN_ASSET =
-    //     IERC20(0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9);
-
     IERC20 public constant MARGIN_ASSET =
-        IERC20(0xeBaEAAD9236615542844adC5c149F86C36aD1136);
+        IERC20(0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9);
 
     /// @notice tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
