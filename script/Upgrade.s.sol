@@ -14,7 +14,7 @@ import "forge-std/Script.sol";
 ///     with the address of the new Account implementation
 contract UpgradeAccountOptimism is Script {
     function run() public {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
         // AccountV69 newImplementation = new AccountV69();
@@ -30,7 +30,7 @@ contract UpgradeAccountOptimism is Script {
 ///     with the address of the new Account implementation
 contract UpgradeAccountOptimismGoerli is Script {
     function run() public {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
         // AccountV69 newImplementation = new AccountV69();

@@ -53,7 +53,7 @@ contract DeployOptimism is Script, Setup {
     uint256 private constant SETTINGS_STOP_ORDER_FEE = 1;
 
     function run() public {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
         Setup.deploySmartMarginFactory({
@@ -72,15 +72,15 @@ contract DeployOptimism is Script, Setup {
 /// (1) load the variables in the .env file via `source .env`
 /// (2) run `forge script script/Deploy.s.sol:DeployOptimismGoerli --rpc-url $ARCHIVE_NODE_URL_GOERLI_L2 --broadcast -vvvv`
 contract DeployOptimismGoerli is Script, Setup {
-    address private constant KWENTA_ADMIN_DAO_MULTI_SIG = address(0xCAFEBAE);
-    address private constant KWENTA_TREASURY_MULTI_SIG = address(0xCAFEBAE);
+    address private constant KWENTA_ADMIN_DAO_MULTI_SIG = 0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4;
+    address private constant KWENTA_TREASURY_MULTI_SIG = 0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4;
 
     uint256 private constant SETTINGS_TRADE_FEE = 1;
     uint256 private constant SETTINGS_LIMIT_ORDER_FEE = 1;
     uint256 private constant SETTINGS_STOP_ORDER_FEE = 1;
 
     function run() public {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
         Setup.deploySmartMarginFactory({
