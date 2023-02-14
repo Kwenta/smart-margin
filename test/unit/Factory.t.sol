@@ -2,13 +2,14 @@
 pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
-import {ISettings} from "../../src/interfaces/ISettings.sol";
-import {Settings} from "../../src/Settings.sol";
-import {Factory} from "../../src/Factory.sol";
-import {IFactory} from "../../src/interfaces/IFactory.sol";
 import {Account} from "../../src/Account.sol";
 import {Events} from "../../src/Events.sol";
+import {Factory} from "../../src/Factory.sol";
+import {ISettings} from "../../src/interfaces/ISettings.sol";
+import {IFactory} from "../../src/interfaces/IFactory.sol";
 import {MockAccount1, MockAccount2} from "./utils/MockAccounts.sol";
+import {Settings} from "../../src/Settings.sol";
+import {Setup} from "../../script/Deploy.s.sol";
 import {UpgradedAccount} from "./utils/UpgradedAccount.sol";
 
 contract FactoryTest is Test {
@@ -44,24 +45,19 @@ contract FactoryTest is Test {
         // select block number
         vm.rollFork(BLOCK_NUMBER);
 
-        settings = new Settings({
-            _owner: address(this),
-            _treasury: KWENTA_TREASURY,
-            _tradeFee: tradeFee,
-            _limitOrderFee: limitOrderFee,
-            _stopOrderFee: stopOrderFee
+        // uses deployment script for tests (2 birds 1 stone)
+        Setup setup = new Setup();
+        factory = setup.deploySmartMarginFactory({
+            owner: address(this),
+            treasury: KWENTA_TREASURY,
+            tradeFee: tradeFee,
+            limitOrderFee: limitOrderFee,
+            stopOrderFee: stopOrderFee
         });
 
-        events = new Events();
-
-        implementation = new Account();
-
-        factory = new Factory({
-            _owner: address(this),
-            _settings: address(settings),
-            _events: address(events),
-            _implementation: address(implementation)
-        });
+        settings = Settings(factory.settings());
+        events = Events(factory.events());
+        implementation = Account(payable(factory.implementation()));
     }
 
     /*//////////////////////////////////////////////////////////////

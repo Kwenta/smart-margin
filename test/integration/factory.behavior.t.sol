@@ -2,10 +2,11 @@
 pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
-import {Settings} from "../../src/Settings.sol";
-import {Factory} from "../../src/Factory.sol";
 import {Account} from "../../src/Account.sol";
 import {Events} from "../../src/Events.sol";
+import {Factory} from "../../src/Factory.sol";
+import {Settings} from "../../src/Settings.sol";
+import {Setup} from "../../script/Deploy.s.sol";
 
 contract FactoryBehaviorTest is Test {
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
@@ -28,24 +29,19 @@ contract FactoryBehaviorTest is Test {
         // select block number
         vm.rollFork(BLOCK_NUMBER);
 
-        settings = new Settings({
-            _owner: address(this),
-            _treasury: KWENTA_TREASURY,
-            _tradeFee: tradeFee,
-            _limitOrderFee: limitOrderFee,
-            _stopOrderFee: stopOrderFee
+        // uses deployment script for tests (2 birds 1 stone)
+        Setup setup = new Setup();
+        factory = setup.deploySmartMarginFactory({
+            owner: address(this),
+            treasury: KWENTA_TREASURY,
+            tradeFee: tradeFee,
+            limitOrderFee: limitOrderFee,
+            stopOrderFee: stopOrderFee
         });
 
-        events = new Events();
-
-        implementation = new Account();
-
-        factory = new Factory({
-            _owner: address(this),
-            _settings: address(settings),
-            _events: address(events),
-            _implementation: address(implementation)
-        });
+        settings = Settings(factory.settings());
+        events = Events(factory.events());
+        implementation = Account(payable(factory.implementation()));
     }
 
     /*//////////////////////////////////////////////////////////////
