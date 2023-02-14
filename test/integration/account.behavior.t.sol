@@ -1079,8 +1079,8 @@ contract AccountBehaviorTest is Test {
     /// @notice test trading fee calculation
     /// @param fuzzedSizeDelta: fuzzed size delta
     function testCalculateTradeFee(int128 fuzzedSizeDelta) external {
-        // advanced order fee
-        uint256 advancedOrderFee = MAX_BPS / 99; // 1% fee
+        // conditional order fee
+        uint256 conditionalOrderFee = MAX_BPS / 99; // 1% fee
 
         // define market
         IPerpsV2MarketConsolidated market = IPerpsV2MarketConsolidated(
@@ -1091,7 +1091,7 @@ contract AccountBehaviorTest is Test {
         Account account = createAccount();
 
         // calculate expected fee
-        uint256 percentToTake = settings.tradeFee() + advancedOrderFee;
+        uint256 percentToTake = settings.tradeFee() + conditionalOrderFee;
         uint256 fee = (abs(int256(fuzzedSizeDelta)) * percentToTake) / MAX_BPS;
         (uint256 price, bool invalid) = market.assetPrice();
         assert(!invalid);
@@ -1101,7 +1101,7 @@ contract AccountBehaviorTest is Test {
         uint256 actualFee = account.calculateTradeFee({
             _sizeDelta: fuzzedSizeDelta,
             _market: market,
-            _advancedOrderFee: advancedOrderFee
+            _conditionalOrderFee: conditionalOrderFee
         });
 
         assertEq(actualFee, feeInSUSD);
