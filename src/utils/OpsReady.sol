@@ -11,6 +11,7 @@ abstract contract OpsReady {
 
     address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
+    /// @notice modifier to restrict access to the `Automate` contract
     modifier onlyOps() {
         require(msg.sender == OPS, "OpsReady: onlyOps");
         _;
@@ -20,6 +21,9 @@ abstract contract OpsReady {
         return IOps(OPS).gelato();
     }
 
+    /// @notice helper function to transfer funds to the `Automate` contract
+    /// @param _amount: amount of asset to transfer
+    /// @param _paymentToken: address of the token to transfer
     function _transfer(uint256 _amount, address _paymentToken) internal {
         if (_paymentToken == ETH) {
             (bool success, ) = gelato().call{value: _amount}("");
