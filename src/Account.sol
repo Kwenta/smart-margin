@@ -767,7 +767,9 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /*//////////////////////////////////////////////////////////////
                              FEE UTILITIES
     //////////////////////////////////////////////////////////////*/
-
+    
+    /// @notice impose fee on account
+    /// @param _fee: fee to impose
     function _imposeFee(uint256 _fee) internal {
         /// @dev send fee to Kwenta's treasury
         if (_fee > freeMargin()) {
