@@ -20,7 +20,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /// @inheritdoc IAccount
     IAddressResolver public constant ADDRESS_RESOLVER =
         IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
-        
+
     /// @inheritdoc IAccount
     IERC20 public constant MARGIN_ASSET =
         IERC20(0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9);
@@ -166,10 +166,10 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     function calculateTradeFee(
         int256 _sizeDelta,
         IPerpsV2MarketConsolidated _market,
-        uint256 _advancedOrderFee
+        uint256 _conditionalOrderFee
     ) public view override returns (uint256 fee) {
         fee =
-            (_abs(_sizeDelta) * (settings.tradeFee() + _advancedOrderFee)) /
+            (_abs(_sizeDelta) * (settings.tradeFee() + _conditionalOrderFee)) /
             settings.MAX_BPS();
 
         /// @notice fee is currently measured in the underlying base asset of the market
@@ -257,8 +257,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
-    function execute(Command[] calldata commands, bytes[] calldata inputs)
-        external
+    function execute(Command[] memory commands, bytes[] memory inputs)
+        public
         payable
         override
         onlyOwner
@@ -378,7 +378,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             calculateTradeFee({
                 _sizeDelta: _sizeDelta,
                 _market: IPerpsV2MarketConsolidated(_market),
-                _advancedOrderFee: 0
+                _conditionalOrderFee: 0
             })
         );
 
@@ -400,7 +400,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             calculateTradeFee({
                 _sizeDelta: _sizeDelta,
                 _market: IPerpsV2MarketConsolidated(_market),
-                _advancedOrderFee: 0
+                _conditionalOrderFee: 0
             })
         );
 
@@ -422,7 +422,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             calculateTradeFee({
                 _sizeDelta: _sizeDelta,
                 _market: IPerpsV2MarketConsolidated(_market),
-                _advancedOrderFee: 0
+                _conditionalOrderFee: 0
             })
         );
 
@@ -465,7 +465,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             calculateTradeFee({
                 _sizeDelta: getPosition(marketKey).size,
                 _market: IPerpsV2MarketConsolidated(_market),
-                _advancedOrderFee: 0
+                _conditionalOrderFee: 0
             })
         );
     }
@@ -481,62 +481,59 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         override
         returns (bool, uint256)
     {
-        // Order memory order = getOrder(_orderId);
+        Order memory order = getOrder(_orderId);
 
-        // if (order.maxDynamicFee != 0) {
-        //     (uint256 dynamicFee, bool tooVolatile) = exchanger()
-        //         .dynamicFeeRateForExchange(
-        //             SUSD,
-        //             getPerpsV2Market(order.marketKey).baseAsset()
-        //         );
-        //     if (tooVolatile || dynamicFee > order.maxDynamicFee) {
-        //         return (false, 0);
-        //     }
-        // }
+        // check dynamic fee is not too high
+        if (order.maxDynamicFee != 0) {
+            (uint256 dynamicFee, bool tooVolatile) = exchanger()
+                .dynamicFeeRateForExchange(
+                    SUSD,
+                    getPerpsV2Market(order.marketKey).baseAsset()
+                );
+            if (tooVolatile || dynamicFee > order.maxDynamicFee) {
+                return (false, 0);
+            }
+        }
 
-        // if (order.orderType == OrderTypes.LIMIT) {
-        //     return validLimitOrder(order);
-        // } else if (order.orderType == OrderTypes.STOP) {
-        //     return validStopOrder(order);
-        // }
-
-        // // unknown order type
-        // // @notice execution should never reach here
-        // // @dev needed to satisfy types
-        return (false, 0);
+        // check if markets satisfy specific order type
+        if (order.orderType == OrderTypes.LIMIT) {
+            return validLimitOrder(order);
+        } else if (order.orderType == OrderTypes.STOP) {
+            return validStopOrder(order);
+        } else {
+            // unknown order type
+            return (false, 0);
+        }
     }
 
     /// @notice limit order logic condition checker
+    /// @dev sizeDelta will never be zero due to check when submitting order
     /// @param order: struct for an active order
     /// @return true if order is valid by execution rules
-    /// @return price that the order will be filled at (only valid if prev is true)
+    /// @return price that the order will be submitted
     function validLimitOrder(Order memory order)
         internal
         view
         returns (bool, uint256)
     {
-        // uint256 price = sUSDRate(getPerpsV2Market(order.marketKey));
+        uint256 price = sUSDRate(getPerpsV2Market(order.marketKey));
 
-        // /// @notice intent is targetPrice or better despite direction
-        // if (order.sizeDelta > 0) {
-        //     // Long
-        //     return (price <= order.targetPrice, price);
-        // } else if (order.sizeDelta < 0) {
-        //     // Short
-        //     return (price >= order.targetPrice, price);
-        // }
-
-        // // sizeDelta == 0
-        // // @notice execution should never reach here
-        // // @dev needed to satisfy types
-        // return (false, price);
-        return (false, 0);
+        if (order.sizeDelta > 0) {
+            // Long: increase position size (buy) once *below* target price
+            // ex: open long position once price is below target
+            return (price <= order.targetPrice, price);
+        } else {
+            // Short: decrease position size (sell) once *above* target price
+            // ex: open short position once price is above target
+            return (price >= order.targetPrice, price);
+        }
     }
 
     /// @notice stop order logic condition checker
+    /// @dev sizeDelta will never be zero due to check when submitting order
     /// @param order: struct for an active order
     /// @return true if order is valid by execution rules
-    /// @return price that the order will be filled at (only valid if prev is true)
+    /// @return price that the order will be submitted
     function validStopOrder(Order memory order)
         internal
         view
@@ -544,19 +541,15 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     {
         uint256 price = sUSDRate(getPerpsV2Market(order.marketKey));
 
-        // /// @notice intent is targetPrice or worse despite direction
-        // if (order.sizeDelta > 0) {
-        //     // Long
-        //     return (price >= order.targetPrice, price);
-        // } else if (order.sizeDelta < 0) {
-        //     // Short
-        //     return (price <= order.targetPrice, price);
-        // }
-
-        // // sizeDelta == 0
-        // // @notice execution should never reach here
-        // // @dev needed to satisfy types
-        return (false, price);
+        if (order.sizeDelta > 0) {
+            // Long: increase position size (buy) once *above* target price
+            // ex: unwind short position once price is above target (prevent further loss)
+            return (price >= order.targetPrice, price);
+        } else {
+            // Short: decrease position size (sell) once *below* target price
+            // ex: unwind long position once price is below target (prevent further loss)
+            return (price <= order.targetPrice, price);
+        }
     }
 
     /// @inheritdoc IAccount
@@ -616,106 +609,159 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         onlyOwner
         returns (uint256)
     {
-        // if (address(this).balance < 1 ether / 100) {
-        //     revert InsufficientEthBalance(address(this).balance, 1 ether / 100);
-        // }
-        // // if more margin is desired on the position we must commit the margin
-        // if (_marginDelta > 0) {
-        //     // ensure margin doesn't exceed max
-        //     if (uint256(_marginDelta) > freeMargin()) {
-        //         revert InsufficientFreeMargin(
-        //             freeMargin(),
-        //             uint256(_marginDelta)
-        //         );
-        //     }
-        //     committedMargin += _abs(_marginDelta);
-        // }
+        // ensure account has enough eth to eventually pay for the order
+        if (address(this).balance < 1 ether / 100) {
+            revert InsufficientEthBalance(address(this).balance, 1 ether / 100);
+        }
 
-        // bytes32 taskId = IOps(OPS).createTaskNoPrepayment(
-        //     address(this), // execution function address
-        //     this.executeOrder.selector, // execution function selector
-        //     address(this), // checker (resolver) address
-        //     abi.encodeWithSelector(this.checker.selector, orderId), // checker (resolver) calldata
-        //     ETH // payment token
-        // );
+        // if more margin is desired on the position we must commit the margin
+        if (_marginDelta > 0) {
+            // ensure margin doesn't exceed max
+            if (uint256(_marginDelta) > freeMargin()) {
+                revert InsufficientFreeMargin(
+                    freeMargin(),
+                    uint256(_marginDelta)
+                );
+            }
+            committedMargin += _abs(_marginDelta);
+        }
 
-        // orders[orderId] = Order({
-        //     marketKey: _marketKey,
-        //     marginDelta: _marginDelta,
-        //     sizeDelta: _sizeDelta,
-        //     targetPrice: _targetPrice,
-        //     gelatoTaskId: taskId,
-        //     orderType: _orderType,
-        //     priceImpactDelta: _priceImpactDelta,
-        //     maxDynamicFee: _maxDynamicFee
-        // });
+        // generate an id associated with a task that can be executed by gelato
+        bytes32 taskId = IOps(OPS).createTaskNoPrepayment({
+            _execAddress: address(this),
+            _execSelector: this.executeOrder.selector,
+            _resolverAddress: address(this),
+            _resolverData: abi.encodeWithSelector(
+                this.checker.selector,
+                orderId
+            ),
+            _feeToken: ETH
+        });
 
-        // events.emitOrderPlaced({
-        //     account: address(this),
-        //     orderId: orderId,
-        //     marketKey: _marketKey,
-        //     marginDelta: _marginDelta,
-        //     sizeDelta: _sizeDelta,
-        //     targetPrice: _targetPrice,
-        //     orderType: _orderType,
-        //     priceImpactDelta: _priceImpactDelta,
-        //     maxDynamicFee: _maxDynamicFee
-        // });
+        orders[orderId] = Order({
+            marketKey: _marketKey,
+            marginDelta: _marginDelta,
+            sizeDelta: _sizeDelta,
+            targetPrice: _targetPrice,
+            gelatoTaskId: taskId,
+            orderType: _orderType,
+            priceImpactDelta: _priceImpactDelta,
+            maxDynamicFee: _maxDynamicFee
+        });
+
+        events.emitOrderPlaced({
+            account: address(this),
+            orderId: orderId,
+            marketKey: _marketKey,
+            marginDelta: _marginDelta,
+            sizeDelta: _sizeDelta,
+            targetPrice: _targetPrice,
+            orderType: _orderType,
+            priceImpactDelta: _priceImpactDelta,
+            maxDynamicFee: _maxDynamicFee
+        });
 
         return orderId++;
     }
 
     /// @inheritdoc IAccount
     function cancelOrder(uint256 _orderId) external override onlyOwner {
-        // Order memory order = getOrder(_orderId);
-        // // if margin was committed, free it
-        // if (order.marginDelta > 0) {
-        //     committedMargin -= _abs(order.marginDelta);
-        // }
-        // IOps(OPS).cancelTask(order.gelatoTaskId);
-        // // delete order from orders
-        // delete orders[_orderId];
-        // events.emitOrderCancelled({account: address(this), orderId: _orderId});
+        Order memory order = getOrder(_orderId);
+
+        // if margin was committed, free it
+        if (order.marginDelta > 0) {
+            committedMargin -= _abs(order.marginDelta);
+        }
+
+        // cancel gelato task
+        IOps(OPS).cancelTask({_taskId: order.gelatoTaskId});
+
+        // delete order from orders
+        delete orders[_orderId];
+
+        events.emitOrderCancelled({account: address(this), orderId: _orderId});
     }
 
     /// @inheritdoc IAccount
     function executeOrder(uint256 _orderId) external override onlyOps {
-        // (bool isValidOrder, uint256 fillPrice) = validOrder(_orderId);
-        // if (!isValidOrder) {
-        //     revert OrderInvalid();
-        // }
-        // Order memory order = getOrder(_orderId);
-        // // if margin was committed, free it
-        // if (order.marginDelta > 0) {
-        //     committedMargin -= _abs(order.marginDelta);
-        // }
-        // // prep new position
-        // NewPosition[] memory newPositions = new NewPosition[](1);
-        // newPositions[0] = NewPosition({
-        //     marketKey: order.marketKey,
-        //     marginDelta: order.marginDelta,
-        //     sizeDelta: order.sizeDelta,
-        //     priceImpactDelta: order.priceImpactDelta
-        // });
-        // // remove task from gelato's side
-        // /// @dev optimization done for gelato
-        // IOps(OPS).cancelTask(order.gelatoTaskId);
-        // // delete order from orders
-        // delete orders[_orderId];
-        // uint256 advancedOrderFee = order.orderType == OrderTypes.LIMIT
-        //     ? settings.limitOrderFee()
-        //     : settings.stopOrderFee();
+        // @TODO consider removing onlyOps modifier
+
+        (bool isValidOrder, uint256 fillPrice) = validOrder(_orderId);
+
+        if (!isValidOrder) {
+            revert OrderInvalid();
+        }
+
+        Order memory order = getOrder(_orderId);
+        address market = address(getPerpsV2Market(order.marketKey));
+
+        // if margin was committed, free it
+        if (order.marginDelta > 0) {
+            committedMargin -= _abs(order.marginDelta);
+        }
+
+        // init commands and inputs
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        bytes[] memory inputs = new bytes[](2);
+
+        /// @dev deconstruct order to compose necessary commands and inputs
+        if (order.marginDelta != 0) {
+            commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+            inputs[0] = abi.encode(market, order.marginDelta);
+            commands[1] = IAccount
+                .Command
+                .PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
+            inputs[1] = abi.encode(
+                market,
+                order.sizeDelta,
+                order.priceImpactDelta
+            );
+        } else {
+            commands = new IAccount.Command[](1);
+            inputs = new bytes[](1);
+            commands[1] = IAccount
+                .Command
+                .PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
+            inputs[1] = abi.encode(
+                market,
+                order.sizeDelta,
+                order.priceImpactDelta
+            );
+        }
+
+        // remove task from gelato's side
+        /// @dev optimization done for gelato
+        IOps(OPS).cancelTask(order.gelatoTaskId);
+
+        // delete order from orders
+        delete orders[_orderId];
+
+        uint256 conditionalOrderFee = order.orderType == OrderTypes.LIMIT
+            ? settings.limitOrderFee()
+            : settings.stopOrderFee();
+
         // execute trade
-        //_distributeMargin(newPositions, advancedOrderFee);
-        // // pay fee
-        // (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
-        // _transfer(fee, feeToken);
-        // events.emitOrderFilled({
-        //     account: address(this),
-        //     orderId: _orderId,
-        //     fillPrice: fillPrice,
-        //     keeperFee: fee
-        // });
+        execute({commands: commands, inputs: inputs});
+
+        // pay fee to Gelato for order execution
+        (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
+        _transfer({_amount: fee, _paymentToken: feeToken});
+
+        // impose conditional order fee
+        _imposeFee(
+            calculateTradeFee({
+                _sizeDelta: order.sizeDelta,
+                _market: IPerpsV2MarketConsolidated(market),
+                _conditionalOrderFee: conditionalOrderFee
+            })
+        );
+
+        events.emitOrderFilled({
+            account: address(this),
+            orderId: _orderId,
+            fillPrice: fillPrice,
+            keeperFee: fee
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
