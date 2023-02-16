@@ -22,7 +22,7 @@ contract AccountTest is Test {
     Events private events;
     Factory private factory;
     ERC20 private sUSD;
-    AccountExposed accountExposed;
+    AccountExposed private accountExposed;
 
     uint256 private constant AMOUNT = 10_000 ether;
 
