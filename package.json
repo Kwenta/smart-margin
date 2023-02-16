@@ -4,6 +4,7 @@
   "scripts": {
     "compile": "forge build",
     "test": "forge test --fork-url $(grep ARCHIVE_NODE_URL_L2 .env | cut -d '=' -f2) --etherscan-api-key $(grep ETHERSCAN_API_KEY .env | cut -d '=' -f2) --gas-report -vvv",
+    "format": "forge fmt",
     "check:upgradeability": "slither-check-upgradeability . Account --proxy-name AccountProxy",
     "analysis:solsat": "solstat --path ./src",
     "analysis:slither": "slither ."
