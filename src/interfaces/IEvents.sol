@@ -23,7 +23,8 @@ interface IEvents {
     /// @notice emitted when a user withdraws ETH from their account
     /// @param account: address of the account that funds (ETH) were withdrawn from
     /// @param amountWithdrawn: amount of ETH withdrawn
-    function emitEthWithdraw(address account, uint256 amountWithdrawn) external;
+    function emitEthWithdraw(address account, uint256 amountWithdrawn)
+        external;
 
     event EthWithdraw(address indexed account, uint256 amountWithdrawn);
 

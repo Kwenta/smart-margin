@@ -16,11 +16,9 @@ interface ISynth {
         external
         returns (bool);
 
-    function transferFromAndSettle(
-        address from,
-        address to,
-        uint256 value
-    ) external returns (bool);
+    function transferFromAndSettle(address from, address to, uint256 value)
+        external
+        returns (bool);
 
     // Restricted: used internally to Synthetix
     function burn(address account, uint256 amount) external;

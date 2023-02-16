@@ -16,10 +16,7 @@ interface IPyth {
     /// @param price Price of the given price update.
     /// @param conf Confidence interval of the given price update.
     event PriceFeedUpdate(
-        bytes32 indexed id,
-        uint64 publishTime,
-        int64 price,
-        uint64 conf
+        bytes32 indexed id, uint64 publishTime, int64 price, uint64 conf
     );
 
     /// @dev Emitted when a batch price update is processed successfully.

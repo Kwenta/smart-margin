@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 import "./IPerpsV2MarketBaseTypes.sol";
+
 pragma experimental ABIEncoderV2;
 
 // Helper Interface, only used in tests and to provide a consolidated interface to PerpsV2 users/integrators
@@ -71,7 +72,10 @@ interface IPerpsV2MarketConsolidated {
         view
         returns (int128 netFunding);
 
-    function positions(address account) external view returns (Position memory);
+    function positions(address account)
+        external
+        view
+        returns (Position memory);
 
     function delayedOrders(address account)
         external
@@ -80,9 +84,15 @@ interface IPerpsV2MarketConsolidated {
 
     function assetPrice() external view returns (uint256 price, bool invalid);
 
-    function marketSizes() external view returns (uint256 long, uint256 short);
+    function marketSizes()
+        external
+        view
+        returns (uint256 long, uint256 short);
 
-    function marketDebt() external view returns (uint256 debt, bool isInvalid);
+    function marketDebt()
+        external
+        view
+        returns (uint256 debt, bool isInvalid);
 
     function currentFundingRate() external view returns (int256 fundingRate);
 
@@ -243,10 +253,7 @@ interface IPerpsV2MarketConsolidated {
     );
 
     event FundingRecomputed(
-        int256 funding,
-        int256 fundingRate,
-        uint256 index,
-        uint256 timestamp
+        int256 funding, int256 fundingRate, uint256 index, uint256 timestamp
     );
 
     event PerpsTracking(

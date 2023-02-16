@@ -8,7 +8,7 @@ import {Settings} from "../../src/Settings.sol";
 contract SettingsTest is Test {
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
     /// @dev hard coded addresses are only guaranteed for this block
-    uint256 private constant BLOCK_NUMBER = 60242268;
+    uint256 private constant BLOCK_NUMBER = 60_242_268;
 
     Settings private settings;
 
@@ -65,8 +65,7 @@ contract SettingsTest is Test {
         uint256 invalidFee = settings.MAX_BPS() + 1;
         vm.expectRevert(
             abi.encodeWithSelector(
-                ISettings.InvalidFee.selector,
-                settings.MAX_BPS() + 1
+                ISettings.InvalidFee.selector, settings.MAX_BPS() + 1
             )
         );
         settings = new Settings({
@@ -82,8 +81,7 @@ contract SettingsTest is Test {
         uint256 invalidFee = settings.MAX_BPS() + 1;
         vm.expectRevert(
             abi.encodeWithSelector(
-                ISettings.InvalidFee.selector,
-                settings.MAX_BPS() + 1
+                ISettings.InvalidFee.selector, settings.MAX_BPS() + 1
             )
         );
         settings = new Settings({
@@ -99,8 +97,7 @@ contract SettingsTest is Test {
         uint256 invalidFee = settings.MAX_BPS() + 1;
         vm.expectRevert(
             abi.encodeWithSelector(
-                ISettings.InvalidFee.selector,
-                settings.MAX_BPS() + 1
+                ISettings.InvalidFee.selector, settings.MAX_BPS() + 1
             )
         );
         settings = new Settings({

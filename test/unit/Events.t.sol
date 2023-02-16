@@ -9,7 +9,7 @@ import {IAccount} from "../../src/interfaces/IAccount.sol";
 contract EventsTest is Test {
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
     /// @dev hard coded addresses are only guaranteed for this block
-    uint256 private constant BLOCK_NUMBER = 60242268;
+    uint256 private constant BLOCK_NUMBER = 60_242_268;
 
     Events private events;
 
@@ -70,10 +70,7 @@ contract EventsTest is Test {
     function testEmitEthWithdraw() public {
         vm.expectEmit(true, true, true, true);
         emit EthWithdraw(address(this), AMOUNT);
-        events.emitEthWithdraw({
-            account: address(this),
-            amountWithdrawn: AMOUNT
-        });
+        events.emitEthWithdraw({account: address(this), amountWithdrawn: AMOUNT});
     }
 
     function testEmitOrderPlaced() public {
@@ -88,7 +85,7 @@ contract EventsTest is Test {
             ORDER_TYPE,
             PRICE_IMPACT_DELTA,
             REDUCE_ONLY
-        );
+            );
         events.emitOrderPlaced({
             account: address(this),
             orderId: ORDER_ID,

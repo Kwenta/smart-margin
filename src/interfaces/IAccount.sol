@@ -6,7 +6,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IExchanger} from "@synthetix/IExchanger.sol";
 import {IFactory} from "./IFactory.sol";
 import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
-import {IPerpsV2MarketConsolidated} from "@synthetix/IPerpsV2MarketConsolidated.sol";
+import {IPerpsV2MarketConsolidated} from
+    "@synthetix/IPerpsV2MarketConsolidated.sol";
 import {ISettings} from "./ISettings.sol";
 import {IEvents} from "./IEvents.sol";
 
@@ -275,7 +276,10 @@ interface IAccount {
     /// @param _orderId: key for an active order
     /// @return true if order is valid by execution rules
     /// @return price that the order will be filled at (only valid if prev is true)
-    function validOrder(uint256 _orderId) external view returns (bool, uint256);
+    function validOrder(uint256 _orderId)
+        external
+        view
+        returns (bool, uint256);
 
     /// @notice register a limit order internally and with gelato
     /// @param _marketKey: Synthetix futures market id/key

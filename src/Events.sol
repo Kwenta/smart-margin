@@ -52,7 +52,7 @@ contract Events is IEvents {
             orderType,
             priceImpactDelta,
             reduceOnly
-        );
+            );
     }
 
     /// @inheritdoc IEvents
@@ -74,7 +74,10 @@ contract Events is IEvents {
     }
 
     /// @inheritdoc IEvents
-    function emitFeeImposed(address account, uint256 amount) external override {
+    function emitFeeImposed(address account, uint256 amount)
+        external
+        override
+    {
         emit FeeImposed(account, amount);
     }
 }

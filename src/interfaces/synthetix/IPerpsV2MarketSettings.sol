@@ -71,7 +71,10 @@ interface IPerpsV2MarketSettings {
 
     function maxLeverage(bytes32 _marketKey) external view returns (uint256);
 
-    function maxMarketValue(bytes32 _marketKey) external view returns (uint256);
+    function maxMarketValue(bytes32 _marketKey)
+        external
+        view
+        returns (uint256);
 
     function maxFundingVelocity(bytes32 _marketKey)
         external

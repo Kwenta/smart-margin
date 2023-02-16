@@ -12,7 +12,7 @@ contract Settings is ISettings, Owned {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISettings
-    uint256 public constant MAX_BPS = 10000;
+    uint256 public constant MAX_BPS = 10_000;
 
     /*//////////////////////////////////////////////////////////////
                                 SETTINGS

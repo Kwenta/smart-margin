@@ -8,7 +8,7 @@ import {AccountProxy} from "../../src/AccountProxy.sol";
 contract AccountProxyTest is Test {
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
     /// @dev hard coded addresses are only guaranteed for this block
-    uint256 private constant BLOCK_NUMBER = 60242268;
+    uint256 private constant BLOCK_NUMBER = 60_242_268;
 
     AccountProxy private accountProxy;
 

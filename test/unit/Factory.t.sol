@@ -15,7 +15,7 @@ import {UpgradedAccount} from "./utils/UpgradedAccount.sol";
 contract FactoryTest is Test {
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
     /// @dev hard coded addresses are only guaranteed for this block
-    uint256 private constant BLOCK_NUMBER = 60242268;
+    uint256 private constant BLOCK_NUMBER = 60_242_268;
 
     Settings private settings;
     Events private events;
@@ -34,9 +34,7 @@ contract FactoryTest is Test {
     uint256 private stopOrderFee = 3;
 
     event NewAccount(
-        address indexed creator,
-        address indexed account,
-        bytes32 version
+        address indexed creator, address indexed account, bytes32 version
     );
     event AccountImplementationUpgraded(address implementation);
     event SettingsUpgraded(address settings);
@@ -107,8 +105,7 @@ contract FactoryTest is Test {
         address payable accountAddress = factory.newAccount();
         vm.expectRevert(
             abi.encodeWithSelector(
-                IFactory.OnlyOneAccountPerAddress.selector,
-                accountAddress
+                IFactory.OnlyOneAccountPerAddress.selector, accountAddress
             )
         );
         factory.newAccount();
@@ -134,8 +131,7 @@ contract FactoryTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IFactory.AccountFailedToInitialize.selector,
-                ""
+                IFactory.AccountFailedToInitialize.selector, ""
             )
         );
         factory.newAccount();
@@ -161,8 +157,7 @@ contract FactoryTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IFactory.AccountFailedToFetchVersion.selector,
-                ""
+                IFactory.AccountFailedToFetchVersion.selector, ""
             )
         );
         factory.newAccount();
@@ -196,8 +191,7 @@ contract FactoryTest is Test {
         address payable accountAddress2 = factory.newAccount();
         vm.expectRevert(
             abi.encodeWithSelector(
-                IFactory.OnlyOneAccountPerAddress.selector,
-                accountAddress2
+                IFactory.OnlyOneAccountPerAddress.selector, accountAddress2
             )
         );
         Account(accountAddress1).transferOwnership({_newOwner: TEST_ACCOUNT});
@@ -324,17 +318,13 @@ contract FactoryTest is Test {
 
     function testCannotUpgradeAccountImplementationWhenNotEnabled() public {
         factory.removeUpgradability();
-        vm.expectRevert(
-            abi.encodeWithSelector(IFactory.CannotUpgrade.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(IFactory.CannotUpgrade.selector));
         factory.upgradeAccountImplementation({_implementation: address(0)});
     }
 
     function testCannotUpgradeSettingsWhenNotEnabled() public {
         factory.removeUpgradability();
-        vm.expectRevert(
-            abi.encodeWithSelector(IFactory.CannotUpgrade.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(IFactory.CannotUpgrade.selector));
         factory.upgradeSettings({_settings: address(0)});
     }
 }

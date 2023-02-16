@@ -5,11 +5,11 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 /// @notice This is used for testing -- do not use in prod
 contract MintableERC20 is ERC20 {
-    constructor(address account, uint amount) ERC20("", "") {
+    constructor(address account, uint256 amount) ERC20("", "") {
         mint(account, amount);
-    } 
+    }
 
-    function mint(address account, uint amount) public {
+    function mint(address account, uint256 amount) public {
         _mint(account, amount);
     }
 }

@@ -83,9 +83,8 @@ contract Factory is IFactory, Owned {
         if (!success) revert AccountFailedToInitialize(data);
 
         // determine version for the following event
-        (success, data) = accountAddress.call(
-            abi.encodeWithSignature("VERSION()")
-        );
+        (success, data) =
+            accountAddress.call(abi.encodeWithSignature("VERSION()"));
         if (!success) revert AccountFailedToFetchVersion(data);
 
         emit NewAccount({

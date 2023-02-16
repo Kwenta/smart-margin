@@ -1,8 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-import {IAccount, IAddressResolver, IERC20, IExchanger, IFactory, IFuturesMarketManager, IPerpsV2MarketConsolidated, ISettings, IEvents} from "../../../src/interfaces/IAccount.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {
+    IAccount,
+    IAddressResolver,
+    IERC20,
+    IExchanger,
+    IFactory,
+    IFuturesMarketManager,
+    IPerpsV2MarketConsolidated,
+    ISettings,
+    IEvents
+} from "../../../src/interfaces/IAccount.sol";
+import {Initializable} from
+    "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {OpsReady, IOps} from "../../../src/utils/OpsReady.sol";
 import {Owned} from "@solmate/auth/Owned.sol";
 
@@ -138,12 +149,10 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         override
         returns (bool canExec, bytes memory execPayload)
     {
-        (canExec, ) = validOrder(_orderId);
+        (canExec,) = validOrder(_orderId);
         // calldata for execute func
-        execPayload = abi.encodeWithSelector(
-            this.executeOrder.selector,
-            _orderId
-        );
+        execPayload =
+            abi.encodeWithSelector(this.executeOrder.selector, _orderId);
     }
 
     /// @inheritdoc IAccount
@@ -168,9 +177,8 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         IPerpsV2MarketConsolidated _market,
         uint256 _conditionalOrderFee
     ) public view override returns (uint256 fee) {
-        fee =
-            (_abs(_sizeDelta) * (settings.tradeFee() + _conditionalOrderFee)) /
-            settings.MAX_BPS();
+        fee = (_abs(_sizeDelta) * (settings.tradeFee() + _conditionalOrderFee))
+            / settings.MAX_BPS();
 
         /// @notice fee is currently measured in the underlying base asset of the market
         /// @dev fee will be measured in sUSD, thus exchange rate is needed
@@ -243,7 +251,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         onlyOwner
         notZero(_amount, "_amount")
     {
-        (bool success, ) = payable(owner).call{value: _amount}("");
+        (bool success,) = payable(owner).call{value: _amount}("");
         if (!success) revert EthWithdrawalFailed();
 
         events.emitEthWithdraw({
@@ -267,7 +275,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         if (inputs.length != numCommands) revert LengthMismatch();
 
         // loop through all given commands and execute them
-        for (uint256 commandIndex = 0; commandIndex < numCommands; ) {
+        for (uint256 commandIndex = 0; commandIndex < numCommands;) {
             Command command = commands[commandIndex];
 
             bytes memory input = inputs[commandIndex];
@@ -285,17 +293,15 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
 
         // if-else logic to dispatch commands
         if (command == Command.PERPS_V2_MODIFY_MARGIN) {
-            (address market, int256 amount) = abi.decode(
-                inputs,
-                (address, int256)
-            );
+            (address market, int256 amount) =
+                abi.decode(inputs, (address, int256));
             _perpsV2ModifyMargin({_market: market, _amount: amount});
         } else if (command == Command.PERPS_V2_WITHDRAW_ALL_MARGIN) {
             address market = abi.decode(inputs, (address));
             _perpsV2WithdrawAllMargin({_market: market});
         } else if (command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
-            (address market, int256 sizeDelta, uint256 priceImpactDelta) = abi
-                .decode(inputs, (address, int256, uint256));
+            (address market, int256 sizeDelta, uint256 priceImpactDelta) =
+                abi.decode(inputs, (address, int256, uint256));
             _perpsV2SubmitAtomicOrder({
                 _market: market,
                 _sizeDelta: sizeDelta,
@@ -315,8 +321,8 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
                 _desiredTimeDelta: desiredTimeDelta
             });
         } else if (command == Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER) {
-            (address market, int256 sizeDelta, uint256 priceImpactDelta) = abi
-                .decode(inputs, (address, int256, uint256));
+            (address market, int256 sizeDelta, uint256 priceImpactDelta) =
+                abi.decode(inputs, (address, int256, uint256));
             _perpsV2SubmitOffchainDelayedOrder({
                 _market: market,
                 _sizeDelta: sizeDelta,
@@ -329,10 +335,8 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             address market = abi.decode(inputs, (address));
             _perpsV2CancelOffchainDelayedOrder({_market: market});
         } else if (command == Command.PERPS_V2_CLOSE_POSITION) {
-            (address market, uint256 priceImpactDelta) = abi.decode(
-                inputs,
-                (address, uint256)
-            );
+            (address market, uint256 priceImpactDelta) =
+                abi.decode(inputs, (address, uint256));
             _perpsV2ClosePosition({
                 _market: market,
                 _priceImpactDelta: priceImpactDelta
@@ -428,10 +432,10 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
 
         IPerpsV2MarketConsolidated(_market)
             .submitOffchainDelayedOrderWithTracking({
-                sizeDelta: _sizeDelta,
-                priceImpactDelta: _priceImpactDelta,
-                trackingCode: TRACKING_CODE
-            });
+            sizeDelta: _sizeDelta,
+            priceImpactDelta: _priceImpactDelta,
+            trackingCode: TRACKING_CODE
+        });
     }
 
     function _perpsV2CancelDelayedOrder(address _market) internal {
@@ -455,8 +459,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         // close position (i.e. reduce size to zero)
         /// @dev this does not remove margin from market
         IPerpsV2MarketConsolidated(_market).closePositionWithTracking(
-            _priceImpactDelta,
-            TRACKING_CODE
+            _priceImpactDelta, TRACKING_CODE
         );
 
         // impose fee (comes from account's margin)
@@ -567,8 +570,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             // ensure margin doesn't exceed max
             if (uint256(_marginDelta) > freeMargin()) {
                 revert InsufficientFreeMargin(
-                    freeMargin(),
-                    uint256(_marginDelta)
+                    freeMargin(), uint256(_marginDelta)
                 );
             }
             committedMargin += _abs(_marginDelta);
@@ -579,10 +581,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             _execAddress: address(this),
             _execSelector: this.executeOrder.selector,
             _resolverAddress: address(this),
-            _resolverData: abi.encodeWithSelector(
-                this.checker.selector,
-                orderId
-            ),
+            _resolverData: abi.encodeWithSelector(this.checker.selector, orderId),
             _feeToken: ETH
         });
 
@@ -643,9 +642,9 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
 
         // if order is reduce only, ensure position size is only reduced
         if (order.reduceOnly) {
-            int256 currentSize = getPerpsV2Market(order.marketKey)
-                .positions({account: address(this)})
-                .size;
+            int256 currentSize = getPerpsV2Market(order.marketKey).positions({
+                account: address(this)
+            }).size;
 
             // ensure position exists and incoming size delta is NOT the same sign
             /// @dev if incoming size delta is the same sign, then the order is not reduce only
@@ -686,25 +685,17 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         if (order.marginDelta != 0) {
             commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
             inputs[0] = abi.encode(market, order.marginDelta);
-            commands[1] = IAccount
-                .Command
-                .PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
-            inputs[1] = abi.encode(
-                market,
-                order.sizeDelta,
-                order.priceImpactDelta
-            );
+            commands[1] =
+                IAccount.Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
+            inputs[1] =
+                abi.encode(market, order.sizeDelta, order.priceImpactDelta);
         } else {
             commands = new IAccount.Command[](1);
             inputs = new bytes[](1);
-            commands[1] = IAccount
-                .Command
-                .PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
-            inputs[1] = abi.encode(
-                market,
-                order.sizeDelta,
-                order.priceImpactDelta
-            );
+            commands[1] =
+                IAccount.Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
+            inputs[1] =
+                abi.encode(market, order.sizeDelta, order.priceImpactDelta);
         }
 
         // remove task from gelato's side
@@ -774,10 +765,9 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         view
         returns (IPerpsV2MarketConsolidated)
     {
-        return
-            IPerpsV2MarketConsolidated(
-                futuresMarketManager.marketForKey(_marketKey)
-            );
+        return IPerpsV2MarketConsolidated(
+            futuresMarketManager.marketForKey(_marketKey)
+        );
     }
 
     /// @notice get exchange rate of underlying market asset in terms of sUSD
@@ -797,13 +787,11 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
 
     /// @notice exchangeRates() fetches current ExchangeRates contract
     function exchanger() internal view returns (IExchanger) {
-        return
-            IExchanger(
-                ADDRESS_RESOLVER.requireAndGetAddress(
-                    "Exchanger",
-                    "Account: Could not get Exchanger"
-                )
-            );
+        return IExchanger(
+            ADDRESS_RESOLVER.requireAndGetAddress(
+                "Exchanger", "Account: Could not get Exchanger"
+            )
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

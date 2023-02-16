@@ -64,9 +64,8 @@ contract AccountProxy is IAccountProxy {
 
     /// @return implementation address (i.e. the account logic address)
     function _implementation() internal returns (address implementation) {
-        (bool success, bytes memory data) = _beacon().call(
-            abi.encodeWithSignature("implementation()")
-        );
+        (bool success, bytes memory data) =
+            _beacon().call(abi.encodeWithSignature("implementation()"));
         if (!success) revert BeaconCallFailed();
         implementation = abi.decode(data, (address));
         if (implementation == address(0)) revert ImplementationNotSet();
@@ -108,25 +107,15 @@ contract AccountProxy is IAccountProxy {
 
             // Call the implementation.
             // out and outsize are 0 because we don't know the size yet.
-            let result := delegatecall(
-                gas(),
-                implementation,
-                0,
-                calldatasize(),
-                0,
-                0
-            )
+            let result :=
+                delegatecall(gas(), implementation, 0, calldatasize(), 0, 0)
 
             // Copy the returned data.
             returndatacopy(0, 0, returndatasize())
             switch result
             // delegatecall returns 0 on error.
-            case 0 {
-                revert(0, returndatasize())
-            }
-            default {
-                return(0, returndatasize())
-            }
+            case 0 { revert(0, returndatasize()) }
+            default { return(0, returndatasize()) }
         }
     }
 }

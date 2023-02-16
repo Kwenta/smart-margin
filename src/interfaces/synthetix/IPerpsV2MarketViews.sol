@@ -29,9 +29,15 @@ interface IPerpsV2MarketViews {
 
     function assetPrice() external view returns (uint256 price, bool invalid);
 
-    function marketSizes() external view returns (uint256 long, uint256 short);
+    function marketSizes()
+        external
+        view
+        returns (uint256 long, uint256 short);
 
-    function marketDebt() external view returns (uint256 debt, bool isInvalid);
+    function marketDebt()
+        external
+        view
+        returns (uint256 debt, bool isInvalid);
 
     function currentFundingRate() external view returns (int256 fundingRate);
 

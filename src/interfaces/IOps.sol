@@ -35,7 +35,7 @@ interface IOps {
         address _execAddress,
         bytes calldata _execData
     ) external;
-    
+
     function gelato() external view returns (address payable);
 
     /// @notice create a task without prepayment
@@ -53,7 +53,7 @@ interface IOps {
         address _feeToken
     ) external returns (bytes32 task);
 
-    /// @notice cancel a task 
+    /// @notice cancel a task
     /// @param _taskId: Gelato task id
     function cancelTask(bytes32 _taskId) external;
 

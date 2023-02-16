@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 pragma experimental ABIEncoderV2;
+
 import "./IVirtualSynth.sol";
 
 // https://docs.synthetix.io/contracts/source/interfaces/iexchanger
@@ -77,11 +78,7 @@ interface IExchanger {
     )
         external
         view
-        returns (
-            uint256 amountReceived,
-            uint256 fee,
-            uint256 exchangeFeeRate
-        );
+        returns (uint256 amountReceived, uint256 fee, uint256 exchangeFeeRate);
 
     function priceDeviationThresholdFactor() external view returns (uint256);
 
@@ -117,11 +114,7 @@ interface IExchanger {
 
     function settle(address from, bytes32 currencyKey)
         external
-        returns (
-            uint256 reclaimed,
-            uint256 refunded,
-            uint256 numEntries
-        );
+        returns (uint256 reclaimed, uint256 refunded, uint256 numEntries);
 }
 
 // Used to have strongly-typed access to internal mutative functions in Synthetix

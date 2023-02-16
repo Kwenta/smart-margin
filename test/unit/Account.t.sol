@@ -7,7 +7,11 @@ import {AccountExposed} from "./utils/AccountExposed.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
-import {IAccount, IFuturesMarketManager, IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
+import {
+    IAccount,
+    IFuturesMarketManager,
+    IPerpsV2MarketConsolidated
+} from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
 import {ISynth} from "@synthetix/ISynth.sol";
 import {Settings} from "../../src/Settings.sol";
@@ -16,7 +20,7 @@ import {Setup} from "../../script/Deploy.s.sol";
 contract AccountTest is Test {
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
     /// @dev hard coded addresses are only guaranteed for this block
-    uint256 private constant BLOCK_NUMBER = 60242268;
+    uint256 private constant BLOCK_NUMBER = 60_242_268;
 
     Settings private settings;
     Events private events;

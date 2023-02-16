@@ -12,9 +12,7 @@ interface IFactory {
     /// @param creator: account creator (address that called newAccount())
     /// @param account: address of account that was created (will be address of proxy)
     event NewAccount(
-        address indexed creator,
-        address indexed account,
-        bytes32 version
+        address indexed creator, address indexed account, bytes32 version
     );
 
     /// @notice emitted when implementation is upgraded
@@ -86,7 +84,8 @@ interface IFactory {
     /// @notice update account owner
     /// @param _oldOwner: old owner of account
     /// @param _newOwner: new owner of account
-    function updateAccountOwner(address _oldOwner, address _newOwner) external;
+    function updateAccountOwner(address _oldOwner, address _newOwner)
+        external;
 
     /*//////////////////////////////////////////////////////////////
                              UPGRADABILITY

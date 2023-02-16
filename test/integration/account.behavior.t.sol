@@ -6,7 +6,11 @@ import {Account} from "../../src/Account.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
-import {IAccount, IFuturesMarketManager, IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
+import {
+    IAccount,
+    IFuturesMarketManager,
+    IPerpsV2MarketConsolidated
+} from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
 import {IPerpsV2MarketSettings} from "@synthetix/IPerpsV2MarketSettings.sol";
 import {ISynth} from "@synthetix/ISynth.sol";
@@ -24,10 +28,10 @@ contract AccountBehaviorTest is Test {
 
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
     /// @dev hard coded addresses are only guaranteed for this block
-    uint256 private constant BLOCK_NUMBER = 60242268;
+    uint256 private constant BLOCK_NUMBER = 60_242_268;
 
     /// @notice max BPS; used for decimals calculations
-    uint256 private constant MAX_BPS = 10000;
+    uint256 private constant MAX_BPS = 10_000;
 
     // tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
@@ -137,8 +141,8 @@ contract AccountBehaviorTest is Test {
         assert(address(account.settings()) == address(settings));
         assert(address(account.owner()) == address(this));
         assert(
-            address(account.futuresMarketManager()) ==
-                ADDRESS_RESOLVER.getAddress("FuturesMarketManager")
+            address(account.futuresMarketManager())
+                == ADDRESS_RESOLVER.getAddress("FuturesMarketManager")
         );
     }
 
@@ -193,8 +197,7 @@ contract AccountBehaviorTest is Test {
             bytes32 valueName = "_amount";
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    IAccount.ValueCannotBeZero.selector,
-                    valueName
+                    IAccount.ValueCannotBeZero.selector, valueName
                 )
             );
             account.deposit(x);
@@ -247,8 +250,7 @@ contract AccountBehaviorTest is Test {
             bytes32 valueName = "_amount";
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    IAccount.ValueCannotBeZero.selector,
-                    valueName
+                    IAccount.ValueCannotBeZero.selector, valueName
                 )
             );
             account.withdraw(x);
@@ -256,9 +258,7 @@ contract AccountBehaviorTest is Test {
             // attempt to withdraw sUSD
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    IAccount.InsufficientFreeMargin.selector,
-                    AMOUNT,
-                    x
+                    IAccount.InsufficientFreeMargin.selector, AMOUNT, x
                 )
             );
             account.withdraw(x);
@@ -288,7 +288,7 @@ contract AccountBehaviorTest is Test {
 
         // attempt to deposit ETH into account
         vm.expectRevert("UNAUTHORIZED");
-        (bool s, ) = address(account).call{value: 1 ether}("");
+        (bool s,) = address(account).call{value: 1 ether}("");
         assert(s);
     }
 
@@ -301,7 +301,7 @@ contract AccountBehaviorTest is Test {
         assert(address(account).balance == 0);
 
         // deposit ETH into account
-        (bool s, ) = address(account).call{value: 1 ether}("");
+        (bool s,) = address(account).call{value: 1 ether}("");
         assert(s);
 
         // check account has ETH
@@ -326,7 +326,7 @@ contract AccountBehaviorTest is Test {
         Account account = createAccount();
 
         // send ETH to account
-        (bool s, ) = address(account).call{value: 1 ether}("");
+        (bool s,) = address(account).call{value: 1 ether}("");
         assert(s);
 
         // check account has ETH
@@ -342,8 +342,7 @@ contract AccountBehaviorTest is Test {
             bytes32 valueName = "_amount";
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    IAccount.ValueCannotBeZero.selector,
-                    valueName
+                    IAccount.ValueCannotBeZero.selector, valueName
                 )
             );
             account.withdrawEth(x);
@@ -370,8 +369,8 @@ contract AccountBehaviorTest is Test {
         Account account = createAccount();
 
         // get position details
-        IPerpsV2MarketConsolidated.Position memory position = account
-            .getPosition(sETHPERP);
+        IPerpsV2MarketConsolidated.Position memory position =
+            account.getPosition(sETHPERP);
 
         // expect all details to be unset
         assert(position.id == 0);
@@ -387,8 +386,8 @@ contract AccountBehaviorTest is Test {
         Account account = createAccount();
 
         // get delayed order details
-        IPerpsV2MarketConsolidated.DelayedOrder memory order = account
-            .getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order =
+            account.getDelayedOrder(sETHPERP);
 
         // expect all details to be unset
         assert(order.isOffchain == false);
@@ -452,7 +451,7 @@ contract AccountBehaviorTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(IAccount.InvalidCommandType.selector, 69)
         );
-        (bool s, ) = address(account).call(dataWithInvalidCommand);
+        (bool s,) = address(account).call(dataWithInvalidCommand);
         assert(!s);
     }
 
@@ -482,8 +481,8 @@ contract AccountBehaviorTest is Test {
         account.execute(commands, inputs);
 
         // get position details
-        IPerpsV2MarketConsolidated.Position memory position = account
-            .getPosition(sETHPERP);
+        IPerpsV2MarketConsolidated.Position memory position =
+            account.getPosition(sETHPERP);
 
         // confirm position margin are non-zero
         assert(position.margin != 0);
@@ -542,8 +541,8 @@ contract AccountBehaviorTest is Test {
             } else {
                 // outcome 2.2: margin delta deposited into market
                 account.execute(commands, inputs);
-                IPerpsV2MarketConsolidated.Position memory position = account
-                    .getPosition(sETHPERP);
+                IPerpsV2MarketConsolidated.Position memory position =
+                    account.getPosition(sETHPERP);
                 assert(int256(uint256(position.margin)) == fuzzedMarginDelta);
             }
         }
@@ -610,11 +609,11 @@ contract AccountBehaviorTest is Test {
             } else {
                 // outcome 3.2: margin delta withdrawn from market
                 account.execute(commands, inputs);
-                IPerpsV2MarketConsolidated.Position memory position = account
-                    .getPosition(sETHPERP);
+                IPerpsV2MarketConsolidated.Position memory position =
+                    account.getPosition(sETHPERP);
                 assert(
-                    int256(uint256(position.margin)) ==
-                        balance + fuzzedMarginDelta
+                    int256(uint256(position.margin))
+                        == balance + fuzzedMarginDelta
                 );
                 assert(
                     sUSD.balanceOf(address(account)) == abs(fuzzedMarginDelta)
@@ -726,8 +725,8 @@ contract AccountBehaviorTest is Test {
         account.execute(commands, inputs);
 
         // get position details
-        IPerpsV2MarketConsolidated.Position memory position = account
-            .getPosition(sETHPERP);
+        IPerpsV2MarketConsolidated.Position memory position =
+            account.getPosition(sETHPERP);
 
         // confirm position details are non-zero
         assert(position.id != 0);
@@ -762,19 +761,15 @@ contract AccountBehaviorTest is Test {
         // define inputs
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(
-            market,
-            sizeDelta,
-            priceImpactDelta,
-            desiredTimeDelta
-        );
+        inputs[1] =
+            abi.encode(market, sizeDelta, priceImpactDelta, desiredTimeDelta);
 
         // call execute
         account.execute(commands, inputs);
 
         // get delayed order details
-        IPerpsV2MarketConsolidated.DelayedOrder memory order = account
-            .getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order =
+            account.getDelayedOrder(sETHPERP);
 
         // confirm delayed order details are non-zero
         assert(order.isOffchain == false);
@@ -818,8 +813,8 @@ contract AccountBehaviorTest is Test {
         account.execute(commands, inputs);
 
         // get delayed order details
-        IPerpsV2MarketConsolidated.DelayedOrder memory order = account
-            .getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order =
+            account.getDelayedOrder(sETHPERP);
 
         // confirm delayed order details are non-zero
         assert(order.isOffchain == true);
@@ -880,12 +875,8 @@ contract AccountBehaviorTest is Test {
         // define inputs
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(
-            market,
-            sizeDelta,
-            priceImpactDelta,
-            desiredTimeDelta
-        );
+        inputs[1] =
+            abi.encode(market, sizeDelta, priceImpactDelta, desiredTimeDelta);
 
         // call execute
         account.execute(commands, inputs);
@@ -902,8 +893,8 @@ contract AccountBehaviorTest is Test {
         account.execute(commands, inputs);
 
         // get delayed order details
-        IPerpsV2MarketConsolidated.DelayedOrder memory order = account
-            .getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order =
+            account.getDelayedOrder(sETHPERP);
 
         // expect all details to be unset
         assert(order.isOffchain == false);
@@ -984,8 +975,8 @@ contract AccountBehaviorTest is Test {
         account.execute(commands, inputs);
 
         // get delayed order details
-        IPerpsV2MarketConsolidated.DelayedOrder memory order = account
-            .getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order =
+            account.getDelayedOrder(sETHPERP);
 
         // expect all details to be unset
         assert(order.isOffchain == false);
@@ -1064,8 +1055,8 @@ contract AccountBehaviorTest is Test {
         account.execute(commands, inputs);
 
         // get position details
-        IPerpsV2MarketConsolidated.Position memory position = account
-            .getPosition(sETHPERP);
+        IPerpsV2MarketConsolidated.Position memory position =
+            account.getPosition(sETHPERP);
 
         // expect size to be zero and margin to be non-zero
         assert(position.size == 0);
@@ -1083,9 +1074,8 @@ contract AccountBehaviorTest is Test {
         uint256 conditionalOrderFee = MAX_BPS / 99; // 1% fee
 
         // define market
-        IPerpsV2MarketConsolidated market = IPerpsV2MarketConsolidated(
-            getMarketAddressFromKey(sETHPERP)
-        );
+        IPerpsV2MarketConsolidated market =
+            IPerpsV2MarketConsolidated(getMarketAddressFromKey(sETHPERP));
 
         // call factory to create account
         Account account = createAccount();
@@ -1110,9 +1100,8 @@ contract AccountBehaviorTest is Test {
     /// @notice test trading fee is imposed when size delta is non-zero
     function testTradeFeeImposedWhenSizeDeltaNonZero() external {
         // define market
-        IPerpsV2MarketConsolidated market = IPerpsV2MarketConsolidated(
-            getMarketAddressFromKey(sETHPERP)
-        );
+        IPerpsV2MarketConsolidated market =
+            IPerpsV2MarketConsolidated(getMarketAddressFromKey(sETHPERP));
 
         // market and order related params
         int256 marginDelta = int256(AMOUNT) / 10;

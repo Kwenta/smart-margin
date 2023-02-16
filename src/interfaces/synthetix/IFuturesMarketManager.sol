@@ -7,11 +7,10 @@ interface IFuturesMarketManager {
         view
         returns (address[] memory);
 
-    function markets(
-        uint256 index,
-        uint256 pageSize,
-        bool proxiedMarkets
-    ) external view returns (address[] memory);
+    function markets(uint256 index, uint256 pageSize, bool proxiedMarkets)
+        external
+        view
+        returns (address[] memory);
 
     function numMarkets() external view returns (uint256);
 
