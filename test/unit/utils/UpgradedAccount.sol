@@ -10,12 +10,12 @@ import {Owned} from "@solmate/auth/Owned.sol";
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice flexible smart margin account enabling users to trade on-chain derivatives
 contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
-    /*//////////////////////////////////////////////////////////////
+        /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
-    bytes32 public constant VERSION = "2.0.1";
+    bytes32 public constant VERSION = "6.9.0";
 
     /// @inheritdoc IAccount
     IAddressResolver public constant ADDRESS_RESOLVER =
@@ -166,10 +166,10 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     function calculateTradeFee(
         int256 _sizeDelta,
         IPerpsV2MarketConsolidated _market,
-        uint256 _advancedOrderFee
+        uint256 _conditionalOrderFee
     ) public view override returns (uint256 fee) {
         fee =
-            (_abs(_sizeDelta) * (settings.tradeFee() + _advancedOrderFee)) /
+            (_abs(_sizeDelta) * (settings.tradeFee() + _conditionalOrderFee)) /
             settings.MAX_BPS();
 
         /// @notice fee is currently measured in the underlying base asset of the market
@@ -257,8 +257,8 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
-    function execute(Command[] calldata commands, bytes[] calldata inputs)
-        external
+    function execute(Command[] memory commands, bytes[] memory inputs)
+        public
         payable
         override
         onlyOwner
@@ -378,7 +378,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             calculateTradeFee({
                 _sizeDelta: _sizeDelta,
                 _market: IPerpsV2MarketConsolidated(_market),
-                _advancedOrderFee: 0
+                _conditionalOrderFee: 0
             })
         );
 
@@ -400,7 +400,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             calculateTradeFee({
                 _sizeDelta: _sizeDelta,
                 _market: IPerpsV2MarketConsolidated(_market),
-                _advancedOrderFee: 0
+                _conditionalOrderFee: 0
             })
         );
 
@@ -422,7 +422,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             calculateTradeFee({
                 _sizeDelta: _sizeDelta,
                 _market: IPerpsV2MarketConsolidated(_market),
-                _advancedOrderFee: 0
+                _conditionalOrderFee: 0
             })
         );
 
@@ -465,7 +465,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             calculateTradeFee({
                 _sizeDelta: getPosition(marketKey).size,
                 _market: IPerpsV2MarketConsolidated(_market),
-                _advancedOrderFee: 0
+                _conditionalOrderFee: 0
             })
         );
     }
@@ -483,6 +483,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     {
         Order memory order = getOrder(_orderId);
 
+        // check dynamic fee is not too high
         if (order.maxDynamicFee != 0) {
             (uint256 dynamicFee, bool tooVolatile) = exchanger()
                 .dynamicFeeRateForExchange(
@@ -494,22 +495,22 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             }
         }
 
+        // check if markets satisfy specific order type
         if (order.orderType == OrderTypes.LIMIT) {
             return validLimitOrder(order);
         } else if (order.orderType == OrderTypes.STOP) {
             return validStopOrder(order);
+        } else {
+            // unknown order type
+            return (false, 0);
         }
-
-        // unknown order type
-        // @notice execution should never reach here
-        // @dev needed to satisfy types
-        return (false, 0);
     }
 
     /// @notice limit order logic condition checker
+    /// @dev sizeDelta will never be zero due to check when submitting order
     /// @param order: struct for an active order
     /// @return true if order is valid by execution rules
-    /// @return price that the order will be filled at (only valid if prev is true)
+    /// @return price that the order will be submitted
     function validLimitOrder(Order memory order)
         internal
         view
@@ -517,25 +518,22 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     {
         uint256 price = sUSDRate(getPerpsV2Market(order.marketKey));
 
-        /// @notice intent is targetPrice or better despite direction
         if (order.sizeDelta > 0) {
-            // Long
+            // Long: increase position size (buy) once *below* target price
+            // ex: open long position once price is below target
             return (price <= order.targetPrice, price);
-        } else if (order.sizeDelta < 0) {
-            // Short
+        } else {
+            // Short: decrease position size (sell) once *above* target price
+            // ex: open short position once price is above target
             return (price >= order.targetPrice, price);
         }
-
-        // sizeDelta == 0
-        // @notice execution should never reach here
-        // @dev needed to satisfy types
-        return (false, price);
     }
 
     /// @notice stop order logic condition checker
+    /// @dev sizeDelta will never be zero due to check when submitting order
     /// @param order: struct for an active order
     /// @return true if order is valid by execution rules
-    /// @return price that the order will be filled at (only valid if prev is true)
+    /// @return price that the order will be submitted
     function validStopOrder(Order memory order)
         internal
         view
@@ -543,19 +541,15 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     {
         uint256 price = sUSDRate(getPerpsV2Market(order.marketKey));
 
-        /// @notice intent is targetPrice or worse despite direction
         if (order.sizeDelta > 0) {
-            // Long
+            // Long: increase position size (buy) once *above* target price
+            // ex: unwind short position once price is above target (prevent further loss)
             return (price >= order.targetPrice, price);
-        } else if (order.sizeDelta < 0) {
-            // Short
+        } else {
+            // Short: decrease position size (sell) once *below* target price
+            // ex: unwind long position once price is below target (prevent further loss)
             return (price <= order.targetPrice, price);
         }
-
-        // sizeDelta == 0
-        // @notice execution should never reach here
-        // @dev needed to satisfy types
-        return (false, price);
     }
 
     /// @inheritdoc IAccount
@@ -565,7 +559,8 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         int256 _sizeDelta,
         uint256 _targetPrice,
         OrderTypes _orderType,
-        uint128 _priceImpactDelta
+        uint128 _priceImpactDelta,
+        bool _reduceOnly
     ) external payable override returns (uint256) {
         return
             _placeOrder({
@@ -575,7 +570,8 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
                 _targetPrice: _targetPrice,
                 _orderType: _orderType,
                 _priceImpactDelta: _priceImpactDelta,
-                _maxDynamicFee: 0
+                _maxDynamicFee: 0,
+                _reduceOnly: _reduceOnly
             });
     }
 
@@ -587,7 +583,8 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         uint256 _targetPrice,
         OrderTypes _orderType,
         uint128 _priceImpactDelta,
-        uint256 _maxDynamicFee
+        uint256 _maxDynamicFee,
+        bool _reduceOnly
     ) external payable override returns (uint256) {
         return
             _placeOrder({
@@ -597,7 +594,8 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
                 _targetPrice: _targetPrice,
                 _orderType: _orderType,
                 _priceImpactDelta: _priceImpactDelta,
-                _maxDynamicFee: _maxDynamicFee
+                _maxDynamicFee: _maxDynamicFee,
+                _reduceOnly: _reduceOnly
             });
     }
 
@@ -608,16 +606,19 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         uint256 _targetPrice,
         OrderTypes _orderType,
         uint128 _priceImpactDelta,
-        uint256 _maxDynamicFee
+        uint256 _maxDynamicFee,
+        bool _reduceOnly
     )
         internal
         notZero(_abs(_sizeDelta), "_sizeDelta")
         onlyOwner
         returns (uint256)
     {
+        // ensure account has enough eth to eventually pay for the order
         if (address(this).balance < 1 ether / 100) {
             revert InsufficientEthBalance(address(this).balance, 1 ether / 100);
         }
+
         // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
             // ensure margin doesn't exceed max
@@ -630,13 +631,17 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             committedMargin += _abs(_marginDelta);
         }
 
-        bytes32 taskId = IOps(OPS).createTaskNoPrepayment(
-            address(this), // execution function address
-            this.executeOrder.selector, // execution function selector
-            address(this), // checker (resolver) address
-            abi.encodeWithSelector(this.checker.selector, orderId), // checker (resolver) calldata
-            ETH // payment token
-        );
+        // generate an id associated with a task that can be executed by gelato
+        bytes32 taskId = IOps(OPS).createTaskNoPrepayment({
+            _execAddress: address(this),
+            _execSelector: this.executeOrder.selector,
+            _resolverAddress: address(this),
+            _resolverData: abi.encodeWithSelector(
+                this.checker.selector,
+                orderId
+            ),
+            _feeToken: ETH
+        });
 
         orders[orderId] = Order({
             marketKey: _marketKey,
@@ -646,7 +651,8 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             gelatoTaskId: taskId,
             orderType: _orderType,
             priceImpactDelta: _priceImpactDelta,
-            maxDynamicFee: _maxDynamicFee
+            maxDynamicFee: _maxDynamicFee,
+            reduceOnly: _reduceOnly
         });
 
         events.emitOrderPlaced({
@@ -672,7 +678,9 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         if (order.marginDelta > 0) {
             committedMargin -= _abs(order.marginDelta);
         }
-        IOps(OPS).cancelTask(order.gelatoTaskId);
+
+        // cancel gelato task
+        IOps(OPS).cancelTask({_taskId: order.gelatoTaskId});
 
         // delete order from orders
         delete orders[_orderId];
@@ -683,24 +691,65 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     /// @inheritdoc IAccount
     function executeOrder(uint256 _orderId) external override onlyOps {
         (bool isValidOrder, uint256 fillPrice) = validOrder(_orderId);
+
         if (!isValidOrder) {
             revert OrderInvalid();
         }
+
         Order memory order = getOrder(_orderId);
+        address market = address(getPerpsV2Market(order.marketKey));
+
+        // if order is reduce only, ensure position size is only reduced
+        if (order.reduceOnly) {
+            int256 currentSizeDelta = getPerpsV2Market(order.marketKey)
+                .positions({account: address(this)})
+                .size;
+
+            // ensure position exists and incoming size delta is NOT the same sign
+            /// @dev if incoming size delta is the same sign, then the order is not reduce only
+            if (currentSizeDelta == 0 || _isSameSign(currentSizeDelta, order.sizeDelta)) {
+                IOps(OPS).cancelTask(order.gelatoTaskId);
+                delete orders[_orderId];
+                // emit event
+                return;
+            }
+            
+            // if () {}
+        }
 
         // if margin was committed, free it
         if (order.marginDelta > 0) {
             committedMargin -= _abs(order.marginDelta);
         }
 
-        // prep new position
-        NewPosition[] memory newPositions = new NewPosition[](1);
-        newPositions[0] = NewPosition({
-            marketKey: order.marketKey,
-            marginDelta: order.marginDelta,
-            sizeDelta: order.sizeDelta,
-            priceImpactDelta: order.priceImpactDelta
-        });
+        // init commands and inputs
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        bytes[] memory inputs = new bytes[](2);
+
+        /// @dev deconstruct order to compose necessary commands and inputs
+        if (order.marginDelta != 0) {
+            commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+            inputs[0] = abi.encode(market, order.marginDelta);
+            commands[1] = IAccount
+                .Command
+                .PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
+            inputs[1] = abi.encode(
+                market,
+                order.sizeDelta,
+                order.priceImpactDelta
+            );
+        } else {
+            commands = new IAccount.Command[](1);
+            inputs = new bytes[](1);
+            commands[1] = IAccount
+                .Command
+                .PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
+            inputs[1] = abi.encode(
+                market,
+                order.sizeDelta,
+                order.priceImpactDelta
+            );
+        }
 
         // remove task from gelato's side
         /// @dev optimization done for gelato
@@ -709,16 +758,25 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         // delete order from orders
         delete orders[_orderId];
 
-        // uint256 advancedOrderFee = order.orderType == OrderTypes.LIMIT
-        //     ? settings.limitOrderFee()
-        //     : settings.stopOrderFee();
+        uint256 conditionalOrderFee = order.orderType == OrderTypes.LIMIT
+            ? settings.limitOrderFee()
+            : settings.stopOrderFee();
 
         // execute trade
-        //_distributeMargin(newPositions, advancedOrderFee);
+        execute({commands: commands, inputs: inputs});
 
-        // pay fee
+        // pay fee to Gelato for order execution
         (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
-        _transfer(fee, feeToken);
+        _transfer({_amount: fee, _paymentToken: feeToken});
+
+        // impose conditional order fee
+        _imposeFee(
+            calculateTradeFee({
+                _sizeDelta: order.sizeDelta,
+                _market: IPerpsV2MarketConsolidated(market),
+                _conditionalOrderFee: conditionalOrderFee
+            })
+        );
 
         events.emitOrderFilled({
             account: address(this),
@@ -732,6 +790,8 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
                              FEE UTILITIES
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice impose fee on account
+    /// @param _fee: fee to impose
     function _imposeFee(uint256 _fee) internal {
         /// @dev send fee to Kwenta's treasury
         if (_fee > freeMargin()) {
@@ -796,7 +856,16 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
 
     /// @notice Absolute value of the input, returned as an unsigned number.
     /// @param x: signed number
+    /// @return absolute value of x
     function _abs(int256 x) internal pure returns (uint256) {
         return uint256(x < 0 ? -x : x);
+    }
+
+    /// @notice determines if input numbers have the same sign
+    /// @param x: signed number
+    /// @param y: signed number
+    /// @return true if same sign, false otherwise
+    function _isSameSign(int256 x, int256 y) internal pure returns (bool) {
+        return (x ^ y) >= 0;
     }
 }

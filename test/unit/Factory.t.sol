@@ -255,7 +255,7 @@ contract FactoryTest is Test {
             _implementation: address(newImplementation)
         });
         // check version changed
-        bytes32 newVersion = "2.0.1";
+        bytes32 newVersion = "6.9.0";
         assertEq(Account(accountAddress).VERSION(), newVersion);
         // check owner did not change
         assertEq(Account(accountAddress).owner(), address(this));
