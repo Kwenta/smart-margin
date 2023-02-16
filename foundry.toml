@@ -4,6 +4,10 @@ out = 'out'
 libs = ['lib']
 solc_version = "0.8.17"
 
+[fmt]
+line_length = 80
+number_underscore = "thousands"
+
 [rpc_endpoints]
 optimism = "${ARCHIVE_NODE_URL_L2}"
 optimismGoerli = "${ARCHIVE_NODE_URL_GOERLI_L2}"
