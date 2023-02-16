@@ -36,7 +36,7 @@ interface IEvents {
     /// @param targetPrice: targeted fill price
     /// @param orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
     /// @param priceImpactDelta: price impact tolerance as a percentage
-    /// @param maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
+    /// @param reduceOnly: if true, only allows position's absolute size to decrease
     function emitOrderPlaced(
         address account,
         uint256 orderId,
@@ -46,7 +46,7 @@ interface IEvents {
         uint256 targetPrice,
         IAccount.OrderTypes orderType,
         uint128 priceImpactDelta,
-        uint256 maxDynamicFee
+        bool reduceOnly
     ) external;
 
     event OrderPlaced(
@@ -58,7 +58,7 @@ interface IEvents {
         uint256 targetPrice,
         IAccount.OrderTypes orderType,
         uint128 priceImpactDelta,
-        uint256 maxDynamicFee
+        bool reduceOnly
     );
 
     /// @notice emitted when an advanced order is cancelled

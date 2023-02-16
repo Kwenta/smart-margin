@@ -52,7 +52,8 @@ interface IAccount {
     // targetPrice: limit or stop price to fill at
     // gelatoTaskId: unqiue taskId from gelato necessary for cancelling orders
     // orderType: order type to determine order fill logic
-    // maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
+    // priceImpactDelta: price impact tolerance as a percentage used on fillPrice at execution
+    // reduceOnly: if true, only allows position's absolute size to decrease
     struct Order {
         bytes32 marketKey;
         int256 marginDelta; // positive indicates deposit, negative withdraw
@@ -60,7 +61,6 @@ interface IAccount {
         uint256 targetPrice;
         bytes32 gelatoTaskId;
         OrderTypes orderType;
-        uint256 maxDynamicFee;
         uint128 priceImpactDelta; // price impact tolerance as a percentage used on fillPrice at execution
         bool reduceOnly;
     }
@@ -93,7 +93,7 @@ interface IAccount {
     /// @param targetPrice: targeted fill price
     /// @param orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
     /// @param priceImpactDelta: price impact tolerance as a percentage
-    /// @param maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
+    /// @param reduceOnly: if true, only allows position's absolute size to decrease
     event OrderPlaced(
         address indexed account,
         uint256 orderId,
@@ -103,7 +103,7 @@ interface IAccount {
         uint256 targetPrice,
         OrderTypes orderType,
         uint128 priceImpactDelta,
-        uint256 maxDynamicFee
+        bool reduceOnly
     );
 
     /// @notice emitted when an advanced order is cancelled
@@ -284,7 +284,7 @@ interface IAccount {
     /// @param _targetPrice: expected limit order price
     /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
     /// @param _priceImpactDelta: price impact tolerance as a percentage
-    /// @param _reduceOnly: if true, only reduce position size
+    /// @param _reduceOnly: if true, only allows position's absolute size to decrease
     /// @return orderId contract interface
     function placeOrder(
         bytes32 _marketKey,
@@ -293,27 +293,6 @@ interface IAccount {
         uint256 _targetPrice,
         OrderTypes _orderType,
         uint128 _priceImpactDelta,
-        bool _reduceOnly
-    ) external payable returns (uint256);
-
-    /// @notice register a limit order internally and with gelato
-    /// @param _marketKey: Synthetix futures market id/key
-    /// @param _marginDelta: amount of margin (in sUSD) to deposit or withdraw
-    /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of futures position
-    /// @param _targetPrice: expected limit order price
-    /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
-    /// @param _priceImpactDelta: price impact tolerance as a percentage
-    /// @param _maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
-    /// @param _reduceOnly: if true, only reduce position size
-    /// @return orderId contract interface
-    function placeOrderWithFeeCap(
-        bytes32 _marketKey,
-        int256 _marginDelta,
-        int256 _sizeDelta,
-        uint256 _targetPrice,
-        OrderTypes _orderType,
-        uint128 _priceImpactDelta,
-        uint256 _maxDynamicFee,
         bool _reduceOnly
     ) external payable returns (uint256);
 

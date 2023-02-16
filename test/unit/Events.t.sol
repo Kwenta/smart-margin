@@ -21,7 +21,7 @@ contract EventsTest is Test {
     uint256 private constant TARGET_PRICE = 6;
     IAccount.OrderTypes private constant ORDER_TYPE = IAccount.OrderTypes.LIMIT;
     uint128 private constant PRICE_IMPACT_DELTA = 7;
-    uint256 private constant MAX_DYNAMIC_FEE = 8;
+    bool private constant REDUCE_ONLY = true;
     uint256 private constant FILL_PRICE = 9;
     uint256 private constant KEEPER_FEE = 10;
 
@@ -37,7 +37,7 @@ contract EventsTest is Test {
         uint256 targetPrice,
         IAccount.OrderTypes orderType,
         uint128 priceImpactDelta,
-        uint256 maxDynamicFee
+        bool reduceOnly
     );
     event OrderCancelled(address indexed account, uint256 orderId);
     event OrderFilled(
@@ -87,7 +87,7 @@ contract EventsTest is Test {
             TARGET_PRICE,
             ORDER_TYPE,
             PRICE_IMPACT_DELTA,
-            MAX_DYNAMIC_FEE
+            REDUCE_ONLY
         );
         events.emitOrderPlaced({
             account: address(this),
@@ -98,7 +98,7 @@ contract EventsTest is Test {
             targetPrice: TARGET_PRICE,
             orderType: ORDER_TYPE,
             priceImpactDelta: PRICE_IMPACT_DELTA,
-            maxDynamicFee: MAX_DYNAMIC_FEE
+            reduceOnly: REDUCE_ONLY
         });
     }
 

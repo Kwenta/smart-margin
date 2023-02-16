@@ -483,18 +483,6 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     {
         Order memory order = getOrder(_orderId);
 
-        // check dynamic fee is not too high
-        if (order.maxDynamicFee != 0) {
-            (uint256 dynamicFee, bool tooVolatile) = exchanger()
-                .dynamicFeeRateForExchange(
-                    SUSD,
-                    getPerpsV2Market(order.marketKey).baseAsset()
-                );
-            if (tooVolatile || dynamicFee > order.maxDynamicFee) {
-                return (false, 0);
-            }
-        }
-
         // check if markets satisfy specific order type
         if (order.orderType == OrderTypes.LIMIT) {
             return validLimitOrder(order);
@@ -561,55 +549,10 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         OrderTypes _orderType,
         uint128 _priceImpactDelta,
         bool _reduceOnly
-    ) external payable override returns (uint256) {
-        return
-            _placeOrder({
-                _marketKey: _marketKey,
-                _marginDelta: _marginDelta,
-                _sizeDelta: _sizeDelta,
-                _targetPrice: _targetPrice,
-                _orderType: _orderType,
-                _priceImpactDelta: _priceImpactDelta,
-                _maxDynamicFee: 0,
-                _reduceOnly: _reduceOnly
-            });
-    }
-
-    /// @inheritdoc IAccount
-    function placeOrderWithFeeCap(
-        bytes32 _marketKey,
-        int256 _marginDelta,
-        int256 _sizeDelta,
-        uint256 _targetPrice,
-        OrderTypes _orderType,
-        uint128 _priceImpactDelta,
-        uint256 _maxDynamicFee,
-        bool _reduceOnly
-    ) external payable override returns (uint256) {
-        return
-            _placeOrder({
-                _marketKey: _marketKey,
-                _marginDelta: _marginDelta,
-                _sizeDelta: _sizeDelta,
-                _targetPrice: _targetPrice,
-                _orderType: _orderType,
-                _priceImpactDelta: _priceImpactDelta,
-                _maxDynamicFee: _maxDynamicFee,
-                _reduceOnly: _reduceOnly
-            });
-    }
-
-    function _placeOrder(
-        bytes32 _marketKey,
-        int256 _marginDelta,
-        int256 _sizeDelta,
-        uint256 _targetPrice,
-        OrderTypes _orderType,
-        uint128 _priceImpactDelta,
-        uint256 _maxDynamicFee,
-        bool _reduceOnly
     )
-        internal
+        external
+        payable
+        override
         notZero(_abs(_sizeDelta), "_sizeDelta")
         onlyOwner
         returns (uint256)
@@ -651,7 +594,6 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             gelatoTaskId: taskId,
             orderType: _orderType,
             priceImpactDelta: _priceImpactDelta,
-            maxDynamicFee: _maxDynamicFee,
             reduceOnly: _reduceOnly
         });
 
@@ -664,7 +606,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             targetPrice: _targetPrice,
             orderType: _orderType,
             priceImpactDelta: _priceImpactDelta,
-            maxDynamicFee: _maxDynamicFee
+            reduceOnly: _reduceOnly
         });
 
         return orderId++;

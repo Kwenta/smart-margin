@@ -10,7 +10,7 @@ import {Owned} from "@solmate/auth/Owned.sol";
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice flexible smart margin account enabling users to trade on-chain derivatives
 contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
-        /*//////////////////////////////////////////////////////////////
+    /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
@@ -483,18 +483,6 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     {
         Order memory order = getOrder(_orderId);
 
-        // check dynamic fee is not too high
-        if (order.maxDynamicFee != 0) {
-            (uint256 dynamicFee, bool tooVolatile) = exchanger()
-                .dynamicFeeRateForExchange(
-                    SUSD,
-                    getPerpsV2Market(order.marketKey).baseAsset()
-                );
-            if (tooVolatile || dynamicFee > order.maxDynamicFee) {
-                return (false, 0);
-            }
-        }
-
         // check if markets satisfy specific order type
         if (order.orderType == OrderTypes.LIMIT) {
             return validLimitOrder(order);
@@ -561,55 +549,10 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         OrderTypes _orderType,
         uint128 _priceImpactDelta,
         bool _reduceOnly
-    ) external payable override returns (uint256) {
-        return
-            _placeOrder({
-                _marketKey: _marketKey,
-                _marginDelta: _marginDelta,
-                _sizeDelta: _sizeDelta,
-                _targetPrice: _targetPrice,
-                _orderType: _orderType,
-                _priceImpactDelta: _priceImpactDelta,
-                _maxDynamicFee: 0,
-                _reduceOnly: _reduceOnly
-            });
-    }
-
-    /// @inheritdoc IAccount
-    function placeOrderWithFeeCap(
-        bytes32 _marketKey,
-        int256 _marginDelta,
-        int256 _sizeDelta,
-        uint256 _targetPrice,
-        OrderTypes _orderType,
-        uint128 _priceImpactDelta,
-        uint256 _maxDynamicFee,
-        bool _reduceOnly
-    ) external payable override returns (uint256) {
-        return
-            _placeOrder({
-                _marketKey: _marketKey,
-                _marginDelta: _marginDelta,
-                _sizeDelta: _sizeDelta,
-                _targetPrice: _targetPrice,
-                _orderType: _orderType,
-                _priceImpactDelta: _priceImpactDelta,
-                _maxDynamicFee: _maxDynamicFee,
-                _reduceOnly: _reduceOnly
-            });
-    }
-
-    function _placeOrder(
-        bytes32 _marketKey,
-        int256 _marginDelta,
-        int256 _sizeDelta,
-        uint256 _targetPrice,
-        OrderTypes _orderType,
-        uint128 _priceImpactDelta,
-        uint256 _maxDynamicFee,
-        bool _reduceOnly
     )
-        internal
+        external
+        payable
+        override
         notZero(_abs(_sizeDelta), "_sizeDelta")
         onlyOwner
         returns (uint256)
@@ -651,7 +594,6 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             gelatoTaskId: taskId,
             orderType: _orderType,
             priceImpactDelta: _priceImpactDelta,
-            maxDynamicFee: _maxDynamicFee,
             reduceOnly: _reduceOnly
         });
 
@@ -664,7 +606,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             targetPrice: _targetPrice,
             orderType: _orderType,
             priceImpactDelta: _priceImpactDelta,
-            maxDynamicFee: _maxDynamicFee
+            reduceOnly: _reduceOnly
         });
 
         return orderId++;
@@ -701,20 +643,34 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
 
         // if order is reduce only, ensure position size is only reduced
         if (order.reduceOnly) {
-            int256 currentSizeDelta = getPerpsV2Market(order.marketKey)
+            int256 currentSize = getPerpsV2Market(order.marketKey)
                 .positions({account: address(this)})
                 .size;
 
             // ensure position exists and incoming size delta is NOT the same sign
             /// @dev if incoming size delta is the same sign, then the order is not reduce only
-            if (currentSizeDelta == 0 || _isSameSign(currentSizeDelta, order.sizeDelta)) {
+            if (currentSize == 0 || _isSameSign(currentSize, order.sizeDelta)) {
+                // remove task from gelato's side
+                /// @dev optimization done for gelato
                 IOps(OPS).cancelTask(order.gelatoTaskId);
+
+                // delete order from orders
                 delete orders[_orderId];
-                // emit event
+
+                events.emitOrderCancelled({
+                    account: address(this),
+                    orderId: _orderId
+                });
                 return;
             }
-            
-            // if () {}
+
+            // ensure incoming size delta is not larger than current position size
+            /// @dev reduce only orders can only reduce position size (i.e. approach size of zero) and
+            /// cannot cross that boundary (i.e. short -> long or long -> short)
+            if (_abs(order.sizeDelta) > _abs(currentSize)) {
+                // bound order size delta to current position size
+                order.sizeDelta = -currentSize;
+            }
         }
 
         // if margin was committed, free it
@@ -854,18 +810,24 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
                              MATH UTILITIES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Absolute value of the input, returned as an unsigned number.
+    /// @notice get absolute value of the input, returned as an unsigned number.
     /// @param x: signed number
-    /// @return absolute value of x
-    function _abs(int256 x) internal pure returns (uint256) {
-        return uint256(x < 0 ? -x : x);
+    /// @return z uint256 absolute value of x
+    function _abs(int256 x) internal pure returns (uint256 z) {
+        // /// @solidity memory-safe-assembly
+        assembly {
+            let mask := sub(0, shr(255, x))
+            z := xor(mask, add(mask, x))
+        }
     }
 
     /// @notice determines if input numbers have the same sign
+    /// @dev asserts that both numbers are not zero
     /// @param x: signed number
     /// @param y: signed number
     /// @return true if same sign, false otherwise
     function _isSameSign(int256 x, int256 y) internal pure returns (bool) {
+        assert(x != 0 && y != 0);
         return (x ^ y) >= 0;
     }
 }
