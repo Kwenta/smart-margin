@@ -62,6 +62,7 @@ interface IAccount {
         OrderTypes orderType;
         uint256 maxDynamicFee;
         uint128 priceImpactDelta; // price impact tolerance as a percentage used on fillPrice at execution
+        bool reduceOnly;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -283,6 +284,7 @@ interface IAccount {
     /// @param _targetPrice: expected limit order price
     /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
     /// @param _priceImpactDelta: price impact tolerance as a percentage
+    /// @param _reduceOnly: if true, only reduce position size
     /// @return orderId contract interface
     function placeOrder(
         bytes32 _marketKey,
@@ -290,7 +292,8 @@ interface IAccount {
         int256 _sizeDelta,
         uint256 _targetPrice,
         OrderTypes _orderType,
-        uint128 _priceImpactDelta
+        uint128 _priceImpactDelta,
+        bool _reduceOnly
     ) external payable returns (uint256);
 
     /// @notice register a limit order internally and with gelato
@@ -301,6 +304,7 @@ interface IAccount {
     /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
     /// @param _priceImpactDelta: price impact tolerance as a percentage
     /// @param _maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
+    /// @param _reduceOnly: if true, only reduce position size
     /// @return orderId contract interface
     function placeOrderWithFeeCap(
         bytes32 _marketKey,
@@ -309,7 +313,8 @@ interface IAccount {
         uint256 _targetPrice,
         OrderTypes _orderType,
         uint128 _priceImpactDelta,
-        uint256 _maxDynamicFee
+        uint256 _maxDynamicFee,
+        bool _reduceOnly
     ) external payable returns (uint256);
 
     /// @notice cancel a gelato queued order
@@ -318,6 +323,7 @@ interface IAccount {
 
     /// @notice execute a gelato queued order
     /// @notice only keepers can trigger this function
+    /// @dev currently only supports order submission via PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER Command
     /// @param _orderId: key for an active order
     function executeOrder(uint256 _orderId) external;
 }

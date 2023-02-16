@@ -559,7 +559,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         int256 _sizeDelta,
         uint256 _targetPrice,
         OrderTypes _orderType,
-        uint128 _priceImpactDelta
+        uint128 _priceImpactDelta,
+        bool _reduceOnly
     ) external payable override returns (uint256) {
         return
             _placeOrder({
@@ -569,7 +570,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
                 _targetPrice: _targetPrice,
                 _orderType: _orderType,
                 _priceImpactDelta: _priceImpactDelta,
-                _maxDynamicFee: 0
+                _maxDynamicFee: 0,
+                _reduceOnly: _reduceOnly
             });
     }
 
@@ -581,7 +583,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         uint256 _targetPrice,
         OrderTypes _orderType,
         uint128 _priceImpactDelta,
-        uint256 _maxDynamicFee
+        uint256 _maxDynamicFee,
+        bool _reduceOnly
     ) external payable override returns (uint256) {
         return
             _placeOrder({
@@ -591,7 +594,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
                 _targetPrice: _targetPrice,
                 _orderType: _orderType,
                 _priceImpactDelta: _priceImpactDelta,
-                _maxDynamicFee: _maxDynamicFee
+                _maxDynamicFee: _maxDynamicFee,
+                _reduceOnly: _reduceOnly
             });
     }
 
@@ -602,7 +606,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         uint256 _targetPrice,
         OrderTypes _orderType,
         uint128 _priceImpactDelta,
-        uint256 _maxDynamicFee
+        uint256 _maxDynamicFee,
+        bool _reduceOnly
     )
         internal
         notZero(_abs(_sizeDelta), "_sizeDelta")
@@ -646,7 +651,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             gelatoTaskId: taskId,
             orderType: _orderType,
             priceImpactDelta: _priceImpactDelta,
-            maxDynamicFee: _maxDynamicFee
+            maxDynamicFee: _maxDynamicFee,
+            reduceOnly: _reduceOnly
         });
 
         events.emitOrderPlaced({
@@ -684,8 +690,6 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
     /// @inheritdoc IAccount
     function executeOrder(uint256 _orderId) external override onlyOps {
-        // @TODO consider removing onlyOps modifier
-
         (bool isValidOrder, uint256 fillPrice) = validOrder(_orderId);
 
         if (!isValidOrder) {
@@ -694,6 +698,38 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
         Order memory order = getOrder(_orderId);
         address market = address(getPerpsV2Market(order.marketKey));
+
+        // if order is reduce only, ensure position size is only reduced
+        if (order.reduceOnly) {
+            int256 currentSize = getPerpsV2Market(order.marketKey)
+                .positions({account: address(this)})
+                .size;
+
+            // ensure position exists and incoming size delta is NOT the same sign
+            /// @dev if incoming size delta is the same sign, then the order is not reduce only
+            if (currentSize == 0 || _isSameSign(currentSize, order.sizeDelta)) {
+                // remove task from gelato's side
+                /// @dev optimization done for gelato
+                IOps(OPS).cancelTask(order.gelatoTaskId);
+
+                // delete order from orders
+                delete orders[_orderId];
+
+                events.emitOrderCancelled({
+                    account: address(this),
+                    orderId: _orderId
+                });
+                return;
+            }
+
+            // ensure incoming size delta is not larger than current position size
+            /// @dev reduce only orders can only reduce position size (i.e. approach size of zero) and
+            /// cannot cross that boundary (i.e. short -> long or long -> short)
+            if (_abs(order.sizeDelta) > _abs(currentSize)) {
+                // bound order size delta to current position size
+                order.sizeDelta = -currentSize;
+            }
+        }
 
         // if margin was committed, free it
         if (order.marginDelta > 0) {
@@ -767,7 +803,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /*//////////////////////////////////////////////////////////////
                              FEE UTILITIES
     //////////////////////////////////////////////////////////////*/
-    
+
     /// @notice impose fee on account
     /// @param _fee: fee to impose
     function _imposeFee(uint256 _fee) internal {
@@ -832,9 +868,24 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
                              MATH UTILITIES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Absolute value of the input, returned as an unsigned number.
+    /// @notice get absolute value of the input, returned as an unsigned number.
     /// @param x: signed number
-    function _abs(int256 x) internal pure returns (uint256) {
-        return uint256(x < 0 ? -x : x);
+    /// @return z uint256 absolute value of x
+    function _abs(int256 x) internal pure returns (uint256 z) {
+        // /// @solidity memory-safe-assembly
+        assembly {
+            let mask := sub(0, shr(255, x))
+            z := xor(mask, add(mask, x))
+        }
+    }
+
+    /// @notice determines if input numbers have the same sign
+    /// @dev asserts that both numbers are not zero
+    /// @param x: signed number
+    /// @param y: signed number
+    /// @return true if same sign, false otherwise
+    function _isSameSign(int256 x, int256 y) internal pure returns (bool) {
+        assert(x != 0 && y != 0);
+        return (x ^ y) >= 0;
     }
 }

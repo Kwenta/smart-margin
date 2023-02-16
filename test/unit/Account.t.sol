@@ -3,6 +3,7 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 import {Account} from "../../src/Account.sol";
+import {AccountExposed} from "./utils/AccountExposed.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
@@ -21,6 +22,7 @@ contract AccountTest is Test {
     Events private events;
     Factory private factory;
     ERC20 private sUSD;
+    AccountExposed accountExposed;
 
     uint256 private constant AMOUNT = 10_000 ether;
 
@@ -79,6 +81,9 @@ contract AccountTest is Test {
 
         settings = Settings(factory.settings());
         events = Events(factory.events());
+
+        // deploy contract used to test Account's internal functions
+        accountExposed = new AccountExposed();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -94,6 +99,35 @@ contract AccountTest is Test {
         assert(account.freeMargin() == AMOUNT);
         account.withdraw(AMOUNT);
         assert(account.freeMargin() == 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             MATH UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    function testAbs(int256 x) public view {
+        if (x == 0) {
+            assert(accountExposed.expose_abs(x) == 0);
+        } else {
+            assert(accountExposed.expose_abs(x) > 0);
+        }
+    }
+
+    function testIsSameSign(int256 x, int256 y) public {
+        if (x == 0 || y == 0) {
+            vm.expectRevert();
+            accountExposed.expose_isSameSign(x, y);
+        } else if (x > 0 && y > 0) {
+            assert(accountExposed.expose_isSameSign(x, y));
+        } else if (x < 0 && y < 0) {
+            assert(accountExposed.expose_isSameSign(x, y));
+        } else if (x > 0 && y < 0) {
+            assert(!accountExposed.expose_isSameSign(x, y));
+        } else if (x < 0 && y > 0) {
+            assert(!accountExposed.expose_isSameSign(x, y));
+        } else {
+            assert(false);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -155,11 +189,5 @@ contract AccountTest is Test {
                 ).marketForKey(key)
             )
         );
-    }
-
-    // @HELPER
-    /// @notice takes int and returns absolute value uint
-    function abs(int256 x) internal pure returns (uint256) {
-        return uint256(x < 0 ? -x : x);
     }
 }
