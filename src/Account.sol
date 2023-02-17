@@ -67,8 +67,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /// @inheritdoc IAccount
     uint256 public orderId;
 
-    /// @notice order id mapped to order struct
-    mapping(uint256 => Order) private orders;
+    /// @notice track orders by id
+    mapping(uint256 id => Order order) private orders;
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS

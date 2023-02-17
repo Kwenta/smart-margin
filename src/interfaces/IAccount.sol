@@ -2,13 +2,13 @@
 pragma solidity 0.8.18;
 
 import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
+import {IEvents} from "./IEvents.sol";
 import {IExchanger} from "@synthetix/IExchanger.sol";
 import {IFactory} from "./IFactory.sol";
 import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
 import {IPerpsV2MarketConsolidated} from
     "@synthetix/IPerpsV2MarketConsolidated.sol";
 import {ISettings} from "./ISettings.sol";
-import {IEvents} from "./IEvents.sol";
 
 /// @title Kwenta Smart Margin Account Implementation Interface
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
@@ -164,10 +164,10 @@ interface IAccount {
 
     /// @notice base price from the oracle was invalid
     /// @dev Rate can be invalid either due to:
-    ///      1. Returned as invalid from ExchangeRates - due to being stale or flagged by oracle
-    ///      2. Out of deviation bounds w.r.t. to previously stored rate
-    ///      3. if there is no valid stored rate, w.r.t. to previous 3 oracle rates
-    ///      4. Price is zero
+    ///     1. Returned as invalid from ExchangeRates - due to being stale or flagged by oracle
+    ///     2. Out of deviation bounds w.r.t. to previously stored rate
+    ///     3. if there is no valid stored rate, w.r.t. to previous 3 oracle rates
+    ///     4. Price is zero
     error InvalidPrice();
 
     /// @notice Insufficient margin to pay fee
@@ -223,6 +223,7 @@ interface IAccount {
         returns (bool canExec, bytes memory execPayload);
 
     /// @notice the current withdrawable or usable balance
+    /// @return free margin amount
     function freeMargin() external view returns (uint256);
 
     /// @notice get up-to-date position data from Synthetix PerpsV2
@@ -244,6 +245,8 @@ interface IAccount {
     ) external view returns (uint256);
 
     /// @notice order id mapped to order
+    /// @param _orderId: id of order
+    /// @return order struct
     function getOrder(uint256 _orderId) external view returns (Order memory);
 
     /*//////////////////////////////////////////////////////////////
@@ -287,7 +290,7 @@ interface IAccount {
     /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
     /// @param _priceImpactDelta: price impact tolerance as a percentage
     /// @param _reduceOnly: if true, only allows position's absolute size to decrease
-    /// @return orderId contract interface
+    /// @return id of newly created order
     function placeOrder(
         bytes32 _marketKey,
         int256 _marginDelta,
@@ -304,7 +307,7 @@ interface IAccount {
 
     /// @notice execute a gelato queued order
     /// @notice only keepers can trigger this function
-    /// @dev currently only supports order submission via PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER Command
+    /// @dev currently only supports order submission via PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER COMMAND
     /// @param _orderId: key for an active order
     function executeOrder(uint256 _orderId) external;
 }

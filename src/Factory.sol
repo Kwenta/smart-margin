@@ -27,7 +27,7 @@ contract Factory is IFactory, Owned {
     address public events;
 
     /// @inheritdoc IFactory
-    mapping(address => address) public ownerToAccount;
+    mapping(address accountOwner => address account) public ownerToAccount;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
