@@ -9,7 +9,7 @@
         "const-name-snakecase": "off",
         "compiler-version": [
             "error",
-            "^0.8.13"
+            "0.8.18"
         ],
         "func-visibility": [
             "warn",

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import "forge-std/Script.sol";
 // import {AccountV69} from "src/AccountV69.sol"; // (this is an example of the new Account implementation)

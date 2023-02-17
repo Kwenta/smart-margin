@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IExchanger} from "@synthetix/IExchanger.sol";
 import {IFactory} from "./IFactory.sol";
 import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
@@ -11,7 +10,7 @@ import {IPerpsV2MarketConsolidated} from
 import {ISettings} from "./ISettings.sol";
 import {IEvents} from "./IEvents.sol";
 
-/// @title Kwenta Smart Margin Account Interface
+/// @title Kwenta Smart Margin Account Implementation Interface
 /// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
 interface IAccount {
     /*///////////////////////////////////////////////////////////////
@@ -19,6 +18,7 @@ interface IAccount {
     ///////////////////////////////////////////////////////////////*/
 
     /// @notice Command Flags used to decode commands to execute
+    /// @dev under the hood PERPS_V2_MODIFY_MARGIN = 0, PERPS_V2_WITHDRAW_ALL_MARGIN = 1
     enum Command {
         PERPS_V2_MODIFY_MARGIN,
         PERPS_V2_WITHDRAW_ALL_MARGIN,
@@ -38,17 +38,18 @@ interface IAccount {
     }
 
     // marketKey: Synthetix PerpsV2 Market id/key
-    // marginDelta: amount of margin (in sUSD) to deposit or withdraw
+    // marginDelta: amount of margin (in sUSD) to deposit or withdraw; positive indicates deposit, negative withdraw
     // sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
+    // priceImpactDelta: price impact tolerance as a percentage used on fillPrice at execution
     struct NewPosition {
         bytes32 marketKey;
-        int256 marginDelta; // positive indicates deposit, negative withdraw
-        int256 sizeDelta; // difference in position
-        uint128 priceImpactDelta; // price impact tolerance as a percentage used on fillPrice at execution
+        int256 marginDelta;
+        int256 sizeDelta;
+        uint128 priceImpactDelta;
     }
 
     // marketKey: Synthetix PerpsV2 Market id/key
-    // marginDelta: amount of margin (in sUSD) to deposit or withdraw
+    // marginDelta: amount of margin (in sUSD) to deposit or withdraw; positive indicates deposit, negative withdraw
     // sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
     // targetPrice: limit or stop price to fill at
     // gelatoTaskId: unqiue taskId from gelato necessary for cancelling orders
@@ -57,12 +58,12 @@ interface IAccount {
     // reduceOnly: if true, only allows position's absolute size to decrease
     struct Order {
         bytes32 marketKey;
-        int256 marginDelta; // positive indicates deposit, negative withdraw
+        int256 marginDelta;
         int256 sizeDelta;
         uint256 targetPrice;
         bytes32 gelatoTaskId;
         OrderTypes orderType;
-        uint128 priceImpactDelta; // price impact tolerance as a percentage used on fillPrice at execution
+        uint128 priceImpactDelta;
         bool reduceOnly;
     }
 
@@ -85,7 +86,7 @@ interface IAccount {
     /// @param amount: amount of ETH to withdraw from account
     event EthWithdraw(address indexed user, uint256 amount);
 
-    /// @notice emitted when an advanced order is placed
+    /// @notice emitted when a conditional order is placed
     /// @param account: account placing the order
     /// @param orderId: id of order
     /// @param marketKey: futures market key
@@ -107,10 +108,14 @@ interface IAccount {
         bool reduceOnly
     );
 
-    /// @notice emitted when an advanced order is cancelled
+    /// @notice emitted when a conditional order is cancelled
+    /// @param account: account cancelling the order
+    /// @param orderId: id of order
     event OrderCancelled(address indexed account, uint256 orderId);
 
-    /// @notice emitted when an advanced order is filled
+    /// @notice emitted when a conditional order is filled
+    /// @param account: account placing the order
+    /// @param orderId: id of order
     /// @param fillPrice: price the order was executed at
     /// @param keeperFee: fees paid to the executor
     event OrderFilled(
@@ -180,12 +185,6 @@ interface IAccount {
     /// @notice returns the version of the Account
     function VERSION() external view returns (bytes32);
 
-    /// @return returns the address of the Synthetix ReadProxyAddressResolver
-    function ADDRESS_RESOLVER() external view returns (IAddressResolver);
-
-    /// @return returns the address of the Synthetix ProxyERC20sUSD address used as the margin asset
-    function MARGIN_ASSET() external view returns (IERC20);
-
     /// @return returns the address of the factory
     function factory() external view returns (IFactory);
 
@@ -201,7 +200,7 @@ interface IAccount {
     /// @return returns the address of events contract for accounts
     function events() external view returns (IEvents);
 
-    /// @return returns the amount of margin locked for future events (ie. limit orders)
+    /// @return returns the amount of margin locked for future events (i.e. conditional orders)
     function committedMargin() external view returns (uint256);
 
     /// @return returns current order id
@@ -237,7 +236,6 @@ interface IAccount {
     /// @param _sizeDelta: size delta of given trade
     /// @param _market: Synthetix PerpsV2 Market
     /// @param _advancedOrderFee: additional fee charged for advanced orders
-    /// @dev _advancedOrderFee will be zero if trade is not an advanced order
     /// @return fee to be imposed based on size delta
     function calculateTradeFee(
         int256 _sizeDelta,

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import {
     IAccount,
     IAddressResolver,
-    IERC20,
     IExchanger,
     IFactory,
     IFuturesMarketManager,
@@ -12,6 +11,7 @@ import {
     ISettings,
     IEvents
 } from "../../../src/interfaces/IAccount.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Initializable} from
     "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {OpsReady, IOps} from "../../../src/utils/OpsReady.sol";
@@ -28,12 +28,12 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     /// @inheritdoc IAccount
     bytes32 public constant VERSION = "6.9.0";
 
-    /// @inheritdoc IAccount
-    IAddressResolver public constant ADDRESS_RESOLVER =
+    /// @notice address of the Synthetix ReadProxyAddressResolver
+    IAddressResolver private constant ADDRESS_RESOLVER =
         IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
 
-    /// @inheritdoc IAccount
-    IERC20 public constant MARGIN_ASSET =
+    /// @notice address of the Synthetix ProxyERC20sUSD address used as the margin asset
+    IERC20 private constant MARGIN_ASSET =
         IERC20(0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9);
 
     /// @notice tracking code used when modifying positions
