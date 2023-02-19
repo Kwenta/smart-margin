@@ -26,31 +26,20 @@ contract AccountTest is Test {
     /// @dev hard coded addresses are only guaranteed for this block
     uint256 private constant BLOCK_NUMBER = 60_242_268;
 
-    /// @notice max BPS; used for decimals calculations
     uint256 private constant MAX_BPS = 10_000;
-
-    // tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
-
-    // test amount used throughout tests
     uint256 private constant AMOUNT = 10_000 ether;
+    address private constant KWENTA_TREASURY = 0x82d2242257115351899894eF384f779b5ba8c695;
+    address private constant FUTURES_MARKET_MANAGER = 0xdb89f3fc45A707Dd49781495f77f8ae69bF5cA6e;
+    address public constant OPS = 0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c;
 
-    // synthetix (ReadProxyAddressResolver)
     IAddressResolver private constant ADDRESS_RESOLVER =
         IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
 
-    // kwenta treasury multisig
-    address private constant KWENTA_TREASURY = 0x82d2242257115351899894eF384f779b5ba8c695;
+    uint256 private TRADE_FEE = 1;
+    uint256 private LIMIT_ORDER_FEE = 2;
+    uint256 private STOP_ORDER_FEE = 3;
 
-    // Synthetix PerpsV2 market manager
-    address private constant FUTURES_MARKET_MANAGER = 0xdb89f3fc45A707Dd49781495f77f8ae69bF5cA6e;
-
-    // fee settings
-    uint256 private tradeFee = 1;
-    uint256 private limitOrderFee = 2;
-    uint256 private stopOrderFee = 3;
-
-    // Synthetix PerpsV2 market key(s)
     bytes32 private constant sETHPERP = "sETHPERP";
     bytes32 private constant sBTCPERP = "sBTCPERP";
 
@@ -106,9 +95,9 @@ contract AccountTest is Test {
         factory = setup.deploySmartMarginFactory({
             owner: address(this),
             treasury: KWENTA_TREASURY,
-            tradeFee: tradeFee,
-            limitOrderFee: limitOrderFee,
-            stopOrderFee: stopOrderFee
+            tradeFee: TRADE_FEE,
+            limitOrderFee: LIMIT_ORDER_FEE,
+            stopOrderFee: STOP_ORDER_FEE
         });
 
         settings = Settings(factory.settings());
@@ -261,7 +250,7 @@ contract AccountTest is Test {
         accountExposed.expose_calculateTradeFee({
             _sizeDelta: sizeDelta,
             _market: IPerpsV2MarketConsolidated(address(0)),
-            _conditionalOrderFee: limitOrderFee
+            _conditionalOrderFee: LIMIT_ORDER_FEE
         });
     }
 
@@ -340,5 +329,13 @@ contract AccountTest is Test {
                     .marketForKey(key)
             )
         );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 MOCKS
+    //////////////////////////////////////////////////////////////*/
+
+    function mockGelato() private {
+        
     }
 }

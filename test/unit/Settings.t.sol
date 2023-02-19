@@ -19,7 +19,7 @@ contract SettingsTest is Test {
 
     uint256 private TRADE_FEE = 1;
     uint256 private LIMIT_ORDER_FEE = 2;
-    uint256 private STOP_LOSS_FEE = 3;
+    uint256 private STOP_ORDER_FEE = 3;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -49,7 +49,7 @@ contract SettingsTest is Test {
             _treasury: KWENTA_TREASURY,
             _tradeFee: TRADE_FEE,
             _limitOrderFee: LIMIT_ORDER_FEE,
-            _stopOrderFee: STOP_LOSS_FEE
+            _stopOrderFee: STOP_ORDER_FEE
         });
     }
 
@@ -78,7 +78,7 @@ contract SettingsTest is Test {
     }
 
     function testStopOrderFeeSet() public {
-        assertEq(settings.stopOrderFee(), STOP_LOSS_FEE);
+        assertEq(settings.stopOrderFee(), STOP_ORDER_FEE);
     }
 
     function testTradeFeeCannotExceedMaxBps() public {
@@ -91,7 +91,7 @@ contract SettingsTest is Test {
             _treasury: KWENTA_TREASURY,
             _tradeFee: invalidFee,
             _limitOrderFee: LIMIT_ORDER_FEE,
-            _stopOrderFee: STOP_LOSS_FEE
+            _stopOrderFee: STOP_ORDER_FEE
         });
     }
 
@@ -105,7 +105,7 @@ contract SettingsTest is Test {
             _treasury: KWENTA_TREASURY,
             _tradeFee: TRADE_FEE,
             _limitOrderFee: invalidFee,
-            _stopOrderFee: STOP_LOSS_FEE
+            _stopOrderFee: STOP_ORDER_FEE
         });
     }
 
@@ -240,14 +240,14 @@ contract SettingsTest is Test {
     }
 
     function testFailSetSameStopOrderFee() public {
-        settings.setStopOrderFee(STOP_LOSS_FEE);
+        settings.setStopOrderFee(STOP_ORDER_FEE);
     }
 
     function testSettingStopOrderFeeEvent() public {
         vm.expectEmit(true, true, true, true);
         // event we expect
-        emit StopOrderFeeChanged(STOP_LOSS_FEE * 2);
+        emit StopOrderFeeChanged(STOP_ORDER_FEE * 2);
         // event we get
-        settings.setStopOrderFee(STOP_LOSS_FEE * 2);
+        settings.setStopOrderFee(STOP_ORDER_FEE * 2);
     }
 }

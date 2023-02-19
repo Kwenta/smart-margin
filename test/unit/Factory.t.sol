@@ -27,7 +27,7 @@ contract FactoryTest is Test {
 
     uint256 private TRADE_FEE = 1;
     uint256 private LIMIT_ORDER_FEE = 2;
-    uint256 private STOP_LOSS_FEE = 3;
+    uint256 private STOP_ORDER_FEE = 3;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -61,7 +61,7 @@ contract FactoryTest is Test {
             treasury: KWENTA_TREASURY,
             tradeFee: TRADE_FEE,
             limitOrderFee: LIMIT_ORDER_FEE,
-            stopOrderFee: STOP_LOSS_FEE
+            stopOrderFee: STOP_ORDER_FEE
         });
 
         settings = Settings(factory.settings());
@@ -262,7 +262,7 @@ contract FactoryTest is Test {
                 _treasury: KWENTA_TREASURY,
                 _tradeFee: TRADE_FEE,
                 _limitOrderFee: LIMIT_ORDER_FEE,
-                _stopOrderFee: STOP_LOSS_FEE
+                _stopOrderFee: STOP_ORDER_FEE
             })
         );
         factory.upgradeSettings({_settings: newSettings});
