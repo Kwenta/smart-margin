@@ -1,4 +1,4 @@
-# Kwenta Margin Manager
+# Kwenta Smart Margin Manager
 
 [![Github Actions][gha-badge]][gha]
 [![Foundry][foundry-badge]][foundry]
@@ -15,15 +15,14 @@
 
 Contracts to manage account abstractions and features on top of [Synthetix Perps V2](https://github.com/Synthetixio/synthetix/blob/develop/contracts/PerpsV2Market.sol).
 
-## Contract Overview
+## Contracts Overview
+> See ./deploy-addresses/ for deployed contract addresses
 
-The Margin Manager codebase consists of the `Factory` and `Account` contracts, and all of the associated dependencies. The purpose of the `Factory` is to create/deploy trading accounts (`Account` contracts) for users that support features ranging from cross-margin, conditional orders, copy trading, etc..
+The Margin Manager codebase consists of the `Factory` and `Account` contracts, and all of the associated dependencies. The purpose of the `Factory` is to create/deploy trading accounts (`Account` contracts) for users that support features ranging from cross-margin, conditional orders, copy trading, etc.. Once a smart margin account has been created, the main point of entry is the `Account.execute` function. `Account.execute` allows users to execute a set of commands describing the actions/trades they want executed by their account.
 
-coming soon ✨ (Factory-Beacon Account-Proxy Implementation)
+### User Entry: MarginBase Command Execution
 
-### MarginBase Command Execution
-
-Calls to `Account.execute`, the entrypoint to the contracts, provide 2 main parameters:
+Calls to `Account.execute`, the entrypoint to the smart margin account, require 2 main parameters:
 
 `IAccount.Command commands`: An array of `enum`. Each enum represents 1 command that the transaction will execute.
 `bytes[] inputs`: An array of `bytes` strings. Each element in the array is the encoded parameters for a command.
@@ -70,6 +69,19 @@ coming soon ✨
 #### Reference
 
 The command execution design was inspired by Uniswap's [Universal Router](https://github.com/Uniswap/universal-router).
+
+### Events
+
+Certain actions performed by the smart margin account emit events (such as depositing margin, or placing a conditional order). These events can be used to track the state of the account and to monitor the account's activity. To avoid monitoring a large number of accounts for events, we consolidate all events into a single `Events' contract`. Smart margin accounts make external calls to the `Events` contract to emit events. This costs more gas, but significantly reduces the load on our event monitoring infrastructure.
+
+### Orders
+The term "order" is used often in this codebase. Smart margin accounts natively define conditional orders, which include limit orders, stop-loss orders, and redcue-only flavors of the former two. It also supports a variety of other Synthetix PerpsV2 orders which are explicity defined by `IAccount.Command commands`.
+
+### Upgradability
+
+Smart margin accounts are upgradable. This is achieved by using a proxy pattern, where the `Account` contract is the implementation and the `AccountProxy` contract is the proxy. The `AccountProxy` contract is the contract that is deployed by the `Factory` and is the contract that users interact with. The `AccountProxy` contract delegates all calls to the `Account` contract. The `Account` contract can be upgraded by the `Factory` contract due to the `Factory` acting as a Beacon contract for the proxy. See further details on Beacons [here](https://docs.openzeppelin.com/contracts/3.x/api/proxy#beacon). One important difference between the standard Beacon implementation and our own, is that the Beacon (i.e. the `Factory`) is *not* upgradeable. This is to prevent the Beacon from being upgraded and the proxy implementation being changed to a malicious contract.
+
+Finally, all associated functionality related to upgradability can be disabled by the `Factory` contract owner.
 
 ## Folder Structure
 
@@ -143,9 +155,9 @@ npm run test
 
 > tests will fail if you have not set up your .env (see .env.example)
 
-### Upgradeability
-
-#### Account Implementation
+### Upgradability
+> Upgrades can be dangerous. Please ensure you have a good understanding of the implications of upgrading your contracts before proceeding. Storage collisions, Function signature collisions, and other issues can occur. 
+#### Update Account Implementation
 
 1. Create new version of `Account.sol` (ex: `AccountV2.sol`)
 
@@ -155,19 +167,25 @@ npm run test
 slither-check-upgradeability . Account --new-contract-name AccountV2 --proxy-name AccountProxy
 ```
 
-3. Reference `./script` directory and... coming soon ✨
+3. Reference `./script` directory and Upgrade.s.sol
 
-#### Account Settings
+#### Update Account Settings
 
-1. coming soon ✨
+1. The `Factory` owner has permission to upgrade the `Settings` contract address via `Factory.upgradeSettings`. 
+2. This "upgrade" does not suffer from the same dangers as the `Account` upgrade. State collisions are not possible nor are function signature collisions. However, it is still important to ensure that the new `Settings` contract is compatible with the `Account` contract and expected `getters` exist for the `Account` contract to function properly.
+3. Upgrades to the `Settings` contract will *NOT* impact existing smart margin accounts. However, any new smart margin accounts will use the new `Settings` contract, and thus be affected.
+> note that updates to `Account` are reflected in all smart margin accounts, regardless of whether they were created before or after the `Account` upgrade.
+4. It is expected that the `Settings` contract will be upgraded simultaneously with the `Account` contract. However, this is not required.
 
-#### Account Events
+#### Update Account Events
 
-1. coming soon ✨
+1. The `Factory` owner has permission to upgrade the `Events` contract address via `Factory.upgradeEvents`. 
+2. This "upgrade" does not suffer from the same dangers as the `Account` upgrade. State collisions are not possible nor are function signature collisions. However, it is still important to ensure that the new `Events` contract is compatible with the `Account` contract and expected functions that emit events exist for the `Account` contract to function properly.
+3. Upgrades to the `Events` contract will *NOT* impact existing smart margin accounts. However, any new smart margin accounts will use the new `Events` contract, and thus be affected.
+> note that updates to `Account` are reflected in all smart margin accounts, regardless of whether they were created before or after the `Account` upgrade.
+4. It is expected that the `Events` contract will be upgraded simultaneously with the `Account` contract. However, this is not required.
 
-#### Factory
-
-1. coming soon ✨
+## Project Tools
 
 ### Static Analysis
 
@@ -181,15 +199,16 @@ npm run analysis:slither
 npm run analysis:solsat
 ```
 
-### Deployment and Verification
+### Formatting
 
-#### Optimism (WIP) (Not verified)
-Account: `0xb3E58002aAf9d21a39a19DB784f10c30c9e5bE76` <br>
-Events: `0x3e52b5f840eafD79394c6359E93Bf3FfdAE89ee4` <br>
-Factory: `0xcbDe4a95cd13fb5BC0451FCaC66c80169703f4A1` <br>
-Settings: `0xaD873e5E79df7F7a7fFE637EdaCcD5A3640B4a49` <br>
-#### Optimism Goerli (WIP) (Not verified)
-Account: `0xD67Db3cc05f626A3B7ac59A161589e2Bb2Bfd1E0` <br>
-Events: `0x769A0246AFECba504389D0D295CaE4bC951daa8e` <br>
-Factory: `0xF84CcAD694ad8F37495b25D3Dd11edAd33d69Fb2` <br>
-Settings: `0xa5Aac6b5De821E631C7Ad01f978e32e80a8461c7` <br>
+1. Project uses Foundry's formatter:
+```
+npm run format
+```
+
+### Code Coverage
+
+1. Project uses Foundry's code coverage tool:
+```
+npm run coverage
+```
