@@ -6,15 +6,10 @@ interface ISynth {
     // Views
     function currencyKey() external view returns (bytes32);
 
-    function transferableSynths(address account)
-        external
-        view
-        returns (uint256);
+    function transferableSynths(address account) external view returns (uint256);
 
     // Mutative functions
-    function transferAndSettle(address to, uint256 value)
-        external
-        returns (bool);
+    function transferAndSettle(address to, uint256 value) external returns (bool);
 
     function transferFromAndSettle(address from, address to, uint256 value)
         external

@@ -6,12 +6,11 @@ import {IEvents} from "./IEvents.sol";
 import {IExchanger} from "@synthetix/IExchanger.sol";
 import {IFactory} from "./IFactory.sol";
 import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
-import {IPerpsV2MarketConsolidated} from
-    "@synthetix/IPerpsV2MarketConsolidated.sol";
+import {IPerpsV2MarketConsolidated} from "@synthetix/IPerpsV2MarketConsolidated.sol";
 import {ISettings} from "./ISettings.sol";
 
 /// @title Kwenta Smart Margin Account Implementation Interface
-/// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
+/// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 interface IAccount {
     /*///////////////////////////////////////////////////////////////
                                 Types
@@ -30,39 +29,28 @@ interface IAccount {
         PERPS_V2_CLOSE_POSITION
     }
 
-    // denotes order types for code clarity
+    /// @notice denotes conditional order types for code clarity
     /// @dev under the hood LIMIT = 0, STOP = 1
-    enum OrderTypes {
+    enum ConditionalOrderTypes {
         LIMIT,
         STOP
     }
 
-    // marketKey: Synthetix PerpsV2 Market id/key
-    // marginDelta: amount of margin (in sUSD) to deposit or withdraw; positive indicates deposit, negative withdraw
-    // sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
-    // priceImpactDelta: price impact tolerance as a percentage used on fillPrice at execution
-    struct NewPosition {
-        bytes32 marketKey;
-        int256 marginDelta;
-        int256 sizeDelta;
-        uint128 priceImpactDelta;
-    }
-
-    // marketKey: Synthetix PerpsV2 Market id/key
-    // marginDelta: amount of margin (in sUSD) to deposit or withdraw; positive indicates deposit, negative withdraw
-    // sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of futures position
-    // targetPrice: limit or stop price to fill at
-    // gelatoTaskId: unqiue taskId from gelato necessary for cancelling orders
-    // orderType: order type to determine order fill logic
-    // priceImpactDelta: price impact tolerance as a percentage used on fillPrice at execution
-    // reduceOnly: if true, only allows position's absolute size to decrease
-    struct Order {
+    /// marketKey: Synthetix PerpsV2 Market id/key
+    /// marginDelta: amount of margin to deposit or withdraw; positive indicates deposit, negative withdraw
+    /// sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of Synthetix PerpsV2 position
+    /// targetPrice: limit or stop price to fill at
+    /// gelatoTaskId: unqiue taskId from gelato necessary for cancelling conditional orders
+    /// conditionalOrderType: conditional order type to determine conditional order fill logic
+    /// priceImpactDelta: price impact tolerance as a percentage used on fillPrice at execution
+    /// reduceOnly: if true, only allows position's absolute size to decrease
+    struct ConditionalOrder {
         bytes32 marketKey;
         int256 marginDelta;
         int256 sizeDelta;
         uint256 targetPrice;
         bytes32 gelatoTaskId;
-        OrderTypes orderType;
+        ConditionalOrderTypes conditionalOrderType;
         uint128 priceImpactDelta;
         bool reduceOnly;
     }
@@ -73,56 +61,56 @@ interface IAccount {
 
     /// @notice emitted after a successful deposit
     /// @param user: the address that deposited into account
-    /// @param amount: amount of marginAsset to deposit into account
-    event Deposit(address indexed user, uint256 amount);
+    /// @param account: the account that received the deposit
+    /// @param amount: amount of marginAsset deposited into account
+    event Deposit(address indexed user, address indexed account, uint256 amount);
 
     /// @notice emitted after a successful withdrawal
     /// @param user: the address that withdrew from account
-    /// @param amount: amount of marginAsset to withdraw from account
-    event Withdraw(address indexed user, uint256 amount);
+    /// @param account: the account that was withdrawn from
+    /// @param amount: amount of marginAsset withdrawn from account
+    event Withdraw(address indexed user, address indexed account, uint256 amount);
 
     /// @notice emitted after a successful ETH withdrawal
     /// @param user: the address that withdrew from account
-    /// @param amount: amount of ETH to withdraw from account
-    event EthWithdraw(address indexed user, uint256 amount);
+    /// @param amount: the account that was withdrawn from
+    /// @param amount: amount of ETH withdrawn from account
+    event EthWithdraw(address indexed user, address indexed account, uint256 amount);
 
     /// @notice emitted when a conditional order is placed
-    /// @param account: account placing the order
-    /// @param orderId: id of order
-    /// @param marketKey: futures market key
+    /// @param account: account placing the conditional order
+    /// @param conditionalOrderId: id of conditional order
+    /// @param marketKey: Synthetix PerpsV2 market key
     /// @param marginDelta: margin change
     /// @param sizeDelta: size change
     /// @param targetPrice: targeted fill price
-    /// @param orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
+    /// @param conditionalOrderType: expected conditional order type enum where 0 = LIMIT, 1 = STOP, etc..
     /// @param priceImpactDelta: price impact tolerance as a percentage
     /// @param reduceOnly: if true, only allows position's absolute size to decrease
-    event OrderPlaced(
+    event ConditionalOrderPlaced(
         address indexed account,
-        uint256 orderId,
+        uint256 conditionalOrderId,
         bytes32 marketKey,
         int256 marginDelta,
         int256 sizeDelta,
         uint256 targetPrice,
-        OrderTypes orderType,
+        ConditionalOrderTypes conditionalOrderType,
         uint128 priceImpactDelta,
         bool reduceOnly
     );
 
     /// @notice emitted when a conditional order is cancelled
-    /// @param account: account cancelling the order
-    /// @param orderId: id of order
-    event OrderCancelled(address indexed account, uint256 orderId);
+    /// @param account: account cancelling the conditional order
+    /// @param conditionalOrderId: id of conditional order
+    event ConditionalOrderCancelled(address indexed account, uint256 conditionalOrderId);
 
     /// @notice emitted when a conditional order is filled
-    /// @param account: account placing the order
-    /// @param orderId: id of order
-    /// @param fillPrice: price the order was executed at
+    /// @param account: account that placed the conditional order
+    /// @param conditionalOrderId: id of conditional order
+    /// @param fillPrice: price the conditional order was executed at
     /// @param keeperFee: fees paid to the executor
-    event OrderFilled(
-        address indexed account,
-        uint256 orderId,
-        uint256 fillPrice,
-        uint256 keeperFee
+    event ConditionalOrderFilled(
+        address indexed account, uint256 conditionalOrderId, uint256 fillPrice, uint256 keeperFee
     );
 
     /// @notice emitted after a fee has been transferred to Treasury
@@ -156,8 +144,8 @@ interface IAccount {
     /// @param required: amount of margin asset required
     error InsufficientFreeMargin(uint256 available, uint256 required);
 
-    /// @notice cannot execute invalid order
-    error OrderInvalid();
+    /// @notice cannot execute invalid conditional order
+    error ConditionalOrderInvalid();
 
     /// @notice call to transfer ETH on withdrawal fails
     error EthWithdrawalFailed();
@@ -173,7 +161,7 @@ interface IAccount {
     /// @notice Insufficient margin to pay fee
     error CannotPayFee();
 
-    /// @notice Must have a minimum eth balance before placing an order
+    /// @notice Must have a minimum eth balance before placing a conditional order
     /// @param balance: current ETH balance
     /// @param minimum: min required ETH balance
     error InsufficientEthBalance(uint256 balance, uint256 minimum);
@@ -189,10 +177,7 @@ interface IAccount {
     function factory() external view returns (IFactory);
 
     /// @return returns the address of the futures market manager
-    function futuresMarketManager()
-        external
-        view
-        returns (IFuturesMarketManager);
+    function futuresMarketManager() external view returns (IFuturesMarketManager);
 
     /// @return returns the address of the native settings for account
     function settings() external view returns (ISettings);
@@ -203,21 +188,24 @@ interface IAccount {
     /// @return returns the amount of margin locked for future events (i.e. conditional orders)
     function committedMargin() external view returns (uint256);
 
-    /// @return returns current order id
-    function orderId() external view returns (uint256);
+    /// @return returns current conditional order id
+    function conditionalOrderId() external view returns (uint256);
 
     /// @notice get delayed order data from Synthetix PerpsV2
+    /// @dev call reverts if _marketKey is invalid
     /// @param _marketKey: key for Synthetix PerpsV2 Market
-    /// @return order struct defining delayed order
+    /// @return delayed order struct defining delayed order (will return empty struct if no delayed order exists)
     function getDelayedOrder(bytes32 _marketKey)
         external
         returns (IPerpsV2MarketConsolidated.DelayedOrder memory);
 
-    /// @notice signal to a keeper that an order is valid/invalid for execution
-    /// @param _orderId: key for an active order
-    /// @return canExec boolean that signals to keeper an order can be executed
-    /// @return execPayload calldata for executing an order
-    function checker(uint256 _orderId)
+    /// @notice signal to a keeper that a conditional order is valid/invalid for execution
+    /// @dev call reverts if conditional order Id does not map to a valid conditional order;
+    /// ConditionalOrder.marketKey would be invalid
+    /// @param _conditionalOrderId: key for an active conditional order
+    /// @return canExec boolean that signals to keeper a conditional order can be executed
+    /// @return execPayload calldata for executing a conditional order
+    function checker(uint256 _conditionalOrderId)
         external
         view
         returns (bool canExec, bytes memory execPayload);
@@ -233,21 +221,13 @@ interface IAccount {
         external
         returns (IPerpsV2MarketConsolidated.Position memory);
 
-    /// @notice calculate fee based on both size and given market
-    /// @param _sizeDelta: size delta of given trade
-    /// @param _market: Synthetix PerpsV2 Market
-    /// @param _advancedOrderFee: additional fee charged for advanced orders
-    /// @return fee to be imposed based on size delta
-    function calculateTradeFee(
-        int256 _sizeDelta,
-        IPerpsV2MarketConsolidated _market,
-        uint256 _advancedOrderFee
-    ) external view returns (uint256);
-
-    /// @notice order id mapped to order
-    /// @param _orderId: id of order
-    /// @return order struct
-    function getOrder(uint256 _orderId) external view returns (Order memory);
+    /// @notice conditional order id mapped to conditional order
+    /// @param _conditionalOrderId: id of conditional order
+    /// @return conditional order
+    function getConditionalOrder(uint256 _conditionalOrderId)
+        external
+        view
+        returns (ConditionalOrder memory);
 
     /*//////////////////////////////////////////////////////////////
                                 MUTATIVE
@@ -268,46 +248,34 @@ interface IAccount {
     /// @notice executes commands along with provided inputs
     /// @param _commands: array of commands, each represented as an enum
     /// @param _inputs: array of byte strings containing abi encoded inputs for each command
-    function execute(Command[] calldata _commands, bytes[] calldata _inputs)
-        external
-        payable;
+    function execute(Command[] calldata _commands, bytes[] calldata _inputs) external payable;
 
-    /// @notice order logic condition checker
-    /// @dev this is where order type logic checks are handled
-    /// @param _orderId: key for an active order
-    /// @return true if order is valid by execution rules
-    /// @return price that the order will be filled at (only valid if prev is true)
-    function validOrder(uint256 _orderId)
-        external
-        view
-        returns (bool, uint256);
-
-    /// @notice register a limit order internally and with gelato
+    /// @notice register a conditional order internally and with gelato
     /// @param _marketKey: Synthetix futures market id/key
     /// @param _marginDelta: amount of margin (in sUSD) to deposit or withdraw
-    /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of futures position
-    /// @param _targetPrice: expected limit order price
-    /// @param _orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
+    /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of position
+    /// @param _targetPrice: expected conditional order price
+    /// @param _conditionalOrderType: expected conditional order type enum where 0 = LIMIT, 1 = STOP, etc..
     /// @param _priceImpactDelta: price impact tolerance as a percentage
     /// @param _reduceOnly: if true, only allows position's absolute size to decrease
-    /// @return id of newly created order
-    function placeOrder(
+    /// @return id of newly created conditional order
+    function placeConditionalOrder(
         bytes32 _marketKey,
         int256 _marginDelta,
         int256 _sizeDelta,
         uint256 _targetPrice,
-        OrderTypes _orderType,
+        ConditionalOrderTypes _conditionalOrderType,
         uint128 _priceImpactDelta,
         bool _reduceOnly
     ) external payable returns (uint256);
 
-    /// @notice cancel a gelato queued order
-    /// @param _orderId: key for an active order
-    function cancelOrder(uint256 _orderId) external;
+    /// @notice cancel a gelato queued conditional order
+    /// @param _conditionalOrderId: key for an active conditional order
+    function cancelConditionalOrder(uint256 _conditionalOrderId) external;
 
-    /// @notice execute a gelato queued order
+    /// @notice execute a gelato queued conditional order
     /// @notice only keepers can trigger this function
-    /// @dev currently only supports order submission via PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER COMMAND
-    /// @param _orderId: key for an active order
-    function executeOrder(uint256 _orderId) external;
+    /// @dev currently only supports conditional order submission via PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER COMMAND
+    /// @param _conditionalOrderId: key for an active conditional order
+    function executeConditionalOrder(uint256 _conditionalOrderId) external;
 }

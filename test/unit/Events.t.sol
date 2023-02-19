@@ -41,10 +41,7 @@ contract EventsTest is Test {
     );
     event OrderCancelled(address indexed account, uint256 orderId);
     event OrderFilled(
-        address indexed account,
-        uint256 orderId,
-        uint256 fillPrice,
-        uint256 keeperFee
+        address indexed account, uint256 orderId, uint256 fillPrice, uint256 keeperFee
     );
     event FeeImposed(address indexed account, uint256 amount);
 

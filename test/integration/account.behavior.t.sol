@@ -44,8 +44,7 @@ contract AccountBehaviorTest is Test {
         IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
 
     // kwenta treasury multisig
-    address private constant KWENTA_TREASURY =
-        0x82d2242257115351899894eF384f779b5ba8c695;
+    address private constant KWENTA_TREASURY = 0x82d2242257115351899894eF384f779b5ba8c695;
 
     // fee settings
     uint256 private tradeFee = 1;
@@ -76,10 +75,7 @@ contract AccountBehaviorTest is Test {
     );
     event OrderCancelled(address indexed account, uint256 orderId);
     event OrderFilled(
-        address indexed account,
-        uint256 orderId,
-        uint256 fillPrice,
-        uint256 keeperFee
+        address indexed account, uint256 orderId, uint256 fillPrice, uint256 keeperFee
     );
     event FeeImposed(address indexed account, uint256 amount);
 
@@ -195,11 +191,7 @@ contract AccountBehaviorTest is Test {
         if (x == 0) {
             // attempt to deposit zero sUSD into account
             bytes32 valueName = "_amount";
-            vm.expectRevert(
-                abi.encodeWithSelector(
-                    IAccount.ValueCannotBeZero.selector, valueName
-                )
-            );
+            vm.expectRevert(abi.encodeWithSelector(IAccount.ValueCannotBeZero.selector, valueName));
             account.deposit(x);
         } else if (x > AMOUNT) {
             // attempt to deposit sUSD into account
@@ -248,18 +240,12 @@ contract AccountBehaviorTest is Test {
         if (x == 0) {
             // attempt to withdraw zero sUSD from account
             bytes32 valueName = "_amount";
-            vm.expectRevert(
-                abi.encodeWithSelector(
-                    IAccount.ValueCannotBeZero.selector, valueName
-                )
-            );
+            vm.expectRevert(abi.encodeWithSelector(IAccount.ValueCannotBeZero.selector, valueName));
             account.withdraw(x);
         } else if (x > AMOUNT) {
             // attempt to withdraw sUSD
             vm.expectRevert(
-                abi.encodeWithSelector(
-                    IAccount.InsufficientFreeMargin.selector, AMOUNT, x
-                )
+                abi.encodeWithSelector(IAccount.InsufficientFreeMargin.selector, AMOUNT, x)
             );
             account.withdraw(x);
         } else {
@@ -340,11 +326,7 @@ contract AccountBehaviorTest is Test {
         } else if (x == 0) {
             // attempt to withdraw ETH
             bytes32 valueName = "_amount";
-            vm.expectRevert(
-                abi.encodeWithSelector(
-                    IAccount.ValueCannotBeZero.selector, valueName
-                )
-            );
+            vm.expectRevert(abi.encodeWithSelector(IAccount.ValueCannotBeZero.selector, valueName));
             account.withdrawEth(x);
         } else {
             // check EthWithdraw event emitted
@@ -369,8 +351,7 @@ contract AccountBehaviorTest is Test {
         Account account = createAccount();
 
         // get position details
-        IPerpsV2MarketConsolidated.Position memory position =
-            account.getPosition(sETHPERP);
+        IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
 
         // expect all details to be unset
         assert(position.id == 0);
@@ -386,8 +367,7 @@ contract AccountBehaviorTest is Test {
         Account account = createAccount();
 
         // get delayed order details
-        IPerpsV2MarketConsolidated.DelayedOrder memory order =
-            account.getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
 
         // expect all details to be unset
         assert(order.isOffchain == false);
@@ -425,9 +405,7 @@ contract AccountBehaviorTest is Test {
         inputs[1] = abi.encode(address(0), 0);
 
         // call execute (attempt to execute 1 command with 2 inputs)
-        vm.expectRevert(
-            abi.encodeWithSelector(IAccount.LengthMismatch.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(IAccount.LengthMismatch.selector));
         account.execute(commands, inputs);
     }
 
@@ -448,9 +426,7 @@ contract AccountBehaviorTest is Test {
         );
 
         // call execute (attempt to execute invalid command)
-        vm.expectRevert(
-            abi.encodeWithSelector(IAccount.InvalidCommandType.selector, 69)
-        );
+        vm.expectRevert(abi.encodeWithSelector(IAccount.InvalidCommandType.selector, 69));
         (bool s,) = address(account).call(dataWithInvalidCommand);
         assert(!s);
     }
@@ -481,8 +457,7 @@ contract AccountBehaviorTest is Test {
         account.execute(commands, inputs);
 
         // get position details
-        IPerpsV2MarketConsolidated.Position memory position =
-            account.getPosition(sETHPERP);
+        IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
 
         // confirm position margin are non-zero
         assert(position.margin != 0);
@@ -520,9 +495,7 @@ contract AccountBehaviorTest is Test {
 
         // outcome 1: margin delta cannot be zero
         if (fuzzedMarginDelta == 0) {
-            vm.expectRevert(
-                abi.encodeWithSelector(IAccount.InvalidMarginDelta.selector)
-            );
+            vm.expectRevert(abi.encodeWithSelector(IAccount.InvalidMarginDelta.selector));
             account.execute(commands, inputs);
         }
 
@@ -532,17 +505,14 @@ contract AccountBehaviorTest is Test {
                 // outcome 2.1: margin delta larger than what is available in account
                 vm.expectRevert(
                     abi.encodeWithSelector(
-                        IAccount.InsufficientFreeMargin.selector,
-                        accountBalance,
-                        fuzzedMarginDelta
+                        IAccount.InsufficientFreeMargin.selector, accountBalance, fuzzedMarginDelta
                     )
                 );
                 account.execute(commands, inputs);
             } else {
                 // outcome 2.2: margin delta deposited into market
                 account.execute(commands, inputs);
-                IPerpsV2MarketConsolidated.Position memory position =
-                    account.getPosition(sETHPERP);
+                IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
                 assert(int256(uint256(position.margin)) == fuzzedMarginDelta);
             }
         }
@@ -587,9 +557,7 @@ contract AccountBehaviorTest is Test {
 
         // outcome 1: margin delta cannot be zero
         if (fuzzedMarginDelta == 0) {
-            vm.expectRevert(
-                abi.encodeWithSelector(IAccount.InvalidMarginDelta.selector)
-            );
+            vm.expectRevert(abi.encodeWithSelector(IAccount.InvalidMarginDelta.selector));
             account.execute(commands, inputs);
         }
 
@@ -609,15 +577,9 @@ contract AccountBehaviorTest is Test {
             } else {
                 // outcome 3.2: margin delta withdrawn from market
                 account.execute(commands, inputs);
-                IPerpsV2MarketConsolidated.Position memory position =
-                    account.getPosition(sETHPERP);
-                assert(
-                    int256(uint256(position.margin))
-                        == balance + fuzzedMarginDelta
-                );
-                assert(
-                    sUSD.balanceOf(address(account)) == abs(fuzzedMarginDelta)
-                );
+                IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
+                assert(int256(uint256(position.margin)) == balance + fuzzedMarginDelta);
+                assert(sUSD.balanceOf(address(account)) == abs(fuzzedMarginDelta));
             }
         }
     }
@@ -725,8 +687,7 @@ contract AccountBehaviorTest is Test {
         account.execute(commands, inputs);
 
         // get position details
-        IPerpsV2MarketConsolidated.Position memory position =
-            account.getPosition(sETHPERP);
+        IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
 
         // confirm position details are non-zero
         assert(position.id != 0);
@@ -761,15 +722,13 @@ contract AccountBehaviorTest is Test {
         // define inputs
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] =
-            abi.encode(market, sizeDelta, priceImpactDelta, desiredTimeDelta);
+        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta, desiredTimeDelta);
 
         // call execute
         account.execute(commands, inputs);
 
         // get delayed order details
-        IPerpsV2MarketConsolidated.DelayedOrder memory order =
-            account.getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
 
         // confirm delayed order details are non-zero
         assert(order.isOffchain == false);
@@ -813,8 +772,7 @@ contract AccountBehaviorTest is Test {
         account.execute(commands, inputs);
 
         // get delayed order details
-        IPerpsV2MarketConsolidated.DelayedOrder memory order =
-            account.getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
 
         // confirm delayed order details are non-zero
         assert(order.isOffchain == true);
@@ -875,8 +833,7 @@ contract AccountBehaviorTest is Test {
         // define inputs
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] =
-            abi.encode(market, sizeDelta, priceImpactDelta, desiredTimeDelta);
+        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta, desiredTimeDelta);
 
         // call execute
         account.execute(commands, inputs);
@@ -893,8 +850,7 @@ contract AccountBehaviorTest is Test {
         account.execute(commands, inputs);
 
         // get delayed order details
-        IPerpsV2MarketConsolidated.DelayedOrder memory order =
-            account.getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
 
         // expect all details to be unset
         assert(order.isOffchain == false);
@@ -975,8 +931,7 @@ contract AccountBehaviorTest is Test {
         account.execute(commands, inputs);
 
         // get delayed order details
-        IPerpsV2MarketConsolidated.DelayedOrder memory order =
-            account.getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
 
         // expect all details to be unset
         assert(order.isOffchain == false);
@@ -1055,8 +1010,7 @@ contract AccountBehaviorTest is Test {
         account.execute(commands, inputs);
 
         // get position details
-        IPerpsV2MarketConsolidated.Position memory position =
-            account.getPosition(sETHPERP);
+        IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
 
         // expect size to be zero and margin to be non-zero
         assert(position.size == 0);
@@ -1066,36 +1020,6 @@ contract AccountBehaviorTest is Test {
     /*//////////////////////////////////////////////////////////////
                               TRADING FEES
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice test trading fee calculation
-    /// @param fuzzedSizeDelta: fuzzed size delta
-    function testCalculateTradeFee(int128 fuzzedSizeDelta) external {
-        // conditional order fee
-        uint256 conditionalOrderFee = MAX_BPS / 99; // 1% fee
-
-        // define market
-        IPerpsV2MarketConsolidated market =
-            IPerpsV2MarketConsolidated(getMarketAddressFromKey(sETHPERP));
-
-        // call factory to create account
-        Account account = createAccount();
-
-        // calculate expected fee
-        uint256 percentToTake = settings.tradeFee() + conditionalOrderFee;
-        uint256 fee = (abs(int256(fuzzedSizeDelta)) * percentToTake) / MAX_BPS;
-        (uint256 price, bool invalid) = market.assetPrice();
-        assert(!invalid);
-        uint256 feeInSUSD = (price * fee) / 1e18;
-
-        // call calculateTradeFee()
-        uint256 actualFee = account.calculateTradeFee({
-            _sizeDelta: fuzzedSizeDelta,
-            _market: market,
-            _conditionalOrderFee: conditionalOrderFee
-        });
-
-        assertEq(actualFee, feeInSUSD);
-    }
 
     /// @notice test trading fee is imposed when size delta is non-zero
     function testTradeFeeImposedWhenSizeDeltaNonZero() external {
@@ -1223,17 +1147,12 @@ contract AccountBehaviorTest is Test {
     // @HELPER
     /// @notice get address of market
     /// @return market address
-    function getMarketAddressFromKey(bytes32 key)
-        private
-        view
-        returns (address market)
-    {
+    function getMarketAddressFromKey(bytes32 key) private view returns (address market) {
         // market and order related params
         market = address(
             IPerpsV2MarketConsolidated(
-                IFuturesMarketManager(
-                    ADDRESS_RESOLVER.getAddress("FuturesMarketManager")
-                ).marketForKey(key)
+                IFuturesMarketManager(ADDRESS_RESOLVER.getAddress("FuturesMarketManager"))
+                    .marketForKey(key)
             )
         );
     }

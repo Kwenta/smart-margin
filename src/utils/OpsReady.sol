@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {
-    SafeERC20,
-    IERC20
-} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IOps} from "../interfaces/IOps.sol";
 
-/// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
+/// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 abstract contract OpsReady {
     /// @notice address of Gelato `Automate` contract address on Optimism
     address public constant OPS = 0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c;

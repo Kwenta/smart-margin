@@ -14,8 +14,7 @@ interface IPerpsV2Market {
 
     function withdrawAllMargin() external;
 
-    function modifyPosition(int256 sizeDelta, uint256 priceImpactDelta)
-        external;
+    function modifyPosition(int256 sizeDelta, uint256 priceImpactDelta) external;
 
     function modifyPositionWithTracking(
         int256 sizeDelta,
@@ -25,10 +24,7 @@ interface IPerpsV2Market {
 
     function closePosition(uint256 priceImpactDelta) external;
 
-    function closePositionWithTracking(
-        uint256 priceImpactDelta,
-        bytes32 trackingCode
-    ) external;
+    function closePositionWithTracking(uint256 priceImpactDelta, bytes32 trackingCode) external;
 
     function liquidatePosition(address account) external;
 }

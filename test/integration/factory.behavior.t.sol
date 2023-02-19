@@ -18,8 +18,7 @@ contract FactoryBehaviorTest is Test {
     Factory private factory;
     Account private implementation;
 
-    address private constant KWENTA_TREASURY =
-        0x82d2242257115351899894eF384f779b5ba8c695;
+    address private constant KWENTA_TREASURY = 0x82d2242257115351899894eF384f779b5ba8c695;
 
     uint256 private tradeFee = 1;
     uint256 private limitOrderFee = 2;

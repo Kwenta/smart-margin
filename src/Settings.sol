@@ -5,7 +5,7 @@ import {ISettings} from "./interfaces/ISettings.sol";
 import {Owned} from "@solmate/auth/Owned.sol";
 
 /// @title Kwenta Settings for Accounts
-/// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
+/// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 contract Settings is ISettings, Owned {
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS

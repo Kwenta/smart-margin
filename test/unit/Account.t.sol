@@ -18,29 +18,45 @@ import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 
 contract AccountTest is Test {
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
     /// @dev hard coded addresses are only guaranteed for this block
     uint256 private constant BLOCK_NUMBER = 60_242_268;
 
-    Settings private settings;
-    Events private events;
-    Factory private factory;
-    ERC20 private sUSD;
-    AccountExposed private accountExposed;
+    /// @notice max BPS; used for decimals calculations
+    uint256 private constant MAX_BPS = 10_000;
 
+    // tracking code used when modifying positions
+    bytes32 private constant TRACKING_CODE = "KWENTA";
+
+    // test amount used throughout tests
     uint256 private constant AMOUNT = 10_000 ether;
 
+    // synthetix (ReadProxyAddressResolver)
     IAddressResolver private constant ADDRESS_RESOLVER =
         IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
-    address private constant KWENTA_TREASURY =
-        0x82d2242257115351899894eF384f779b5ba8c695;
 
+    // kwenta treasury multisig
+    address private constant KWENTA_TREASURY = 0x82d2242257115351899894eF384f779b5ba8c695;
+
+    // Synthetix PerpsV2 market manager
+    address private constant FUTURES_MARKET_MANAGER = 0xdb89f3fc45A707Dd49781495f77f8ae69bF5cA6e;
+
+    // fee settings
     uint256 private tradeFee = 1;
     uint256 private limitOrderFee = 2;
     uint256 private stopOrderFee = 3;
 
+    // Synthetix PerpsV2 market key(s)
     bytes32 private constant sETHPERP = "sETHPERP";
     bytes32 private constant sBTCPERP = "sBTCPERP";
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
 
     event Deposit(address indexed user, uint256 amount);
     event Withdraw(address indexed user, uint256 amount);
@@ -58,12 +74,24 @@ contract AccountTest is Test {
     );
     event OrderCancelled(address indexed account, uint256 orderId);
     event OrderFilled(
-        address indexed account,
-        uint256 orderId,
-        uint256 fillPrice,
-        uint256 keeperFee
+        address indexed account, uint256 orderId, uint256 fillPrice, uint256 keeperFee
     );
     event FeeImposed(address indexed account, uint256 amount);
+
+    /*//////////////////////////////////////////////////////////////
+                                 STATE
+    //////////////////////////////////////////////////////////////*/
+
+    Settings private settings;
+    Events private events;
+    Factory private factory;
+    Account private account;
+    ERC20 private sUSD;
+    AccountExposed private accountExposed;
+
+    /*//////////////////////////////////////////////////////////////
+                                 SETUP
+    //////////////////////////////////////////////////////////////*/
 
     receive() external payable {}
 
@@ -86,23 +114,151 @@ contract AccountTest is Test {
         settings = Settings(factory.settings());
         events = Events(factory.events());
 
-        // deploy contract used to test Account's internal functions
+        account = Account(payable(factory.newAccount()));
+
+        // deploy contract that exposes Account's internal functions
         accountExposed = new AccountExposed();
+        accountExposed.setSettings(settings);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  TESTS
     //////////////////////////////////////////////////////////////*/
 
+    /*//////////////////////////////////////////////////////////////
+                                 VIEWS
+    //////////////////////////////////////////////////////////////*/
+
+    function testGetVerison() external view {
+        assert(account.VERSION() == "2.0.0");
+    }
+
+    function testGetFactory() external view {
+        assert(account.factory() == factory);
+    }
+
+    function testGetFuturesMarketManager() external view {
+        assert(account.futuresMarketManager() == IFuturesMarketManager(FUTURES_MARKET_MANAGER));
+    }
+
+    function testGetSettings() external view {
+        assert(account.settings() == settings);
+    }
+
+    function testGetEvents() external view {
+        assert(account.events() == events);
+    }
+
+    function testGetCommittedMargin() external view {
+        assert(account.committedMargin() == 0);
+    }
+
+    function testGetConditionalOrderId() external view {
+        assert(account.orderId() == 0);
+    }
+
+    function testGetDelayedOrderInEthMarket() external {
+        IPerpsV2MarketConsolidated.DelayedOrder memory delayedOrder =
+            account.getDelayedOrder({_marketKey: sETHPERP});
+        assertEq(delayedOrder.isOffchain, false);
+        assertEq(delayedOrder.sizeDelta, 0);
+        assertEq(delayedOrder.priceImpactDelta, 0);
+        assertEq(delayedOrder.targetRoundId, 0);
+        assertEq(delayedOrder.commitDeposit, 0);
+        assertEq(delayedOrder.keeperDeposit, 0);
+        assertEq(delayedOrder.executableAtTime, 0);
+        assertEq(delayedOrder.intentionTime, 0);
+        assertEq(delayedOrder.trackingCode, "");
+    }
+
+    function testGetDelayedOrderInInvalidMarket() external {
+        vm.expectRevert();
+        account.getDelayedOrder({_marketKey: "unknown"});
+    }
+
+    function testChecker() external {
+        // if no order exists, call reverts
+        vm.expectRevert();
+        account.checker({_orderId: 0});
+    }
+
     function testCanFetchFreeMargin() external {
-        Account account = createAccount();
-        assert(account.freeMargin() == 0);
+        assertEq(account.freeMargin(), 0);
         mintSUSD(address(this), AMOUNT);
         sUSD.approve(address(account), AMOUNT);
         account.deposit(AMOUNT);
-        assert(account.freeMargin() == AMOUNT);
+        assertEq(account.freeMargin(), AMOUNT);
         account.withdraw(AMOUNT);
-        assert(account.freeMargin() == 0);
+        assertEq(account.freeMargin(), 0);
+    }
+
+    function testGetPositionInEthMarket() external {
+        IPerpsV2MarketConsolidated.Position memory position =
+            account.getPosition({_marketKey: sETHPERP});
+        assertEq(position.id, 0);
+        assertEq(position.lastFundingIndex, 0);
+        assertEq(position.margin, 0);
+        assertEq(position.lastPrice, 0);
+        assertEq(position.size, 0);
+    }
+
+    function testPositionInInvalidMarket() external {
+        // if no market with that _marketKey exists, call reverts
+        vm.expectRevert();
+        account.getPosition({_marketKey: "unknown"});
+    }
+
+    function getConditionalOrder() external {
+        IAccount.Order memory condOrder = account.getConditionalOrder({_conditionalOrderId: 0});
+        assertEq(condOrder.marketKey, "");
+        assertEq(condOrder.marginDelta, 0);
+        assertEq(condOrder.sizeDelta, 0);
+        assertEq(condOrder.targetPrice, 0);
+        assertEq(condOrder.gelatoTaskId, "");
+        assertEq(uint256(condOrder.orderType), uint256(IAccount.OrderTypes.LIMIT));
+        assertEq(condOrder.priceImpactDelta, 0);
+        assertEq(condOrder.reduceOnly, false);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             FEE UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    function testCalculateTradeFeeInEthMarket(int128 fuzzedSizeDelta) external {
+        // conditional order fee
+        uint256 conditionalOrderFee = MAX_BPS / 99; // 1% fee
+
+        // define market
+        IPerpsV2MarketConsolidated market =
+            IPerpsV2MarketConsolidated(getMarketAddressFromKey(sETHPERP));
+
+        // calculate expected fee
+        uint256 percentToTake = settings.tradeFee() + conditionalOrderFee;
+        uint256 fee = (accountExposed.expose_abs(int256(fuzzedSizeDelta)) * percentToTake) / MAX_BPS;
+        (uint256 price, bool invalid) = market.assetPrice();
+        assert(!invalid);
+        uint256 feeInSUSD = (price * fee) / 1e18;
+
+        // call calculateTradeFee()
+        uint256 actualFee = accountExposed.expose_calculateTradeFee({
+            _sizeDelta: fuzzedSizeDelta,
+            _market: market,
+            _conditionalOrderFee: conditionalOrderFee
+        });
+
+        assertEq(actualFee, feeInSUSD);
+    }
+
+    function testCalculateTradeFeeInInvalidMarket() external {
+        int256 sizeDelta = -1 ether;
+
+        // call reverts if market is invalid
+        vm.expectRevert();
+        accountExposed.expose_calculateTradeFee({
+            _sizeDelta: sizeDelta,
+            _market: IPerpsV2MarketConsolidated(address(0)),
+            _conditionalOrderFee: limitOrderFee
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -159,17 +315,9 @@ contract AccountTest is Test {
     }
 
     // @HELPER
-    /// @notice create margin base account
-    /// @return account - Account account
-    function createAccount() private returns (Account account) {
-        account = Account(payable(factory.newAccount()));
-    }
-
-    // @HELPER
     /// @notice create margin base account and fund it with sUSD
     /// @return Account account
     function createAccountAndDepositSUSD() private returns (Account) {
-        Account account = createAccount();
         mintSUSD(address(this), AMOUNT);
         sUSD.approve(address(account), AMOUNT);
         account.deposit(AMOUNT);
@@ -180,17 +328,12 @@ contract AccountTest is Test {
     // @HELPER
     /// @notice get address of market
     /// @return market address
-    function getMarketAddressFromKey(bytes32 key)
-        private
-        view
-        returns (address market)
-    {
+    function getMarketAddressFromKey(bytes32 key) private view returns (address market) {
         // market and order related params
         market = address(
             IPerpsV2MarketConsolidated(
-                IFuturesMarketManager(
-                    ADDRESS_RESOLVER.getAddress("FuturesMarketManager")
-                ).marketForKey(key)
+                IFuturesMarketManager(ADDRESS_RESOLVER.getAddress("FuturesMarketManager"))
+                    .marketForKey(key)
             )
         );
     }

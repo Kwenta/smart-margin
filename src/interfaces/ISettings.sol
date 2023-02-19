@@ -2,7 +2,7 @@
 pragma solidity 0.8.18;
 
 /// @title Kwenta Settings Interface
-/// @author JaredBorders (jaredborders@proton.me)
+/// @author JaredBorders (jaredborders@pm.me)
 /// @dev all fees are denoted in Basis points (BPS)
 interface ISettings {
     /*//////////////////////////////////////////////////////////////

@@ -15,9 +15,7 @@ interface IPyth {
     /// @param publishTime Publish time of the given price update.
     /// @param price Price of the given price update.
     /// @param conf Confidence interval of the given price update.
-    event PriceFeedUpdate(
-        bytes32 indexed id, uint64 publishTime, int64 price, uint64 conf
-    );
+    event PriceFeedUpdate(bytes32 indexed id, uint64 publishTime, int64 price, uint64 conf);
 
     /// @dev Emitted when a batch price update is processed successfully.
     /// @param chainId ID of the source chain that the batch price update comes from.
@@ -25,28 +23,19 @@ interface IPyth {
     event BatchPriceFeedUpdate(uint16 chainId, uint64 sequenceNumber);
 
     /// @notice Returns the period (in seconds) that a price feed is considered valid since its publish time
-    function getValidTimePeriod()
-        external
-        view
-        returns (uint256 validTimePeriod);
+    function getValidTimePeriod() external view returns (uint256 validTimePeriod);
 
     /// @notice Returns the price and confidence interval.
     /// @dev Reverts if the price has not been updated within the last `getValidTimePeriod()` seconds.
     /// @param id The Pyth Price Feed ID of which to fetch the price and confidence interval.
     /// @return price - please read the documentation of PythStructs.Price to understand how to use this safely.
-    function getPrice(bytes32 id)
-        external
-        view
-        returns (PythStructs.Price memory price);
+    function getPrice(bytes32 id) external view returns (PythStructs.Price memory price);
 
     /// @notice Returns the exponentially-weighted moving average price and confidence interval.
     /// @dev Reverts if the EMA price is not available.
     /// @param id The Pyth Price Feed ID of which to fetch the EMA price and confidence interval.
     /// @return price - please read the documentation of PythStructs.Price to understand how to use this safely.
-    function getEmaPrice(bytes32 id)
-        external
-        view
-        returns (PythStructs.Price memory price);
+    function getEmaPrice(bytes32 id) external view returns (PythStructs.Price memory price);
 
     /// @notice Returns the price of a price feed without any sanity checks.
     /// @dev This function returns the most recent price update in this contract without any recency checks.
@@ -56,10 +45,7 @@ interface IPyth {
     /// sufficiently recent for their application. If you are considering using this function, it may be
     /// safer / easier to use either `getPrice` or `getPriceNoOlderThan`.
     /// @return price - please read the documentation of PythStructs.Price to understand how to use this safely.
-    function getPriceUnsafe(bytes32 id)
-        external
-        view
-        returns (PythStructs.Price memory price);
+    function getPriceUnsafe(bytes32 id) external view returns (PythStructs.Price memory price);
 
     /// @notice Returns the price that is no older than `age` seconds of the current time.
     /// @dev This function is a sanity-checked version of `getPriceUnsafe` which is useful in
@@ -82,10 +68,7 @@ interface IPyth {
     /// sufficiently recent for their application. If you are considering using this function, it may be
     /// safer / easier to use either `getEmaPrice` or `getEmaPriceNoOlderThan`.
     /// @return price - please read the documentation of PythStructs.Price to understand how to use this safely.
-    function getEmaPriceUnsafe(bytes32 id)
-        external
-        view
-        returns (PythStructs.Price memory price);
+    function getEmaPriceUnsafe(bytes32 id) external view returns (PythStructs.Price memory price);
 
     /// @notice Returns the exponentially-weighted moving average price that is no older than `age` seconds
     /// of the current time.
@@ -132,10 +115,7 @@ interface IPyth {
     /// @notice Returns the required fee to update an array of price updates.
     /// @param updateData Array of price update data.
     /// @return feeAmount The required fee in Wei.
-    function getUpdateFee(bytes[] calldata updateData)
-        external
-        view
-        returns (uint256 feeAmount);
+    function getUpdateFee(bytes[] calldata updateData) external view returns (uint256 feeAmount);
 
     /// @notice Parse `updateData` and return price feeds of the given `priceIds` if they are all published
     /// within `minPublishTime` and `maxPublishTime`.

@@ -4,80 +4,73 @@ pragma solidity 0.8.18;
 import {IEvents, IAccount} from "./interfaces/IEvents.sol";
 
 /// @title Consolidates all events emitted by the Smart Margin Accounts
-/// @author JaredBorders (jaredborders@proton.me)
+/// @author JaredBorders (jaredborders@pm.me)
 contract Events is IEvents {
     /// @inheritdoc IEvents
-    function emitDeposit(address account, uint256 amountDeposited)
-        external
-        override
-    {
-        emit Deposit(account, amountDeposited);
+    function emitDeposit(address user, address account, uint256 amount) external override {
+        emit Deposit({user: user, account: account, amount: amount});
     }
 
     /// @inheritdoc IEvents
-    function emitWithdraw(address account, uint256 amountWithdrawn)
-        external
-        override
-    {
-        emit Withdraw(account, amountWithdrawn);
+    function emitWithdraw(address user, address account, uint256 amount) external override {
+        emit Withdraw({user: user, account: account, amount: amount});
     }
 
     /// @inheritdoc IEvents
-    function emitEthWithdraw(address account, uint256 amountWithdrawn)
-        external
-        override
-    {
-        emit EthWithdraw(account, amountWithdrawn);
+    function emitEthWithdraw(address user, address account, uint256 amount) external override {
+        emit EthWithdraw({user: user, account: account, amount: amount});
     }
 
     /// @inheritdoc IEvents
-    function emitOrderPlaced(
+    function emitConditionalOrderPlaced(
         address account,
-        uint256 orderId,
+        uint256 conditionalOrderId,
         bytes32 marketKey,
         int256 marginDelta,
         int256 sizeDelta,
         uint256 targetPrice,
-        IAccount.OrderTypes orderType,
+        IAccount.ConditionalOrderTypes conditionalOrderType,
         uint128 priceImpactDelta,
         bool reduceOnly
     ) external override {
-        emit OrderPlaced(
-            account,
-            orderId,
-            marketKey,
-            marginDelta,
-            sizeDelta,
-            targetPrice,
-            orderType,
-            priceImpactDelta,
-            reduceOnly
-            );
+        emit ConditionalOrderPlaced({
+            account: account,
+            conditionalOrderId: conditionalOrderId,
+            marketKey: marketKey,
+            marginDelta: marginDelta,
+            sizeDelta: sizeDelta,
+            targetPrice: targetPrice,
+            conditionalOrderType: conditionalOrderType,
+            priceImpactDelta: priceImpactDelta,
+            reduceOnly: reduceOnly
+        });
     }
 
     /// @inheritdoc IEvents
-    function emitOrderCancelled(address account, uint256 orderId)
+    function emitConditionalOrderCancelled(address account, uint256 conditionalOrderId)
         external
         override
     {
-        emit OrderCancelled(account, orderId);
+        emit ConditionalOrderCancelled({account: account, conditionalOrderId: conditionalOrderId});
     }
 
     /// @inheritdoc IEvents
-    function emitOrderFilled(
+    function emitConditionalOrderFilled(
         address account,
-        uint256 orderId,
+        uint256 conditionalOrderId,
         uint256 fillPrice,
         uint256 keeperFee
     ) external override {
-        emit OrderFilled(account, orderId, fillPrice, keeperFee);
+        emit ConditionalOrderFilled({
+            account: account,
+            conditionalOrderId: conditionalOrderId,
+            fillPrice: fillPrice,
+            keeperFee: keeperFee
+        });
     }
 
     /// @inheritdoc IEvents
-    function emitFeeImposed(address account, uint256 amount)
-        external
-        override
-    {
-        emit FeeImposed(account, amount);
+    function emitFeeImposed(address account, uint256 amount) external override {
+        emit FeeImposed({account: account, amount: amount});
     }
 }

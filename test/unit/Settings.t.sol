@@ -64,9 +64,7 @@ contract SettingsTest is Test {
     function testTradeFeeCannotExceedMaxBps() public {
         uint256 invalidFee = settings.MAX_BPS() + 1;
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ISettings.InvalidFee.selector, settings.MAX_BPS() + 1
-            )
+            abi.encodeWithSelector(ISettings.InvalidFee.selector, settings.MAX_BPS() + 1)
         );
         settings = new Settings({
             _owner: address(this),
@@ -80,9 +78,7 @@ contract SettingsTest is Test {
     function testLimitOrderFeeCannotExceedMaxBps() public {
         uint256 invalidFee = settings.MAX_BPS() + 1;
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ISettings.InvalidFee.selector, settings.MAX_BPS() + 1
-            )
+            abi.encodeWithSelector(ISettings.InvalidFee.selector, settings.MAX_BPS() + 1)
         );
         settings = new Settings({
             _owner: address(this),
@@ -96,9 +92,7 @@ contract SettingsTest is Test {
     function testStopOrderFeeCannotExceedMaxBps() public {
         uint256 invalidFee = settings.MAX_BPS() + 1;
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ISettings.InvalidFee.selector, settings.MAX_BPS() + 1
-            )
+            abi.encodeWithSelector(ISettings.InvalidFee.selector, settings.MAX_BPS() + 1)
         );
         settings = new Settings({
             _owner: address(this),
@@ -139,16 +133,12 @@ contract SettingsTest is Test {
     /// @dev fuzz test
     function testSettingTradeFee(uint256 x) public {
         if (x == settings.tradeFee()) {
-            vm.expectRevert(
-                abi.encodeWithSelector(ISettings.DuplicateFee.selector)
-            );
+            vm.expectRevert(abi.encodeWithSelector(ISettings.DuplicateFee.selector));
             settings.setTradeFee(x);
             return;
         }
         if (x > 10_000) {
-            vm.expectRevert(
-                abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
-            );
+            vm.expectRevert(abi.encodeWithSelector(ISettings.InvalidFee.selector, x));
             settings.setTradeFee(x);
             return;
         }
@@ -176,17 +166,13 @@ contract SettingsTest is Test {
     /// @dev fuzz test
     function testSettingLimitOrderFee(uint256 x) public {
         if (x == settings.limitOrderFee()) {
-            vm.expectRevert(
-                abi.encodeWithSelector(ISettings.DuplicateFee.selector)
-            );
+            vm.expectRevert(abi.encodeWithSelector(ISettings.DuplicateFee.selector));
             settings.setLimitOrderFee(x);
             return;
         }
 
         if (x > 10_000) {
-            vm.expectRevert(
-                abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
-            );
+            vm.expectRevert(abi.encodeWithSelector(ISettings.InvalidFee.selector, x));
             settings.setLimitOrderFee(x);
             return;
         }
@@ -214,17 +200,13 @@ contract SettingsTest is Test {
     /// @dev fuzz test
     function testSettingStopOrderFee(uint256 x) public {
         if (x == settings.stopOrderFee()) {
-            vm.expectRevert(
-                abi.encodeWithSelector(ISettings.DuplicateFee.selector)
-            );
+            vm.expectRevert(abi.encodeWithSelector(ISettings.DuplicateFee.selector));
             settings.setStopOrderFee(x);
             return;
         }
 
         if (x > 10_000) {
-            vm.expectRevert(
-                abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
-            );
+            vm.expectRevert(abi.encodeWithSelector(ISettings.InvalidFee.selector, x));
             settings.setStopOrderFee(x);
             return;
         }

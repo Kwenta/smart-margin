@@ -25,11 +25,7 @@ contract AccountProxy is IAccountProxy {
     }
 
     /// @dev returns the storage slot where the beacon address is stored
-    function _getAddressSlot(bytes32 slot)
-        internal
-        pure
-        returns (AddressSlot storage r)
-    {
+    function _getAddressSlot(bytes32 slot) internal pure returns (AddressSlot storage r) {
         // solhint-disable-next-line no-inline-assembly
         assembly {
             r.slot := slot
@@ -107,8 +103,7 @@ contract AccountProxy is IAccountProxy {
 
             // Call the implementation.
             // out and outsize are 0 because we don't know the size yet.
-            let result :=
-                delegatecall(gas(), implementation, 0, calldatasize(), 0, 0)
+            let result := delegatecall(gas(), implementation, 0, calldatasize(), 0, 0)
 
             // Copy the returned data.
             returndatacopy(0, 0, returndatasize())

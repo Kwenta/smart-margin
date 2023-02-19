@@ -2,7 +2,7 @@
 pragma solidity 0.8.18;
 
 /// @title Kwenta Factory Interface
-/// @author JaredBorders (jaredborders@proton.me)
+/// @author JaredBorders (jaredborders@pm.me)
 interface IFactory {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -11,9 +11,7 @@ interface IFactory {
     /// @notice emitted when new account is created
     /// @param creator: account creator (address that called newAccount())
     /// @param account: address of account that was created (will be address of proxy)
-    event NewAccount(
-        address indexed creator, address indexed account, bytes32 version
-    );
+    event NewAccount(address indexed creator, address indexed account, bytes32 version);
 
     /// @notice emitted when implementation is upgraded
     /// @param implementation: address of new implementation
@@ -84,8 +82,7 @@ interface IFactory {
     /// @notice update account owner
     /// @param _oldOwner: old owner of account
     /// @param _newOwner: new owner of account
-    function updateAccountOwner(address _oldOwner, address _newOwner)
-        external;
+    function updateAccountOwner(address _oldOwner, address _newOwner) external;
 
     /*//////////////////////////////////////////////////////////////
                              UPGRADABILITY

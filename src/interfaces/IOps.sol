@@ -59,10 +59,10 @@ interface IOps {
 
     function getFeeDetails() external view returns (uint256, address);
 
-    function getResolverHash(
-        address _resolverAddress,
-        bytes memory _resolverData
-    ) external pure returns (bytes32);
+    function getResolverHash(address _resolverAddress, bytes memory _resolverData)
+        external
+        pure
+        returns (bytes32);
 
     function taskCreator(bytes32 _taskId) external view returns (address);
 }

@@ -2,7 +2,7 @@
 pragma solidity 0.8.18;
 
 /// @title Kwenta Account Proxy Interface
-/// @author JaredBorders (jaredborders@proton.me)
+/// @author JaredBorders (jaredborders@pm.me)
 interface IAccountProxy {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
