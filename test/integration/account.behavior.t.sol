@@ -59,23 +59,23 @@ contract AccountBehaviorTest is Test {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Deposit(address indexed user, uint256 amount);
-    event Withdraw(address indexed user, uint256 amount);
-    event EthWithdraw(address indexed user, uint256 amount);
-    event OrderPlaced(
+    event Deposit(address indexed user, address indexed account, uint256 amount);
+    event Withdraw(address indexed user, address indexed account, uint256 amount);
+    event EthWithdraw(address indexed user, address indexed account, uint256 amount);
+    event ConditionalOrderPlaced(
         address indexed account,
-        uint256 orderId,
+        uint256 conditionalOrderId,
         bytes32 marketKey,
         int256 marginDelta,
         int256 sizeDelta,
         uint256 targetPrice,
-        IAccount.OrderTypes orderType,
+        IAccount.ConditionalOrderTypes conditionalOrderType,
         uint128 priceImpactDelta,
-        uint256 maxDynamicFee
+        bool reduceOnly
     );
-    event OrderCancelled(address indexed account, uint256 orderId);
-    event OrderFilled(
-        address indexed account, uint256 orderId, uint256 fillPrice, uint256 keeperFee
+    event ConditionalOrderCancelled(address indexed account, uint256 conditionalOrderId);
+    event ConditionalOrderFilled(
+        address indexed account, uint256 conditionalOrderId, uint256 fillPrice, uint256 keeperFee
     );
     event FeeImposed(address indexed account, uint256 amount);
 
@@ -199,8 +199,8 @@ contract AccountBehaviorTest is Test {
             account.deposit(x);
         } else {
             // check deposit event emitted
-            vm.expectEmit(true, false, false, true);
-            emit Deposit(address(account), x);
+            vm.expectEmit(true, true, true, true);
+            emit Deposit(address(this), address(account), x);
 
             // deposit sUSD into account
             account.deposit(x);
@@ -250,8 +250,8 @@ contract AccountBehaviorTest is Test {
             account.withdraw(x);
         } else {
             // check withdraw event emitted
-            vm.expectEmit(true, false, false, true);
-            emit Withdraw(address(account), x);
+            vm.expectEmit(true, true, true, true);
+            emit Withdraw(address(this), address(account), x);
 
             // withdraw sUSD from account
             account.withdraw(x);
@@ -330,8 +330,8 @@ contract AccountBehaviorTest is Test {
             account.withdrawEth(x);
         } else {
             // check EthWithdraw event emitted
-            vm.expectEmit(true, false, false, true);
-            emit EthWithdraw(address(account), x);
+            vm.expectEmit(true, true, true, true);
+            emit EthWithdraw(address(this), address(account), x);
 
             // withdraw ETH
             account.withdrawEth(x);

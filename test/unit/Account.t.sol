@@ -58,23 +58,23 @@ contract AccountTest is Test {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Deposit(address indexed user, uint256 amount);
-    event Withdraw(address indexed user, uint256 amount);
-    event EthWithdraw(address indexed user, uint256 amount);
-    event OrderPlaced(
+    event Deposit(address indexed user, address indexed account, uint256 amount);
+    event Withdraw(address indexed user, address indexed account, uint256 amount);
+    event EthWithdraw(address indexed user, address indexed account, uint256 amount);
+    event ConditionalOrderPlaced(
         address indexed account,
-        uint256 orderId,
+        uint256 conditionalOrderId,
         bytes32 marketKey,
         int256 marginDelta,
         int256 sizeDelta,
         uint256 targetPrice,
-        IAccount.OrderTypes orderType,
+        IAccount.ConditionalOrderTypes conditionalOrderType,
         uint128 priceImpactDelta,
-        uint256 maxDynamicFee
+        bool reduceOnly
     );
-    event OrderCancelled(address indexed account, uint256 orderId);
-    event OrderFilled(
-        address indexed account, uint256 orderId, uint256 fillPrice, uint256 keeperFee
+    event ConditionalOrderCancelled(address indexed account, uint256 conditionalOrderId);
+    event ConditionalOrderFilled(
+        address indexed account, uint256 conditionalOrderId, uint256 fillPrice, uint256 keeperFee
     );
     event FeeImposed(address indexed account, uint256 amount);
 
@@ -154,7 +154,7 @@ contract AccountTest is Test {
     }
 
     function testGetConditionalOrderId() external view {
-        assert(account.orderId() == 0);
+        assert(account.conditionalOrderId() == 0);
     }
 
     function testGetDelayedOrderInEthMarket() external {
@@ -179,7 +179,7 @@ contract AccountTest is Test {
     function testChecker() external {
         // if no order exists, call reverts
         vm.expectRevert();
-        account.checker({_orderId: 0});
+        account.checker({_conditionalOrderId: 0});
     }
 
     function testCanFetchFreeMargin() external {
@@ -209,15 +209,19 @@ contract AccountTest is Test {
     }
 
     function getConditionalOrder() external {
-        IAccount.Order memory condOrder = account.getConditionalOrder({_conditionalOrderId: 0});
-        assertEq(condOrder.marketKey, "");
-        assertEq(condOrder.marginDelta, 0);
-        assertEq(condOrder.sizeDelta, 0);
-        assertEq(condOrder.targetPrice, 0);
-        assertEq(condOrder.gelatoTaskId, "");
-        assertEq(uint256(condOrder.orderType), uint256(IAccount.OrderTypes.LIMIT));
-        assertEq(condOrder.priceImpactDelta, 0);
-        assertEq(condOrder.reduceOnly, false);
+        IAccount.ConditionalOrder memory conditionalOrder =
+            account.getConditionalOrder({_conditionalOrderId: 0});
+        assertEq(conditionalOrder.marketKey, "");
+        assertEq(conditionalOrder.marginDelta, 0);
+        assertEq(conditionalOrder.sizeDelta, 0);
+        assertEq(conditionalOrder.targetPrice, 0);
+        assertEq(conditionalOrder.gelatoTaskId, "");
+        assertEq(
+            uint256(conditionalOrder.conditionalOrderType),
+            uint256(IAccount.ConditionalOrderTypes.LIMIT)
+        );
+        assertEq(conditionalOrder.priceImpactDelta, 0);
+        assertEq(conditionalOrder.reduceOnly, false);
     }
 
     /*//////////////////////////////////////////////////////////////

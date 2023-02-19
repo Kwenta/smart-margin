@@ -13,26 +13,42 @@ import {Setup} from "../../script/Deploy.s.sol";
 import {UpgradedAccount} from "./utils/UpgradedAccount.sol";
 
 contract FactoryTest is Test {
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
     /// @dev hard coded addresses are only guaranteed for this block
     uint256 private constant BLOCK_NUMBER = 60_242_268;
+
+    address private constant TEST_ACCOUNT = 0x42f9134E9d3Bf7eEE1f8A5Ac2a4328B059E7468c;
+    address private constant KWENTA_TREASURY = 0x82d2242257115351899894eF384f779b5ba8c695;
+    address private constant FUTURES_MANAGER = 0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B;
+
+    uint256 private TRADE_FEE = 1;
+    uint256 private LIMIT_ORDER_FEE = 2;
+    uint256 private STOP_LOSS_FEE = 3;
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
+    event NewAccount(address indexed creator, address indexed account, bytes32 version);
+    event AccountImplementationUpgraded(address implementation);
+    event SettingsUpgraded(address settings);
+
+    /*//////////////////////////////////////////////////////////////
+                                 STATE
+    //////////////////////////////////////////////////////////////*/
 
     Settings private settings;
     Events private events;
     Factory private factory;
     Account private implementation;
 
-    address private constant TEST_ACCOUNT = 0x42f9134E9d3Bf7eEE1f8A5Ac2a4328B059E7468c;
-    address private constant KWENTA_TREASURY = 0x82d2242257115351899894eF384f779b5ba8c695;
-    address private constant FUTURES_MANAGER = 0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B;
-
-    uint256 private tradeFee = 1;
-    uint256 private limitOrderFee = 2;
-    uint256 private stopOrderFee = 3;
-
-    event NewAccount(address indexed creator, address indexed account, bytes32 version);
-    event AccountImplementationUpgraded(address implementation);
-    event SettingsUpgraded(address settings);
+    /*//////////////////////////////////////////////////////////////
+                                 SETUP
+    //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
         // select block number
@@ -43,15 +59,19 @@ contract FactoryTest is Test {
         factory = setup.deploySmartMarginFactory({
             owner: address(this),
             treasury: KWENTA_TREASURY,
-            tradeFee: tradeFee,
-            limitOrderFee: limitOrderFee,
-            stopOrderFee: stopOrderFee
+            tradeFee: TRADE_FEE,
+            limitOrderFee: LIMIT_ORDER_FEE,
+            stopOrderFee: STOP_LOSS_FEE
         });
 
         settings = Settings(factory.settings());
         events = Events(factory.events());
         implementation = Account(payable(factory.implementation()));
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                 TESTS
+    //////////////////////////////////////////////////////////////*/
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -240,9 +260,9 @@ contract FactoryTest is Test {
             new Settings({
                 _owner: TEST_ACCOUNT, // change owner
                 _treasury: KWENTA_TREASURY,
-                _tradeFee: tradeFee,
-                _limitOrderFee: limitOrderFee,
-                _stopOrderFee: stopOrderFee
+                _tradeFee: TRADE_FEE,
+                _limitOrderFee: LIMIT_ORDER_FEE,
+                _stopOrderFee: STOP_LOSS_FEE
             })
         );
         factory.upgradeSettings({_settings: newSettings});

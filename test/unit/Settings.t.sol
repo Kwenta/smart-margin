@@ -6,23 +6,39 @@ import {ISettings} from "../../src/interfaces/ISettings.sol";
 import {Settings} from "../../src/Settings.sol";
 
 contract SettingsTest is Test {
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
     /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
     /// @dev hard coded addresses are only guaranteed for this block
     uint256 private constant BLOCK_NUMBER = 60_242_268;
 
-    Settings private settings;
-
     address private constant KWENTA_TREASURY = address(0xA);
     address private constant RANDOM_ADDRESS = address(0xB);
 
-    uint256 private tradeFee = 1;
-    uint256 private limitOrderFee = 2;
-    uint256 private stopOrderFee = 3;
+    uint256 private TRADE_FEE = 1;
+    uint256 private LIMIT_ORDER_FEE = 2;
+    uint256 private STOP_LOSS_FEE = 3;
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
 
     event TreasuryAddressChanged(address treasury);
     event TradeFeeChanged(uint256 fee);
     event LimitOrderFeeChanged(uint256 fee);
     event StopOrderFeeChanged(uint256 fee);
+
+    /*//////////////////////////////////////////////////////////////
+                                 STATE
+    //////////////////////////////////////////////////////////////*/
+
+    Settings private settings;
+
+    /*//////////////////////////////////////////////////////////////
+                                 SETUP
+    //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
         // select block number
@@ -31,11 +47,15 @@ contract SettingsTest is Test {
         settings = new Settings({
             _owner: address(this),
             _treasury: KWENTA_TREASURY,
-            _tradeFee: tradeFee,
-            _limitOrderFee: limitOrderFee,
-            _stopOrderFee: stopOrderFee
+            _tradeFee: TRADE_FEE,
+            _limitOrderFee: LIMIT_ORDER_FEE,
+            _stopOrderFee: STOP_LOSS_FEE
         });
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                 TESTS
+    //////////////////////////////////////////////////////////////*/
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -50,15 +70,15 @@ contract SettingsTest is Test {
     }
 
     function testTradeFeeSet() public {
-        assertEq(settings.tradeFee(), tradeFee);
+        assertEq(settings.tradeFee(), TRADE_FEE);
     }
 
     function testLimitOrderFeeSet() public {
-        assertEq(settings.limitOrderFee(), limitOrderFee);
+        assertEq(settings.limitOrderFee(), LIMIT_ORDER_FEE);
     }
 
     function testStopOrderFeeSet() public {
-        assertEq(settings.stopOrderFee(), stopOrderFee);
+        assertEq(settings.stopOrderFee(), STOP_LOSS_FEE);
     }
 
     function testTradeFeeCannotExceedMaxBps() public {
@@ -70,8 +90,8 @@ contract SettingsTest is Test {
             _owner: address(this),
             _treasury: KWENTA_TREASURY,
             _tradeFee: invalidFee,
-            _limitOrderFee: limitOrderFee,
-            _stopOrderFee: stopOrderFee
+            _limitOrderFee: LIMIT_ORDER_FEE,
+            _stopOrderFee: STOP_LOSS_FEE
         });
     }
 
@@ -83,9 +103,9 @@ contract SettingsTest is Test {
         settings = new Settings({
             _owner: address(this),
             _treasury: KWENTA_TREASURY,
-            _tradeFee: tradeFee,
+            _tradeFee: TRADE_FEE,
             _limitOrderFee: invalidFee,
-            _stopOrderFee: stopOrderFee
+            _stopOrderFee: STOP_LOSS_FEE
         });
     }
 
@@ -97,8 +117,8 @@ contract SettingsTest is Test {
         settings = new Settings({
             _owner: address(this),
             _treasury: KWENTA_TREASURY,
-            _tradeFee: tradeFee,
-            _limitOrderFee: limitOrderFee,
+            _tradeFee: TRADE_FEE,
+            _limitOrderFee: LIMIT_ORDER_FEE,
             _stopOrderFee: invalidFee
         });
     }
@@ -152,15 +172,15 @@ contract SettingsTest is Test {
     }
 
     function testFailSetSameTradeFee() public {
-        settings.setTradeFee(tradeFee);
+        settings.setTradeFee(TRADE_FEE);
     }
 
     function testSettingTradeFeeEvent() public {
         vm.expectEmit(true, true, true, true);
         // event we expect
-        emit TradeFeeChanged(tradeFee * 2);
+        emit TradeFeeChanged(TRADE_FEE * 2);
         // event we get
-        settings.setTradeFee(tradeFee * 2);
+        settings.setTradeFee(TRADE_FEE * 2);
     }
 
     /// @dev fuzz test
@@ -186,15 +206,15 @@ contract SettingsTest is Test {
     }
 
     function testFailSetSameLimitOrderFee() public {
-        settings.setLimitOrderFee(limitOrderFee);
+        settings.setLimitOrderFee(LIMIT_ORDER_FEE);
     }
 
     function testSettingLimitOrderFeeEvent() public {
         vm.expectEmit(true, true, true, true);
         // event we expect
-        emit LimitOrderFeeChanged(limitOrderFee * 2);
+        emit LimitOrderFeeChanged(LIMIT_ORDER_FEE * 2);
         // event we get
-        settings.setLimitOrderFee(limitOrderFee * 2);
+        settings.setLimitOrderFee(LIMIT_ORDER_FEE * 2);
     }
 
     /// @dev fuzz test
@@ -220,14 +240,14 @@ contract SettingsTest is Test {
     }
 
     function testFailSetSameStopOrderFee() public {
-        settings.setStopOrderFee(stopOrderFee);
+        settings.setStopOrderFee(STOP_LOSS_FEE);
     }
 
     function testSettingStopOrderFeeEvent() public {
         vm.expectEmit(true, true, true, true);
         // event we expect
-        emit StopOrderFeeChanged(stopOrderFee * 2);
+        emit StopOrderFeeChanged(STOP_LOSS_FEE * 2);
         // event we get
-        settings.setStopOrderFee(stopOrderFee * 2);
+        settings.setStopOrderFee(STOP_LOSS_FEE * 2);
     }
 }
