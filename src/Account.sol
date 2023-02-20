@@ -31,8 +31,15 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     IAddressResolver private constant ADDRESS_RESOLVER =
         IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
 
+    // goerli
+    // IAddressResolver private constant ADDRESS_RESOLVER =
+    //     IAddressResolver(0x9Fc84992dF5496797784374B810E04238728743d);
+
     /// @notice address of the Synthetix ProxyERC20sUSD address used as the margin asset
     IERC20 private constant MARGIN_ASSET = IERC20(0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9);
+
+    // goerli
+    // IERC20 private constant MARGIN_ASSET = IERC20(0xeBaEAAD9236615542844adC5c149F86C36aD1136);
 
     /// @notice tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";

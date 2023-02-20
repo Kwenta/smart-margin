@@ -335,7 +335,5 @@ contract AccountTest is Test {
                                  MOCKS
     //////////////////////////////////////////////////////////////*/
 
-    function mockGelato() private {
-        
-    }
+    function mockGelato() private {}
 }
