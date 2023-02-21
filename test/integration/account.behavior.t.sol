@@ -3,6 +3,7 @@ pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
 import {Account} from "../../src/Account.sol";
+import {AccountExposed} from "../unit/utils/AccountExposed.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
@@ -14,6 +15,7 @@ import {
 import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
 import {IPerpsV2MarketSettings} from "@synthetix/IPerpsV2MarketSettings.sol";
 import {ISynth} from "@synthetix/ISynth.sol";
+import {OpsReady, IOps} from "../../src/utils/OpsReady.sol";
 import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 
@@ -39,9 +41,21 @@ contract AccountBehaviorTest is Test {
     // test amount used throughout tests
     uint256 private constant AMOUNT = 10_000 ether;
 
+    // test price impact delta used throughout tests
+    uint128 private constant PRICE_IMPACT_DELTA = 1 ether / 2;
+
     // synthetix (ReadProxyAddressResolver)
     IAddressResolver private constant ADDRESS_RESOLVER =
         IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
+
+    // synthetix (FuturesMarketManager)
+    address private constant FUTURES_MARKET_MANAGER = 0xdb89f3fc45A707Dd49781495f77f8ae69bF5cA6e;
+
+    // Gelato
+    address public constant GELATO = 0x01051113D81D7d6DA508462F2ad6d7fD96cF42Ef;
+    address public constant OPS = 0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c;
+    address private constant OPS_PROXY_FACTORY = 0xB3f5503f93d5Ef84b06993a1975B9D21B962892F;
+    address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     // kwenta treasury multisig
     address private constant KWENTA_TREASURY = 0x82d2242257115351899894eF384f779b5ba8c695;
@@ -87,6 +101,7 @@ contract AccountBehaviorTest is Test {
     Events private events;
     Factory private factory;
     ERC20 private sUSD;
+    AccountExposed private accountExposed;
 
     /*//////////////////////////////////////////////////////////////
                                  SETUP
@@ -114,6 +129,11 @@ contract AccountBehaviorTest is Test {
 
         settings = Settings(factory.settings());
         events = Events(factory.events());
+
+        // deploy contract that exposes Account's internal functions
+        accountExposed = new AccountExposed();
+        accountExposed.setSettings(settings);
+        accountExposed.setFuturesMarketManager(IFuturesMarketManager(FUTURES_MARKET_MANAGER));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -161,19 +181,6 @@ contract AccountBehaviorTest is Test {
         assert(sUSD.balanceOf(address(this)) == AMOUNT);
     }
 
-    /// @notice test only owner can deposit sUSD into account
-    function testOnlyOwnerCanDepositSUSD() external {
-        // call factory to create account
-        Account account = createAccount();
-
-        // transfer ownership to another address
-        account.transferOwnership(KWENTA_TREASURY);
-
-        // deposit sUSD into account
-        vm.expectRevert("UNAUTHORIZED");
-        account.deposit(AMOUNT);
-    }
-
     /// @notice deposit sUSD into account
     function testDepositSUSD(uint256 x) external {
         // call factory to create account
@@ -208,19 +215,6 @@ contract AccountBehaviorTest is Test {
             // check account has sUSD
             assert(sUSD.balanceOf(address(account)) == x);
         }
-    }
-
-    /// @notice test only owner can withdraw sUSD from account
-    function testOnlyOwnerCanWithdrawSUSD() external {
-        // call factory to create account
-        Account account = createAccount();
-
-        // transfer ownership to another address
-        account.transferOwnership(KWENTA_TREASURY);
-
-        // attempt to withdraw sUSD from account
-        vm.expectRevert("UNAUTHORIZED");
-        account.withdraw(AMOUNT);
     }
 
     /// @notice withdraw sUSD from account
@@ -262,20 +256,6 @@ contract AccountBehaviorTest is Test {
             // check account sUSD balance has decreased
             assert(sUSD.balanceOf(address(account)) == AMOUNT - x);
         }
-    }
-
-    /// @notice test only owner can deposit ETH into account
-    function testOnlyOwnerCanDepositETH() external {
-        // call factory to create account
-        Account account = createAccount();
-
-        // transfer ownership to another address
-        account.transferOwnership(KWENTA_TREASURY);
-
-        // attempt to deposit ETH into account
-        vm.expectRevert("UNAUTHORIZED");
-        (bool s,) = address(account).call{value: 1 ether}("");
-        assert(s);
     }
 
     /// @notice deposit ETH into account
@@ -342,58 +322,13 @@ contract AccountBehaviorTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 VIEWS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice test fetching position details
-    function testCanFetchPositionDetails() external {
-        // call factory to create account
-        Account account = createAccount();
-
-        // get position details
-        IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
-
-        // expect all details to be unset
-        assert(position.id == 0);
-        assert(position.lastFundingIndex == 0);
-        assert(position.margin == 0);
-        assert(position.lastPrice == 0);
-        assert(position.size == 0);
-    }
-
-    /// @notice test fetching submitted order details
-    function testCanFetchDelayedOrderDetails() external {
-        // call factory to create account
-        Account account = createAccount();
-
-        // get delayed order details
-        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
-
-        // expect all details to be unset
-        assert(order.isOffchain == false);
-        assert(order.sizeDelta == 0);
-        assert(order.priceImpactDelta == 0);
-        assert(order.targetRoundId == 0);
-        assert(order.commitDeposit == 0);
-        assert(order.keeperDeposit == 0);
-        assert(order.executableAtTime == 0);
-        assert(order.intentionTime == 0);
-        assert(order.trackingCode == "");
-    }
-
-    /// @notice test if an order can be executed
-    function canCheckIfOrderCanBeExecuted() external {
-        // @TODO checker()
-    }
-
-    /*//////////////////////////////////////////////////////////////
                                 EXECUTE
     //////////////////////////////////////////////////////////////*/
 
     /// @notice test providing non-matching command and input lengths
     function testCannotProvideNonMatchingCommandAndInputLengths() external {
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // define commands
         IAccount.Command[] memory commands = new IAccount.Command[](1);
@@ -416,7 +351,7 @@ contract AccountBehaviorTest is Test {
     /// @notice test invalid command
     function testCannotExecuteInvalidCommand() external {
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // define calldata
         bytes memory dataWithInvalidCommand = abi.encodeWithSignature(
@@ -435,7 +370,7 @@ contract AccountBehaviorTest is Test {
     /// @notice test invalid input with valid command
     function testFailExecuteInvalidInputWithValidCommand() external {
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // define commands
         IAccount.Command[] memory commands = new IAccount.Command[](1);
@@ -478,7 +413,7 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
 
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // get account margin balance
         uint256 accountBalance = sUSD.balanceOf(address(account));
@@ -532,7 +467,7 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
 
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // get account margin balance
         int256 balance = int256(sUSD.balanceOf(address(account)));
@@ -595,7 +530,7 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
 
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // get account margin balance
         uint256 preBalance = sUSD.balanceOf(address(account));
@@ -625,7 +560,7 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
 
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // get account margin balance
         uint256 preBalance = sUSD.balanceOf(address(account));
@@ -671,7 +606,7 @@ contract AccountBehaviorTest is Test {
         uint256 priceImpactDelta = 1 ether / 2;
 
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // define commands
         IAccount.Command[] memory commands = new IAccount.Command[](2);
@@ -712,7 +647,7 @@ contract AccountBehaviorTest is Test {
         uint256 desiredTimeDelta = 0;
 
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // define commands
         IAccount.Command[] memory commands = new IAccount.Command[](2);
@@ -756,7 +691,7 @@ contract AccountBehaviorTest is Test {
         uint256 priceImpactDelta = 1 ether;
 
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // define commands
         IAccount.Command[] memory commands = new IAccount.Command[](2);
@@ -797,7 +732,7 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
 
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // define commands
         IAccount.Command[] memory commands = new IAccount.Command[](1);
@@ -823,7 +758,7 @@ contract AccountBehaviorTest is Test {
         uint256 desiredTimeDelta = 0;
 
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // define commands
         IAccount.Command[] memory commands = new IAccount.Command[](2);
@@ -875,7 +810,7 @@ contract AccountBehaviorTest is Test {
         address market = getMarketAddressFromKey(sETHPERP);
 
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // define commands
         IAccount.Command[] memory commands = new IAccount.Command[](1);
@@ -900,7 +835,7 @@ contract AccountBehaviorTest is Test {
         uint256 priceImpactDelta = 1 ether;
 
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // define commands
         IAccount.Command[] memory commands = new IAccount.Command[](2);
@@ -957,7 +892,7 @@ contract AccountBehaviorTest is Test {
         uint256 priceImpactDelta = 1 ether / 2;
 
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // define commands
         IAccount.Command[] memory commands = new IAccount.Command[](1);
@@ -983,7 +918,7 @@ contract AccountBehaviorTest is Test {
         uint256 priceImpactDelta = 1 ether / 2;
 
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // define commands
         IAccount.Command[] memory commands = new IAccount.Command[](2);
@@ -1018,6 +953,254 @@ contract AccountBehaviorTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
+                           CONDITIONAL ORDERS
+    //////////////////////////////////////////////////////////////*/
+
+    function testPlaceConditionalOrder() external {
+        uint256 expectConditionalOrderId = 0;
+
+        // get account for trading
+        Account account = createAccountAndDepositSUSD(AMOUNT);
+
+        // fetch ETH amount in sUSD
+        uint256 currentEthPriceInUSD = accountExposed.expose_sUSDRate(
+            IPerpsV2MarketConsolidated(accountExposed.expose_getPerpsV2Market(sETHPERP))
+        );
+
+        // expect ConditionalOrderPlaced event on calling placeConditionalOrder
+        vm.expectEmit(true, true, true, true);
+        emit ConditionalOrderPlaced(
+            address(account),
+            expectConditionalOrderId,
+            sETHPERP,
+            int256(currentEthPriceInUSD),
+            int256(currentEthPriceInUSD),
+            currentEthPriceInUSD,
+            IAccount.ConditionalOrderTypes.LIMIT,
+            PRICE_IMPACT_DELTA,
+            false
+            );
+
+        // submit conditional order (limit order) to Gelato
+        uint256 conditionalOrderId = account.placeConditionalOrder({
+            _marketKey: sETHPERP,
+            _marginDelta: int256(currentEthPriceInUSD),
+            _sizeDelta: int256(currentEthPriceInUSD),
+            _targetPrice: currentEthPriceInUSD,
+            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            _priceImpactDelta: PRICE_IMPACT_DELTA,
+            _reduceOnly: false
+        });
+        assert(expectConditionalOrderId == conditionalOrderId);
+
+        // check order was registered internally
+        IAccount.ConditionalOrder memory conditionalOrder =
+            account.getConditionalOrder(conditionalOrderId);
+        assert(conditionalOrder.marketKey == sETHPERP);
+        assert(conditionalOrder.marginDelta == int256(currentEthPriceInUSD));
+        assert(conditionalOrder.sizeDelta == int256(currentEthPriceInUSD));
+        assert(conditionalOrder.targetPrice == currentEthPriceInUSD);
+        assert(
+            uint256(conditionalOrder.conditionalOrderType)
+                == uint256(IAccount.ConditionalOrderTypes.LIMIT)
+        );
+        assert(conditionalOrder.gelatoTaskId != 0); // this is set by Gelato
+        assert(conditionalOrder.priceImpactDelta == PRICE_IMPACT_DELTA);
+        assert(!conditionalOrder.reduceOnly);
+    }
+
+    function testCancelConditionalOrder() external {
+        // get account for trading
+        Account account = createAccountAndDepositSUSD(AMOUNT);
+
+        // fetch ETH amount in sUSD
+        uint256 currentEthPriceInUSD = accountExposed.expose_sUSDRate(
+            IPerpsV2MarketConsolidated(accountExposed.expose_getPerpsV2Market(sETHPERP))
+        );
+
+        // submit conditional order (limit order) to Gelato
+        uint256 conditionalOrderId = account.placeConditionalOrder({
+            _marketKey: sETHPERP,
+            _marginDelta: int256(currentEthPriceInUSD),
+            _sizeDelta: int256(currentEthPriceInUSD),
+            _targetPrice: currentEthPriceInUSD,
+            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            _priceImpactDelta: PRICE_IMPACT_DELTA,
+            _reduceOnly: false
+        });
+
+        // expect ConditionalOrderCancelled event on calling cancelConditionalOrder
+        vm.expectEmit(true, true, true, true);
+        emit ConditionalOrderCancelled(address(account), conditionalOrderId);
+
+        // attempt to cancel order
+        account.cancelConditionalOrder(conditionalOrderId);
+
+        // check order was cancelled internally
+        IAccount.ConditionalOrder memory conditionalOrder =
+            account.getConditionalOrder(conditionalOrderId);
+        assert(conditionalOrder.marketKey == "");
+        assert(conditionalOrder.marginDelta == 0);
+        assert(conditionalOrder.sizeDelta == 0);
+        assert(conditionalOrder.targetPrice == 0);
+        assert(uint256(conditionalOrder.conditionalOrderType) == 0);
+        assert(conditionalOrder.gelatoTaskId == 0);
+        assert(conditionalOrder.priceImpactDelta == 0);
+        assert(!conditionalOrder.reduceOnly);
+    }
+
+    function testExecuteConditionalOrderAsGelato() external {
+        // define fee Gelato will impose on account
+        uint256 gelatoFee = 100;
+
+        // get account for trading
+        Account account = createAccountAndDepositSUSD(AMOUNT);
+
+        // fetch ETH amount in sUSD
+        uint256 currentEthPriceInUSD = accountExposed.expose_sUSDRate(
+            IPerpsV2MarketConsolidated(accountExposed.expose_getPerpsV2Market(sETHPERP))
+        );
+
+        // submit conditional order (limit order) to Gelato
+        uint256 conditionalOrderId = account.placeConditionalOrder({
+            _marketKey: sETHPERP,
+            _marginDelta: int256(currentEthPriceInUSD),
+            _sizeDelta: 1 ether,
+            _targetPrice: currentEthPriceInUSD,
+            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            _priceImpactDelta: PRICE_IMPACT_DELTA,
+            _reduceOnly: false
+        });
+
+        // create Gelato module data
+        IOps.Module[] memory modules = new IOps.Module[](1);
+        modules[0] = IOps.Module.RESOLVER;
+        bytes[] memory args = new bytes[](1);
+        args[0] = abi.encodeWithSelector(IAccount.checker.selector, conditionalOrderId);
+        IOps.ModuleData memory moduleData = IOps.ModuleData({modules: modules, args: args});
+        bytes memory execData =
+            abi.encodeWithSelector(IAccount.executeConditionalOrder.selector, conditionalOrderId);
+
+        IOps ops = IOps(OPS);
+
+        // mock Gelato call to {IOps.exec}
+        vm.prank(GELATO);
+        ops.exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: execData,
+            moduleData: moduleData,
+            txFee: gelatoFee,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        });
+
+        // check internal state was updated
+        IAccount.ConditionalOrder memory conditionalOrder =
+            account.getConditionalOrder(conditionalOrderId);
+        assert(conditionalOrder.marketKey == "");
+        assert(conditionalOrder.marginDelta == 0);
+        assert(conditionalOrder.sizeDelta == 0);
+        assert(conditionalOrder.targetPrice == 0);
+        assert(uint256(conditionalOrder.conditionalOrderType) == 0);
+        assert(conditionalOrder.gelatoTaskId == 0);
+        assert(conditionalOrder.priceImpactDelta == 0);
+        assert(!conditionalOrder.reduceOnly);
+
+        // get delayed order details
+        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
+
+        // confirm delayed order details are non-zero
+        assert(order.isOffchain == true);
+        assert(order.sizeDelta == 1 ether);
+        assert(order.priceImpactDelta == PRICE_IMPACT_DELTA);
+        assert(order.targetRoundId != 0);
+        assert(order.commitDeposit != 0);
+        assert(order.keeperDeposit != 0);
+        assert(order.executableAtTime != 0);
+        assert(order.intentionTime != 0);
+        assert(order.trackingCode == TRACKING_CODE);
+    }
+
+    function testCancelDelayedOrderSubmittedByGelato() external {
+        // define fee Gelato will impose on account
+        uint256 gelatoFee = 100;
+
+        // get account for trading
+        Account account = createAccountAndDepositSUSD(AMOUNT);
+
+        // fetch ETH amount in sUSD
+        uint256 currentEthPriceInUSD = accountExposed.expose_sUSDRate(
+            IPerpsV2MarketConsolidated(accountExposed.expose_getPerpsV2Market(sETHPERP))
+        );
+
+        // submit conditional order (limit order) to Gelato
+        uint256 conditionalOrderId = account.placeConditionalOrder({
+            _marketKey: sETHPERP,
+            _marginDelta: int256(currentEthPriceInUSD),
+            _sizeDelta: 1 ether,
+            _targetPrice: currentEthPriceInUSD,
+            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            _priceImpactDelta: PRICE_IMPACT_DELTA,
+            _reduceOnly: false
+        });
+
+        // create Gelato module data
+        IOps.Module[] memory modules = new IOps.Module[](1);
+        modules[0] = IOps.Module.RESOLVER;
+        bytes[] memory args = new bytes[](1);
+        args[0] = abi.encodeWithSelector(IAccount.checker.selector, conditionalOrderId);
+        IOps.ModuleData memory moduleData = IOps.ModuleData({modules: modules, args: args});
+        bytes memory execData =
+            abi.encodeWithSelector(IAccount.executeConditionalOrder.selector, conditionalOrderId);
+
+        IOps ops = IOps(OPS);
+
+        // mock Gelato call to {IOps.exec}
+        vm.prank(GELATO);
+        ops.exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: execData,
+            moduleData: moduleData,
+            txFee: gelatoFee,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        });
+
+        // fast forward time
+        // solhint-disable-next-line not-rely-on-time
+        vm.warp(block.timestamp + 600 seconds);
+
+        // define commands
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER;
+
+        // define inputs
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP));
+
+        // call execute
+        account.execute(commands, inputs);
+
+        // get delayed order details
+        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
+
+        // expect all details to be unset
+        assert(order.isOffchain == false);
+        assert(order.sizeDelta == 0);
+        assert(order.priceImpactDelta == 0);
+        assert(order.targetRoundId == 0);
+        assert(order.commitDeposit == 0);
+        assert(order.keeperDeposit == 0);
+        assert(order.executableAtTime == 0);
+        assert(order.intentionTime == 0);
+        assert(order.trackingCode == "");
+    }
+
+    /*//////////////////////////////////////////////////////////////
                               TRADING FEES
     //////////////////////////////////////////////////////////////*/
 
@@ -1033,7 +1216,7 @@ contract AccountBehaviorTest is Test {
         uint256 priceImpactDelta = 1 ether / 2;
 
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // define commands
         IAccount.Command[] memory commands = new IAccount.Command[](2);
@@ -1069,7 +1252,7 @@ contract AccountBehaviorTest is Test {
         uint256 priceImpactDelta = 1 ether / 2;
 
         // get account for trading
-        Account account = createAccountAndDepositSUSD();
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
         // define commands
         IAccount.Command[] memory commands = new IAccount.Command[](2);
@@ -1128,18 +1311,23 @@ contract AccountBehaviorTest is Test {
     // @HELPER
     /// @notice create margin base account and fund it with sUSD
     /// @return Account account
-    function createAccountAndDepositSUSD() private returns (Account) {
+    function createAccountAndDepositSUSD(uint256 amount) private returns (Account) {
         // call factory to create account
         Account account = createAccount();
 
         // mint sUSD and transfer to this address
-        mintSUSD(address(this), AMOUNT);
+        mintSUSD(address(this), amount);
 
-        // approve account to spend AMOUNT
-        sUSD.approve(address(account), AMOUNT);
+        // approve account to spend amount
+        sUSD.approve(address(account), amount);
 
         // deposit sUSD into account
-        account.deposit(AMOUNT);
+        account.deposit(amount);
+
+        // send account eth for gas/trading
+        (bool sent, bytes memory data) = address(account).call{value: 1 ether}("");
+        assert(sent);
+        assert(data.length == 0);
 
         return account;
     }

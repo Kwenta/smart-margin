@@ -1,12 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {Account, IPerpsV2MarketConsolidated, ISettings} from "../../../src/Account.sol";
+import {
+    Account,
+    IFuturesMarketManager,
+    IPerpsV2MarketConsolidated,
+    ISettings
+} from "../../../src/Account.sol";
 
 /// @dev This contract exposes the internal functions of Account.sol for testing purposes
 contract AccountExposed is Account {
     function setSettings(ISettings _settings) public {
         settings = _settings;
+    }
+
+    function setFuturesMarketManager(IFuturesMarketManager _futuresMarketManager) external {
+        futuresMarketManager = _futuresMarketManager;
     }
 
     function expose_abs(int256 x) public pure returns (uint256) {
@@ -23,5 +32,17 @@ contract AccountExposed is Account {
         uint256 _conditionalOrderFee
     ) public view returns (uint256 fee) {
         return _calculateTradeFee(_sizeDelta, _market, _conditionalOrderFee);
+    }
+
+    function expose_sUSDRate(IPerpsV2MarketConsolidated _market) public view returns (uint256) {
+        return sUSDRate(_market);
+    }
+
+    function expose_getPerpsV2Market(bytes32 _marketKey)
+        public
+        view
+        returns (IPerpsV2MarketConsolidated)
+    {
+        return getPerpsV2Market(_marketKey);
     }
 }

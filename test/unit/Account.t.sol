@@ -108,6 +108,7 @@ contract AccountTest is Test {
         // deploy contract that exposes Account's internal functions
         accountExposed = new AccountExposed();
         accountExposed.setSettings(settings);
+        accountExposed.setFuturesMarketManager(IFuturesMarketManager(FUTURES_MARKET_MANAGER));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -211,6 +212,47 @@ contract AccountTest is Test {
         );
         assertEq(conditionalOrder.priceImpactDelta, 0);
         assertEq(conditionalOrder.reduceOnly, false);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                       ACCOUNT DEPOSITS/WITHDRAWS
+    //////////////////////////////////////////////////////////////*/
+
+    function testOnlyOwnerCanDepositSUSD() external {
+        // transfer ownership to another address
+        account.transferOwnership(KWENTA_TREASURY);
+
+        // deposit sUSD into account
+        vm.expectRevert("UNAUTHORIZED");
+        account.deposit(AMOUNT);
+    }
+
+    function testOnlyOwnerCanWithdrawSUSD() external {
+        // transfer ownership to another address
+        account.transferOwnership(KWENTA_TREASURY);
+
+        // attempt to withdraw sUSD from account
+        vm.expectRevert("UNAUTHORIZED");
+        account.withdraw(AMOUNT);
+    }
+
+    function testOnlyOwnerCanDepositETH() external {
+        // transfer ownership to another address
+        account.transferOwnership(KWENTA_TREASURY);
+
+        // attempt to deposit ETH into account
+        vm.expectRevert("UNAUTHORIZED");
+        (bool s,) = address(account).call{value: 1 ether}("");
+        assert(s);
+    }
+
+    function testOnlyOwnerCanWithdrawETH() external {
+        // transfer ownership to another address
+        account.transferOwnership(KWENTA_TREASURY);
+
+        // attempt to withdraw ETH
+        vm.expectRevert("UNAUTHORIZED");
+        account.withdrawEth(1 ether);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -330,10 +372,4 @@ contract AccountTest is Test {
             )
         );
     }
-
-    /*//////////////////////////////////////////////////////////////
-                                 MOCKS
-    //////////////////////////////////////////////////////////////*/
-
-    function mockGelato() private {}
 }

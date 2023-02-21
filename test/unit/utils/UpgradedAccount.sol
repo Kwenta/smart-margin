@@ -31,8 +31,15 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     IAddressResolver private constant ADDRESS_RESOLVER =
         IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
 
+    // goerli
+    // IAddressResolver private constant ADDRESS_RESOLVER =
+    //     IAddressResolver(0x9Fc84992dF5496797784374B810E04238728743d);
+
     /// @notice address of the Synthetix ProxyERC20sUSD address used as the margin asset
     IERC20 private constant MARGIN_ASSET = IERC20(0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9);
+
+    // goerli
+    // IERC20 private constant MARGIN_ASSET = IERC20(0xeBaEAAD9236615542844adC5c149F86C36aD1136);
 
     /// @notice tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
@@ -456,15 +463,10 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             committedMargin += _abs(_marginDelta);
         }
 
-        // generate an id associated with a task that can be executed by gelato
-        bytes32 taskId = IOps(OPS).createTaskNoPrepayment({
-            _execAddress: address(this),
-            _execSelector: this.executeConditionalOrder.selector,
-            _resolverAddress: address(this),
-            _resolverData: abi.encodeWithSelector(this.checker.selector, conditionalOrderId),
-            _feeToken: ETH
-        });
+        // create and submit Gelato task for this conditional order
+        bytes32 taskId = _createGelatoTask();
 
+        // internally store the conditional order
         conditionalOrders[conditionalOrderId] = ConditionalOrder({
             marketKey: _marketKey,
             marginDelta: _marginDelta,
@@ -501,7 +503,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         }
 
         // cancel gelato task
-        IOps(OPS).cancelTask({_taskId: conditionalOrder.gelatoTaskId});
+        IOps(OPS).cancelTask({taskId: conditionalOrder.gelatoTaskId});
 
         // delete order from conditional orders
         delete conditionalOrders[_conditionalOrderId];
@@ -612,6 +614,25 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             conditionalOrderId: _conditionalOrderId,
             fillPrice: fillPrice,
             keeperFee: fee
+        });
+    }
+
+    /// @notice create a new Gelato task for a conditional order
+    /// @return taskId of the new Gelato task
+    function _createGelatoTask() internal returns (bytes32 taskId) {
+        // establish required data for creating a Gelato task
+        IOps.Module[] memory modules = new IOps.Module[](1);
+        modules[0] = IOps.Module.RESOLVER;
+        bytes[] memory args = new bytes[](1);
+        args[0] = abi.encodeWithSelector(this.checker.selector, conditionalOrderId);
+        IOps.ModuleData memory moduleData = IOps.ModuleData({modules: modules, args: args});
+
+        // submit new task to Gelato and store the task id
+        taskId = IOps(OPS).createTask({
+            execAddress: address(this),
+            execData: abi.encodeWithSelector(this.executeConditionalOrder.selector, conditionalOrderId),
+            moduleData: moduleData,
+            feeToken: ETH
         });
     }
 
