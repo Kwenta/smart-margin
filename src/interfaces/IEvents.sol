@@ -71,10 +71,19 @@ interface IEvents {
     /// @notice emitted when a conditional order is cancelled
     /// @param account: account cancelling the conditional order
     /// @param conditionalOrderId: id of conditional order
-    function emitConditionalOrderCancelled(address account, uint256 conditionalOrderId) external;
+    /// @param reason: reason for cancellation
+    function emitConditionalOrderCancelled(
+        address account,
+        uint256 conditionalOrderId,
+        IAccount.ConditionalOrderCancelledReason reason
+    ) external;
 
     // @inheritdoc IAccount
-    event ConditionalOrderCancelled(address indexed account, uint256 conditionalOrderId);
+    event ConditionalOrderCancelled(
+        address indexed account,
+        uint256 conditionalOrderId,
+        IAccount.ConditionalOrderCancelledReason reason
+    );
 
     /// @notice emitted when a conditional order is filled
     /// @param account: account that placed the conditional order

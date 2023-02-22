@@ -36,6 +36,13 @@ interface IAccount {
         STOP
     }
 
+    /// @notice denotes conditional order cancelled reasons for code clarity
+    /// @dev under the hood CONDITIONAL_ORDER_CANCELLED_BY_USER = 0, CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY = 1
+    enum ConditionalOrderCancelledReason {
+        CONDITIONAL_ORDER_CANCELLED_BY_USER,
+        CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
+    }
+
     /// marketKey: Synthetix PerpsV2 Market id/key
     /// marginDelta: amount of margin to deposit or withdraw; positive indicates deposit, negative withdraw
     /// sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of Synthetix PerpsV2 position
@@ -102,7 +109,10 @@ interface IAccount {
     /// @notice emitted when a conditional order is cancelled
     /// @param account: account cancelling the conditional order
     /// @param conditionalOrderId: id of conditional order
-    event ConditionalOrderCancelled(address indexed account, uint256 conditionalOrderId);
+    /// @param reason: reason for cancellation
+    event ConditionalOrderCancelled(
+        address indexed account, uint256 conditionalOrderId, ConditionalOrderCancelledReason reason
+    );
 
     /// @notice emitted when a conditional order is filled
     /// @param account: account that placed the conditional order

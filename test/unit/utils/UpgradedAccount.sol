@@ -29,17 +29,13 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
 
     /// @notice address of the Synthetix ReadProxyAddressResolver
     IAddressResolver private constant ADDRESS_RESOLVER =
-        IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
-
-    // goerli
+        IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30); // Optimism
     // IAddressResolver private constant ADDRESS_RESOLVER =
-    //     IAddressResolver(0x9Fc84992dF5496797784374B810E04238728743d);
+    //     IAddressResolver(0x9Fc84992dF5496797784374B810E04238728743d); // Optimism Goerli
 
     /// @notice address of the Synthetix ProxyERC20sUSD address used as the margin asset
-    IERC20 private constant MARGIN_ASSET = IERC20(0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9);
-
-    // goerli
-    // IERC20 private constant MARGIN_ASSET = IERC20(0xeBaEAAD9236615542844adC5c149F86C36aD1136);
+    IERC20 private constant MARGIN_ASSET = IERC20(0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9); // Optimism
+    // IERC20 private constant MARGIN_ASSET = IERC20(0xeBaEAAD9236615542844adC5c149F86C36aD1136); // Optimism Goerli
 
     /// @notice tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
@@ -82,7 +78,6 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     /// @notice helpful modifier to check non-zero values
     /// @param value: value to check if zero
     modifier notZero(uint256 value, bytes32 valueName) {
-        /// @notice value cannot be zero
         if (value == 0) revert ValueCannotBeZero(valueName);
 
         _;
@@ -199,7 +194,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
-    function deposit(uint256 _amount) public override onlyOwner notZero(_amount, "_amount") {
+    function deposit(uint256 _amount) external override onlyOwner notZero(_amount, "_amount") {
         // attempt to transfer margin asset from user into this account
         bool success = MARGIN_ASSET.transferFrom(owner, address(this), _amount);
         if (!success) revert FailedMarginTransfer();
@@ -240,6 +235,10 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         override
         onlyOwner
     {
+        _execute({commands: commands, inputs: inputs});
+    }
+
+    function _execute(Command[] memory commands, bytes[] memory inputs) internal {
         uint256 numCommands = commands.length;
         if (inputs.length != numCommands) revert LengthMismatch();
 
@@ -510,7 +509,8 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
 
         events.emitConditionalOrderCancelled({
             account: address(this),
-            conditionalOrderId: _conditionalOrderId
+            conditionalOrderId: _conditionalOrderId,
+            reason: ConditionalOrderCancelledReason.CONDITIONAL_ORDER_CANCELLED_BY_USER
         });
     }
 
@@ -544,7 +544,8 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
 
                 events.emitConditionalOrderCancelled({
                     account: address(this),
-                    conditionalOrderId: _conditionalOrderId
+                    conditionalOrderId: _conditionalOrderId,
+                    reason: ConditionalOrderCancelledReason.CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
                 });
 
                 return;
@@ -594,7 +595,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             == ConditionalOrderTypes.LIMIT ? settings.limitOrderFee() : settings.stopOrderFee();
 
         // execute trade
-        execute({commands: commands, inputs: inputs});
+        _execute({commands: commands, inputs: inputs});
 
         // pay fee to Gelato for order execution
         (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();

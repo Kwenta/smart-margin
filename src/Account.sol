@@ -78,7 +78,6 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /// @notice helpful modifier to check non-zero values
     /// @param value: value to check if zero
     modifier notZero(uint256 value, bytes32 valueName) {
-        /// @notice value cannot be zero
         if (value == 0) revert ValueCannotBeZero(valueName);
 
         _;
@@ -195,7 +194,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
-    function deposit(uint256 _amount) public override onlyOwner notZero(_amount, "_amount") {
+    function deposit(uint256 _amount) external override onlyOwner notZero(_amount, "_amount") {
         // attempt to transfer margin asset from user into this account
         bool success = MARGIN_ASSET.transferFrom(owner, address(this), _amount);
         if (!success) revert FailedMarginTransfer();
@@ -510,7 +509,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
         events.emitConditionalOrderCancelled({
             account: address(this),
-            conditionalOrderId: _conditionalOrderId
+            conditionalOrderId: _conditionalOrderId,
+            reason: ConditionalOrderCancelledReason.CONDITIONAL_ORDER_CANCELLED_BY_USER
         });
     }
 
@@ -544,7 +544,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
                 events.emitConditionalOrderCancelled({
                     account: address(this),
-                    conditionalOrderId: _conditionalOrderId
+                    conditionalOrderId: _conditionalOrderId,
+                    reason: ConditionalOrderCancelledReason.CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
                 });
 
                 return;

@@ -47,11 +47,16 @@ contract Events is IEvents {
     }
 
     /// @inheritdoc IEvents
-    function emitConditionalOrderCancelled(address account, uint256 conditionalOrderId)
-        external
-        override
-    {
-        emit ConditionalOrderCancelled({account: account, conditionalOrderId: conditionalOrderId});
+    function emitConditionalOrderCancelled(
+        address account,
+        uint256 conditionalOrderId,
+        IAccount.ConditionalOrderCancelledReason reason
+    ) external override {
+        emit ConditionalOrderCancelled({
+            account: account,
+            conditionalOrderId: conditionalOrderId,
+            reason: reason
+        });
     }
 
     /// @inheritdoc IEvents

@@ -87,7 +87,11 @@ contract AccountBehaviorTest is Test {
         uint128 priceImpactDelta,
         bool reduceOnly
     );
-    event ConditionalOrderCancelled(address indexed account, uint256 conditionalOrderId);
+    event ConditionalOrderCancelled(
+        address indexed account,
+        uint256 conditionalOrderId,
+        IAccount.ConditionalOrderCancelledReason reason
+    );
     event ConditionalOrderFilled(
         address indexed account, uint256 conditionalOrderId, uint256 fillPrice, uint256 keeperFee
     );
@@ -1031,7 +1035,11 @@ contract AccountBehaviorTest is Test {
 
         // expect ConditionalOrderCancelled event on calling cancelConditionalOrder
         vm.expectEmit(true, true, true, true);
-        emit ConditionalOrderCancelled(address(account), conditionalOrderId);
+        emit ConditionalOrderCancelled(
+            address(account),
+            conditionalOrderId,
+            IAccount.ConditionalOrderCancelledReason.CONDITIONAL_ORDER_CANCELLED_BY_USER
+            );
 
         // attempt to cancel order
         account.cancelConditionalOrder(conditionalOrderId);
