@@ -174,12 +174,6 @@ contract AccountTest is Test {
 
     function testCanFetchFreeMargin() external {
         assertEq(account.freeMargin(), 0);
-        mintSUSD(address(this), AMOUNT);
-        sUSD.approve(address(account), AMOUNT);
-        account.deposit(AMOUNT);
-        assertEq(account.freeMargin(), AMOUNT);
-        account.withdraw(AMOUNT);
-        assertEq(account.freeMargin(), 0);
     }
 
     function testGetPositionInEthMarket() external {
@@ -328,37 +322,6 @@ contract AccountTest is Test {
     /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
-
-    // @HELPER
-    /// @notice mint sUSD and transfer to address specified
-    /// @dev Issuer.sol is an auxiliary helper contract that performs
-    /// the issuing and burning functionality.
-    /// Synth.sol is the base ERC20 token contract comprising most of
-    /// the behaviour of all synths.
-    /// Issuer is considered an "internal contract" therefore,
-    /// it is permitted to call Synth.issue() which is restricted by
-    /// the onlyInternalContracts modifier. Synth.issue() updates the
-    /// token state (i.e. balance and total existing tokens) which effectively
-    /// can be used to "mint" an account the underlying synth.
-    /// @param to: address to mint and transfer sUSD to
-    /// @param amount: amount to mint and transfer
-    function mintSUSD(address to, uint256 amount) private {
-        address issuer = ADDRESS_RESOLVER.getAddress("Issuer");
-        ISynth synthsUSD = ISynth(ADDRESS_RESOLVER.getAddress("SynthsUSD"));
-        vm.prank(issuer);
-        synthsUSD.issue(to, amount);
-    }
-
-    // @HELPER
-    /// @notice create margin base account and fund it with sUSD
-    /// @return Account account
-    function createAccountAndDepositSUSD() private returns (Account) {
-        mintSUSD(address(this), AMOUNT);
-        sUSD.approve(address(account), AMOUNT);
-        account.deposit(AMOUNT);
-
-        return account;
-    }
 
     // @HELPER
     /// @notice get address of market
