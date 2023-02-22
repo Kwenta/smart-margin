@@ -44,6 +44,9 @@ contract AccountBehaviorTest is Test {
     // test price impact delta used throughout tests
     uint128 private constant PRICE_IMPACT_DELTA = 1 ether / 2;
 
+    // test fee Gelato will charge for filling conditional orders
+    uint256 private constant GELATO_FEE = 69;
+
     // synthetix (ReadProxyAddressResolver)
     IAddressResolver private constant ADDRESS_RESOLVER =
         IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
@@ -1058,8 +1061,7 @@ contract AccountBehaviorTest is Test {
     }
 
     function testExecuteConditionalOrderAsGelato() external {
-        // define fee Gelato will impose on account
-        uint256 gelatoFee = 100;
+        IOps ops = IOps(OPS);
 
         // get account for trading
         Account account = createAccountAndDepositSUSD(AMOUNT);
@@ -1081,24 +1083,17 @@ contract AccountBehaviorTest is Test {
         });
 
         // create Gelato module data
-        IOps.Module[] memory modules = new IOps.Module[](1);
-        modules[0] = IOps.Module.RESOLVER;
-        bytes[] memory args = new bytes[](1);
-        args[0] = abi.encodeWithSelector(IAccount.checker.selector, conditionalOrderId);
-        IOps.ModuleData memory moduleData = IOps.ModuleData({modules: modules, args: args});
-        bytes memory execData =
-            abi.encodeWithSelector(IAccount.executeConditionalOrder.selector, conditionalOrderId);
+        (bytes memory executionData, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
 
-        IOps ops = IOps(OPS);
-
-        // mock Gelato call to {IOps.exec}
+        // prank Gelato call to {IOps.exec}
         vm.prank(GELATO);
         ops.exec({
             taskCreator: address(account),
             execAddress: address(account),
-            execData: execData,
+            execData: executionData,
             moduleData: moduleData,
-            txFee: gelatoFee,
+            txFee: GELATO_FEE,
             feeToken: ETH,
             useTaskTreasuryFunds: false,
             revertOnFailure: true
@@ -1132,8 +1127,7 @@ contract AccountBehaviorTest is Test {
     }
 
     function testCancelDelayedOrderSubmittedByGelato() external {
-        // define fee Gelato will impose on account
-        uint256 gelatoFee = 100;
+        IOps ops = IOps(OPS);
 
         // get account for trading
         Account account = createAccountAndDepositSUSD(AMOUNT);
@@ -1155,24 +1149,17 @@ contract AccountBehaviorTest is Test {
         });
 
         // create Gelato module data
-        IOps.Module[] memory modules = new IOps.Module[](1);
-        modules[0] = IOps.Module.RESOLVER;
-        bytes[] memory args = new bytes[](1);
-        args[0] = abi.encodeWithSelector(IAccount.checker.selector, conditionalOrderId);
-        IOps.ModuleData memory moduleData = IOps.ModuleData({modules: modules, args: args});
-        bytes memory execData =
-            abi.encodeWithSelector(IAccount.executeConditionalOrder.selector, conditionalOrderId);
+        (bytes memory executionData, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
 
-        IOps ops = IOps(OPS);
-
-        // mock Gelato call to {IOps.exec}
+        // prank Gelato call to {IOps.exec}
         vm.prank(GELATO);
         ops.exec({
             taskCreator: address(account),
             execAddress: address(account),
-            execData: execData,
+            execData: executionData,
             moduleData: moduleData,
-            txFee: gelatoFee,
+            txFee: GELATO_FEE,
             feeToken: ETH,
             useTaskTreasuryFunds: false,
             revertOnFailure: true
@@ -1206,6 +1193,76 @@ contract AccountBehaviorTest is Test {
         assert(order.executableAtTime == 0);
         assert(order.intentionTime == 0);
         assert(order.trackingCode == "");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             DELAYED ORDERS
+    //////////////////////////////////////////////////////////////*/
+
+    function testExecuteDelayedConditionalOrderAsGelato() external {
+        // get account for trading
+        Account account = createAccountAndDepositSUSD(AMOUNT);
+
+        // fetch ETH amount in sUSD
+        uint256 currentEthPriceInUSD = accountExposed.expose_sUSDRate(
+            IPerpsV2MarketConsolidated(accountExposed.expose_getPerpsV2Market(sETHPERP))
+        );
+
+        // submit conditional order (limit order) to Gelato that is reduced only
+        uint256 conditionalOrderId = account.placeConditionalOrder({
+            _marketKey: sETHPERP,
+            _marginDelta: int256(currentEthPriceInUSD),
+            _sizeDelta: 1 ether,
+            _targetPrice: currentEthPriceInUSD,
+            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            _priceImpactDelta: PRICE_IMPACT_DELTA,
+            _reduceOnly: true
+        });
+
+        // create Gelato module data
+        (bytes memory executionData, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
+
+        IOps ops = IOps(OPS);
+
+        // mock Gelato call to {IOps.exec}
+        vm.prank(GELATO);
+        ops.exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: executionData,
+            moduleData: moduleData,
+            txFee: GELATO_FEE,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        });
+
+        // check internal state was updated
+        IAccount.ConditionalOrder memory conditionalOrder =
+            account.getConditionalOrder(conditionalOrderId);
+        assert(conditionalOrder.marketKey == "");
+        assert(conditionalOrder.marginDelta == 0);
+        assert(conditionalOrder.sizeDelta == 0);
+        assert(conditionalOrder.targetPrice == 0);
+        assert(uint256(conditionalOrder.conditionalOrderType) == 0);
+        assert(conditionalOrder.gelatoTaskId == 0);
+        assert(conditionalOrder.priceImpactDelta == 0);
+        assert(!conditionalOrder.reduceOnly);
+
+        // get delayed order details
+        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
+
+        // confirm delayed order details are non-zero
+        assert(order.isOffchain == true);
+        assert(order.sizeDelta == 1 ether);
+        assert(order.priceImpactDelta == PRICE_IMPACT_DELTA);
+        assert(order.targetRoundId != 0);
+        assert(order.commitDeposit != 0);
+        assert(order.keeperDeposit != 0);
+        assert(order.executableAtTime != 0);
+        assert(order.intentionTime != 0);
+        assert(order.trackingCode == TRACKING_CODE);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1351,6 +1408,24 @@ contract AccountBehaviorTest is Test {
                     .marketForKey(key)
             )
         );
+    }
+
+    // @HELPER
+    /// @notice get data needed for pranking Gelato calls to executeConditionalOrder
+    /// @return executionData needed to call executeConditionalOrder
+    /// @return moduleData needed to call Gelato's exec
+    function generateGelatoModuleData(uint256 conditionalOrderId)
+        internal
+        pure
+        returns (bytes memory executionData, IOps.ModuleData memory moduleData)
+    {
+        IOps.Module[] memory modules = new IOps.Module[](1);
+        modules[0] = IOps.Module.RESOLVER;
+        bytes[] memory args = new bytes[](1);
+        args[0] = abi.encodeWithSelector(IAccount.checker.selector, conditionalOrderId);
+        moduleData = IOps.ModuleData({modules: modules, args: args});
+        executionData =
+            abi.encodeWithSelector(IAccount.executeConditionalOrder.selector, conditionalOrderId);
     }
 
     // @HELPER
