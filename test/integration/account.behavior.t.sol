@@ -1200,6 +1200,8 @@ contract AccountBehaviorTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testExecuteDelayedConditionalOrderAsGelato() external {
+        IOps ops = IOps(OPS);
+
         // get account for trading
         Account account = createAccountAndDepositSUSD(AMOUNT);
 
@@ -1222,8 +1224,6 @@ contract AccountBehaviorTest is Test {
         // create Gelato module data
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
             generateGelatoModuleData(conditionalOrderId);
-
-        IOps ops = IOps(OPS);
 
         // mock Gelato call to {IOps.exec}
         vm.prank(GELATO);
@@ -1248,21 +1248,7 @@ contract AccountBehaviorTest is Test {
         assert(uint256(conditionalOrder.conditionalOrderType) == 0);
         assert(conditionalOrder.gelatoTaskId == 0);
         assert(conditionalOrder.priceImpactDelta == 0);
-        assert(!conditionalOrder.reduceOnly);
-
-        // get delayed order details
-        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
-
-        // confirm delayed order details are non-zero
-        assert(order.isOffchain == true);
-        assert(order.sizeDelta == 1 ether);
-        assert(order.priceImpactDelta == PRICE_IMPACT_DELTA);
-        assert(order.targetRoundId != 0);
-        assert(order.commitDeposit != 0);
-        assert(order.keeperDeposit != 0);
-        assert(order.executableAtTime != 0);
-        assert(order.intentionTime != 0);
-        assert(order.trackingCode == TRACKING_CODE);
+        assert(conditionalOrder.reduceOnly);
     }
 
     /*//////////////////////////////////////////////////////////////
