@@ -35,7 +35,7 @@ contract AccountExposed is Account {
     }
 
     function expose_sUSDRate(IPerpsV2MarketConsolidated _market) public view returns (uint256) {
-        return sUSDRate(_market);
+        return _sUSDRate(_market);
     }
 
     function expose_getPerpsV2Market(bytes32 _marketKey)
@@ -43,6 +43,6 @@ contract AccountExposed is Account {
         view
         returns (IPerpsV2MarketConsolidated)
     {
-        return getPerpsV2Market(_marketKey);
+        return _getPerpsV2Market(_marketKey);
     }
 }

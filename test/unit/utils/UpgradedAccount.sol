@@ -16,6 +16,8 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 import {OpsReady, IOps} from "../../../src/utils/OpsReady.sol";
 import {Owned} from "@solmate/auth/Owned.sol";
 
+// @TODO prune
+
 /// @title Kwenta Smart Margin Account Implementation
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice flexible smart margin account enabling users to trade on-chain derivatives
@@ -136,7 +138,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         returns (IPerpsV2MarketConsolidated.DelayedOrder memory order)
     {
         // fetch delayed order data from Synthetix
-        order = getPerpsV2Market(_marketKey).delayedOrders(address(this));
+        order = _getPerpsV2Market(_marketKey).delayedOrders(address(this));
     }
 
     /// @inheritdoc IAccount
@@ -145,7 +147,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         view
         returns (bool canExec, bytes memory execPayload)
     {
-        (canExec,) = validConditionalOrder(_conditionalOrderId);
+        (canExec,) = _validConditionalOrder(_conditionalOrderId);
         // calldata for execute func
         execPayload =
             abi.encodeWithSelector(this.executeConditionalOrder.selector, _conditionalOrderId);
@@ -164,7 +166,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         returns (IPerpsV2MarketConsolidated.Position memory position)
     {
         // fetch position data from Synthetix
-        position = getPerpsV2Market(_marketKey).positions(address(this));
+        position = _getPerpsV2Market(_marketKey).positions(address(this));
     }
 
     /// @inheritdoc IAccount
@@ -229,24 +231,24 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
-    function execute(Command[] memory commands, bytes[] memory inputs)
-        public
+    function execute(Command[] memory _commands, bytes[] memory _inputs)
+        external
         payable
         override
         onlyOwner
     {
-        _execute({commands: commands, inputs: inputs});
+        _execute({_commands: _commands, _inputs: _inputs});
     }
 
-    function _execute(Command[] memory commands, bytes[] memory inputs) internal {
-        uint256 numCommands = commands.length;
-        if (inputs.length != numCommands) revert LengthMismatch();
+    function _execute(Command[] memory _commands, bytes[] memory _inputs) internal {
+        uint256 numCommands = _commands.length;
+        if (_inputs.length != numCommands) revert LengthMismatch();
 
         // loop through all given commands and execute them
         for (uint256 commandIndex = 0; commandIndex < numCommands;) {
-            Command command = commands[commandIndex];
+            Command command = _commands[commandIndex];
 
-            bytes memory input = inputs[commandIndex];
+            bytes memory input = _inputs[commandIndex];
 
             _dispatch(command, input);
 
@@ -256,53 +258,53 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         }
     }
 
-    function _dispatch(Command command, bytes memory inputs) internal {
+    function _dispatch(Command _command, bytes memory _inputs) internal {
         // @TODO optimize via grouping commands: i.e. if uint(command) > 5, etc.
 
         // if-else logic to dispatch commands
-        if (command == Command.PERPS_V2_MODIFY_MARGIN) {
-            (address market, int256 amount) = abi.decode(inputs, (address, int256));
+        if (_command == Command.PERPS_V2_MODIFY_MARGIN) {
+            (address market, int256 amount) = abi.decode(_inputs, (address, int256));
             _perpsV2ModifyMargin({_market: market, _amount: amount});
-        } else if (command == Command.PERPS_V2_WITHDRAW_ALL_MARGIN) {
-            address market = abi.decode(inputs, (address));
+        } else if (_command == Command.PERPS_V2_WITHDRAW_ALL_MARGIN) {
+            address market = abi.decode(_inputs, (address));
             _perpsV2WithdrawAllMargin({_market: market});
-        } else if (command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
+        } else if (_command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
             (address market, int256 sizeDelta, uint256 priceImpactDelta) =
-                abi.decode(inputs, (address, int256, uint256));
+                abi.decode(_inputs, (address, int256, uint256));
             _perpsV2SubmitAtomicOrder({
                 _market: market,
                 _sizeDelta: sizeDelta,
                 _priceImpactDelta: priceImpactDelta
             });
-        } else if (command == Command.PERPS_V2_SUBMIT_DELAYED_ORDER) {
+        } else if (_command == Command.PERPS_V2_SUBMIT_DELAYED_ORDER) {
             (address market, int256 sizeDelta, uint256 priceImpactDelta, uint256 desiredTimeDelta) =
-                abi.decode(inputs, (address, int256, uint256, uint256));
+                abi.decode(_inputs, (address, int256, uint256, uint256));
             _perpsV2SubmitDelayedOrder({
                 _market: market,
                 _sizeDelta: sizeDelta,
                 _priceImpactDelta: priceImpactDelta,
                 _desiredTimeDelta: desiredTimeDelta
             });
-        } else if (command == Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER) {
+        } else if (_command == Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER) {
             (address market, int256 sizeDelta, uint256 priceImpactDelta) =
-                abi.decode(inputs, (address, int256, uint256));
+                abi.decode(_inputs, (address, int256, uint256));
             _perpsV2SubmitOffchainDelayedOrder({
                 _market: market,
                 _sizeDelta: sizeDelta,
                 _priceImpactDelta: priceImpactDelta
             });
-        } else if (command == Command.PERPS_V2_CANCEL_DELAYED_ORDER) {
-            address market = abi.decode(inputs, (address));
+        } else if (_command == Command.PERPS_V2_CANCEL_DELAYED_ORDER) {
+            address market = abi.decode(_inputs, (address));
             _perpsV2CancelDelayedOrder({_market: market});
-        } else if (command == Command.PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER) {
-            address market = abi.decode(inputs, (address));
+        } else if (_command == Command.PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER) {
+            address market = abi.decode(_inputs, (address));
             _perpsV2CancelOffchainDelayedOrder({_market: market});
-        } else if (command == Command.PERPS_V2_CLOSE_POSITION) {
-            (address market, uint256 priceImpactDelta) = abi.decode(inputs, (address, uint256));
+        } else if (_command == Command.PERPS_V2_CLOSE_POSITION) {
+            (address market, uint256 priceImpactDelta) = abi.decode(_inputs, (address, uint256));
             _perpsV2ClosePosition({_market: market, _priceImpactDelta: priceImpactDelta});
         } else {
             // placeholder area for further commands
-            revert InvalidCommandType(uint256(command));
+            revert InvalidCommandType(uint256(_command));
         }
     }
 
@@ -517,18 +519,18 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     /// @inheritdoc IAccount
     function executeConditionalOrder(uint256 _conditionalOrderId) external override onlyOps {
         (bool isValidConditionalOrder, uint256 fillPrice) =
-            validConditionalOrder(_conditionalOrderId);
+            _validConditionalOrder(_conditionalOrderId);
 
         if (!isValidConditionalOrder) {
             revert ConditionalOrderInvalid();
         }
 
         ConditionalOrder memory conditionalOrder = getConditionalOrder(_conditionalOrderId);
-        address market = address(getPerpsV2Market(conditionalOrder.marketKey));
+        address market = address(_getPerpsV2Market(conditionalOrder.marketKey));
 
         // if conditional order is reduce only, ensure position size is only reduced
         if (conditionalOrder.reduceOnly) {
-            int256 currentSize = getPerpsV2Market(conditionalOrder.marketKey).positions({
+            int256 currentSize = _getPerpsV2Market(conditionalOrder.marketKey).positions({
                 account: address(this)
             }).size;
 
@@ -595,7 +597,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
             == ConditionalOrderTypes.LIMIT ? settings.limitOrderFee() : settings.stopOrderFee();
 
         // execute trade
-        _execute({commands: commands, inputs: inputs});
+        _execute({_commands: commands, _inputs: inputs});
 
         // pay fee to Gelato for order execution
         (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
@@ -642,7 +644,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     /// @param _conditionalOrderId: key for an active order
     /// @return true if conditional order is valid by execution rules
     /// @return price that the order will be filled at (only valid if prev is true)
-    function validConditionalOrder(uint256 _conditionalOrderId)
+    function _validConditionalOrder(uint256 _conditionalOrderId)
         internal
         view
         returns (bool, uint256)
@@ -651,9 +653,9 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
 
         // check if markets satisfy specific order type
         if (conditionalOrder.conditionalOrderType == ConditionalOrderTypes.LIMIT) {
-            return validLimitOrder(conditionalOrder);
+            return _validLimitOrder(conditionalOrder);
         } else if (conditionalOrder.conditionalOrderType == ConditionalOrderTypes.STOP) {
-            return validStopOrder(conditionalOrder);
+            return _validStopOrder(conditionalOrder);
         } else {
             // unknown order type
             return (false, 0);
@@ -665,13 +667,13 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     /// @param _conditionalOrder: struct for an active conditional order
     /// @return true if conditional order is valid by execution rules
     /// @return price that the conditional order will be submitted
-    function validLimitOrder(ConditionalOrder memory _conditionalOrder)
+    function _validLimitOrder(ConditionalOrder memory _conditionalOrder)
         internal
         view
         returns (bool, uint256)
     {
         /// @dev is marketKey is invalid, this will revert
-        uint256 price = sUSDRate(getPerpsV2Market(_conditionalOrder.marketKey));
+        uint256 price = _sUSDRate(_getPerpsV2Market(_conditionalOrder.marketKey));
 
         if (_conditionalOrder.sizeDelta > 0) {
             // Long: increase position size (buy) once *below* target price
@@ -689,13 +691,13 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     /// @param _conditionalOrder: struct for an active conditional order
     /// @return true if conditional order is valid by execution rules
     /// @return price that the conditional order will be submitted
-    function validStopOrder(ConditionalOrder memory _conditionalOrder)
+    function _validStopOrder(ConditionalOrder memory _conditionalOrder)
         internal
         view
         returns (bool, uint256)
     {
         /// @dev is marketKey is invalid, this will revert
-        uint256 price = sUSDRate(getPerpsV2Market(_conditionalOrder.marketKey));
+        uint256 price = _sUSDRate(_getPerpsV2Market(_conditionalOrder.marketKey));
 
         if (_conditionalOrder.sizeDelta > 0) {
             // Long: increase position size (buy) once *above* target price
@@ -726,7 +728,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
 
         /// @notice fee is currently measured in the underlying base asset of the market
         /// @dev fee will be measured in sUSD, thus exchange rate is needed
-        fee = (sUSDRate(_market) * fee) / 1e18;
+        fee = (_sUSDRate(_market) * fee) / 1e18;
     }
 
     /// @notice impose fee on account
@@ -752,7 +754,7 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     /// @notice fetch PerpsV2Market market defined by market key
     /// @param _marketKey: key for Synthetix PerpsV2 market
     /// @return IPerpsV2Market contract interface
-    function getPerpsV2Market(bytes32 _marketKey)
+    function _getPerpsV2Market(bytes32 _marketKey)
         internal
         view
         returns (IPerpsV2MarketConsolidated)
@@ -763,19 +765,12 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
     /// @notice get exchange rate of underlying market asset in terms of sUSD
     /// @param _market: Synthetix PerpsV2 Market
     /// @return price in sUSD
-    function sUSDRate(IPerpsV2MarketConsolidated _market) internal view returns (uint256) {
+    function _sUSDRate(IPerpsV2MarketConsolidated _market) internal view returns (uint256) {
         (uint256 price, bool invalid) = _market.assetPrice();
         if (invalid) {
             revert InvalidPrice();
         }
         return price;
-    }
-
-    /// @notice exchangeRates() fetches current ExchangeRates contract
-    function exchanger() internal view returns (IExchanger) {
-        return IExchanger(
-            ADDRESS_RESOLVER.requireAndGetAddress("Exchanger", "Account: Could not get Exchanger")
-        );
     }
 
     /*//////////////////////////////////////////////////////////////
