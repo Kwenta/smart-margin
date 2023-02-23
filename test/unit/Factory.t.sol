@@ -3,40 +3,17 @@ pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
 import {Account} from "../../src/Account.sol";
+import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
-import {ISettings} from "../../src/interfaces/ISettings.sol";
 import {IFactory} from "../../src/interfaces/IFactory.sol";
 import {MockAccount1, MockAccount2} from "./utils/MockAccounts.sol";
 import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 import {UpgradedAccount} from "./utils/UpgradedAccount.sol";
+import "../utils/Constants.sol";
 
-contract FactoryTest is Test {
-    /*//////////////////////////////////////////////////////////////
-                               CONSTANTS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
-    /// @dev hard coded addresses are only guaranteed for this block
-    uint256 private constant BLOCK_NUMBER = 60_242_268;
-
-    address private constant TEST_ACCOUNT = 0x42f9134E9d3Bf7eEE1f8A5Ac2a4328B059E7468c;
-    address private constant KWENTA_TREASURY = 0x82d2242257115351899894eF384f779b5ba8c695;
-    address private constant FUTURES_MANAGER = 0xc704c9AA89d1ca60F67B3075d05fBb92b3B00B3B;
-
-    uint256 private TRADE_FEE = 1;
-    uint256 private LIMIT_ORDER_FEE = 2;
-    uint256 private STOP_ORDER_FEE = 3;
-
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    event NewAccount(address indexed creator, address indexed account, bytes32 version);
-    event AccountImplementationUpgraded(address implementation);
-    event SettingsUpgraded(address settings);
-
+contract FactoryTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
@@ -188,21 +165,21 @@ contract FactoryTest is Test {
 
     function testAccountCannotTransferOwnershipToAnotherAccountOwningAddress() public {
         address payable accountAddress1 = factory.newAccount();
-        vm.prank(TEST_ACCOUNT);
+        vm.prank(ACCOUNT);
         address payable accountAddress2 = factory.newAccount();
         vm.expectRevert(
             abi.encodeWithSelector(IFactory.OnlyOneAccountPerAddress.selector, accountAddress2)
         );
-        Account(accountAddress1).transferOwnership({_newOwner: TEST_ACCOUNT});
+        Account(accountAddress1).transferOwnership({_newOwner: ACCOUNT});
     }
 
     function testAccountOwnerCannotTransferAnotherAccount() public {
         factory.newAccount();
-        vm.prank(TEST_ACCOUNT);
+        vm.prank(ACCOUNT);
         factory.newAccount();
         vm.expectRevert(abi.encodeWithSelector(IFactory.CallerMustBeAccount.selector));
-        // try to brick account owned by TEST_ACCOUNT
-        factory.updateAccountOwner({_oldOwner: TEST_ACCOUNT, _newOwner: address(0)});
+        // try to brick account owned by ACCOUNT
+        factory.updateAccountOwner({_oldOwner: ACCOUNT, _newOwner: address(0)});
     }
 
     function testCannotUpdateAccountThatDoesNotExist() public {
@@ -222,7 +199,7 @@ contract FactoryTest is Test {
 
     function testCannotUpgradeAccountImplementationWhenNotOwner() public {
         vm.expectRevert("UNAUTHORIZED");
-        vm.prank(TEST_ACCOUNT);
+        vm.prank(ACCOUNT);
         factory.upgradeAccountImplementation({_implementation: address(0)});
     }
 
@@ -236,10 +213,10 @@ contract FactoryTest is Test {
         // check owner did not change
         assertEq(Account(accountAddress).owner(), address(this));
         // check new account uses new implementation
-        vm.prank(TEST_ACCOUNT);
+        vm.prank(ACCOUNT);
         address payable accountAddress2 = factory.newAccount();
         assertEq(Account(accountAddress2).VERSION(), newVersion);
-        assertEq(Account(accountAddress2).owner(), TEST_ACCOUNT);
+        assertEq(Account(accountAddress2).owner(), ACCOUNT);
     }
 
     function testUpgradeAccountImplementationEvent() public {
@@ -258,7 +235,7 @@ contract FactoryTest is Test {
         address payable accountAddress = factory.newAccount();
         address newSettings = address(
             new Settings({
-                _owner: TEST_ACCOUNT, // change owner
+                _owner: ACCOUNT, // change owner
                 _treasury: KWENTA_TREASURY,
                 _tradeFee: TRADE_FEE,
                 _limitOrderFee: LIMIT_ORDER_FEE,
@@ -269,10 +246,10 @@ contract FactoryTest is Test {
         // check settings owner did *NOT* change
         assertEq(Settings(address(Account(accountAddress).settings())).owner(), address(this));
         // check new account uses new settings
-        vm.prank(TEST_ACCOUNT);
+        vm.prank(ACCOUNT);
         address payable accountAddress2 = factory.newAccount();
         // check new accounts settings owner did change
-        assertEq(Settings(address(Account(accountAddress2).settings())).owner(), TEST_ACCOUNT);
+        assertEq(Settings(address(Account(accountAddress2).settings())).owner(), ACCOUNT);
     }
 
     function testUpgradeSettingsEvent() public {
@@ -283,7 +260,7 @@ contract FactoryTest is Test {
 
     function testCannotRemoveUpgradabilityWhenNotOwner() public {
         vm.expectRevert("UNAUTHORIZED");
-        vm.prank(TEST_ACCOUNT);
+        vm.prank(ACCOUNT);
         factory.removeUpgradability();
     }
 

@@ -4,6 +4,7 @@ pragma solidity 0.8.18;
 import "forge-std/Test.sol";
 import {Account} from "../../src/Account.sol";
 import {AccountExposed} from "../unit/utils/AccountExposed.sol";
+import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
@@ -18,87 +19,12 @@ import {ISynth} from "@synthetix/ISynth.sol";
 import {OpsReady, IOps} from "../../src/utils/OpsReady.sol";
 import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
+import "../utils/Constants.sol";
 
 // functions tagged with @HELPER are helper functions and not tests
 // tests tagged with @AUDITOR are flags for desired increased scrutiny by the auditors
-contract MarginBehaviorTest is Test {
+contract MarginBehaviorTest is Test, ConsolidatedEvents {
     receive() external payable {}
-
-    /*//////////////////////////////////////////////////////////////
-                               CONSTANTS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
-    /// @dev hard coded addresses are only guaranteed for this block
-    uint256 private constant BLOCK_NUMBER = 60_242_268;
-
-    /// @notice max BPS; used for decimals calculations
-    uint256 private constant MAX_BPS = 10_000;
-
-    // tracking code used when modifying positions
-    bytes32 private constant TRACKING_CODE = "KWENTA";
-
-    // test amount used throughout tests
-    uint256 private constant AMOUNT = 10_000 ether;
-
-    // test price impact delta used throughout tests
-    uint128 private constant PRICE_IMPACT_DELTA = 1 ether / 2;
-
-    // test fee Gelato will charge for filling conditional orders
-    uint256 private constant GELATO_FEE = 69;
-
-    // synthetix (ReadProxyAddressResolver)
-    IAddressResolver private constant ADDRESS_RESOLVER =
-        IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
-
-    // synthetix (FuturesMarketManager)
-    address private constant FUTURES_MARKET_MANAGER = 0xdb89f3fc45A707Dd49781495f77f8ae69bF5cA6e;
-
-    // Gelato
-    address public constant GELATO = 0x01051113D81D7d6DA508462F2ad6d7fD96cF42Ef;
-    address public constant OPS = 0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c;
-    address private constant OPS_PROXY_FACTORY = 0xB3f5503f93d5Ef84b06993a1975B9D21B962892F;
-    address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-
-    // kwenta treasury multisig
-    address private constant KWENTA_TREASURY = 0x82d2242257115351899894eF384f779b5ba8c695;
-
-    // fee settings
-    uint256 private tradeFee = 1;
-    uint256 private limitOrderFee = 2;
-    uint256 private stopOrderFee = 3;
-
-    // Synthetix PerpsV2 market key(s)
-    bytes32 private constant sETHPERP = "sETHPERP";
-    bytes32 private constant sBTCPERP = "sBTCPERP";
-
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    event Deposit(address indexed user, address indexed account, uint256 amount);
-    event Withdraw(address indexed user, address indexed account, uint256 amount);
-    event EthWithdraw(address indexed user, address indexed account, uint256 amount);
-    event ConditionalOrderPlaced(
-        address indexed account,
-        uint256 conditionalOrderId,
-        bytes32 marketKey,
-        int256 marginDelta,
-        int256 sizeDelta,
-        uint256 targetPrice,
-        IAccount.ConditionalOrderTypes conditionalOrderType,
-        uint128 priceImpactDelta,
-        bool reduceOnly
-    );
-    event ConditionalOrderCancelled(
-        address indexed account,
-        uint256 conditionalOrderId,
-        IAccount.ConditionalOrderCancelledReason reason
-    );
-    event ConditionalOrderFilled(
-        address indexed account, uint256 conditionalOrderId, uint256 fillPrice, uint256 keeperFee
-    );
-    event FeeImposed(address indexed account, uint256 amount);
 
     /*//////////////////////////////////////////////////////////////
                                  STATE
@@ -114,24 +40,21 @@ contract MarginBehaviorTest is Test {
                                  SETUP
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Important to keep in mind that all test functions are isolated,
-    /// meaning each test function is executed with a copy of the state after
-    /// setUp and is executed in its own stand-alone EVM.
     function setUp() public {
         // select block number
         vm.rollFork(BLOCK_NUMBER);
 
         // establish sUSD address
-        sUSD = ERC20(ADDRESS_RESOLVER.getAddress("ProxyERC20sUSD"));
+        sUSD = ERC20((IAddressResolver(ADDRESS_RESOLVER)).getAddress("ProxyERC20sUSD"));
 
         // uses deployment script for tests (2 birds 1 stone)
         Setup setup = new Setup();
         factory = setup.deploySmartMarginFactory({
             owner: address(this),
             treasury: KWENTA_TREASURY,
-            tradeFee: tradeFee,
-            limitOrderFee: limitOrderFee,
-            stopOrderFee: stopOrderFee
+            tradeFee: TRADE_FEE,
+            limitOrderFee: LIMIT_ORDER_FEE,
+            stopOrderFee: STOP_ORDER_FEE
         });
 
         settings = Settings(factory.settings());
@@ -165,7 +88,7 @@ contract MarginBehaviorTest is Test {
         assert(address(account.owner()) == address(this));
         assert(
             address(account.futuresMarketManager())
-                == ADDRESS_RESOLVER.getAddress("FuturesMarketManager")
+                == IAddressResolver(ADDRESS_RESOLVER).getAddress("FuturesMarketManager")
         );
     }
 
@@ -1049,8 +972,8 @@ contract MarginBehaviorTest is Test {
     /// @param amount: amount to mint and transfer
     function mintSUSD(address to, uint256 amount) private {
         // fetch addresses needed
-        address issuer = ADDRESS_RESOLVER.getAddress("Issuer");
-        ISynth synthsUSD = ISynth(ADDRESS_RESOLVER.getAddress("SynthsUSD"));
+        address issuer = IAddressResolver(ADDRESS_RESOLVER).getAddress("Issuer");
+        ISynth synthsUSD = ISynth(IAddressResolver(ADDRESS_RESOLVER).getAddress("SynthsUSD"));
 
         // set caller as issuer
         vm.prank(issuer);
@@ -1098,8 +1021,9 @@ contract MarginBehaviorTest is Test {
         // market and order related params
         market = address(
             IPerpsV2MarketConsolidated(
-                IFuturesMarketManager(ADDRESS_RESOLVER.getAddress("FuturesMarketManager"))
-                    .marketForKey(key)
+                IFuturesMarketManager(
+                    IAddressResolver(ADDRESS_RESOLVER).getAddress("FuturesMarketManager")
+                ).marketForKey(key)
             )
         );
     }

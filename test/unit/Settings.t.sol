@@ -2,34 +2,12 @@
 pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
+import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {ISettings} from "../../src/interfaces/ISettings.sol";
 import {Settings} from "../../src/Settings.sol";
+import "../utils/Constants.sol";
 
-contract SettingsTest is Test {
-    /*//////////////////////////////////////////////////////////////
-                               CONSTANTS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
-    /// @dev hard coded addresses are only guaranteed for this block
-    uint256 private constant BLOCK_NUMBER = 60_242_268;
-
-    address private constant KWENTA_TREASURY = address(0xA);
-    address private constant RANDOM_ADDRESS = address(0xB);
-
-    uint256 private TRADE_FEE = 1;
-    uint256 private LIMIT_ORDER_FEE = 2;
-    uint256 private STOP_ORDER_FEE = 3;
-
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    event TreasuryAddressChanged(address treasury);
-    event TradeFeeChanged(uint256 fee);
-    event LimitOrderFeeChanged(uint256 fee);
-    event StopOrderFeeChanged(uint256 fee);
-
+contract SettingsTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
@@ -128,13 +106,13 @@ contract SettingsTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testSettingTreasuryAddress() public {
-        settings.setTreasury(RANDOM_ADDRESS);
-        assertTrue(settings.treasury() == RANDOM_ADDRESS);
+        settings.setTreasury(USER);
+        assertTrue(settings.treasury() == USER);
     }
 
     function testFailSettingTreasuryAddressIfNotOwner() public {
-        vm.prank(RANDOM_ADDRESS);
-        settings.setTreasury(RANDOM_ADDRESS);
+        vm.prank(USER);
+        settings.setTreasury(USER);
     }
 
     function testShouldFailSettingTreasuryAddressToZero() public {
@@ -145,9 +123,9 @@ contract SettingsTest is Test {
     function testSettingTreasuryAddressEvent() public {
         vm.expectEmit(true, true, true, true);
         // event we expect
-        emit TreasuryAddressChanged(RANDOM_ADDRESS);
+        emit TreasuryAddressChanged(USER);
         // event we get
-        settings.setTreasury(RANDOM_ADDRESS);
+        settings.setTreasury(USER);
     }
 
     /// @dev fuzz test
@@ -167,7 +145,7 @@ contract SettingsTest is Test {
     }
 
     function testFailSetTradeFeeIfNotOwner() public {
-        vm.prank(RANDOM_ADDRESS);
+        vm.prank(USER);
         settings.setTradeFee(1 ether);
     }
 
@@ -201,7 +179,7 @@ contract SettingsTest is Test {
     }
 
     function testFailSetLimitOrderFeeIfNotOwner() public {
-        vm.prank(RANDOM_ADDRESS);
+        vm.prank(USER);
         settings.setLimitOrderFee(1 ether);
     }
 
@@ -235,7 +213,7 @@ contract SettingsTest is Test {
     }
 
     function testFailSetStopOrderFeeIfNotOwner() public {
-        vm.prank(RANDOM_ADDRESS);
+        vm.prank(USER);
         settings.setStopOrderFee(1 ether);
     }
 
