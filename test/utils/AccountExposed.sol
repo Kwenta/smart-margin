@@ -6,7 +6,7 @@ import {
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated,
     ISettings
-} from "../../../src/Account.sol";
+} from "../../src/Account.sol";
 
 /// @dev This contract exposes the internal functions of Account.sol for testing purposes
 contract AccountExposed is Account {

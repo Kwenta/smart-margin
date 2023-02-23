@@ -10,10 +10,10 @@ import {
     IPerpsV2MarketConsolidated,
     ISettings,
     IEvents
-} from "../../../src/interfaces/IAccount.sol";
+} from "../../src/interfaces/IAccount.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import {OpsReady, IOps} from "../../../src/utils/OpsReady.sol";
+import {OpsReady, IOps} from "../../src/utils/OpsReady.sol";
 import {Owned} from "@solmate/auth/Owned.sol";
 
 // @TODO prune

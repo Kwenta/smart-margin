@@ -3,7 +3,7 @@ pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
 import {Account} from "../../src/Account.sol";
-import {AccountExposed} from "./utils/AccountExposed.sol";
+import {AccountExposed} from "../utils/AccountExposed.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {Events} from "../../src/Events.sol";

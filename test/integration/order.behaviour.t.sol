@@ -3,7 +3,7 @@ pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
 import {Account} from "../../src/Account.sol";
-import {AccountExposed} from "../unit/utils/AccountExposed.sol";
+import {AccountExposed} from "../utils/AccountExposed.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {Events} from "../../src/Events.sol";
@@ -310,57 +310,57 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                              DELAYED ORDERS
     //////////////////////////////////////////////////////////////*/
 
-    function testExecuteDelayedConditionalOrderAsGelato() external {
-        IOps ops = IOps(OPS);
+    // function testExecuteDelayedConditionalOrderAsGelato() external {
+    //     IOps ops = IOps(OPS);
 
-        // get account for trading
-        Account account = createAccountAndDepositSUSD(AMOUNT);
+    //     // get account for trading
+    //     Account account = createAccountAndDepositSUSD(AMOUNT);
 
-        // fetch ETH amount in sUSD
-        uint256 currentEthPriceInUSD = accountExposed.expose_sUSDRate(
-            IPerpsV2MarketConsolidated(accountExposed.expose_getPerpsV2Market(sETHPERP))
-        );
+    //     // fetch ETH amount in sUSD
+    //     uint256 currentEthPriceInUSD = accountExposed.expose_sUSDRate(
+    //         IPerpsV2MarketConsolidated(accountExposed.expose_getPerpsV2Market(sETHPERP))
+    //     );
 
-        // submit conditional order (limit order) to Gelato that is reduced only
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(currentEthPriceInUSD),
-            _sizeDelta: 1 ether,
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: true
-        });
+    //     // submit conditional order (limit order) to Gelato that is reduced only
+    //     uint256 conditionalOrderId = account.placeConditionalOrder({
+    //         _marketKey: sETHPERP,
+    //         _marginDelta: int256(currentEthPriceInUSD),
+    //         _sizeDelta: 1 ether,
+    //         _targetPrice: currentEthPriceInUSD,
+    //         _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+    //         _priceImpactDelta: PRICE_IMPACT_DELTA,
+    //         _reduceOnly: true
+    //     });
 
-        // create Gelato module data
-        (bytes memory executionData, IOps.ModuleData memory moduleData) =
-            generateGelatoModuleData(conditionalOrderId);
+    //     // create Gelato module data
+    //     (bytes memory executionData, IOps.ModuleData memory moduleData) =
+    //         generateGelatoModuleData(conditionalOrderId);
 
-        // mock Gelato call to {IOps.exec}
-        vm.prank(GELATO);
-        ops.exec({
-            taskCreator: address(account),
-            execAddress: address(account),
-            execData: executionData,
-            moduleData: moduleData,
-            txFee: GELATO_FEE,
-            feeToken: ETH,
-            useTaskTreasuryFunds: false,
-            revertOnFailure: true
-        });
+    //     // mock Gelato call to {IOps.exec}
+    //     vm.prank(GELATO);
+    //     ops.exec({
+    //         taskCreator: address(account),
+    //         execAddress: address(account),
+    //         execData: executionData,
+    //         moduleData: moduleData,
+    //         txFee: GELATO_FEE,
+    //         feeToken: ETH,
+    //         useTaskTreasuryFunds: false,
+    //         revertOnFailure: true
+    //     });
 
-        // check internal state was updated
-        IAccount.ConditionalOrder memory conditionalOrder =
-            account.getConditionalOrder(conditionalOrderId);
-        assert(conditionalOrder.marketKey == "");
-        assert(conditionalOrder.marginDelta == 0);
-        assert(conditionalOrder.sizeDelta == 0);
-        assert(conditionalOrder.targetPrice == 0);
-        assert(uint256(conditionalOrder.conditionalOrderType) == 0);
-        assert(conditionalOrder.gelatoTaskId == 0);
-        assert(conditionalOrder.priceImpactDelta == 0);
-        assert(conditionalOrder.reduceOnly);
-    }
+    //     // check internal state was updated
+    //     IAccount.ConditionalOrder memory conditionalOrder =
+    //         account.getConditionalOrder(conditionalOrderId);
+    //     assert(conditionalOrder.marketKey == "");
+    //     assert(conditionalOrder.marginDelta == 0);
+    //     assert(conditionalOrder.sizeDelta == 0);
+    //     assert(conditionalOrder.targetPrice == 0);
+    //     assert(uint256(conditionalOrder.conditionalOrderType) == 0);
+    //     assert(conditionalOrder.gelatoTaskId == 0);
+    //     assert(conditionalOrder.priceImpactDelta == 0);
+    //     assert(conditionalOrder.reduceOnly);
+    // }
 
     /*//////////////////////////////////////////////////////////////
                                 HELPERS

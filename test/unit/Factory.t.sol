@@ -7,10 +7,10 @@ import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
 import {IFactory} from "../../src/interfaces/IFactory.sol";
-import {MockAccount1, MockAccount2} from "./utils/MockAccounts.sol";
+import {MockAccount1, MockAccount2} from "../utils/MockAccounts.sol";
 import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
-import {UpgradedAccount} from "./utils/UpgradedAccount.sol";
+import {UpgradedAccount} from "../utils/UpgradedAccount.sol";
 import "../utils/Constants.sol";
 
 contract FactoryTest is Test, ConsolidatedEvents {
