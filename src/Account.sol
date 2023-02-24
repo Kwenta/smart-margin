@@ -579,8 +579,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         } else {
             commands = new IAccount.Command[](1);
             inputs = new bytes[](1);
-            commands[1] = IAccount.Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
-            inputs[1] =
+            commands[0] = IAccount.Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
+            inputs[0] =
                 abi.encode(market, conditionalOrder.sizeDelta, conditionalOrder.priceImpactDelta);
         }
 
