@@ -172,8 +172,6 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     }
 
     function testExecuteConditionalOrderAsGelato() external {
-        IOps ops = IOps(OPS);
-
         // get account for trading
         Account account = createAccountAndDepositSUSD(AMOUNT);
 
@@ -199,7 +197,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
         // prank Gelato call to {IOps.exec}
         vm.prank(GELATO);
-        ops.exec({
+        IOps(OPS).exec({
             taskCreator: address(account),
             execAddress: address(account),
             execData: executionData,
@@ -238,8 +236,6 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     }
 
     function testCancelDelayedOrderSubmittedByGelato() external {
-        IOps ops = IOps(OPS);
-
         // get account for trading
         Account account = createAccountAndDepositSUSD(AMOUNT);
 
@@ -265,7 +261,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
         // prank Gelato call to {IOps.exec}
         vm.prank(GELATO);
-        ops.exec({
+        IOps(OPS).exec({
             taskCreator: address(account),
             execAddress: address(account),
             execData: executionData,
@@ -311,8 +307,6 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function testExecuteDelayedConditionalOrderAsGelato() external {
-        IOps ops = IOps(OPS);
-
         // get account for trading
         Account account = createAccountAndDepositSUSD(AMOUNT);
 
@@ -357,7 +351,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
         // mock Gelato call to {IOps.exec}
         vm.prank(GELATO);
-        ops.exec({
+        IOps(OPS).exec({
             taskCreator: address(account),
             execAddress: address(account),
             execData: executionData,
@@ -395,76 +389,120 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assert(order.trackingCode == TRACKING_CODE);
     }
 
-    // function testReduceOnlyConditionalOrder(int fuzzedSizeDelta) external {
-    //     IOps ops = IOps(OPS);
+    function testReduceOnlyConditionalOrder(int256 fuzzedSizeDelta) external {
+        // get account for trading
+        Account account = createAccountAndDepositSUSD(AMOUNT);
 
-    //     // get account for trading
-    //     Account account = createAccountAndDepositSUSD(AMOUNT);
+        // fetch ETH amount in sUSD
+        uint256 currentEthPriceInUSD = accountExposed.expose_sUSDRate(
+            IPerpsV2MarketConsolidated(accountExposed.expose_getPerpsV2Market(sETHPERP))
+        );
 
-    //     // fetch ETH amount in sUSD
-    //     uint256 currentEthPriceInUSD = accountExposed.expose_sUSDRate(
-    //         IPerpsV2MarketConsolidated(accountExposed.expose_getPerpsV2Market(sETHPERP))
-    //     );
+        submitAtomicOrder({
+            account: account,
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            priceImpactDelta: 1 ether / 2
+        });
 
-    //     // market and order related params
-    //     address market = getMarketAddressFromKey(sETHPERP);
-    //     int256 marginDelta = int256(currentEthPriceInUSD);
-    //     int256 sizeDelta = 1 ether;
-    //     uint256 priceImpactDelta = 1 ether / 2;
+        // get position details post atomic order
+        IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
+        assert(position.size == 1 ether); // sanity check :D
 
-    //     // define commands to deposit margin and submit atomic order
-    //     IAccount.Command[] memory commands = new IAccount.Command[](2);
-    //     commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
-    //     commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+        // if incoming size delta is 0, expect revert for placing any type of conditional order
+        if (fuzzedSizeDelta == 0) {
+            vm.expectRevert(
+                abi.encodeWithSelector(IAccount.ValueCannotBeZero.selector, bytes32("_sizeDelta"))
+            );
+        }
 
-    //     // define inputs to deposit margin and submit atomic order
-    //     bytes[] memory inputs = new bytes[](2);
-    //     inputs[0] = abi.encode(market, marginDelta);
-    //     inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+        // submit conditional order (limit order) to Gelato that is reduced only
+        uint256 conditionalOrderId = account.placeConditionalOrder({
+            _marketKey: sETHPERP,
+            _marginDelta: 0,
+            _sizeDelta: fuzzedSizeDelta,
+            _targetPrice: currentEthPriceInUSD,
+            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            _priceImpactDelta: PRICE_IMPACT_DELTA,
+            _reduceOnly: true
+        });
 
-    //     // call execute
-    //     account.execute(commands, inputs);
+        // create Gelato module data
+        (bytes memory executionData, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
 
-    //     // get position details
-    //     IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
+        if (fuzzedSizeDelta > 0) {
+            // same sign thus not reduce only
+            vm.expectEmit(true, true, true, true);
+            emit ConditionalOrderCancelled(
+                address(account),
+                conditionalOrderId,
+                IAccount.ConditionalOrderCancelledReason.CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
+                );
 
-    //     if (fuzzedSizeDelta == 0) vm.expectRevert();
+            // prank Gelato call to {IOps.exec}
+            vm.prank(GELATO);
+            IOps(OPS).exec({
+                taskCreator: address(account),
+                execAddress: address(account),
+                execData: executionData,
+                moduleData: moduleData,
+                txFee: GELATO_FEE,
+                feeToken: ETH,
+                useTaskTreasuryFunds: false,
+                revertOnFailure: true
+            });
+        } else if (fuzzedSizeDelta < 0) {
+            if (fuzzedSizeDelta + position.size < 0) {
+                // expect fuzzedSizeDelta to be bound by zero to prevent flipping (long to short or vice versa)
+                vm.expectEmit(true, true, true, true);
+                emit ConditionalOrderFilled({
+                    account: address(account),
+                    conditionalOrderId: conditionalOrderId,
+                    fillPrice: currentEthPriceInUSD,
+                    keeperFee: GELATO_FEE
+                });
 
-    //     // submit conditional order (limit order) to Gelato that is reduced only
-    //     uint256 conditionalOrderId = account.placeConditionalOrder({
-    //         _marketKey: sETHPERP,
-    //         _marginDelta: 0,
-    //         _sizeDelta: fuzzedSizeDelta,
-    //         _targetPrice: currentEthPriceInUSD,
-    //         _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-    //         _priceImpactDelta: PRICE_IMPACT_DELTA,
-    //         _reduceOnly: true
-    //     });
+                // prank Gelato call to {IOps.exec}
+                vm.prank(GELATO);
+                IOps(OPS).exec({
+                    taskCreator: address(account),
+                    execAddress: address(account),
+                    execData: executionData,
+                    moduleData: moduleData,
+                    txFee: GELATO_FEE,
+                    feeToken: ETH,
+                    useTaskTreasuryFunds: false,
+                    revertOnFailure: true
+                });
+            } else if (fuzzedSizeDelta + position.size > 0) {
+                // expect conditional order to be filled with specified fuzzedSizeDelta
+                vm.expectEmit(true, true, true, true);
+                emit ConditionalOrderFilled({
+                    account: address(account),
+                    conditionalOrderId: conditionalOrderId,
+                    fillPrice: currentEthPriceInUSD,
+                    keeperFee: GELATO_FEE
+                });
 
-    //     // create Gelato module data
-    //     (bytes memory executionData, IOps.ModuleData memory moduleData) =
-    //         generateGelatoModuleData(conditionalOrderId);
-
-    //     if (fuzzedSizeDelta > 0) {
-    //         vm.expectRevert();
-    //     } else if (fuzzedSizeDelta <= 0) {
-    //         if (fuzzedSizeDelta + position.size < 0) {
-    //             vm.expectRevert();
-    //         }
-    //     }
-
-    //     vm.prank(GELATO);
-    //     ops.exec({
-    //         taskCreator: address(account),
-    //         execAddress: address(account),
-    //         execData: executionData,
-    //         moduleData: moduleData,
-    //         txFee: GELATO_FEE,
-    //         feeToken: ETH,
-    //         useTaskTreasuryFunds: false,
-    //         revertOnFailure: true
-    //     });
-    // }
+                // prank Gelato call to {IOps.exec}
+                vm.prank(GELATO);
+                IOps(OPS).exec({
+                    taskCreator: address(account),
+                    execAddress: address(account),
+                    execData: executionData,
+                    moduleData: moduleData,
+                    txFee: GELATO_FEE,
+                    feeToken: ETH,
+                    useTaskTreasuryFunds: false,
+                    revertOnFailure: true
+                });
+            } else {
+                // fuzzedSizeDelta + position.size == 0
+            }
+        }
+    }
 
     /*//////////////////////////////////////////////////////////////
                                 HELPERS
@@ -513,5 +551,22 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         moduleData = IOps.ModuleData({modules: modules, args: args});
         executionData =
             abi.encodeWithSelector(IAccount.executeConditionalOrder.selector, conditionalOrderId);
+    }
+
+    function submitAtomicOrder(
+        Account account,
+        bytes32 marketKey,
+        int256 marginDelta,
+        int256 sizeDelta,
+        uint256 priceImpactDelta
+    ) private {
+        address market = getMarketAddressFromKey(marketKey);
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(market, marginDelta);
+        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+        account.execute(commands, inputs);
     }
 }

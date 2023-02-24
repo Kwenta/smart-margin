@@ -197,6 +197,7 @@ interface IAccount {
     function execute(Command[] calldata _commands, bytes[] calldata _inputs) external payable;
 
     /// @notice register a conditional order internally and with gelato
+    /// @dev restricts _sizeDelta to be non-zero otherwise no need for conditional order
     /// @param _marketKey: Synthetix futures market id/key
     /// @param _marginDelta: amount of margin (in sUSD) to deposit or withdraw
     /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of position
