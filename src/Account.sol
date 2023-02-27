@@ -514,8 +514,6 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         });
     }
 
-    event LOGGING(string message, address value);
-
     /// @inheritdoc IAccount
     function executeConditionalOrder(uint256 _conditionalOrderId) external override onlyOps {
         (bool isValidConditionalOrder, uint256 fillPrice) =
