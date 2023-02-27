@@ -15,6 +15,7 @@ import {
 } from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
 import {ISynth} from "@synthetix/ISynth.sol";
+import {OpsReady} from "../../src/utils/OpsReady.sol";
 import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 import "../utils/Constants.sol";
@@ -200,6 +201,86 @@ contract AccountTest is Test, ConsolidatedEvents {
         // attempt to withdraw ETH
         vm.expectRevert("UNAUTHORIZED");
         account.withdrawEth(1 ether);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           CONDITIONAL ORDERS
+    //////////////////////////////////////////////////////////////*/
+
+    function testPlaceConditionalOrder_NotOwner() external {
+        vm.prank(USER);
+        vm.expectRevert("UNAUTHORIZED");
+        account.placeConditionalOrder({
+            _marketKey: sETHPERP,
+            _marginDelta: 0,
+            _sizeDelta: int256(AMOUNT),
+            _targetPrice: 0,
+            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            _priceImpactDelta: 0,
+            _reduceOnly: false
+        });
+    }
+
+    function testPlaceConditionalOrder_ZeroSizeDelta() external {
+        vm.prank(USER);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccount.ValueCannotBeZero.selector, bytes32("_sizeDelta"))
+        );
+        account.placeConditionalOrder({
+            _marketKey: sETHPERP,
+            _marginDelta: 0,
+            _sizeDelta: 0,
+            _targetPrice: 0,
+            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            _priceImpactDelta: 0,
+            _reduceOnly: false
+        });
+    }
+
+    function testPlaceConditionalOrder_InsufficientETH() external {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccount.InsufficientEthBalance.selector, address(account).balance, 1 ether / 100
+            )
+        );
+        account.placeConditionalOrder({
+            _marketKey: sETHPERP,
+            _marginDelta: 0,
+            _sizeDelta: int256(AMOUNT),
+            _targetPrice: 0,
+            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            _priceImpactDelta: 0,
+            _reduceOnly: false
+        });
+    }
+
+    function testPlaceConditionalOrder_InsufficientMargin() external {
+        (bool sent, bytes memory data) = address(account).call{value: 1 ether}("");
+        assert(sent && data.length == 0);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccount.InsufficientFreeMargin.selector, 0, int256(AMOUNT))
+        );
+        account.placeConditionalOrder({
+            _marketKey: sETHPERP,
+            _marginDelta: int256(AMOUNT),
+            _sizeDelta: int256(AMOUNT),
+            _targetPrice: 0,
+            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            _priceImpactDelta: 0,
+            _reduceOnly: false
+        });
+    }
+
+    function testCancelConditionalOrder_NotOwner() external {
+        vm.prank(USER);
+        vm.expectRevert("UNAUTHORIZED");
+        account.cancelConditionalOrder({_conditionalOrderId: 0});
+    }
+
+    function testExecuteConditionalOrder_NotOps() external {
+        vm.prank(USER);
+        vm.expectRevert(abi.encodeWithSelector(OpsReady.OnlyOps.selector));
+        account.executeConditionalOrder({_conditionalOrderId: 0});
     }
 
     /*//////////////////////////////////////////////////////////////
