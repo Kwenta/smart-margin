@@ -45,4 +45,12 @@ contract AccountExposed is Account {
     {
         return _getPerpsV2Market(_marketKey);
     }
+
+    function exposed_validConditionalOrder(uint256 _conditionalOrderId)
+        external
+        view
+        returns (bool, uint256)
+    {
+        return (_validConditionalOrder(_conditionalOrderId));
+    }
 }

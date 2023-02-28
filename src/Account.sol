@@ -46,6 +46,9 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /// @notice constant for sUSD currency key
     bytes32 private constant SUSD = "sUSD";
 
+    /// @notice minimum ETH balance required to place a conditional order
+    uint256 private constant MIN_ETH = 1 ether / 100;
+
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
@@ -146,6 +149,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         returns (bool canExec, bytes memory execPayload)
     {
         (canExec,) = _validConditionalOrder(_conditionalOrderId);
+
         // calldata for execute func
         execPayload =
             abi.encodeWithSelector(this.executeConditionalOrder.selector, _conditionalOrderId);
@@ -449,8 +453,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         returns (uint256)
     {
         // ensure account has enough eth to eventually pay for the conditional order
-        if (address(this).balance < 1 ether / 100) {
-            revert InsufficientEthBalance(address(this).balance, 1 ether / 100);
+        if (address(this).balance < MIN_ETH) {
+            revert InsufficientEthBalance(address(this).balance, MIN_ETH);
         }
 
         // if more margin is desired on the position we must commit the margin
@@ -502,6 +506,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         }
 
         // cancel gelato task
+        /// @dev will revert if task id does not exist {Ops.cancelTask: Task not found}
         IOps(OPS).cancelTask({taskId: conditionalOrder.gelatoTaskId});
 
         // delete order from conditional orders
@@ -519,9 +524,9 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         (bool isValidConditionalOrder, uint256 fillPrice) =
             _validConditionalOrder(_conditionalOrderId);
 
-        if (!isValidConditionalOrder) {
-            revert ConditionalOrderInvalid();
-        }
+        // Account.checker() will prevent this from being called if the conditional order is not valid
+        /// @dev this is a safety check; never intended to fail
+        assert(isValidConditionalOrder);
 
         ConditionalOrder memory conditionalOrder = getConditionalOrder(_conditionalOrderId);
         address market = address(_getPerpsV2Market(conditionalOrder.marketKey));

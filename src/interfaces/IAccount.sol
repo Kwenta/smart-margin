@@ -88,9 +88,6 @@ interface IAccount {
     /// @param required: amount of margin asset required
     error InsufficientFreeMargin(uint256 available, uint256 required);
 
-    /// @notice cannot execute invalid conditional order
-    error ConditionalOrderInvalid();
-
     /// @notice call to transfer ETH on withdrawal fails
     error EthWithdrawalFailed();
 

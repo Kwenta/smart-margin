@@ -31,6 +31,7 @@ contract AccountTest is Test, ConsolidatedEvents {
     Account private account;
     ERC20 private sUSD;
     AccountExposed private accountExposed;
+    uint256 private currentEthPriceInUSD;
 
     /*//////////////////////////////////////////////////////////////
                                  SETUP
@@ -42,6 +43,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         // select block number
         vm.rollFork(BLOCK_NUMBER);
 
+        // define margin asset
         sUSD = ERC20(IAddressResolver(ADDRESS_RESOLVER).getAddress("ProxyERC20sUSD"));
 
         // uses deployment script for tests (2 birds 1 stone)
@@ -53,16 +55,19 @@ contract AccountTest is Test, ConsolidatedEvents {
             limitOrderFee: LIMIT_ORDER_FEE,
             stopOrderFee: STOP_ORDER_FEE
         });
-
         settings = Settings(factory.settings());
         events = Events(factory.events());
-
         account = Account(payable(factory.newAccount()));
 
         // deploy contract that exposes Account's internal functions
         accountExposed = new AccountExposed();
         accountExposed.setSettings(settings);
         accountExposed.setFuturesMarketManager(IFuturesMarketManager(FUTURES_MARKET_MANAGER));
+
+        // fetch ETH amount in sUSD
+        currentEthPriceInUSD = accountExposed.expose_sUSDRate(
+            IPerpsV2MarketConsolidated(accountExposed.expose_getPerpsV2Market(sETHPERP))
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -204,86 +209,6 @@ contract AccountTest is Test, ConsolidatedEvents {
     }
 
     /*//////////////////////////////////////////////////////////////
-                           CONDITIONAL ORDERS
-    //////////////////////////////////////////////////////////////*/
-
-    function testPlaceConditionalOrder_NotOwner() external {
-        vm.prank(USER);
-        vm.expectRevert("UNAUTHORIZED");
-        account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: 0,
-            _sizeDelta: int256(AMOUNT),
-            _targetPrice: 0,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: 0,
-            _reduceOnly: false
-        });
-    }
-
-    function testPlaceConditionalOrder_ZeroSizeDelta() external {
-        vm.prank(USER);
-        vm.expectRevert(
-            abi.encodeWithSelector(IAccount.ValueCannotBeZero.selector, bytes32("_sizeDelta"))
-        );
-        account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: 0,
-            _sizeDelta: 0,
-            _targetPrice: 0,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: 0,
-            _reduceOnly: false
-        });
-    }
-
-    function testPlaceConditionalOrder_InsufficientETH() external {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccount.InsufficientEthBalance.selector, address(account).balance, 1 ether / 100
-            )
-        );
-        account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: 0,
-            _sizeDelta: int256(AMOUNT),
-            _targetPrice: 0,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: 0,
-            _reduceOnly: false
-        });
-    }
-
-    function testPlaceConditionalOrder_InsufficientMargin() external {
-        (bool sent, bytes memory data) = address(account).call{value: 1 ether}("");
-        assert(sent && data.length == 0);
-        vm.expectRevert(
-            abi.encodeWithSelector(IAccount.InsufficientFreeMargin.selector, 0, int256(AMOUNT))
-        );
-        account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(AMOUNT),
-            _sizeDelta: int256(AMOUNT),
-            _targetPrice: 0,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: 0,
-            _reduceOnly: false
-        });
-    }
-
-    function testCancelConditionalOrder_NotOwner() external {
-        vm.prank(USER);
-        vm.expectRevert("UNAUTHORIZED");
-        account.cancelConditionalOrder({_conditionalOrderId: 0});
-    }
-
-    function testExecuteConditionalOrder_NotOps() external {
-        vm.prank(USER);
-        vm.expectRevert(abi.encodeWithSelector(OpsReady.OnlyOps.selector));
-        account.executeConditionalOrder({_conditionalOrderId: 0});
-    }
-
-    /*//////////////////////////////////////////////////////////////
                              FEE UTILITIES
     //////////////////////////////////////////////////////////////*/
 
@@ -357,9 +282,6 @@ contract AccountTest is Test, ConsolidatedEvents {
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    // @HELPER
-    /// @notice get address of market
-    /// @return market address
     function getMarketAddressFromKey(bytes32 key) private view returns (address market) {
         // market and order related params
         market = address(
@@ -369,5 +291,12 @@ contract AccountTest is Test, ConsolidatedEvents {
                 ).marketForKey(key)
             )
         );
+    }
+
+    function mintSUSD(address to, uint256 amount) private {
+        address issuer = IAddressResolver(ADDRESS_RESOLVER).getAddress("Issuer");
+        ISynth synthsUSD = ISynth(IAddressResolver(ADDRESS_RESOLVER).getAddress("SynthsUSD"));
+        vm.prank(issuer);
+        synthsUSD.issue(to, amount);
     }
 }

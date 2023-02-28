@@ -521,9 +521,9 @@ contract UpgradedAccount is IAccount, OpsReady, Owned, Initializable {
         (bool isValidConditionalOrder, uint256 fillPrice) =
             _validConditionalOrder(_conditionalOrderId);
 
-        if (!isValidConditionalOrder) {
-            revert ConditionalOrderInvalid();
-        }
+        // Account.checker() will prevent this from being called if the conditional order is not valid
+        /// @dev this is a safety check; never intended to fail
+        assert(isValidConditionalOrder);
 
         ConditionalOrder memory conditionalOrder = getConditionalOrder(_conditionalOrderId);
         address market = address(_getPerpsV2Market(conditionalOrder.marketKey));
