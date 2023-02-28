@@ -32,6 +32,9 @@ interface ISettings {
     /// @notice zero address cannot be used
     error ZeroAddress();
 
+    /// @notice new treasury address cannot be the same as the old treasury address
+    error DuplicateAddress();
+
     /// @notice invalid fee (fee > MAX_BPS)
     /// @param fee: fee denoted in BPS
     error InvalidFee(uint256 fee);

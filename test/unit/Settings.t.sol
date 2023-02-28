@@ -19,9 +19,7 @@ contract SettingsTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        // select block number
         vm.rollFork(BLOCK_NUMBER);
-
         settings = new Settings({
             _owner: address(this),
             _treasury: KWENTA_TREASURY,
@@ -39,103 +37,36 @@ contract SettingsTest is Test, ConsolidatedEvents {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    function testOwnerSet() public {
+    function test_OwnerSet() public {
         assertEq(settings.owner(), address(this));
     }
 
-    function testTreasurySet() public {
+    function test_TreasurySet() public {
         assertEq(settings.treasury(), KWENTA_TREASURY);
     }
 
-    function testTradeFeeSet() public {
+    function test_TradeFeeSet() public {
         assertEq(settings.tradeFee(), TRADE_FEE);
     }
 
-    function testLimitOrderFeeSet() public {
+    function test_LimitOrderFeeSet() public {
         assertEq(settings.limitOrderFee(), LIMIT_ORDER_FEE);
     }
 
-    function testStopOrderFeeSet() public {
+    function test_StopOrderFeeSet() public {
         assertEq(settings.stopOrderFee(), STOP_ORDER_FEE);
     }
 
-    function testTradeFeeCannotExceedMaxBps() public {
-        uint256 invalidFee = settings.MAX_BPS() + 1;
-        vm.expectRevert(
-            abi.encodeWithSelector(ISettings.InvalidFee.selector, settings.MAX_BPS() + 1)
-        );
-        settings = new Settings({
-            _owner: address(this),
-            _treasury: KWENTA_TREASURY,
-            _tradeFee: invalidFee,
-            _limitOrderFee: LIMIT_ORDER_FEE,
-            _stopOrderFee: STOP_ORDER_FEE
-        });
-    }
-
-    function testLimitOrderFeeCannotExceedMaxBps() public {
-        uint256 invalidFee = settings.MAX_BPS() + 1;
-        vm.expectRevert(
-            abi.encodeWithSelector(ISettings.InvalidFee.selector, settings.MAX_BPS() + 1)
-        );
-        settings = new Settings({
-            _owner: address(this),
-            _treasury: KWENTA_TREASURY,
-            _tradeFee: TRADE_FEE,
-            _limitOrderFee: invalidFee,
-            _stopOrderFee: STOP_ORDER_FEE
-        });
-    }
-
-    function testStopOrderFeeCannotExceedMaxBps() public {
-        uint256 invalidFee = settings.MAX_BPS() + 1;
-        vm.expectRevert(
-            abi.encodeWithSelector(ISettings.InvalidFee.selector, settings.MAX_BPS() + 1)
-        );
-        settings = new Settings({
-            _owner: address(this),
-            _treasury: KWENTA_TREASURY,
-            _tradeFee: TRADE_FEE,
-            _limitOrderFee: LIMIT_ORDER_FEE,
-            _stopOrderFee: invalidFee
-        });
-    }
-
     /*//////////////////////////////////////////////////////////////
-                                SETTERS
+                               TRADE FEE
     //////////////////////////////////////////////////////////////*/
 
-    function testSettingTreasuryAddress() public {
-        settings.setTreasury(USER);
-        assertTrue(settings.treasury() == USER);
-    }
-
-    function testFailSettingTreasuryAddressIfNotOwner() public {
-        vm.prank(USER);
-        settings.setTreasury(USER);
-    }
-
-    function testShouldFailSettingTreasuryAddressToZero() public {
-        vm.expectRevert(abi.encodeWithSelector(ISettings.ZeroAddress.selector));
-        settings.setTreasury(address(0));
-    }
-
-    function testSettingTreasuryAddressEvent() public {
-        vm.expectEmit(true, true, true, true);
-        // event we expect
-        emit TreasuryAddressChanged(USER);
-        // event we get
-        settings.setTreasury(USER);
-    }
-
-    /// @dev fuzz test
-    function testSettingTradeFee(uint256 x) public {
+    function test_SetTradeFee(uint256 x) public {
         if (x == settings.tradeFee()) {
             vm.expectRevert(abi.encodeWithSelector(ISettings.DuplicateFee.selector));
             settings.setTradeFee(x);
             return;
-        }
-        if (x > 10_000) {
+        } else if (x > settings.MAX_BPS()) {
             vm.expectRevert(abi.encodeWithSelector(ISettings.InvalidFee.selector, x));
             settings.setTradeFee(x);
             return;
@@ -144,32 +75,28 @@ contract SettingsTest is Test, ConsolidatedEvents {
         assertTrue(settings.tradeFee() == x);
     }
 
-    function testFailSetTradeFeeIfNotOwner() public {
+    function test_SetTradeFee_OnlyOwner() public {
+        vm.expectRevert("UNAUTHORIZED");
         vm.prank(USER);
         settings.setTradeFee(1 ether);
     }
 
-    function testFailSetSameTradeFee() public {
-        settings.setTradeFee(TRADE_FEE);
-    }
-
-    function testSettingTradeFeeEvent() public {
+    function test_SetTradeFee_Event() public {
         vm.expectEmit(true, true, true, true);
-        // event we expect
         emit TradeFeeChanged(TRADE_FEE * 2);
-        // event we get
         settings.setTradeFee(TRADE_FEE * 2);
     }
 
-    /// @dev fuzz test
-    function testSettingLimitOrderFee(uint256 x) public {
+    /*//////////////////////////////////////////////////////////////
+                            LIMIT ORDER FEE
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SetLimitOrderFee(uint256 x) public {
         if (x == settings.limitOrderFee()) {
             vm.expectRevert(abi.encodeWithSelector(ISettings.DuplicateFee.selector));
             settings.setLimitOrderFee(x);
             return;
-        }
-
-        if (x > 10_000) {
+        } else if (x > settings.MAX_BPS()) {
             vm.expectRevert(abi.encodeWithSelector(ISettings.InvalidFee.selector, x));
             settings.setLimitOrderFee(x);
             return;
@@ -178,32 +105,28 @@ contract SettingsTest is Test, ConsolidatedEvents {
         assertTrue(settings.limitOrderFee() == x);
     }
 
-    function testFailSetLimitOrderFeeIfNotOwner() public {
+    function test_SetLimitOrderFee_OnlyOwner() public {
+        vm.expectRevert("UNAUTHORIZED");
         vm.prank(USER);
         settings.setLimitOrderFee(1 ether);
     }
 
-    function testFailSetSameLimitOrderFee() public {
-        settings.setLimitOrderFee(LIMIT_ORDER_FEE);
-    }
-
-    function testSettingLimitOrderFeeEvent() public {
+    function test_SetLimitOrderFee_Event() public {
         vm.expectEmit(true, true, true, true);
-        // event we expect
         emit LimitOrderFeeChanged(LIMIT_ORDER_FEE * 2);
-        // event we get
         settings.setLimitOrderFee(LIMIT_ORDER_FEE * 2);
     }
 
-    /// @dev fuzz test
-    function testSettingStopOrderFee(uint256 x) public {
+    /*//////////////////////////////////////////////////////////////
+                             STOP ORDER FEE
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SetStopOrderFee(uint256 x) public {
         if (x == settings.stopOrderFee()) {
             vm.expectRevert(abi.encodeWithSelector(ISettings.DuplicateFee.selector));
             settings.setStopOrderFee(x);
             return;
-        }
-
-        if (x > 10_000) {
+        } else if (x > settings.MAX_BPS()) {
             vm.expectRevert(abi.encodeWithSelector(ISettings.InvalidFee.selector, x));
             settings.setStopOrderFee(x);
             return;
@@ -212,20 +135,46 @@ contract SettingsTest is Test, ConsolidatedEvents {
         assertTrue(settings.stopOrderFee() == x);
     }
 
-    function testFailSetStopOrderFeeIfNotOwner() public {
+    function test_SetStopOrderFee_OnlyOwner() public {
+        vm.expectRevert("UNAUTHORIZED");
         vm.prank(USER);
         settings.setStopOrderFee(1 ether);
     }
 
-    function testFailSetSameStopOrderFee() public {
-        settings.setStopOrderFee(STOP_ORDER_FEE);
+    function test_SetStopOrderFee_Event() public {
+        vm.expectEmit(true, true, true, true);
+        emit StopOrderFeeChanged(STOP_ORDER_FEE * 2);
+        settings.setStopOrderFee(STOP_ORDER_FEE * 2);
     }
 
-    function testSettingStopOrderFeeEvent() public {
+    /*//////////////////////////////////////////////////////////////
+                              SET TREASURY
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SetTreasury(address addr) public {
+        if (addr == address(0)) {
+            vm.expectRevert(abi.encodeWithSelector(ISettings.ZeroAddress.selector));
+            settings.setTreasury(addr);
+            return;
+        } else if (addr == settings.treasury()) {
+            vm.expectRevert(abi.encodeWithSelector(ISettings.DuplicateAddress.selector));
+            settings.setTreasury(addr);
+            return;
+        }
+        settings.setTreasury(addr);
+        assertTrue(settings.treasury() == addr);
+    }
+
+    function test_SetTreasury_OnlyOwner() public {
+        vm.expectRevert("UNAUTHORIZED");
+        vm.prank(USER);
+        settings.setTreasury(USER);
+    }
+
+    function test_SetTreasury_Event() public {
         vm.expectEmit(true, true, true, true);
-        // event we expect
-        emit StopOrderFeeChanged(STOP_ORDER_FEE * 2);
-        // event we get
-        settings.setStopOrderFee(STOP_ORDER_FEE * 2);
+        emit TreasuryAddressChanged(USER);
+        settings.setTreasury(USER);
+        assertTrue(settings.treasury() == USER);
     }
 }

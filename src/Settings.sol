@@ -69,6 +69,9 @@ contract Settings is ISettings, Owned {
         /// @notice ensure valid address for Kwenta Treasury
         if (_treasury == address(0)) revert ZeroAddress();
 
+        // @notice ensure address will change
+        if (_treasury == treasury) revert DuplicateAddress();
+
         /// @notice set Kwenta Treasury address
         treasury = _treasury;
 

@@ -25,10 +25,7 @@ contract FactoryBehaviorTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        // select block number
         vm.rollFork(BLOCK_NUMBER);
-
-        // uses deployment script for tests (2 birds 1 stone)
         Setup setup = new Setup();
         factory = setup.deploySmartMarginFactory({
             owner: address(this),
@@ -37,7 +34,6 @@ contract FactoryBehaviorTest is Test, ConsolidatedEvents {
             limitOrderFee: LIMIT_ORDER_FEE,
             stopOrderFee: STOP_ORDER_FEE
         });
-
         settings = Settings(factory.settings());
         events = Events(factory.events());
         implementation = Account(payable(factory.implementation()));
@@ -51,31 +47,31 @@ contract FactoryBehaviorTest is Test, ConsolidatedEvents {
                              CREATE ACCOUNT
     //////////////////////////////////////////////////////////////*/
 
-    function testAccountOwnerSet() public {
+    function test_Account_OwnerSet() public {
         address payable accountAddress = factory.newAccount();
         Account account = Account(accountAddress);
         assertEq(account.owner(), address(this));
     }
 
-    function testAccountSettingsSet() public {
+    function test_Account_SettingsSet() public {
         address payable accountAddress = factory.newAccount();
         Account account = Account(accountAddress);
         assertEq(address(account.settings()), address(settings));
     }
 
-    function testAccountEventsSet() public {
+    function test_Account_EventsSet() public {
         address payable accountAddress = factory.newAccount();
         Account account = Account(accountAddress);
         assertEq(address(account.events()), address(events));
     }
 
-    function testAccountFactorySet() public {
+    function test_Account_FactorySet() public {
         address payable accountAddress = factory.newAccount();
         Account account = Account(accountAddress);
         assertEq(address(account.factory()), address(factory));
     }
 
-    function testAccountVersionSet() public {
+    function test_Account_VersionSet() public {
         address payable accountAddress = factory.newAccount();
         Account account = Account(accountAddress);
         assertEq(account.VERSION(), bytes32("2.0.0"));
@@ -85,11 +81,11 @@ contract FactoryBehaviorTest is Test, ConsolidatedEvents {
                        IMPLEMENTATION INTERACTION
     //////////////////////////////////////////////////////////////*/
 
-    function testImplementationOwnerShouldBeZeroAddress() public {
+    function test_Implementation_Owner_ZeroAddress() public {
         assertEq(implementation.owner(), address(0));
     }
 
-    function testCannotCallInitializeOnImplementation() public {
+    function test_CallInitialize_Implementation() public {
         vm.expectRevert("Initializable: contract is already initialized");
         implementation.initialize({
             _owner: address(this),

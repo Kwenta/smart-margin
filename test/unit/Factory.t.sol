@@ -28,10 +28,7 @@ contract FactoryTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        // select block number
         vm.rollFork(BLOCK_NUMBER);
-
-        // uses deployment script for tests (2 birds 1 stone)
         Setup setup = new Setup();
         factory = setup.deploySmartMarginFactory({
             owner: address(this),
@@ -40,7 +37,6 @@ contract FactoryTest is Test, ConsolidatedEvents {
             limitOrderFee: LIMIT_ORDER_FEE,
             stopOrderFee: STOP_ORDER_FEE
         });
-
         settings = Settings(factory.settings());
         events = Events(factory.events());
         implementation = Account(payable(factory.implementation()));
@@ -54,19 +50,19 @@ contract FactoryTest is Test, ConsolidatedEvents {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    function testOwnerSet() public {
+    function test_OwnerSet() public {
         assertEq(factory.owner(), address(this));
     }
 
-    function testCanUpgrade() public {
+    function test_CanUpgrade() public {
         assertEq(factory.canUpgrade(), true);
     }
 
-    function testImplementationSet() public {
+    function test_ImplementationSet() public {
         assertEq(factory.implementation(), address(implementation));
     }
 
-    function testSettingsSet() public {
+    function test_SettingsSet() public {
         assertEq(address(factory.settings()), address(settings));
     }
 
@@ -74,7 +70,7 @@ contract FactoryTest is Test, ConsolidatedEvents {
                            FACTORY OWNERSHIP
     //////////////////////////////////////////////////////////////*/
 
-    function testCanTransferOwnership() public {
+    function test_CanTransferOwnership() public {
         factory.transferOwnership(address(0xCAFEBAE));
         assertEq(factory.owner(), address(0xCAFEBAE));
     }
@@ -83,17 +79,23 @@ contract FactoryTest is Test, ConsolidatedEvents {
                            ACCOUNT DEPLOYMENT
     //////////////////////////////////////////////////////////////*/
 
-    function testNewAccount() public {
+    function test_NewAccount() public {
         address payable accountAddress = factory.newAccount();
         assert(accountAddress != address(0));
     }
 
-    function testAccountAddedToMapping() public {
+    function test_NewAccount_Event() public {
+        vm.expectEmit(true, false, false, false);
+        emit NewAccount(address(this), address(0), bytes32(0));
+        factory.newAccount();
+    }
+
+    function test_AccountAddedToMapping() public {
         address payable accountAddress = factory.newAccount();
         assertEq(factory.ownerToAccount(address(this)), accountAddress);
     }
 
-    function testCannotCreateTwoAccounts() public {
+    function test_CannotCreateTwoAccounts() public {
         address payable accountAddress = factory.newAccount();
         vm.expectRevert(
             abi.encodeWithSelector(IFactory.OnlyOneAccountPerAddress.selector, accountAddress)
@@ -109,16 +111,14 @@ contract FactoryTest is Test, ConsolidatedEvents {
     ///
     /// Given this, it is up to the factory owner to take
     /// extra care when creating the implementation to be used
-    function testWhenAccountCannotBeInitialized() public {
+    function test_AccountCannotBeInitialized() public {
         MockAccount1 mockAccount = new MockAccount1();
-
         factory = new Factory({
             _owner: address(this),
             _settings: address(settings),
             _events: address(events),
             _implementation: address(mockAccount)
         });
-
         vm.expectRevert(abi.encodeWithSelector(IFactory.AccountFailedToInitialize.selector, ""));
         factory.newAccount();
     }
@@ -131,23 +131,15 @@ contract FactoryTest is Test, ConsolidatedEvents {
     ///
     /// Given this, it is up to the factory owner to take
     /// extra care when creating the implementation to be used
-    function testWhenAccountCannotFetchVersion() public {
+    function test_AccountCannotFetchVersion() public {
         MockAccount2 mockAccount = new MockAccount2();
-
         factory = new Factory({
             _owner: address(this),
             _settings: address(settings),
             _events: address(events),
             _implementation: address(mockAccount)
         });
-
         vm.expectRevert(abi.encodeWithSelector(IFactory.AccountFailedToFetchVersion.selector, ""));
-        factory.newAccount();
-    }
-
-    function testNewAccountEvent() public {
-        vm.expectEmit(true, false, false, false);
-        emit NewAccount(address(this), address(0), bytes32(0));
         factory.newAccount();
     }
 
@@ -155,7 +147,7 @@ contract FactoryTest is Test, ConsolidatedEvents {
                            ACCOUNT OWNERSHIP
     //////////////////////////////////////////////////////////////*/
 
-    function testAccountCanTransferAccountOwnership() public {
+    function test_AccountCanTransferAccountOwnership() public {
         address payable accountAddress = factory.newAccount();
         Account(accountAddress).transferOwnership({_newOwner: address(0xCAFEBAE)});
         assertEq(factory.ownerToAccount(address(this)), address(0));
@@ -163,7 +155,7 @@ contract FactoryTest is Test, ConsolidatedEvents {
         assertEq(Account(accountAddress).owner(), address(0xCAFEBAE));
     }
 
-    function testAccountCannotTransferOwnershipToAnotherAccountOwningAddress() public {
+    function test_AccountCannotTransferOwnershipToAnotherAccountOwningAddress() public {
         address payable accountAddress1 = factory.newAccount();
         vm.prank(ACCOUNT);
         address payable accountAddress2 = factory.newAccount();
@@ -173,7 +165,7 @@ contract FactoryTest is Test, ConsolidatedEvents {
         Account(accountAddress1).transferOwnership({_newOwner: ACCOUNT});
     }
 
-    function testAccountOwnerCannotTransferAnotherAccount() public {
+    function test_AccountOwnerCannotTransferAnotherAccount() public {
         factory.newAccount();
         vm.prank(ACCOUNT);
         factory.newAccount();
@@ -182,12 +174,12 @@ contract FactoryTest is Test, ConsolidatedEvents {
         factory.updateAccountOwner({_oldOwner: ACCOUNT, _newOwner: address(0)});
     }
 
-    function testCannotUpdateAccountThatDoesNotExist() public {
+    function test_CannotUpdateAccountThatDoesNotExist() public {
         vm.expectRevert(abi.encodeWithSelector(IFactory.AccountDoesNotExist.selector));
         factory.updateAccountOwner({_oldOwner: address(0xCAFEBAE), _newOwner: address(0xBEEF)});
     }
 
-    function testCannotDirectlyUpdateAccount() public {
+    function test_CannotDirectlyUpdateAccount() public {
         factory.newAccount();
         vm.expectRevert(abi.encodeWithSelector(IFactory.CallerMustBeAccount.selector));
         factory.updateAccountOwner({_oldOwner: address(this), _newOwner: address(0xBEEF)});
@@ -197,13 +189,13 @@ contract FactoryTest is Test, ConsolidatedEvents {
                              UPGRADABILITY
     //////////////////////////////////////////////////////////////*/
 
-    function testCannotUpgradeAccountImplementationWhenNotOwner() public {
+    function test_UpgradeAccountImplementation_OnlyOwner() public {
         vm.expectRevert("UNAUTHORIZED");
         vm.prank(ACCOUNT);
         factory.upgradeAccountImplementation({_implementation: address(0)});
     }
 
-    function testUpgradeAccountImplementation() public {
+    function test_UpgradeAccountImplementation() public {
         address payable accountAddress = factory.newAccount();
         UpgradedAccount newImplementation = new UpgradedAccount();
         factory.upgradeAccountImplementation({_implementation: address(newImplementation)});
@@ -219,19 +211,19 @@ contract FactoryTest is Test, ConsolidatedEvents {
         assertEq(Account(accountAddress2).owner(), ACCOUNT);
     }
 
-    function testUpgradeAccountImplementationEvent() public {
+    function test_UpgradeAccountImplementation_Event() public {
         vm.expectEmit(true, true, true, true);
         emit AccountImplementationUpgraded(address(0));
         factory.upgradeAccountImplementation({_implementation: address(0)});
     }
 
-    function testCannotUpgradeSettingsWhenNotOwner() public {
+    function test_UpgradeSettings_OnlyOwner() public {
         vm.expectRevert("UNAUTHORIZED");
         vm.prank(KWENTA_TREASURY);
         factory.upgradeSettings({_settings: address(0)});
     }
 
-    function testUpgradeSettings() public {
+    function test_UpgradeSettings() public {
         address payable accountAddress = factory.newAccount();
         address newSettings = address(
             new Settings({
@@ -252,30 +244,30 @@ contract FactoryTest is Test, ConsolidatedEvents {
         assertEq(Settings(address(Account(accountAddress2).settings())).owner(), ACCOUNT);
     }
 
-    function testUpgradeSettingsEvent() public {
+    function test_UpgradeSettings_Event() public {
         vm.expectEmit(true, true, true, true);
         emit SettingsUpgraded(address(0));
         factory.upgradeSettings({_settings: address(0)});
     }
 
-    function testCannotRemoveUpgradabilityWhenNotOwner() public {
+    function test_RemoveUpgradability_OnlyOwner() public {
         vm.expectRevert("UNAUTHORIZED");
         vm.prank(ACCOUNT);
         factory.removeUpgradability();
     }
 
-    function testCanRemoveUpgradability() public {
+    function test_RemoveUpgradability() public {
         factory.removeUpgradability();
         assertEq(factory.canUpgrade(), false);
     }
 
-    function testCannotUpgradeAccountImplementationWhenNotEnabled() public {
+    function test_UpgradeAccountImplementation_NotEnabled() public {
         factory.removeUpgradability();
         vm.expectRevert(abi.encodeWithSelector(IFactory.CannotUpgrade.selector));
         factory.upgradeAccountImplementation({_implementation: address(0)});
     }
 
-    function testCannotUpgradeSettingsWhenNotEnabled() public {
+    function test_UpgradeSettings_NotEnabled() public {
         factory.removeUpgradability();
         vm.expectRevert(abi.encodeWithSelector(IFactory.CannotUpgrade.selector));
         factory.upgradeSettings({_settings: address(0)});

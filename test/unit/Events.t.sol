@@ -19,9 +19,7 @@ contract EventsTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        // select block number
         vm.rollFork(BLOCK_NUMBER);
-
         events = new Events();
     }
 
@@ -29,26 +27,25 @@ contract EventsTest is Test, ConsolidatedEvents {
                                  TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testEmitDeposit() public {
-        address account = address(0x1);
+    function test_EmitDeposit_Event() public {
         vm.expectEmit(true, true, true, true);
         emit Deposit(USER, ACCOUNT, AMOUNT);
         events.emitDeposit({user: USER, account: ACCOUNT, amount: AMOUNT});
     }
 
-    function testEmitWithdraw() public {
+    function test_EmitWithdraw_Event() public {
         vm.expectEmit(true, true, true, true);
         emit Withdraw(USER, ACCOUNT, AMOUNT);
         events.emitWithdraw({user: USER, account: ACCOUNT, amount: AMOUNT});
     }
 
-    function testEmitEthWithdraw() public {
+    function test_EmitEthWithdraw_Event() public {
         vm.expectEmit(true, true, true, true);
         emit EthWithdraw(USER, ACCOUNT, AMOUNT);
         events.emitEthWithdraw({user: USER, account: ACCOUNT, amount: AMOUNT});
     }
 
-    function testEmitConditionalOrderPlaced() public {
+    function test_EmitConditionalOrderPlaced_Event() public {
         uint256 id = 0;
         vm.expectEmit(true, true, true, true);
         emit ConditionalOrderPlaced(
@@ -75,7 +72,7 @@ contract EventsTest is Test, ConsolidatedEvents {
         });
     }
 
-    function testEmitConditionalOrderCancelled() public {
+    function test_EmitConditionalOrderCancelled_Event() public {
         uint256 id = 0;
         vm.expectEmit(true, true, true, true);
         emit ConditionalOrderCancelled(
@@ -90,7 +87,7 @@ contract EventsTest is Test, ConsolidatedEvents {
         });
     }
 
-    function testEmitConditionalOrderFilled() public {
+    function test_EmitConditionalOrderFilled_Event() public {
         vm.expectEmit(true, true, true, true);
         emit ConditionalOrderFilled(ACCOUNT, 0, FILL_PRICE, GELATO_FEE);
         events.emitConditionalOrderFilled({
@@ -101,7 +98,7 @@ contract EventsTest is Test, ConsolidatedEvents {
         });
     }
 
-    function testEmitFeeImposed() public {
+    function test_EmitFeeImposed_Event() public {
         vm.expectEmit(true, true, true, true);
         emit FeeImposed(ACCOUNT, AMOUNT);
         events.emitFeeImposed({account: ACCOUNT, amount: AMOUNT});

@@ -14,8 +14,6 @@ import {
     IPerpsV2MarketConsolidated
 } from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
-import {ISynth} from "@synthetix/ISynth.sol";
-import {OpsReady} from "../../src/utils/OpsReady.sol";
 import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 import "../utils/Constants.sol";
@@ -40,13 +38,8 @@ contract AccountTest is Test, ConsolidatedEvents {
     receive() external payable {}
 
     function setUp() public {
-        // select block number
         vm.rollFork(BLOCK_NUMBER);
-
-        // define margin asset
         sUSD = ERC20(IAddressResolver(ADDRESS_RESOLVER).getAddress("ProxyERC20sUSD"));
-
-        // uses deployment script for tests (2 birds 1 stone)
         Setup setup = new Setup();
         factory = setup.deploySmartMarginFactory({
             owner: address(this),
@@ -58,13 +51,9 @@ contract AccountTest is Test, ConsolidatedEvents {
         settings = Settings(factory.settings());
         events = Events(factory.events());
         account = Account(payable(factory.newAccount()));
-
-        // deploy contract that exposes Account's internal functions
         accountExposed = new AccountExposed();
         accountExposed.setSettings(settings);
         accountExposed.setFuturesMarketManager(IFuturesMarketManager(FUTURES_MARKET_MANAGER));
-
-        // fetch ETH amount in sUSD
         currentEthPriceInUSD = accountExposed.expose_sUSDRate(
             IPerpsV2MarketConsolidated(accountExposed.expose_getPerpsV2Market(sETHPERP))
         );
@@ -78,35 +67,35 @@ contract AccountTest is Test, ConsolidatedEvents {
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
-    function testGetVerison() external view {
+    function test_GetVerison() external view {
         assert(account.VERSION() == "2.0.0");
     }
 
-    function testGetFactory() external view {
+    function test_GetFactory() external view {
         assert(account.factory() == factory);
     }
 
-    function testGetFuturesMarketManager() external view {
+    function test_GetFuturesMarketManager() external view {
         assert(account.futuresMarketManager() == IFuturesMarketManager(FUTURES_MARKET_MANAGER));
     }
 
-    function testGetSettings() external view {
+    function test_GetSettings() external view {
         assert(account.settings() == settings);
     }
 
-    function testGetEvents() external view {
+    function test_GetEvents() external view {
         assert(account.events() == events);
     }
 
-    function testGetCommittedMargin() external view {
+    function test_GetCommittedMargin() external view {
         assert(account.committedMargin() == 0);
     }
 
-    function testGetConditionalOrderId() external view {
+    function test_GetConditionalOrderId() external view {
         assert(account.conditionalOrderId() == 0);
     }
 
-    function testGetDelayedOrderInEthMarket() external {
+    function test_GetDelayedOrder_EthMarket() external {
         IPerpsV2MarketConsolidated.DelayedOrder memory delayedOrder =
             account.getDelayedOrder({_marketKey: sETHPERP});
         assertEq(delayedOrder.isOffchain, false);
@@ -120,22 +109,21 @@ contract AccountTest is Test, ConsolidatedEvents {
         assertEq(delayedOrder.trackingCode, "");
     }
 
-    function testGetDelayedOrderInInvalidMarket() external {
+    function test_GetDelayedOrder_InvalidMarket() external {
         vm.expectRevert();
         account.getDelayedOrder({_marketKey: "unknown"});
     }
 
-    function testChecker() external {
-        // if no order exists, call reverts
+    function test_Checker() external {
         vm.expectRevert();
         account.checker({_conditionalOrderId: 0});
     }
 
-    function testCanFetchFreeMargin() external {
+    function test_GetFreeMargin() external {
         assertEq(account.freeMargin(), 0);
     }
 
-    function testGetPositionInEthMarket() external {
+    function test_GetPosition_EthMarket() external {
         IPerpsV2MarketConsolidated.Position memory position =
             account.getPosition({_marketKey: sETHPERP});
         assertEq(position.id, 0);
@@ -145,13 +133,12 @@ contract AccountTest is Test, ConsolidatedEvents {
         assertEq(position.size, 0);
     }
 
-    function testPositionInInvalidMarket() external {
-        // if no market with that _marketKey exists, call reverts
+    function test_GetPosition_InvalidMarket() external {
         vm.expectRevert();
         account.getPosition({_marketKey: "unknown"});
     }
 
-    function getConditionalOrder() external {
+    function test_GetConditionalOrder() external {
         IAccount.ConditionalOrder memory conditionalOrder =
             account.getConditionalOrder({_conditionalOrderId: 0});
         assertEq(conditionalOrder.marketKey, "");
@@ -171,39 +158,27 @@ contract AccountTest is Test, ConsolidatedEvents {
                        ACCOUNT DEPOSITS/WITHDRAWS
     //////////////////////////////////////////////////////////////*/
 
-    function testOnlyOwnerCanDepositSUSD() external {
-        // transfer ownership to another address
+    function test_Deposit_Margin_OnlyOwner() external {
         account.transferOwnership(KWENTA_TREASURY);
-
-        // deposit sUSD into account
         vm.expectRevert("UNAUTHORIZED");
         account.deposit(AMOUNT);
     }
 
-    function testOnlyOwnerCanWithdrawSUSD() external {
-        // transfer ownership to another address
+    function test_Withdraw_Margin_OnlyOwner() external {
         account.transferOwnership(KWENTA_TREASURY);
-
-        // attempt to withdraw sUSD from account
         vm.expectRevert("UNAUTHORIZED");
         account.withdraw(AMOUNT);
     }
 
-    function testOnlyOwnerCanDepositETH() external {
-        // transfer ownership to another address
+    function test_Deposit_ETH_OnlyOwner() external {
         account.transferOwnership(KWENTA_TREASURY);
-
-        // attempt to deposit ETH into account
         vm.expectRevert("UNAUTHORIZED");
         (bool s,) = address(account).call{value: 1 ether}("");
         assert(s);
     }
 
-    function testOnlyOwnerCanWithdrawETH() external {
-        // transfer ownership to another address
+    function test_Withdraw_ETH_OnlyOwner() external {
         account.transferOwnership(KWENTA_TREASURY);
-
-        // attempt to withdraw ETH
         vm.expectRevert("UNAUTHORIZED");
         account.withdrawEth(1 ether);
     }
@@ -212,35 +187,25 @@ contract AccountTest is Test, ConsolidatedEvents {
                              FEE UTILITIES
     //////////////////////////////////////////////////////////////*/
 
-    function testCalculateTradeFeeInEthMarket(int128 fuzzedSizeDelta) external {
-        // conditional order fee
-        uint256 conditionalOrderFee = MAX_BPS / 99; // 1% fee
-
-        // define market
+    function test_CalculateTradeFee_EthMarket(int128 fuzzedSizeDelta) external {
+        uint256 conditionalOrderFee = MAX_BPS / 99;
         IPerpsV2MarketConsolidated market =
             IPerpsV2MarketConsolidated(getMarketAddressFromKey(sETHPERP));
-
-        // calculate expected fee
         uint256 percentToTake = settings.tradeFee() + conditionalOrderFee;
         uint256 fee = (accountExposed.expose_abs(int256(fuzzedSizeDelta)) * percentToTake) / MAX_BPS;
         (uint256 price, bool invalid) = market.assetPrice();
         assert(!invalid);
         uint256 feeInSUSD = (price * fee) / 1e18;
-
-        // call calculateTradeFee()
         uint256 actualFee = accountExposed.expose_calculateTradeFee({
             _sizeDelta: fuzzedSizeDelta,
             _market: market,
             _conditionalOrderFee: conditionalOrderFee
         });
-
         assertEq(actualFee, feeInSUSD);
     }
 
-    function testCalculateTradeFeeInInvalidMarket() external {
+    function test_CalculateTradeFee_InvalidMarket() external {
         int256 sizeDelta = -1 ether;
-
-        // call reverts if market is invalid
         vm.expectRevert();
         accountExposed.expose_calculateTradeFee({
             _sizeDelta: sizeDelta,
@@ -253,7 +218,7 @@ contract AccountTest is Test, ConsolidatedEvents {
                              MATH UTILITIES
     //////////////////////////////////////////////////////////////*/
 
-    function testAbs(int256 x) public view {
+    function test_Abs(int256 x) public view {
         if (x == 0) {
             assert(accountExposed.expose_abs(x) == 0);
         } else {
@@ -261,7 +226,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         }
     }
 
-    function testIsSameSign(int256 x, int256 y) public {
+    function test_IsSameSign(int256 x, int256 y) public {
         if (x == 0 || y == 0) {
             vm.expectRevert();
             accountExposed.expose_isSameSign(x, y);
@@ -291,12 +256,5 @@ contract AccountTest is Test, ConsolidatedEvents {
                 ).marketForKey(key)
             )
         );
-    }
-
-    function mintSUSD(address to, uint256 amount) private {
-        address issuer = IAddressResolver(ADDRESS_RESOLVER).getAddress("Issuer");
-        ISynth synthsUSD = ISynth(IAddressResolver(ADDRESS_RESOLVER).getAddress("SynthsUSD"));
-        vm.prank(issuer);
-        synthsUSD.issue(to, amount);
     }
 }
