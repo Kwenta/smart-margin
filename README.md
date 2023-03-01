@@ -134,15 +134,13 @@ npm run test
 ### Upgradability
 > Upgrades can be dangerous. Please ensure you have a good understanding of the implications of upgrading your contracts before proceeding. Storage collisions, Function signature collisions, and other issues can occur. 
 #### Update Account Implementation
-
+> note that updates to `Account` are reflected in all smart margin accounts, regardless of whether they were created before or after the `Account` upgrade.
 1. Create new version of `Account.sol` (ex: `AccountV2.sol`)
-
 2. Run slither analysis to ensure no storage collisions with previous version
 
 ```
 slither-check-upgradeability . Account --new-contract-name AccountV2 --proxy-name AccountProxy
 ```
-
 3. Reference `./script` directory and Upgrade.s.sol
 
 #### Update Account Settings
@@ -150,7 +148,6 @@ slither-check-upgradeability . Account --new-contract-name AccountV2 --proxy-nam
 1. The `Factory` owner has permission to upgrade the `Settings` contract address via `Factory.upgradeSettings`. 
 2. This "upgrade" does not suffer from the same dangers as the `Account` upgrade. State collisions are not possible nor are function signature collisions. However, it is still important to ensure that the new `Settings` contract is compatible with the `Account` contract and expected `getters` exist for the `Account` contract to function properly.
 3. Upgrades to the `Settings` contract will *NOT* impact existing smart margin accounts. However, any new smart margin accounts will use the new `Settings` contract, and thus be affected.
-> note that updates to `Account` are reflected in all smart margin accounts, regardless of whether they were created before or after the `Account` upgrade.
 4. It is expected that the `Settings` contract will be upgraded simultaneously with the `Account` contract. However, this is not required.
 
 #### Update Account Events
@@ -158,7 +155,6 @@ slither-check-upgradeability . Account --new-contract-name AccountV2 --proxy-nam
 1. The `Factory` owner has permission to upgrade the `Events` contract address via `Factory.upgradeEvents`. 
 2. This "upgrade" does not suffer from the same dangers as the `Account` upgrade. State collisions are not possible nor are function signature collisions. However, it is still important to ensure that the new `Events` contract is compatible with the `Account` contract and expected functions that emit events exist for the `Account` contract to function properly.
 3. Upgrades to the `Events` contract will *NOT* impact existing smart margin accounts. However, any new smart margin accounts will use the new `Events` contract, and thus be affected.
-> note that updates to `Account` are reflected in all smart margin accounts, regardless of whether they were created before or after the `Account` upgrade.
 4. It is expected that the `Events` contract will be upgraded simultaneously with the `Account` contract. However, this is not required.
 
 ## Project Tools
