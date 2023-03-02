@@ -5,7 +5,8 @@ import {
     Account,
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated,
-    ISettings
+    ISettings,
+    IEvents
 } from "../../src/Account.sol";
 
 /// @dev This contract exposes the internal functions of Account.sol for testing purposes
@@ -14,12 +15,16 @@ contract AccountExposed is Account {
                       SETTERS FOR EXPOSED ACCOUNT
     //////////////////////////////////////////////////////////////*/
 
+    function setFuturesMarketManager(IFuturesMarketManager _futuresMarketManager) external {
+        futuresMarketManager = _futuresMarketManager;
+    }
+
     function setSettings(ISettings _settings) public {
         settings = _settings;
     }
 
-    function setFuturesMarketManager(IFuturesMarketManager _futuresMarketManager) external {
-        futuresMarketManager = _futuresMarketManager;
+    function setEvents(IEvents _events) public {
+        events = _events;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -38,23 +43,23 @@ contract AccountExposed is Account {
                             EXPOSED COMMANDS
     //////////////////////////////////////////////////////////////*/
 
-    function expose_ACCOUNT_MODIFY_MARGIN(int256 amount) external {
+    function expose_modifyAccountMargin(int256 amount) external {
         _modifyAccountMargin({_amount: amount});
     }
 
-    function expose_ACCOUNT_WITHDRAW_ETH(uint256 amount) external {
+    function expose_withdrawEth(uint256 amount) external {
         _withdrawEth({_amount: amount});
     }
 
-    function expose_PERPS_V2_MODIFY_MARGIN(address market, int256 amount) external {
+    function expose_perpsV2ModifyMargin(address market, int256 amount) external {
         _perpsV2ModifyMargin({_market: market, _amount: amount});
     }
 
-    function expose_PERPS_V2_WITHDRAW_ALL_MARGIN(address market) external {
+    function expose_perpsV2WithdrawAllMargin(address market) external {
         _perpsV2WithdrawAllMargin({_market: market});
     }
 
-    function expose_PERPS_V2_SUBMIT_ATOMIC_ORDER(
+    function expose_perpsV2SubmitAtomicOrder(
         address market,
         int256 sizeDelta,
         uint256 priceImpactDelta
@@ -66,7 +71,7 @@ contract AccountExposed is Account {
         });
     }
 
-    function expose_PERPS_V2_SUBMIT_DELAYED_ORDER(
+    function expose_perpsV2SubmitDelayedOrder(
         address market,
         int256 sizeDelta,
         uint256 priceImpactDelta,
@@ -80,7 +85,7 @@ contract AccountExposed is Account {
         });
     }
 
-    function expose_PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER(
+    function expose_perpsV2SubmitOffchainDelayedOrder(
         address market,
         int256 sizeDelta,
         uint256 priceImpactDelta
@@ -92,11 +97,11 @@ contract AccountExposed is Account {
         });
     }
 
-    function expose_PERPS_V2_CANCEL_DELAYED_ORDER(address market) external {
+    function expose_perpsV2CancelDelayedOrder(address market) external {
         _perpsV2CancelDelayedOrder({_market: market});
     }
 
-    function expose_PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER(address market) external {
+    function expose_perpsV2CancelOffchainDelayedOrder(address market) external {
         _perpsV2CancelOffchainDelayedOrder({_market: market});
     }
 
@@ -104,7 +109,7 @@ contract AccountExposed is Account {
         _perpsV2ClosePosition({_market: market, _priceImpactDelta: priceImpactDelta});
     }
 
-    function expose_GELATO_PLACE_CONDITIONAL_ORDER(
+    function expose_placeConditionalOrder(
         bytes32 marketKey,
         int256 marginDelta,
         int256 sizeDelta,
@@ -124,7 +129,7 @@ contract AccountExposed is Account {
         });
     }
 
-    function expose_GELATO_CANCEL_CONDITIONAL_ORDER(uint256 orderId) external {
+    function expose_cancelConditionalOrder(uint256 orderId) external {
         _cancelConditionalOrder({_conditionalOrderId: orderId});
     }
 
