@@ -10,6 +10,10 @@ import {
 
 /// @dev This contract exposes the internal functions of Account.sol for testing purposes
 contract AccountExposed is Account {
+    /*//////////////////////////////////////////////////////////////
+                      SETTERS FOR EXPOSED ACCOUNT
+    //////////////////////////////////////////////////////////////*/
+
     function setSettings(ISettings _settings) public {
         settings = _settings;
     }
@@ -18,13 +22,9 @@ contract AccountExposed is Account {
         futuresMarketManager = _futuresMarketManager;
     }
 
-    function expose_abs(int256 x) public pure returns (uint256) {
-        return _abs(x);
-    }
-
-    function expose_isSameSign(int256 x, int256 y) public pure returns (bool) {
-        return _isSameSign(x, y);
-    }
+    /*//////////////////////////////////////////////////////////////
+                         EXPOSED FEE UTILITIES
+    //////////////////////////////////////////////////////////////*/
 
     function expose_calculateTradeFee(
         int256 _sizeDelta,
@@ -32,26 +32,6 @@ contract AccountExposed is Account {
         uint256 _conditionalOrderFee
     ) public view returns (uint256 fee) {
         return _calculateTradeFee(_sizeDelta, _market, _conditionalOrderFee);
-    }
-
-    function expose_sUSDRate(IPerpsV2MarketConsolidated _market) public view returns (uint256) {
-        return _sUSDRate(_market);
-    }
-
-    function expose_getPerpsV2Market(bytes32 _marketKey)
-        public
-        view
-        returns (IPerpsV2MarketConsolidated)
-    {
-        return _getPerpsV2Market(_marketKey);
-    }
-
-    function expose_validConditionalOrder(uint256 _conditionalOrderId)
-        external
-        view
-        returns (bool, uint256)
-    {
-        return (_validConditionalOrder(_conditionalOrderId));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -146,5 +126,41 @@ contract AccountExposed is Account {
 
     function expose_GELATO_CANCEL_CONDITIONAL_ORDER(uint256 orderId) external {
         _cancelConditionalOrder({_conditionalOrderId: orderId});
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        EXPOSED GETTER UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    function expose_getPerpsV2Market(bytes32 _marketKey)
+        public
+        view
+        returns (IPerpsV2MarketConsolidated)
+    {
+        return _getPerpsV2Market(_marketKey);
+    }
+
+    function expose_sUSDRate(IPerpsV2MarketConsolidated _market) public view returns (uint256) {
+        return _sUSDRate(_market);
+    }
+
+    function expose_validConditionalOrder(uint256 _conditionalOrderId)
+        external
+        view
+        returns (bool, uint256)
+    {
+        return (_validConditionalOrder(_conditionalOrderId));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         EXPOSED MATH UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    function expose_abs(int256 x) public pure returns (uint256) {
+        return _abs(x);
+    }
+
+    function expose_isSameSign(int256 x, int256 y) public pure returns (bool) {
+        return _isSameSign(x, y);
     }
 }
