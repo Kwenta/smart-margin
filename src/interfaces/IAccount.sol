@@ -19,6 +19,8 @@ interface IAccount {
     /// @notice Command Flags used to decode commands to execute
     /// @dev under the hood PERPS_V2_MODIFY_MARGIN = 0, PERPS_V2_WITHDRAW_ALL_MARGIN = 1
     enum Command {
+        ACCOUNT_MODIFY_MARGIN,
+        ACCOUNT_WITHDRAW_ETH,
         PERPS_V2_MODIFY_MARGIN,
         PERPS_V2_WITHDRAW_ALL_MARGIN,
         PERPS_V2_SUBMIT_ATOMIC_ORDER,
@@ -26,7 +28,9 @@ interface IAccount {
         PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER,
         PERPS_V2_CANCEL_DELAYED_ORDER,
         PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER,
-        PERPS_V2_CLOSE_POSITION
+        PERPS_V2_CLOSE_POSITION,
+        GELATO_PLACE_CONDITIONAL_ORDER,
+        GELATO_CANCEL_CONDITIONAL_ORDER
     }
 
     /// @notice denotes conditional order types for code clarity
@@ -71,10 +75,6 @@ interface IAccount {
 
     /// @notice thrown when Command given is not valid
     error InvalidCommandType(uint256 commandType);
-
-    /// @notice thrown when margin delta is
-    /// positive/zero for withdrawals or negative/zero for deposits
-    error InvalidMarginDelta();
 
     /// @notice thrown when margin asset transfer fails
     error FailedMarginTransfer();
@@ -176,46 +176,10 @@ interface IAccount {
                                 MUTATIVE
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice deposit margin asset to trade with into this contract
-    /// @param _amount: amount of marginAsset to deposit into account
-    function deposit(uint256 _amount) external;
-
-    /// @notice attmept to withdraw non-committed margin from account to user
-    /// @param _amount: amount of marginAsset to withdraw from account
-    function withdraw(uint256 _amount) external;
-
-    /// @notice allow users to withdraw ETH deposited for keeper fees
-    /// @param _amount: amount to withdraw
-    function withdrawEth(uint256 _amount) external;
-
     /// @notice executes commands along with provided inputs
     /// @param _commands: array of commands, each represented as an enum
     /// @param _inputs: array of byte strings containing abi encoded inputs for each command
     function execute(Command[] calldata _commands, bytes[] calldata _inputs) external payable;
-
-    /// @notice register a conditional order internally and with gelato
-    /// @dev restricts _sizeDelta to be non-zero otherwise no need for conditional order
-    /// @param _marketKey: Synthetix futures market id/key
-    /// @param _marginDelta: amount of margin (in sUSD) to deposit or withdraw
-    /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of position
-    /// @param _targetPrice: expected conditional order price
-    /// @param _conditionalOrderType: expected conditional order type enum where 0 = LIMIT, 1 = STOP, etc..
-    /// @param _priceImpactDelta: price impact tolerance as a percentage
-    /// @param _reduceOnly: if true, only allows position's absolute size to decrease
-    /// @return id of newly created conditional order
-    function placeConditionalOrder(
-        bytes32 _marketKey,
-        int256 _marginDelta,
-        int256 _sizeDelta,
-        uint256 _targetPrice,
-        ConditionalOrderTypes _conditionalOrderType,
-        uint128 _priceImpactDelta,
-        bool _reduceOnly
-    ) external payable returns (uint256);
-
-    /// @notice cancel a gelato queued conditional order
-    /// @param _conditionalOrderId: key for an active conditional order
-    function cancelConditionalOrder(uint256 _conditionalOrderId) external;
 
     /// @notice execute a gelato queued conditional order
     /// @notice only keepers can trigger this function
