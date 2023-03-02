@@ -308,35 +308,37 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
     /// @notice allow users to withdraw ETH deposited for keeper fees
     /// @param _amount: amount to withdraw
-    function _withdrawEth(uint256 _amount) internal notZero(_amount, "_amount") {
-        (bool success,) = payable(owner).call{value: _amount}("");
-        if (!success) revert EthWithdrawalFailed();
+    function _withdrawEth(uint256 _amount) internal {
+        if (_amount > 0) {
+            (bool success,) = payable(owner).call{value: _amount}("");
+            if (!success) revert EthWithdrawalFailed();
 
-        events.emitEthWithdraw({user: msg.sender, account: address(this), amount: _amount});
+            events.emitEthWithdraw({user: msg.sender, account: address(this), amount: _amount});
+        }
     }
 
     /// @notice deposit/withdraw margin to/from this smart margin account
     /// @param _amount: amount of margin to deposit/withdraw
-    function _modifyAccountMargin(int256 _amount) internal notZero(uint256(_amount), "_amount") {
+    function _modifyAccountMargin(int256 _amount) internal {
         // if amount is positive, deposit
         if (_amount > 0) {
-            bool success = MARGIN_ASSET.transferFrom(owner, address(this), uint256(_amount));
+            bool success = MARGIN_ASSET.transferFrom(owner, address(this), _abs(_amount));
             if (!success) revert FailedMarginTransfer();
 
-            events.emitDeposit({user: msg.sender, account: address(this), amount: uint256(_amount)});
-        } else {
+            events.emitDeposit({user: msg.sender, account: address(this), amount: _abs(_amount)});
+        } else if (_amount < 0) {
             // if amount is negative, withdraw
-            if (uint256(_amount) > freeMargin()) {
+            if (_abs(_amount) > freeMargin()) {
                 /// @dev make sure committed margin isn't withdrawn
-                revert InsufficientFreeMargin(freeMargin(), uint256(-_amount));
+                revert InsufficientFreeMargin(freeMargin(), _abs(_amount));
             } else {
-                bool success = MARGIN_ASSET.transfer(owner, uint256(-_amount));
+                bool success = MARGIN_ASSET.transfer(owner, _abs(_amount));
                 if (!success) revert FailedMarginTransfer();
 
                 events.emitWithdraw({
                     user: msg.sender,
                     account: address(this),
-                    amount: uint256(-_amount)
+                    amount: _abs(_amount)
                 });
             }
         }
