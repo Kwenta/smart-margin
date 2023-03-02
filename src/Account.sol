@@ -556,6 +556,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             priceImpactDelta: _priceImpactDelta,
             reduceOnly: _reduceOnly
         });
+
+        conditionalOrderId++;
     }
 
     /// @notice cancel a gelato queued conditional order
