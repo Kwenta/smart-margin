@@ -268,6 +268,30 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         } else if (_command == Command.PERPS_V2_CLOSE_POSITION) {
             (address market, uint256 priceImpactDelta) = abi.decode(_inputs, (address, uint256));
             _perpsV2ClosePosition({_market: market, _priceImpactDelta: priceImpactDelta});
+        } else if (_command == Command.GELATO_PLACE_CONDITIONAL_ORDER) {
+            (
+                bytes32 marketKey,
+                int256 marginDelta,
+                int256 sizeDelta,
+                uint256 targetPrice,
+                ConditionalOrderTypes conditionalOrderType,
+                uint128 priceImpactDelta,
+                bool reduceOnly
+            ) = abi.decode(
+                _inputs, (bytes32, int256, int256, uint256, ConditionalOrderTypes, uint128, bool)
+            );
+            _placeConditionalOrder({
+                _marketKey: marketKey,
+                _marginDelta: marginDelta,
+                _sizeDelta: sizeDelta,
+                _targetPrice: targetPrice,
+                _conditionalOrderType: conditionalOrderType,
+                _priceImpactDelta: priceImpactDelta,
+                _reduceOnly: reduceOnly
+            });
+        } else if (_command == Command.GELATO_CANCEL_CONDITIONAL_ORDER) {
+            uint256 orderId = abi.decode(_inputs, (uint256));
+            _cancelConditionalOrder({_conditionalOrderId: orderId});
         } else {
             // placeholder area for further commands
             revert InvalidCommandType(uint256(_command));
