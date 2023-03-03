@@ -456,11 +456,6 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         onlyOwner
         returns (uint256)
     {
-        // ensure account has enough eth to eventually pay for the conditional order
-        if (address(this).balance < MIN_ETH) {
-            revert InsufficientEthBalance(address(this).balance, MIN_ETH);
-        }
-
         // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
             // ensure margin doesn't exceed max

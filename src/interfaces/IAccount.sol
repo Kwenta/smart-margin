@@ -102,11 +102,6 @@ interface IAccount {
     /// @notice Insufficient margin to pay fee
     error CannotPayFee();
 
-    /// @notice Must have a minimum eth balance before placing a conditional order
-    /// @param balance: current ETH balance
-    /// @param minimum: min required ETH balance
-    error InsufficientEthBalance(uint256 balance, uint256 minimum);
-
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
