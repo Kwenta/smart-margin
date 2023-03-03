@@ -49,7 +49,9 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             treasury: KWENTA_TREASURY,
             tradeFee: TRADE_FEE,
             limitOrderFee: LIMIT_ORDER_FEE,
-            stopOrderFee: STOP_ORDER_FEE
+            stopOrderFee: STOP_ORDER_FEE,
+            addressResolver: ADDRESS_RESOLVER,
+            marginAsset: MARGIN_ASSET
         });
         settings = Settings(factory.settings());
         events = Events(factory.events());

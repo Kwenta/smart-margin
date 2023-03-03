@@ -62,10 +62,13 @@ uint256 constant STOP_ORDER_FEE = 3;
                                SYNTHETIX
 //////////////////////////////////////////////////////////////*/
 
-// synthetix (ReadProxyAddressResolver)
+// Synthetix (ReadProxyAddressResolver)
 address constant ADDRESS_RESOLVER = 0x1Cb059b7e74fD21665968C908806143E744D5F30;
 
-// synthetix (FuturesMarketManager)
+// Synthetix (ProxyERC20sUSD)
+address constant MARGIN_ASSET = 0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9;
+
+// Synthetix (FuturesMarketManager)
 address constant FUTURES_MARKET_MANAGER = 0xdb89f3fc45A707Dd49781495f77f8ae69bF5cA6e;
 
 // Synthetix PerpsV2 market key(s)
