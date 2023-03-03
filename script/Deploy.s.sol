@@ -15,7 +15,9 @@ contract Setup {
         address treasury,
         uint256 tradeFee,
         uint256 limitOrderFee,
-        uint256 stopOrderFee
+        uint256 stopOrderFee,
+        address addressResolver,
+        address marginAsset
     ) public returns (Factory factory) {
         Settings settings = new Settings({
             _owner: owner,
@@ -27,7 +29,10 @@ contract Setup {
 
         Events events = new Events();
 
-        Account implementation = new Account();
+        Account implementation = new Account({
+            addressResolver: addressResolver, 
+            marginAsset: marginAsset
+        });
 
         // deploy Factory
         factory = new Factory({
@@ -50,6 +55,9 @@ contract DeployOptimism is Script, Setup {
     uint256 private constant SETTINGS_LIMIT_ORDER_FEE = 1;
     uint256 private constant SETTINGS_STOP_ORDER_FEE = 1;
 
+    address private constant ADDRESS_RESOLVER = 0x1Cb059b7e74fD21665968C908806143E744D5F30;
+    address private constant MARGIN_ASSET = 0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9;
+
     function run() public {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
@@ -59,7 +67,9 @@ contract DeployOptimism is Script, Setup {
             treasury: KWENTA_TREASURY_MULTI_SIG,
             tradeFee: SETTINGS_TRADE_FEE,
             limitOrderFee: SETTINGS_LIMIT_ORDER_FEE,
-            stopOrderFee: SETTINGS_STOP_ORDER_FEE
+            stopOrderFee: SETTINGS_STOP_ORDER_FEE,
+            addressResolver: ADDRESS_RESOLVER,
+            marginAsset: MARGIN_ASSET
         });
 
         vm.stopBroadcast();
@@ -77,6 +87,9 @@ contract DeployOptimismGoerli is Script, Setup {
     uint256 private constant SETTINGS_LIMIT_ORDER_FEE = 1;
     uint256 private constant SETTINGS_STOP_ORDER_FEE = 1;
 
+    address private constant ADDRESS_RESOLVER = 0x9Fc84992dF5496797784374B810E04238728743d;
+    address private constant MARGIN_ASSET = 0xeBaEAAD9236615542844adC5c149F86C36aD1136;
+
     function run() public {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
@@ -86,7 +99,9 @@ contract DeployOptimismGoerli is Script, Setup {
             treasury: KWENTA_TREASURY_MULTI_SIG,
             tradeFee: SETTINGS_TRADE_FEE,
             limitOrderFee: SETTINGS_LIMIT_ORDER_FEE,
-            stopOrderFee: SETTINGS_STOP_ORDER_FEE
+            stopOrderFee: SETTINGS_STOP_ORDER_FEE,
+            addressResolver: ADDRESS_RESOLVER,
+            marginAsset: MARGIN_ASSET
         });
 
         vm.stopBroadcast();

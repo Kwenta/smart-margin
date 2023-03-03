@@ -13,3 +13,4 @@ out/
 # Other
 .vscode
 .idea
+lcov.info

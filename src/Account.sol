@@ -27,16 +27,6 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /// @inheritdoc IAccount
     bytes32 public constant VERSION = "2.0.0";
 
-    /// @notice address of the Synthetix ReadProxyAddressResolver
-    IAddressResolver private constant ADDRESS_RESOLVER =
-        IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30); // Optimism
-    // IAddressResolver private constant ADDRESS_RESOLVER =
-    //     IAddressResolver(0x9Fc84992dF5496797784374B810E04238728743d); // Optimism Goerli
-
-    /// @notice address of the Synthetix ProxyERC20sUSD address used as the margin asset
-    IERC20 private constant MARGIN_ASSET = IERC20(0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9); // Optimism
-    // IERC20 private constant MARGIN_ASSET = IERC20(0xeBaEAAD9236615542844adC5c149F86C36aD1136); // Optimism Goerli
-
     /// @notice tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
 
@@ -48,6 +38,17 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
     /// @notice minimum ETH balance required to place a conditional order
     uint256 private constant MIN_ETH = 1 ether / 100;
+
+    /*//////////////////////////////////////////////////////////////
+                               IMMUTABLES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice address of the Synthetix ReadProxyAddressResolver
+    IAddressResolver private immutable ADDRESS_RESOLVER;
+
+    /// @notice address of the Synthetix ProxyERC20sUSD
+    /// address used as the margin asset
+    IERC20 private immutable MARGIN_ASSET;
 
     /*//////////////////////////////////////////////////////////////
                                  STATE
@@ -92,10 +93,13 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
     /// @notice disable initializers on initial contract deployment
     /// @dev set owner of implementation to zero address
-    constructor() Owned(address(0)) {
+    constructor(address addressResolver, address marginAsset) Owned(address(0)) {
         // recommended to use this to lock implementation contracts
         // that are designed to be called through proxies
         _disableInitializers();
+
+        ADDRESS_RESOLVER = IAddressResolver(addressResolver);
+        MARGIN_ASSET = IERC20(marginAsset);
     }
 
     /// @notice initialize contract (only once) and transfer ownership to specified address
@@ -516,11 +520,6 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         uint128 _priceImpactDelta,
         bool _reduceOnly
     ) internal notZero(_abs(_sizeDelta), "_sizeDelta") {
-        // ensure account has enough eth to eventually pay for the conditional order
-        if (address(this).balance < MIN_ETH) {
-            revert InsufficientEthBalance(address(this).balance, MIN_ETH);
-        }
-
         // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
             // ensure margin doesn't exceed max

@@ -53,7 +53,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             treasury: KWENTA_TREASURY,
             tradeFee: TRADE_FEE,
             limitOrderFee: LIMIT_ORDER_FEE,
-            stopOrderFee: STOP_ORDER_FEE
+            stopOrderFee: STOP_ORDER_FEE,
+            addressResolver: ADDRESS_RESOLVER,
+            marginAsset: MARGIN_ASSET
         });
 
         settings = Settings(factory.settings());
@@ -101,26 +103,6 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         commands[0] = IAccount.Command.GELATO_PLACE_CONDITIONAL_ORDER;
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(sETHPERP, 0, 0, 0, IAccount.ConditionalOrderTypes.LIMIT, 0, false);
-        account.execute(commands, inputs);
-    }
-
-    function test_PlaceConditionalOrder_Invalid_InsufficientETH() external {
-        vm.prank(USER);
-        account = Account(payable(factory.newAccount()));
-
-        IAccount.Command[] memory commands = new IAccount.Command[](1);
-        commands[0] = IAccount.Command.GELATO_PLACE_CONDITIONAL_ORDER;
-        bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(
-            sETHPERP, 0, int256(AMOUNT), 0, IAccount.ConditionalOrderTypes.LIMIT, 0, false
-        );
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccount.InsufficientEthBalance.selector, address(account).balance, MIN_ETH
-            )
-        );
-        vm.prank(USER);
         account.execute(commands, inputs);
     }
 

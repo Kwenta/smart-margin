@@ -8,12 +8,19 @@ import {
     ISettings,
     IEvents
 } from "../../src/Account.sol";
+import "./Constants.sol";
 
 /// @dev This contract exposes the internal functions of Account.sol for testing purposes
 contract AccountExposed is Account {
+    constructor() Account(ADDRESS_RESOLVER, MARGIN_ASSET) {}
+
     /*//////////////////////////////////////////////////////////////
                       SETTERS FOR EXPOSED ACCOUNT
     //////////////////////////////////////////////////////////////*/
+
+    function setSettings(ISettings _settings) public {
+        settings = _settings;
+    }
 
     function setFuturesMarketManager(IFuturesMarketManager _futuresMarketManager) external {
         futuresMarketManager = _futuresMarketManager;
