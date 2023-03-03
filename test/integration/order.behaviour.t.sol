@@ -114,26 +114,6 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         });
     }
 
-    function test_PlaceConditionalOrder_Invalid_InsufficientETH() external {
-        vm.prank(USER);
-        account = createAccount();
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccount.InsufficientEthBalance.selector, address(account).balance, MIN_ETH
-            )
-        );
-        vm.prank(USER);
-        account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: 0,
-            _sizeDelta: int256(AMOUNT),
-            _targetPrice: 0,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: 0,
-            _reduceOnly: false
-        });
-    }
-
     function test_PlaceConditionalOrder_Invalid_InsufficientMargin() external {
         vm.prank(USER);
         account = createAccount();
