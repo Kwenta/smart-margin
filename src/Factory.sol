@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import {AccountProxy} from "./AccountProxy.sol";
 import {IFactory} from "./interfaces/IFactory.sol";
@@ -27,7 +27,7 @@ contract Factory is IFactory, Owned {
     address public events;
 
     /// @inheritdoc IFactory
-    mapping(address => address) public ownerToAccount;
+    mapping(address accountOwner => address account) public ownerToAccount;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -38,12 +38,9 @@ contract Factory is IFactory, Owned {
     /// @param _settings: address of settings contract for accounts
     /// @param _events: address of events contract for accounts
     /// @param _implementation: address of account implementation
-    constructor(
-        address _owner,
-        address _settings,
-        address _events,
-        address _implementation
-    ) Owned(_owner) {
+    constructor(address _owner, address _settings, address _events, address _implementation)
+        Owned(_owner)
+    {
         settings = _settings;
         events = _events;
         implementation = _implementation;
@@ -54,11 +51,7 @@ contract Factory is IFactory, Owned {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IFactory
-    function newAccount()
-        external
-        override
-        returns (address payable accountAddress)
-    {
+    function newAccount() external override returns (address payable accountAddress) {
         /// @dev ensure one account per address
         if (ownerToAccount[msg.sender] != address(0)) {
             revert OnlyOneAccountPerAddress(ownerToAccount[msg.sender]);
@@ -83,9 +76,7 @@ contract Factory is IFactory, Owned {
         if (!success) revert AccountFailedToInitialize(data);
 
         // determine version for the following event
-        (success, data) = accountAddress.call(
-            abi.encodeWithSignature("VERSION()")
-        );
+        (success, data) = accountAddress.call(abi.encodeWithSignature("VERSION()"));
         if (!success) revert AccountFailedToFetchVersion(data);
 
         emit NewAccount({
@@ -100,10 +91,7 @@ contract Factory is IFactory, Owned {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IFactory
-    function updateAccountOwner(address _oldOwner, address _newOwner)
-        external
-        override
-    {
+    function updateAccountOwner(address _oldOwner, address _newOwner) external override {
         /// @dev ensure _newOwner does not already have an account
         if (ownerToAccount[_newOwner] != address(0)) {
             revert OnlyOneAccountPerAddress(ownerToAccount[_newOwner]);
@@ -127,11 +115,7 @@ contract Factory is IFactory, Owned {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IFactory
-    function upgradeAccountImplementation(address _implementation)
-        external
-        override
-        onlyOwner
-    {
+    function upgradeAccountImplementation(address _implementation) external override onlyOwner {
         if (!canUpgrade) revert CannotUpgrade();
         implementation = _implementation;
         emit AccountImplementationUpgraded({implementation: _implementation});

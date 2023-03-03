@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 /// @title Kwenta Settings Interface
-/// @author JaredBorders (jaredborders@proton.me)
+/// @author JaredBorders (jaredborders@pm.me)
 /// @dev all fees are denoted in Basis points (BPS)
 interface ISettings {
     /*//////////////////////////////////////////////////////////////
@@ -31,6 +31,9 @@ interface ISettings {
 
     /// @notice zero address cannot be used
     error ZeroAddress();
+
+    /// @notice new treasury address cannot be the same as the old treasury address
+    error DuplicateAddress();
 
     /// @notice invalid fee (fee > MAX_BPS)
     /// @param fee: fee denoted in BPS

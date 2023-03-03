@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 pragma experimental ABIEncoderV2;
 
 interface IPerpsV2MarketSettings {
@@ -29,81 +29,39 @@ interface IPerpsV2MarketSettings {
 
     function makerFee(bytes32 _marketKey) external view returns (uint256);
 
-    function takerFeeDelayedOrder(bytes32 _marketKey)
-        external
-        view
-        returns (uint256);
+    function takerFeeDelayedOrder(bytes32 _marketKey) external view returns (uint256);
 
-    function makerFeeDelayedOrder(bytes32 _marketKey)
-        external
-        view
-        returns (uint256);
+    function makerFeeDelayedOrder(bytes32 _marketKey) external view returns (uint256);
 
-    function takerFeeOffchainDelayedOrder(bytes32 _marketKey)
-        external
-        view
-        returns (uint256);
+    function takerFeeOffchainDelayedOrder(bytes32 _marketKey) external view returns (uint256);
 
-    function makerFeeOffchainDelayedOrder(bytes32 _marketKey)
-        external
-        view
-        returns (uint256);
+    function makerFeeOffchainDelayedOrder(bytes32 _marketKey) external view returns (uint256);
 
-    function nextPriceConfirmWindow(bytes32 _marketKey)
-        external
-        view
-        returns (uint256);
+    function nextPriceConfirmWindow(bytes32 _marketKey) external view returns (uint256);
 
-    function delayedOrderConfirmWindow(bytes32 _marketKey)
-        external
-        view
-        returns (uint256);
+    function delayedOrderConfirmWindow(bytes32 _marketKey) external view returns (uint256);
 
-    function offchainDelayedOrderMinAge(bytes32 _marketKey)
-        external
-        view
-        returns (uint256);
+    function offchainDelayedOrderMinAge(bytes32 _marketKey) external view returns (uint256);
 
-    function offchainDelayedOrderMaxAge(bytes32 _marketKey)
-        external
-        view
-        returns (uint256);
+    function offchainDelayedOrderMaxAge(bytes32 _marketKey) external view returns (uint256);
 
     function maxLeverage(bytes32 _marketKey) external view returns (uint256);
 
     function maxMarketValue(bytes32 _marketKey) external view returns (uint256);
 
-    function maxFundingVelocity(bytes32 _marketKey)
-        external
-        view
-        returns (uint256);
+    function maxFundingVelocity(bytes32 _marketKey) external view returns (uint256);
 
     function skewScale(bytes32 _marketKey) external view returns (uint256);
 
-    function minDelayTimeDelta(bytes32 _marketKey)
-        external
-        view
-        returns (uint256);
+    function minDelayTimeDelta(bytes32 _marketKey) external view returns (uint256);
 
-    function maxDelayTimeDelta(bytes32 _marketKey)
-        external
-        view
-        returns (uint256);
+    function maxDelayTimeDelta(bytes32 _marketKey) external view returns (uint256);
 
-    function parameters(bytes32 _marketKey)
-        external
-        view
-        returns (Parameters memory);
+    function parameters(bytes32 _marketKey) external view returns (Parameters memory);
 
-    function offchainMarketKey(bytes32 _marketKey)
-        external
-        view
-        returns (bytes32);
+    function offchainMarketKey(bytes32 _marketKey) external view returns (bytes32);
 
-    function offchainPriceDivergence(bytes32 _marketKey)
-        external
-        view
-        returns (uint256);
+    function offchainPriceDivergence(bytes32 _marketKey) external view returns (uint256);
 
     function minKeeperFee() external view returns (uint256);
 

@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import "./ISynth.sol";
 
 interface IVirtualSynth {
     // Views
-    function balanceOfUnderlying(address account)
-        external
-        view
-        returns (uint256);
+    function balanceOfUnderlying(address account) external view returns (uint256);
 
     function rate() external view returns (uint256);
 

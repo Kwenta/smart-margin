@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import "./IPerpsV2MarketBaseTypes.sol";
 
@@ -14,8 +14,7 @@ interface IPerpsV2Market {
 
     function withdrawAllMargin() external;
 
-    function modifyPosition(int256 sizeDelta, uint256 priceImpactDelta)
-        external;
+    function modifyPosition(int256 sizeDelta, uint256 priceImpactDelta) external;
 
     function modifyPositionWithTracking(
         int256 sizeDelta,
@@ -25,10 +24,7 @@ interface IPerpsV2Market {
 
     function closePosition(uint256 priceImpactDelta) external;
 
-    function closePositionWithTracking(
-        uint256 priceImpactDelta,
-        bytes32 trackingCode
-    ) external;
+    function closePositionWithTracking(uint256 priceImpactDelta, bytes32 trackingCode) external;
 
     function liquidatePosition(address account) external;
 }

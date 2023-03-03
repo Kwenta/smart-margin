@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 pragma experimental ABIEncoderV2;
 
 import "./IPerpsV2MarketBaseTypes.sol";
@@ -20,10 +20,7 @@ interface IPerpsV2MarketState {
 
     function fundingRateLastRecomputed() external view returns (int128);
 
-    function positions(address)
-        external
-        view
-        returns (IPerpsV2MarketBaseTypes.Position memory);
+    function positions(address) external view returns (IPerpsV2MarketBaseTypes.Position memory);
 
     function delayedOrders(address)
         external
@@ -36,10 +33,7 @@ interface IPerpsV2MarketState {
 
     function fundingSequenceLength() external view returns (uint256);
 
-    function getPositionAddressesPage(uint256, uint256)
-        external
-        view
-        returns (address[] memory);
+    function getPositionAddressesPage(uint256, uint256) external view returns (address[] memory);
 
     function getDelayedOrderAddressesPage(uint256, uint256)
         external
@@ -64,8 +58,7 @@ interface IPerpsV2MarketState {
 
     function setFundingLastRecomputed(uint32) external;
 
-    function setFundingRateLastRecomputed(int128 _fundingRateLastRecomputed)
-        external;
+    function setFundingRateLastRecomputed(int128 _fundingRateLastRecomputed) external;
 
     function pushFundingSequence(int128) external;
 

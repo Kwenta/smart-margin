@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 pragma experimental ABIEncoderV2;
 
 import "./IPerpsV2MarketBaseTypes.sol";
@@ -17,10 +17,7 @@ interface IPerpsV2MarketViews {
 
     function fundingLastRecomputed() external view returns (uint32 timestamp);
 
-    function fundingSequence(uint256 index)
-        external
-        view
-        returns (int128 netFunding);
+    function fundingSequence(uint256 index) external view returns (int128 netFunding);
 
     function positions(address account)
         external
@@ -35,34 +32,19 @@ interface IPerpsV2MarketViews {
 
     function currentFundingRate() external view returns (int256 fundingRate);
 
-    function currentFundingVelocity()
-        external
-        view
-        returns (int256 fundingVelocity);
+    function currentFundingVelocity() external view returns (int256 fundingVelocity);
 
-    function unrecordedFunding()
-        external
-        view
-        returns (int256 funding, bool invalid);
+    function unrecordedFunding() external view returns (int256 funding, bool invalid);
 
     function fundingSequenceLength() external view returns (uint256 length);
 
     /* ---------- Position Details ---------- */
 
-    function notionalValue(address account)
-        external
-        view
-        returns (int256 value, bool invalid);
+    function notionalValue(address account) external view returns (int256 value, bool invalid);
 
-    function profitLoss(address account)
-        external
-        view
-        returns (int256 pnl, bool invalid);
+    function profitLoss(address account) external view returns (int256 pnl, bool invalid);
 
-    function accruedFunding(address account)
-        external
-        view
-        returns (int256 funding, bool invalid);
+    function accruedFunding(address account) external view returns (int256 funding, bool invalid);
 
     function remainingMargin(address account)
         external
@@ -83,10 +65,10 @@ interface IPerpsV2MarketViews {
 
     function canLiquidate(address account) external view returns (bool);
 
-    function orderFee(
-        int256 sizeDelta,
-        IPerpsV2MarketBaseTypes.OrderType orderType
-    ) external view returns (uint256 fee, bool invalid);
+    function orderFee(int256 sizeDelta, IPerpsV2MarketBaseTypes.OrderType orderType)
+        external
+        view
+        returns (uint256 fee, bool invalid);
 
     function postTradeDetails(
         int256 sizeDelta,

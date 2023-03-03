@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import {ISettings} from "./interfaces/ISettings.sol";
 import {Owned} from "@solmate/auth/Owned.sol";
 
 /// @title Kwenta Settings for Accounts
-/// @author JaredBorders (jaredborders@proton.me), JChiaramonte7 (jeremy@bytecode.llc)
+/// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 contract Settings is ISettings, Owned {
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISettings
-    uint256 public constant MAX_BPS = 10000;
+    uint256 public constant MAX_BPS = 10_000;
 
     /*//////////////////////////////////////////////////////////////
                                 SETTINGS
@@ -68,6 +68,9 @@ contract Settings is ISettings, Owned {
     function setTreasury(address _treasury) external override onlyOwner {
         /// @notice ensure valid address for Kwenta Treasury
         if (_treasury == address(0)) revert ZeroAddress();
+
+        // @notice ensure address will change
+        if (_treasury == treasury) revert DuplicateAddress();
 
         /// @notice set Kwenta Treasury address
         treasury = _treasury;

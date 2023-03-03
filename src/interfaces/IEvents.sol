@@ -1,90 +1,105 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import {IAccount} from "./IAccount.sol";
 
-/// @title Consolidates all events emitted by the Smart Margin Accounts
-/// @author JaredBorders (jaredborders@proton.me)
+/// @title Interface for contract that emits all events emitted by the Smart Margin Accounts
+/// @author JaredBorders (jaredborders@pm.me)
 interface IEvents {
-    /// @notice emitted when a user deposits margin asset (sUSD) into their account
-    /// @param account: address of the account that received the deposit
-    /// @param amountDeposited: amount of sUSD deposited
-    function emitDeposit(address account, uint256 amountDeposited) external;
+    /// @notice emitted after a successful withdrawal
+    /// @param user: the address that withdrew from account
+    /// @param account: the account that was withdrawn from
+    /// @param amount: amount of marginAsset to withdraw from account
+    function emitDeposit(address user, address account, uint256 amount) external;
 
-    event Deposit(address indexed account, uint256 amountDeposited);
+    // @inheritdoc IAccount
+    event Deposit(address indexed user, address indexed account, uint256 amount);
 
-    /// @notice emitted when a user withdraws margin asset (sUSD) from their account
-    /// @param account: address of the account that funds (sUSD) were withdrawn from
-    /// @param amountWithdrawn: amount of sUSD withdrawn
-    function emitWithdraw(address account, uint256 amountWithdrawn) external;
+    /// @notice emitted after a successful withdrawal
+    /// @param user: the address that withdrew from account
+    /// @param account: the account that was withdrawn from
+    /// @param amount: amount of marginAsset to withdraw from account
+    function emitWithdraw(address user, address account, uint256 amount) external;
 
-    event Withdraw(address indexed account, uint256 amountWithdrawn);
+    // @inheritdoc IAccount
+    event Withdraw(address indexed user, address indexed account, uint256 amount);
 
-    /// @notice emitted when a user withdraws ETH from their account
-    /// @param account: address of the account that funds (ETH) were withdrawn from
-    /// @param amountWithdrawn: amount of ETH withdrawn
-    function emitEthWithdraw(address account, uint256 amountWithdrawn) external;
+    /// @notice emitted after a successful ETH withdrawal
+    /// @param user: the address that withdrew from account
+    /// @param amount: the account that was withdrawn from
+    /// @param amount: amount of ETH to withdraw from account
+    function emitEthWithdraw(address user, address account, uint256 amount) external;
 
-    event EthWithdraw(address indexed account, uint256 amountWithdrawn);
+    // @inheritdoc IAccount
+    event EthWithdraw(address indexed user, address indexed account, uint256 amount);
 
-    /// @notice emitted when an advanced order is placed
-    /// @param account: account placing the order
-    /// @param orderId: id of order
-    /// @param marketKey: futures market key
+    /// @notice emitted when a conditional order is placed
+    /// @param account: account placing the conditional order
+    /// @param conditionalOrderId: id of conditional order
+    /// @param marketKey: Synthetix PerpsV2 market key
     /// @param marginDelta: margin change
     /// @param sizeDelta: size change
     /// @param targetPrice: targeted fill price
-    /// @param orderType: expected order type enum where 0 = LIMIT, 1 = STOP, etc..
+    /// @param conditionalOrderType: expected conditional order type enum where 0 = LIMIT, 1 = STOP, etc..
     /// @param priceImpactDelta: price impact tolerance as a percentage
-    /// @param maxDynamicFee: dynamic fee cap in 18 decimal form; 0 for no cap
-    function emitOrderPlaced(
+    /// @param reduceOnly: if true, only allows position's absolute size to decrease
+    function emitConditionalOrderPlaced(
         address account,
-        uint256 orderId,
+        uint256 conditionalOrderId,
         bytes32 marketKey,
         int256 marginDelta,
         int256 sizeDelta,
         uint256 targetPrice,
-        IAccount.OrderTypes orderType,
+        IAccount.ConditionalOrderTypes conditionalOrderType,
         uint128 priceImpactDelta,
-        uint256 maxDynamicFee
+        bool reduceOnly
     ) external;
 
-    event OrderPlaced(
+    // @inheritdoc IAccount
+    event ConditionalOrderPlaced(
         address indexed account,
-        uint256 orderId,
+        uint256 conditionalOrderId,
         bytes32 marketKey,
         int256 marginDelta,
         int256 sizeDelta,
         uint256 targetPrice,
-        IAccount.OrderTypes orderType,
+        IAccount.ConditionalOrderTypes conditionalOrderType,
         uint128 priceImpactDelta,
-        uint256 maxDynamicFee
+        bool reduceOnly
     );
 
-    /// @notice emitted when an advanced order is cancelled
-    /// @param account: account cancelling the order
-    /// @param orderId: id of order
-    function emitOrderCancelled(address account, uint256 orderId) external;
-
-    event OrderCancelled(address indexed account, uint256 orderId);
-
-    /// @notice emitted when an advanced order is filled
-    /// @param account: account that placed the order
-    /// @param orderId: id of order
-    /// @param fillPrice: price the order was executed at
-    /// @param keeperFee: fees paid to the executor
-    function emitOrderFilled(
+    /// @notice emitted when a conditional order is cancelled
+    /// @param account: account cancelling the conditional order
+    /// @param conditionalOrderId: id of conditional order
+    /// @param reason: reason for cancellation
+    function emitConditionalOrderCancelled(
         address account,
-        uint256 orderId,
+        uint256 conditionalOrderId,
+        IAccount.ConditionalOrderCancelledReason reason
+    ) external;
+
+    // @inheritdoc IAccount
+    event ConditionalOrderCancelled(
+        address indexed account,
+        uint256 conditionalOrderId,
+        IAccount.ConditionalOrderCancelledReason reason
+    );
+
+    /// @notice emitted when a conditional order is filled
+    /// @param account: account that placed the conditional order
+    /// @param conditionalOrderId: id of conditional order
+    /// @param fillPrice: price the conditional order was executed at
+    /// @param keeperFee: fees paid to the executor
+    function emitConditionalOrderFilled(
+        address account,
+        uint256 conditionalOrderId,
         uint256 fillPrice,
         uint256 keeperFee
     ) external;
 
-    event OrderFilled(
-        address indexed account,
-        uint256 orderId,
-        uint256 fillPrice,
-        uint256 keeperFee
+    // @inheritdoc IAccount
+    event ConditionalOrderFilled(
+        address indexed account, uint256 conditionalOrderId, uint256 fillPrice, uint256 keeperFee
     );
 
     /// @notice emitted after a fee has been transferred to Treasury
@@ -92,5 +107,6 @@ interface IEvents {
     /// @param amount: fee amount sent to Treasury
     function emitFeeImposed(address account, uint256 amount) external;
 
+    // @inheritdoc IAccount
     event FeeImposed(address indexed account, uint256 amount);
 }

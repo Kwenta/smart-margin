@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 /// @title Kwenta Account Proxy Interface
-/// @author JaredBorders (jaredborders@proton.me)
+/// @author JaredBorders (jaredborders@pm.me)
 interface IAccountProxy {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS

@@ -1,165 +1,262 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
 import {Account} from "../../src/Account.sol";
+import {AccountExposed} from "../utils/AccountExposed.sol";
+import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
-import {IAccount, IFuturesMarketManager, IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
+import {
+    IAccount,
+    IFuturesMarketManager,
+    IPerpsV2MarketConsolidated
+} from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
-import {ISynth} from "@synthetix/ISynth.sol";
 import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
+import "../utils/Constants.sol";
 
-contract AccountTest is Test {
-    /// @notice BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
-    /// @dev hard coded addresses are only guaranteed for this block
-    uint256 private constant BLOCK_NUMBER = 60242268;
+contract AccountTest is Test, ConsolidatedEvents {
+    /*//////////////////////////////////////////////////////////////
+                                 STATE
+    //////////////////////////////////////////////////////////////*/
 
     Settings private settings;
     Events private events;
     Factory private factory;
+    Account private account;
     ERC20 private sUSD;
+    AccountExposed private accountExposed;
+    uint256 private currentEthPriceInUSD;
 
-    uint256 private constant AMOUNT = 10_000 ether;
-
-    IAddressResolver private constant ADDRESS_RESOLVER =
-        IAddressResolver(0x1Cb059b7e74fD21665968C908806143E744D5F30);
-    address private constant KWENTA_TREASURY =
-        0x82d2242257115351899894eF384f779b5ba8c695;
-
-    uint256 private tradeFee = 1;
-    uint256 private limitOrderFee = 2;
-    uint256 private stopOrderFee = 3;
-
-    bytes32 private constant sETHPERP = "sETHPERP";
-    bytes32 private constant sBTCPERP = "sBTCPERP";
-
-    event Deposit(address indexed user, uint256 amount);
-    event Withdraw(address indexed user, uint256 amount);
-    event EthWithdraw(address indexed user, uint256 amount);
-    event OrderPlaced(
-        address indexed account,
-        uint256 orderId,
-        bytes32 marketKey,
-        int256 marginDelta,
-        int256 sizeDelta,
-        uint256 targetPrice,
-        IAccount.OrderTypes orderType,
-        uint128 priceImpactDelta,
-        uint256 maxDynamicFee
-    );
-    event OrderCancelled(address indexed account, uint256 orderId);
-    event OrderFilled(
-        address indexed account,
-        uint256 orderId,
-        uint256 fillPrice,
-        uint256 keeperFee
-    );
-    event FeeImposed(address indexed account, uint256 amount);
+    /*//////////////////////////////////////////////////////////////
+                                 SETUP
+    //////////////////////////////////////////////////////////////*/
 
     receive() external payable {}
 
     function setUp() public {
-        // select block number
         vm.rollFork(BLOCK_NUMBER);
-
-        sUSD = ERC20(ADDRESS_RESOLVER.getAddress("ProxyERC20sUSD"));
-
-        // uses deployment script for tests (2 birds 1 stone)
+        sUSD = ERC20(IAddressResolver(ADDRESS_RESOLVER).getAddress("ProxyERC20sUSD"));
         Setup setup = new Setup();
         factory = setup.deploySmartMarginFactory({
             owner: address(this),
             treasury: KWENTA_TREASURY,
-            tradeFee: tradeFee,
-            limitOrderFee: limitOrderFee,
-            stopOrderFee: stopOrderFee
+            tradeFee: TRADE_FEE,
+            limitOrderFee: LIMIT_ORDER_FEE,
+            stopOrderFee: STOP_ORDER_FEE,
+            addressResolver: ADDRESS_RESOLVER,
+            marginAsset: MARGIN_ASSET
         });
-
         settings = Settings(factory.settings());
         events = Events(factory.events());
+        account = Account(payable(factory.newAccount()));
+        accountExposed = new AccountExposed();
+        accountExposed.setSettings(settings);
+        accountExposed.setFuturesMarketManager(IFuturesMarketManager(FUTURES_MARKET_MANAGER));
+        currentEthPriceInUSD = accountExposed.expose_sUSDRate(
+            IPerpsV2MarketConsolidated(accountExposed.expose_getPerpsV2Market(sETHPERP))
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
                                  TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testCanFetchFreeMargin() external {
-        Account account = createAccount();
-        assert(account.freeMargin() == 0);
-        mintSUSD(address(this), AMOUNT);
-        sUSD.approve(address(account), AMOUNT);
+    /*//////////////////////////////////////////////////////////////
+                                 VIEWS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_GetVerison() external view {
+        assert(account.VERSION() == "2.0.0");
+    }
+
+    function test_GetFactory() external view {
+        assert(account.factory() == factory);
+    }
+
+    function test_GetFuturesMarketManager() external view {
+        assert(account.futuresMarketManager() == IFuturesMarketManager(FUTURES_MARKET_MANAGER));
+    }
+
+    function test_GetSettings() external view {
+        assert(account.settings() == settings);
+    }
+
+    function test_GetEvents() external view {
+        assert(account.events() == events);
+    }
+
+    function test_GetCommittedMargin() external view {
+        assert(account.committedMargin() == 0);
+    }
+
+    function test_GetConditionalOrderId() external view {
+        assert(account.conditionalOrderId() == 0);
+    }
+
+    function test_GetDelayedOrder_EthMarket() external {
+        IPerpsV2MarketConsolidated.DelayedOrder memory delayedOrder =
+            account.getDelayedOrder({_marketKey: sETHPERP});
+        assertEq(delayedOrder.isOffchain, false);
+        assertEq(delayedOrder.sizeDelta, 0);
+        assertEq(delayedOrder.priceImpactDelta, 0);
+        assertEq(delayedOrder.targetRoundId, 0);
+        assertEq(delayedOrder.commitDeposit, 0);
+        assertEq(delayedOrder.keeperDeposit, 0);
+        assertEq(delayedOrder.executableAtTime, 0);
+        assertEq(delayedOrder.intentionTime, 0);
+        assertEq(delayedOrder.trackingCode, "");
+    }
+
+    function test_GetDelayedOrder_InvalidMarket() external {
+        vm.expectRevert();
+        account.getDelayedOrder({_marketKey: "unknown"});
+    }
+
+    function test_Checker() external {
+        vm.expectRevert();
+        account.checker({_conditionalOrderId: 0});
+    }
+
+    function test_GetFreeMargin() external {
+        assertEq(account.freeMargin(), 0);
+    }
+
+    function test_GetPosition_EthMarket() external {
+        IPerpsV2MarketConsolidated.Position memory position =
+            account.getPosition({_marketKey: sETHPERP});
+        assertEq(position.id, 0);
+        assertEq(position.lastFundingIndex, 0);
+        assertEq(position.margin, 0);
+        assertEq(position.lastPrice, 0);
+        assertEq(position.size, 0);
+    }
+
+    function test_GetPosition_InvalidMarket() external {
+        vm.expectRevert();
+        account.getPosition({_marketKey: "unknown"});
+    }
+
+    function test_GetConditionalOrder() external {
+        IAccount.ConditionalOrder memory conditionalOrder =
+            account.getConditionalOrder({_conditionalOrderId: 0});
+        assertEq(conditionalOrder.marketKey, "");
+        assertEq(conditionalOrder.marginDelta, 0);
+        assertEq(conditionalOrder.sizeDelta, 0);
+        assertEq(conditionalOrder.targetPrice, 0);
+        assertEq(conditionalOrder.gelatoTaskId, "");
+        assertEq(
+            uint256(conditionalOrder.conditionalOrderType),
+            uint256(IAccount.ConditionalOrderTypes.LIMIT)
+        );
+        assertEq(conditionalOrder.priceImpactDelta, 0);
+        assertEq(conditionalOrder.reduceOnly, false);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                       ACCOUNT DEPOSITS/WITHDRAWS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Deposit_Margin_OnlyOwner() external {
+        account.transferOwnership(KWENTA_TREASURY);
+        vm.expectRevert("UNAUTHORIZED");
         account.deposit(AMOUNT);
-        assert(account.freeMargin() == AMOUNT);
+    }
+
+    function test_Withdraw_Margin_OnlyOwner() external {
+        account.transferOwnership(KWENTA_TREASURY);
+        vm.expectRevert("UNAUTHORIZED");
         account.withdraw(AMOUNT);
-        assert(account.freeMargin() == 0);
+    }
+
+    function test_Deposit_ETH_OnlyOwner() external {
+        account.transferOwnership(KWENTA_TREASURY);
+        vm.expectRevert("UNAUTHORIZED");
+        (bool s,) = address(account).call{value: 1 ether}("");
+        assert(s);
+    }
+
+    function test_Withdraw_ETH_OnlyOwner() external {
+        account.transferOwnership(KWENTA_TREASURY);
+        vm.expectRevert("UNAUTHORIZED");
+        account.withdrawEth(1 ether);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             FEE UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    function test_CalculateTradeFee_EthMarket(int128 fuzzedSizeDelta) external {
+        uint256 conditionalOrderFee = MAX_BPS / 99;
+        IPerpsV2MarketConsolidated market =
+            IPerpsV2MarketConsolidated(getMarketAddressFromKey(sETHPERP));
+        uint256 percentToTake = settings.tradeFee() + conditionalOrderFee;
+        uint256 fee = (accountExposed.expose_abs(int256(fuzzedSizeDelta)) * percentToTake) / MAX_BPS;
+        (uint256 price, bool invalid) = market.assetPrice();
+        assert(!invalid);
+        uint256 feeInSUSD = (price * fee) / 1e18;
+        uint256 actualFee = accountExposed.expose_calculateTradeFee({
+            _sizeDelta: fuzzedSizeDelta,
+            _market: market,
+            _conditionalOrderFee: conditionalOrderFee
+        });
+        assertEq(actualFee, feeInSUSD);
+    }
+
+    function test_CalculateTradeFee_InvalidMarket() external {
+        int256 sizeDelta = -1 ether;
+        vm.expectRevert();
+        accountExposed.expose_calculateTradeFee({
+            _sizeDelta: sizeDelta,
+            _market: IPerpsV2MarketConsolidated(address(0)),
+            _conditionalOrderFee: LIMIT_ORDER_FEE
+        });
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             MATH UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Abs(int256 x) public view {
+        if (x == 0) {
+            assert(accountExposed.expose_abs(x) == 0);
+        } else {
+            assert(accountExposed.expose_abs(x) > 0);
+        }
+    }
+
+    function test_IsSameSign(int256 x, int256 y) public {
+        if (x == 0 || y == 0) {
+            vm.expectRevert();
+            accountExposed.expose_isSameSign(x, y);
+        } else if (x > 0 && y > 0) {
+            assert(accountExposed.expose_isSameSign(x, y));
+        } else if (x < 0 && y < 0) {
+            assert(accountExposed.expose_isSameSign(x, y));
+        } else if (x > 0 && y < 0) {
+            assert(!accountExposed.expose_isSameSign(x, y));
+        } else if (x < 0 && y > 0) {
+            assert(!accountExposed.expose_isSameSign(x, y));
+        } else {
+            assert(false);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    // @HELPER
-    /// @notice mint sUSD and transfer to address specified
-    /// @dev Issuer.sol is an auxiliary helper contract that performs
-    /// the issuing and burning functionality.
-    /// Synth.sol is the base ERC20 token contract comprising most of
-    /// the behaviour of all synths.
-    /// Issuer is considered an "internal contract" therefore,
-    /// it is permitted to call Synth.issue() which is restricted by
-    /// the onlyInternalContracts modifier. Synth.issue() updates the
-    /// token state (i.e. balance and total existing tokens) which effectively
-    /// can be used to "mint" an account the underlying synth.
-    /// @param to: address to mint and transfer sUSD to
-    /// @param amount: amount to mint and transfer
-    function mintSUSD(address to, uint256 amount) private {
-        address issuer = ADDRESS_RESOLVER.getAddress("Issuer");
-        ISynth synthsUSD = ISynth(ADDRESS_RESOLVER.getAddress("SynthsUSD"));
-        vm.prank(issuer);
-        synthsUSD.issue(to, amount);
-    }
-
-    // @HELPER
-    /// @notice create margin base account
-    /// @return account - Account account
-    function createAccount() private returns (Account account) {
-        account = Account(payable(factory.newAccount()));
-    }
-
-    // @HELPER
-    /// @notice create margin base account and fund it with sUSD
-    /// @return Account account
-    function createAccountAndDepositSUSD() private returns (Account) {
-        Account account = createAccount();
-        mintSUSD(address(this), AMOUNT);
-        sUSD.approve(address(account), AMOUNT);
-        account.deposit(AMOUNT);
-
-        return account;
-    }
-
-    // @HELPER
-    /// @notice get address of market
-    /// @return market address
-    function getMarketAddressFromKey(bytes32 key)
-        private
-        view
-        returns (address market)
-    {
+    function getMarketAddressFromKey(bytes32 key) private view returns (address market) {
         // market and order related params
         market = address(
             IPerpsV2MarketConsolidated(
                 IFuturesMarketManager(
-                    ADDRESS_RESOLVER.getAddress("FuturesMarketManager")
+                    IAddressResolver(ADDRESS_RESOLVER).getAddress("FuturesMarketManager")
                 ).marketForKey(key)
             )
         );
-    }
-
-    // @HELPER
-    /// @notice takes int and returns absolute value uint
-    function abs(int256 x) internal pure returns (uint256) {
-        return uint256(x < 0 ? -x : x);
     }
 }

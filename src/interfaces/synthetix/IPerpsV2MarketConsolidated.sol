@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import "./IPerpsV2MarketBaseTypes.sol";
+
 pragma experimental ABIEncoderV2;
 
 // Helper Interface, only used in tests and to provide a consolidated interface to PerpsV2 users/integrators
@@ -66,17 +67,11 @@ interface IPerpsV2MarketConsolidated {
 
     function fundingLastRecomputed() external view returns (uint32 timestamp);
 
-    function fundingSequence(uint256 index)
-        external
-        view
-        returns (int128 netFunding);
+    function fundingSequence(uint256 index) external view returns (int128 netFunding);
 
     function positions(address account) external view returns (Position memory);
 
-    function delayedOrders(address account)
-        external
-        view
-        returns (DelayedOrder memory);
+    function delayedOrders(address account) external view returns (DelayedOrder memory);
 
     function assetPrice() external view returns (uint256 price, bool invalid);
 
@@ -86,34 +81,19 @@ interface IPerpsV2MarketConsolidated {
 
     function currentFundingRate() external view returns (int256 fundingRate);
 
-    function currentFundingVelocity()
-        external
-        view
-        returns (int256 fundingVelocity);
+    function currentFundingVelocity() external view returns (int256 fundingVelocity);
 
-    function unrecordedFunding()
-        external
-        view
-        returns (int256 funding, bool invalid);
+    function unrecordedFunding() external view returns (int256 funding, bool invalid);
 
     function fundingSequenceLength() external view returns (uint256 length);
 
     /* ---------- Position Details ---------- */
 
-    function notionalValue(address account)
-        external
-        view
-        returns (int256 value, bool invalid);
+    function notionalValue(address account) external view returns (int256 value, bool invalid);
 
-    function profitLoss(address account)
-        external
-        view
-        returns (int256 pnl, bool invalid);
+    function profitLoss(address account) external view returns (int256 pnl, bool invalid);
 
-    function accruedFunding(address account)
-        external
-        view
-        returns (int256 funding, bool invalid);
+    function accruedFunding(address account) external view returns (int256 funding, bool invalid);
 
     function remainingMargin(address account)
         external
@@ -134,10 +114,10 @@ interface IPerpsV2MarketConsolidated {
 
     function canLiquidate(address account) external view returns (bool);
 
-    function orderFee(
-        int256 sizeDelta,
-        IPerpsV2MarketBaseTypes.OrderType orderType
-    ) external view returns (uint256 fee, bool invalid);
+    function orderFee(int256 sizeDelta, IPerpsV2MarketBaseTypes.OrderType orderType)
+        external
+        view
+        returns (uint256 fee, bool invalid);
 
     function postTradeDetails(
         int256 sizeDelta,
@@ -163,8 +143,7 @@ interface IPerpsV2MarketConsolidated {
 
     function withdrawAllMargin() external;
 
-    function modifyPosition(int256 sizeDelta, uint256 priceImpactDelta)
-        external;
+    function modifyPosition(int256 sizeDelta, uint256 priceImpactDelta) external;
 
     function modifyPositionWithTracking(
         int256 sizeDelta,
@@ -174,10 +153,7 @@ interface IPerpsV2MarketConsolidated {
 
     function closePosition(uint256 priceImpactDelta) external;
 
-    function closePositionWithTracking(
-        uint256 priceImpactDelta,
-        bytes32 trackingCode
-    ) external;
+    function closePositionWithTracking(uint256 priceImpactDelta, bytes32 trackingCode) external;
 
     function liquidatePosition(address account) external;
 
@@ -200,10 +176,7 @@ interface IPerpsV2MarketConsolidated {
     function executeDelayedOrder(address account) external;
 
     /* ========== OffchainDelayedOrder ========== */
-    function submitOffchainDelayedOrder(
-        int256 sizeDelta,
-        uint256 priceImpactDelta
-    ) external;
+    function submitOffchainDelayedOrder(int256 sizeDelta, uint256 priceImpactDelta) external;
 
     function submitOffchainDelayedOrderWithTracking(
         int256 sizeDelta,
@@ -213,10 +186,9 @@ interface IPerpsV2MarketConsolidated {
 
     function cancelOffchainDelayedOrder(address account) external;
 
-    function executeOffchainDelayedOrder(
-        address account,
-        bytes[] calldata priceUpdateData
-    ) external payable;
+    function executeOffchainDelayedOrder(address account, bytes[] calldata priceUpdateData)
+        external
+        payable;
 
     /* ========== Events ========== */
 
@@ -234,20 +206,10 @@ interface IPerpsV2MarketConsolidated {
     event MarginTransferred(address indexed account, int256 marginDelta);
 
     event PositionLiquidated(
-        uint256 id,
-        address account,
-        address liquidator,
-        int256 size,
-        uint256 price,
-        uint256 fee
+        uint256 id, address account, address liquidator, int256 size, uint256 price, uint256 fee
     );
 
-    event FundingRecomputed(
-        int256 funding,
-        int256 fundingRate,
-        uint256 index,
-        uint256 timestamp
-    );
+    event FundingRecomputed(int256 funding, int256 fundingRate, uint256 index, uint256 timestamp);
 
     event PerpsTracking(
         bytes32 indexed trackingCode,
