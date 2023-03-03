@@ -18,10 +18,6 @@ contract AccountExposed is Account {
                       SETTERS FOR EXPOSED ACCOUNT
     //////////////////////////////////////////////////////////////*/
 
-    function setSettings(ISettings _settings) public {
-        settings = _settings;
-    }
-
     function setFuturesMarketManager(IFuturesMarketManager _futuresMarketManager) external {
         futuresMarketManager = _futuresMarketManager;
     }
