@@ -1,4 +1,4 @@
-# Kwenta Smart Margin Manager
+# Kwenta Smart Margin
 
 [![Github Actions][gha-badge]][gha]
 [![Foundry][foundry-badge]][foundry]
