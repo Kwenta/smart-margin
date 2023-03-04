@@ -151,8 +151,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         (canExec,) = _validConditionalOrder(_conditionalOrderId);
 
         // calldata for execute func
-        execPayload =
-            abi.encodeWithSelector(this.executeConditionalOrder.selector, _conditionalOrderId);
+        execPayload = abi.encodeCall(this.executeConditionalOrder, _conditionalOrderId);
     }
 
     /// @inheritdoc IAccount
@@ -559,6 +558,37 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         conditionalOrderId++;
     }
 
+    /// @notice create a new Gelato task for a conditional order
+    /// @return taskId of the new Gelato task
+    function _createGelatoTask() internal returns (bytes32 taskId) {
+        IOps.ModuleData memory moduleData = _createGelatoModuleData();
+
+        taskId = IOps(OPS).createTask({
+            execAddress: address(this),
+            execData: abi.encodeCall(this.executeConditionalOrder, conditionalOrderId),
+            moduleData: moduleData,
+            feeToken: ETH
+        });
+    }
+
+    /// @notice create the Gelato ModuleData for a conditional order
+    /// @dev see IOps for details on the task creation and the ModuleData struct
+    function _createGelatoModuleData() internal view returns (IOps.ModuleData memory moduleData) {
+        moduleData = IOps.ModuleData({
+            modules: new IOps.Module[](2),
+            args: new bytes[](2)
+        });
+
+        moduleData.modules[0] = IOps.Module.RESOLVER;
+        moduleData.modules[1] = IOps.Module.SINGLE_EXEC;
+
+        moduleData.args[0] = abi.encode(
+            address(this),
+            abi.encodeCall(this.checker, conditionalOrderId)
+        );
+        // moduleData.args[1] is empty for single exec thus no need to encode
+    }
+
     /// @notice cancel a gelato queued conditional order
     /// @param _conditionalOrderId: key for an active conditional order
     function _cancelConditionalOrder(uint256 _conditionalOrderId) internal {
@@ -608,10 +638,6 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             // ensure position exists and incoming size delta is NOT the same sign
             /// @dev if incoming size delta is the same sign, then the conditional order is not reduce only
             if (currentSize == 0 || _isSameSign(currentSize, conditionalOrder.sizeDelta)) {
-                // remove task from gelato's side
-                /// @dev optimization done for gelato
-                IOps(OPS).cancelTask(conditionalOrder.gelatoTaskId);
-
                 // delete conditional order from conditional orders
                 delete conditionalOrders[_conditionalOrderId];
 
@@ -637,10 +663,6 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         if (conditionalOrder.marginDelta > 0) {
             committedMargin -= _abs(conditionalOrder.marginDelta);
         }
-
-        // remove task from gelato's side
-        /// @dev optimization done for gelato
-        IOps(OPS).cancelTask(conditionalOrder.gelatoTaskId);
 
         // delete conditional order from conditional orders
         delete conditionalOrders[_conditionalOrderId];
@@ -675,25 +697,6 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             conditionalOrderId: _conditionalOrderId,
             fillPrice: fillPrice,
             keeperFee: fee
-        });
-    }
-
-    /// @notice create a new Gelato task for a conditional order
-    /// @return taskId of the new Gelato task
-    function _createGelatoTask() internal returns (bytes32 taskId) {
-        // establish required data for creating a Gelato task
-        IOps.Module[] memory modules = new IOps.Module[](1);
-        modules[0] = IOps.Module.RESOLVER;
-        bytes[] memory args = new bytes[](1);
-        args[0] = abi.encodeWithSelector(this.checker.selector, conditionalOrderId);
-        IOps.ModuleData memory moduleData = IOps.ModuleData({modules: modules, args: args});
-
-        // submit new task to Gelato and store the task id
-        taskId = IOps(OPS).createTask({
-            execAddress: address(this),
-            execData: abi.encodeWithSelector(this.executeConditionalOrder.selector, conditionalOrderId),
-            moduleData: moduleData,
-            feeToken: ETH
         });
     }
 
