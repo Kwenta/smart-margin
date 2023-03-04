@@ -6,7 +6,8 @@ import {
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated,
     ISettings,
-    IEvents
+    IEvents,
+    IOps
 } from "../../src/Account.sol";
 import "./Constants.sol";
 

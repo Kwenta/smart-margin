@@ -131,6 +131,33 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         account.execute(commands, inputs);
     }
 
+        function test_PlaceConditionalOrder_Valid_GelatoTaskId() external {
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
+        });
+
+        (, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
+
+        // get task id
+        bytes32 taskId = IOps(OPS).getTaskId({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execSelector: account.executeConditionalOrder.selector,
+            moduleData: moduleData,
+            feeToken: ETH
+        });
+
+        // check account recorded task id matches gelato task id fetched
+        assertEq(taskId, account.getConditionalOrder(conditionalOrderId).gelatoTaskId);
+    }
+
     /*//////////////////////////////////////////////////////////////
                    PLACING CONDITIONAL ORDERS: LIMIT
     //////////////////////////////////////////////////////////////*/
@@ -540,6 +567,48 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             generateGelatoModuleData(conditionalOrderId);
         // expect a call w/ empty calldata to gelato (payment through callvalue)
         vm.expectCall(GELATO, "");
+        vm.prank(GELATO);
+        IOps(OPS).exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: executionData,
+            moduleData: moduleData,
+            txFee: GELATO_FEE,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        });
+    }
+
+    // assert fee transfer to gelato is called
+    function test_ExecuteConditionalOrder_Valid_TaskRemovedFromGelato() public {
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
+        });
+
+        (bytes memory executionData, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
+
+        vm.prank(GELATO);
+        IOps(OPS).exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: executionData,
+            moduleData: moduleData,
+            txFee: GELATO_FEE,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        });
+
+        // attempt to execute the same task again
+        vm.expectRevert("Ops.exec: Task not found");
         vm.prank(GELATO);
         IOps(OPS).exec({
             taskCreator: address(account),
@@ -1080,16 +1149,24 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function generateGelatoModuleData(uint256 conditionalOrderId)
         internal
-        pure
+        view
         returns (bytes memory executionData, IOps.ModuleData memory moduleData)
     {
-        IOps.Module[] memory modules = new IOps.Module[](1);
-        modules[0] = IOps.Module.RESOLVER;
-        bytes[] memory args = new bytes[](1);
-        args[0] = abi.encodeWithSelector(IAccount.checker.selector, conditionalOrderId);
-        moduleData = IOps.ModuleData({modules: modules, args: args});
-        executionData =
-            abi.encodeWithSelector(IAccount.executeConditionalOrder.selector, conditionalOrderId);
+        executionData = abi.encodeCall(account.executeConditionalOrder, conditionalOrderId);
+
+        moduleData = IOps.ModuleData({
+            modules: new IOps.Module[](2),
+            args: new bytes[](2)
+        });
+
+        moduleData.modules[0] = IOps.Module.RESOLVER;
+        moduleData.modules[1] = IOps.Module.SINGLE_EXEC;
+
+        moduleData.args[0] = abi.encode(
+            address(account),
+            abi.encodeCall(account.checker, conditionalOrderId)
+        );
+        // moduleData.args[1] is empty for single exec thus no need to encode
     }
 
     /*//////////////////////////////////////////////////////////////
