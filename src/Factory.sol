@@ -18,16 +18,16 @@ contract Factory is IFactory, Owned {
     bool public canUpgrade = true;
 
     /// @inheritdoc IFactory
-    address public implementation;
-
-    /// @inheritdoc IFactory
     address public settings;
 
     /// @inheritdoc IFactory
     address public events;
 
     /// @inheritdoc IFactory
-    mapping(address accountOwner => address account) public ownerToAccount;
+    address public implementation;
+
+    /// @inheritdoc IFactory
+    mapping(address accounts => bool exist) public accounts;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -50,6 +50,28 @@ contract Factory is IFactory, Owned {
     }
 
     /*//////////////////////////////////////////////////////////////
+                                 VIEWS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IFactory
+    function getAccountOwner(address _account)
+        external
+        view
+        override
+        returns (address)
+    {
+        // ensure account is registered
+        if (!accounts[_account]) revert AccountDoesNotExist();
+
+        // fetch owner from account
+        (bool success, bytes memory data) =
+            _account.staticcall(abi.encodeWithSignature("owner()"));
+        assert(success); // should never fail (account is a contract
+
+        return abi.decode(data, (address));
+    }
+
+    /*//////////////////////////////////////////////////////////////
                            ACCOUNT DEPLOYMENT
     //////////////////////////////////////////////////////////////*/
 
@@ -59,16 +81,11 @@ contract Factory is IFactory, Owned {
         override
         returns (address payable accountAddress)
     {
-        /// @dev ensure one account per address
-        if (ownerToAccount[msg.sender] != address(0)) {
-            revert OnlyOneAccountPerAddress(ownerToAccount[msg.sender]);
-        }
-
         // create account and set beacon to this address (i.e. factory address)
         accountAddress = payable(address(new AccountProxy(address(this))));
 
-        // update owner to account mapping
-        ownerToAccount[msg.sender] = accountAddress;
+        // add account to accounts mapping
+        accounts[accountAddress] = true;
 
         // initialize new account
         (bool success, bytes memory data) = accountAddress.call(
@@ -92,33 +109,6 @@ contract Factory is IFactory, Owned {
             account: accountAddress,
             version: abi.decode(data, (bytes32))
         });
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                           ACCOUNT OWNERSHIP
-    //////////////////////////////////////////////////////////////*/
-
-    /// @inheritdoc IFactory
-    function updateAccountOwner(address _oldOwner, address _newOwner)
-        external
-        override
-    {
-        /// @dev ensure _newOwner does not already have an account
-        if (ownerToAccount[_newOwner] != address(0)) {
-            revert OnlyOneAccountPerAddress(ownerToAccount[_newOwner]);
-        }
-
-        // get account address
-        address account = ownerToAccount[_oldOwner];
-
-        // ensure account exists
-        if (account == address(0)) revert AccountDoesNotExist();
-
-        // ensure account owned by _oldOwner is the caller
-        if (msg.sender != account) revert CallerMustBeAccount();
-
-        delete ownerToAccount[_oldOwner];
-        ownerToAccount[_newOwner] = account;
     }
 
     /*//////////////////////////////////////////////////////////////
