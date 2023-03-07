@@ -188,18 +188,6 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     }
 
     /*//////////////////////////////////////////////////////////////
-                           ACCOUNT OWNERSHIP
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice transfer ownership of this account to a new address
-    /// @dev will update factory's mapping record of owner to account
-    /// @param _newOwner: address to transfer ownership to
-    function transferOwnership(address _newOwner) public override onlyOwner {
-        factory.updateAccountOwner({_oldOwner: owner, _newOwner: _newOwner});
-        super.transferOwnership(_newOwner);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                                EXECUTION
     //////////////////////////////////////////////////////////////*/
 
