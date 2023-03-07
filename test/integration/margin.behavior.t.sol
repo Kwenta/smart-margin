@@ -610,6 +610,55 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
     }
 
     /*//////////////////////////////////////////////////////////////
+                               SCENARIOS
+    //////////////////////////////////////////////////////////////*/
+
+    /*
+        deposit margin into account -> deposit margin into market -> place delayed off-chain order
+    */
+
+    function test_Scenario_1() external {
+        // mint sUSD to be deposited into account during execution
+        mintSUSD(address(this), AMOUNT);
+        sUSD.approve(address(account), AMOUNT);
+
+        // delayed off-chain order details
+        address market = getMarketAddressFromKey(sETHPERP);
+        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 sizeDelta = 1 ether;
+        uint256 priceImpactDelta = 1 ether;
+
+        // init commands and inputs
+        IAccount.Command[] memory commands = new IAccount.Command[](3);
+        bytes[] memory inputs = new bytes[](3);
+
+        // define commands
+        commands[0] = IAccount.Command.ACCOUNT_MODIFY_MARGIN;
+        commands[1] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[2] = IAccount.Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
+        
+        // define inputs
+        inputs[0] = abi.encode(AMOUNT);
+        inputs[1] = abi.encode(market, marginDelta);
+        inputs[2] = abi.encode(market, sizeDelta, priceImpactDelta);
+
+        // execute commands w/ inputs
+        account.execute(commands, inputs);
+
+        // check margin has been deposited into market
+        IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
+        assert(position.margin != 0);
+
+        // check some margin remains in account
+        assert(account.freeMargin() != 0);
+
+        // check order has been submitted
+        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
+        assert(order.isOffchain == true);
+        assert(order.sizeDelta == sizeDelta);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
