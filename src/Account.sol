@@ -574,18 +574,13 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /// @notice create the Gelato ModuleData for a conditional order
     /// @dev see IOps for details on the task creation and the ModuleData struct
     function _createGelatoModuleData() internal view returns (IOps.ModuleData memory moduleData) {
-        moduleData = IOps.ModuleData({
-            modules: new IOps.Module[](2),
-            args: new bytes[](2)
-        });
+        moduleData = IOps.ModuleData({modules: new IOps.Module[](2), args: new bytes[](2)});
 
         moduleData.modules[0] = IOps.Module.RESOLVER;
         moduleData.modules[1] = IOps.Module.SINGLE_EXEC;
 
-        moduleData.args[0] = abi.encode(
-            address(this),
-            abi.encodeCall(this.checker, conditionalOrderId)
-        );
+        moduleData.args[0] =
+            abi.encode(address(this), abi.encodeCall(this.checker, conditionalOrderId));
         // moduleData.args[1] is empty for single exec thus no need to encode
     }
 

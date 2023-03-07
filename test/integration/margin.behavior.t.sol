@@ -636,7 +636,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         commands[0] = IAccount.Command.ACCOUNT_MODIFY_MARGIN;
         commands[1] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
         commands[2] = IAccount.Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
-        
+
         // define inputs
         inputs[0] = abi.encode(AMOUNT);
         inputs[1] = abi.encode(market, marginDelta);

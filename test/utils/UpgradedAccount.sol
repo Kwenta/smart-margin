@@ -9,7 +9,7 @@ contract UpgradedAccount {
     address public factory = address(0);
     address public futuresMarketManager = address(0);
 
-     function initialize(address _owner, address _settings, address _events, address _factory)
+    function initialize(address _owner, address _settings, address _events, address _factory)
         external
     {
         owner = _owner;
