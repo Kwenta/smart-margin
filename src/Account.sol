@@ -122,6 +122,9 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
         settings = ISettings(_settings);
         events = IEvents(_events);
+
+        // @TODO consider removing factory from account before audit
+        // (keep for now incase we need it later?)
         factory = IFactory(_factory);
 
         // get address for futures market manager
