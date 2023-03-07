@@ -173,6 +173,26 @@ contract AccountTest is Test, ConsolidatedEvents {
     }
 
     /*//////////////////////////////////////////////////////////////
+                               OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
+
+    function test_ownership_transfer() external {
+        // ensure factory and account state align
+        address currentOwner = factory.getAccountOwner(address(account));
+        assert(currentOwner == address(this) && currentOwner == account.owner());
+
+        // transfer ownership
+        account.transferOwnership(KWENTA_TREASURY);
+        assert(account.owner() == KWENTA_TREASURY);
+
+        // ensure factory and account state align
+        currentOwner = factory.getAccountOwner(address(account));
+        assert(
+            currentOwner == KWENTA_TREASURY && currentOwner == account.owner()
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
                        ACCOUNT DEPOSITS/WITHDRAWS
     //////////////////////////////////////////////////////////////*/
 
