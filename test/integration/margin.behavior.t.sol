@@ -44,7 +44,9 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
 
-        sUSD = ERC20((IAddressResolver(ADDRESS_RESOLVER)).getAddress("ProxyERC20sUSD"));
+        sUSD = ERC20(
+            (IAddressResolver(ADDRESS_RESOLVER)).getAddress("ProxyERC20sUSD")
+        );
 
         Setup setup = new Setup();
         factory = setup.deploySmartMarginFactory({
@@ -63,7 +65,9 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         account = Account(payable(factory.newAccount()));
 
         accountExposed = new AccountExposed();
-        accountExposed.setFuturesMarketManager(IFuturesMarketManager(FUTURES_MARKET_MANAGER));
+        accountExposed.setFuturesMarketManager(
+            IFuturesMarketManager(FUTURES_MARKET_MANAGER)
+        );
         accountExposed.setSettings(settings);
         accountExposed.setEvents(events);
     }
@@ -88,7 +92,9 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         bytes[] memory inputs = new bytes[](2);
 
-        vm.expectRevert(abi.encodeWithSelector(IAccount.LengthMismatch.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccount.LengthMismatch.selector)
+        );
         account.execute(commands, inputs);
     }
 
@@ -105,7 +111,9 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             abi.encode(address(0))
         );
 
-        vm.expectRevert(abi.encodeWithSelector(IAccount.InvalidCommandType.selector, 69));
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccount.InvalidCommandType.selector, 69)
+        );
         (bool s,) = address(account).call(dataWithInvalidCommand);
         assert(!s);
     }
@@ -177,16 +185,25 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         } else if (accountExposed.expose_abs(x) > AMOUNT) {
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    IAccount.InsufficientFreeMargin.selector, AMOUNT, accountExposed.expose_abs(x)
+                    IAccount.InsufficientFreeMargin.selector,
+                    AMOUNT,
+                    accountExposed.expose_abs(x)
                 )
             );
             modifyAccountMargin({amount: x});
         } else {
             vm.expectEmit(true, true, true, true);
-            emit Withdraw(address(this), address(account), accountExposed.expose_abs(x));
+            emit Withdraw(
+                address(this), address(account), accountExposed.expose_abs(x)
+                );
             modifyAccountMargin({amount: x});
-            assert(sUSD.balanceOf(address(this)) == accountExposed.expose_abs(x));
-            assert(sUSD.balanceOf(address(account)) == AMOUNT - accountExposed.expose_abs(x));
+            assert(
+                sUSD.balanceOf(address(this)) == accountExposed.expose_abs(x)
+            );
+            assert(
+                sUSD.balanceOf(address(account))
+                    == AMOUNT - accountExposed.expose_abs(x)
+            );
         }
     }
 
@@ -215,9 +232,9 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         PERPS_V2_MODIFY_MARGIN
     */
 
-    function test_Commands_ModifyMarginInMarket_NoExistingMarginInMarket(int256 fuzzedMarginDelta)
-        external
-    {
+    function test_Commands_ModifyMarginInMarket_NoExistingMarginInMarket(
+        int256 fuzzedMarginDelta
+    ) external {
         fundAccount(AMOUNT);
 
         address market = getMarketAddressFromKey(sETHPERP);
@@ -230,13 +247,16 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
                 // account does not have enough margin to deposit
                 vm.expectRevert(
                     abi.encodeWithSelector(
-                        IAccount.InsufficientFreeMargin.selector, AMOUNT, fuzzedMarginDelta
+                        IAccount.InsufficientFreeMargin.selector,
+                        AMOUNT,
+                        fuzzedMarginDelta
                     )
                 );
                 modifyMarketMargin({market: market, amount: fuzzedMarginDelta});
             } else if (fuzzedMarginDelta >= int256(AMOUNT)) {
                 modifyMarketMargin({market: market, amount: fuzzedMarginDelta});
-                IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
+                IPerpsV2MarketConsolidated.Position memory position =
+                    account.getPosition(sETHPERP);
                 assert(int256(uint256(position.margin)) == fuzzedMarginDelta);
             }
         } else if (fuzzedMarginDelta < 0) {
@@ -246,9 +266,9 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         }
     }
 
-    function test_Commands_ModifyMarginInMarket_ExistingMarginInMarket(int256 fuzzedMarginDelta)
-        external
-    {
+    function test_Commands_ModifyMarginInMarket_ExistingMarginInMarket(
+        int256 fuzzedMarginDelta
+    ) external {
         fundAccount(AMOUNT);
 
         address market = getMarketAddressFromKey(sETHPERP);
@@ -263,7 +283,9 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             // account does not have enough margin to deposit
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    IAccount.InsufficientFreeMargin.selector, 0, fuzzedMarginDelta
+                    IAccount.InsufficientFreeMargin.selector,
+                    0,
+                    fuzzedMarginDelta
                 )
             );
             modifyMarketMargin({market: market, amount: fuzzedMarginDelta});
@@ -274,10 +296,15 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
                 modifyMarketMargin({market: market, amount: fuzzedMarginDelta});
             } else {
                 modifyMarketMargin({market: market, amount: fuzzedMarginDelta});
-                IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
-                assert(int256(uint256(position.margin)) == int256(AMOUNT) + fuzzedMarginDelta);
+                IPerpsV2MarketConsolidated.Position memory position =
+                    account.getPosition(sETHPERP);
                 assert(
-                    sUSD.balanceOf(address(account)) == accountExposed.expose_abs(fuzzedMarginDelta)
+                    int256(uint256(position.margin))
+                        == int256(AMOUNT) + fuzzedMarginDelta
+                );
+                assert(
+                    sUSD.balanceOf(address(account))
+                        == accountExposed.expose_abs(fuzzedMarginDelta)
                 );
             }
         }
@@ -287,7 +314,8 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         PERPS_V2_WITHDRAW_ALL_MARGIN
     */
 
-    function test_Commands_WithdrawAllMarginFromMarket_NoExistingMarginInMarket() external {
+    function test_Commands_WithdrawAllMarginFromMarket_NoExistingMarginInMarket(
+    ) external {
         fundAccount(AMOUNT);
 
         uint256 preBalance = sUSD.balanceOf(address(account));
@@ -299,13 +327,18 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         assertEq(preBalance, postBalance);
     }
 
-    function test_Commands_WithdrawAllMarginFromMarket_ExistingMarginInMarket() external {
+    function test_Commands_WithdrawAllMarginFromMarket_ExistingMarginInMarket()
+        external
+    {
         fundAccount(AMOUNT);
 
         uint256 preBalance = sUSD.balanceOf(address(account));
 
         // deposit AMOUNT margin into market
-        modifyMarketMargin({market: getMarketAddressFromKey(sETHPERP), amount: int256(AMOUNT)});
+        modifyMarketMargin({
+            market: getMarketAddressFromKey(sETHPERP),
+            amount: int256(AMOUNT)
+        });
 
         withdrawAllMarketMargin({market: getMarketAddressFromKey(sETHPERP)});
 
@@ -334,7 +367,8 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
         account.execute(commands, inputs);
 
-        IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
+        IPerpsV2MarketConsolidated.Position memory position =
+            account.getPosition(sETHPERP);
         assert(position.id != 0);
         assert(position.lastFundingIndex != 0);
         assert(position.margin != 0);
@@ -360,10 +394,12 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         commands[1] = IAccount.Command.PERPS_V2_SUBMIT_DELAYED_ORDER;
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta, desiredTimeDelta);
+        inputs[1] =
+            abi.encode(market, sizeDelta, priceImpactDelta, desiredTimeDelta);
         account.execute(commands, inputs);
 
-        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order =
+            account.getDelayedOrder(sETHPERP);
         assert(order.isOffchain == false);
         assert(order.sizeDelta == sizeDelta);
         assert(order.priceImpactDelta == priceImpactDelta);
@@ -395,7 +431,8 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
         account.execute(commands, inputs);
 
-        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order =
+            account.getDelayedOrder(sETHPERP);
         assert(order.isOffchain == true);
         assert(order.sizeDelta == sizeDelta);
         assert(order.priceImpactDelta == priceImpactDelta);
@@ -438,7 +475,8 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         commands[1] = IAccount.Command.PERPS_V2_SUBMIT_DELAYED_ORDER;
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta, desiredTimeDelta);
+        inputs[1] =
+            abi.encode(market, sizeDelta, priceImpactDelta, desiredTimeDelta);
         account.execute(commands, inputs);
         commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.PERPS_V2_CANCEL_DELAYED_ORDER;
@@ -446,7 +484,8 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         inputs[0] = abi.encode(market);
         account.execute(commands, inputs);
 
-        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order =
+            account.getDelayedOrder(sETHPERP);
         assert(order.isOffchain == false);
         assert(order.sizeDelta == 0);
         assert(order.priceImpactDelta == 0);
@@ -501,7 +540,8 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         inputs[0] = abi.encode(market);
         account.execute(commands, inputs);
 
-        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order =
+            account.getDelayedOrder(sETHPERP);
         assert(order.isOffchain == false);
         assert(order.sizeDelta == 0);
         assert(order.priceImpactDelta == 0);
@@ -553,7 +593,8 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         inputs[0] = abi.encode(market, priceImpactDelta);
         account.execute(commands, inputs);
 
-        IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
+        IPerpsV2MarketConsolidated.Position memory position =
+            account.getPosition(sETHPERP);
         assert(position.size == 0);
         assert(position.margin != 0);
     }
@@ -580,7 +621,8 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         inputs[1] = abi.encode(address(market), sizeDelta, priceImpactDelta);
 
         uint256 percentToTake = settings.tradeFee();
-        uint256 fee = (accountExposed.expose_abs(sizeDelta) * percentToTake) / MAX_BPS;
+        uint256 fee =
+            (accountExposed.expose_abs(sizeDelta) * percentToTake) / MAX_BPS;
         (uint256 price, bool invalid) = market.assetPrice();
         assert(!invalid);
         uint256 feeInSUSD = (price * fee) / 1e18;
@@ -646,14 +688,16 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         account.execute(commands, inputs);
 
         // check margin has been deposited into market
-        IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
+        IPerpsV2MarketConsolidated.Position memory position =
+            account.getPosition(sETHPERP);
         assert(position.margin != 0);
 
         // check some margin remains in account
         assert(account.freeMargin() != 0);
 
         // check order has been submitted
-        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order =
+            account.getDelayedOrder(sETHPERP);
         assert(order.isOffchain == true);
         assert(order.sizeDelta == sizeDelta);
     }
@@ -664,7 +708,8 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
 
     function mintSUSD(address to, uint256 amount) private {
         address issuer = IAddressResolver(ADDRESS_RESOLVER).getAddress("Issuer");
-        ISynth synthsUSD = ISynth(IAddressResolver(ADDRESS_RESOLVER).getAddress("SynthsUSD"));
+        ISynth synthsUSD =
+            ISynth(IAddressResolver(ADDRESS_RESOLVER).getAddress("SynthsUSD"));
         vm.prank(issuer);
         synthsUSD.issue(to, amount);
     }
@@ -676,11 +721,17 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         modifyAccountMargin({amount: int256(amount)});
     }
 
-    function getMarketAddressFromKey(bytes32 key) private view returns (address market) {
+    function getMarketAddressFromKey(bytes32 key)
+        private
+        view
+        returns (address market)
+    {
         market = address(
             IPerpsV2MarketConsolidated(
                 IFuturesMarketManager(
-                    IAddressResolver(ADDRESS_RESOLVER).getAddress("FuturesMarketManager")
+                    IAddressResolver(ADDRESS_RESOLVER).getAddress(
+                        "FuturesMarketManager"
+                    )
                 ).marketForKey(key)
             )
         );

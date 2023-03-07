@@ -37,7 +37,10 @@ interface IExchanger {
         uint256 refunded
     ) external view returns (uint256 amountAfterSettlement);
 
-    function isSynthRateInvalid(bytes32 currencyKey) external view returns (bool);
+    function isSynthRateInvalid(bytes32 currencyKey)
+        external
+        view
+        returns (bool);
 
     function maxSecsLeftInWaitingPeriod(address account, bytes32 currencyKey)
         external
@@ -47,34 +50,44 @@ interface IExchanger {
     function settlementOwing(address account, bytes32 currencyKey)
         external
         view
-        returns (uint256 reclaimAmount, uint256 rebateAmount, uint256 numEntries);
+        returns (
+            uint256 reclaimAmount,
+            uint256 rebateAmount,
+            uint256 numEntries
+        );
 
-    function hasWaitingPeriodOrSettlementOwing(address account, bytes32 currencyKey)
-        external
-        view
-        returns (bool);
+    function hasWaitingPeriodOrSettlementOwing(
+        address account,
+        bytes32 currencyKey
+    ) external view returns (bool);
 
-    function feeRateForExchange(bytes32 sourceCurrencyKey, bytes32 destinationCurrencyKey)
-        external
-        view
-        returns (uint256);
+    function feeRateForExchange(
+        bytes32 sourceCurrencyKey,
+        bytes32 destinationCurrencyKey
+    ) external view returns (uint256);
 
-    function dynamicFeeRateForExchange(bytes32 sourceCurrencyKey, bytes32 destinationCurrencyKey)
-        external
-        view
-        returns (uint256 feeRate, bool tooVolatile);
+    function dynamicFeeRateForExchange(
+        bytes32 sourceCurrencyKey,
+        bytes32 destinationCurrencyKey
+    ) external view returns (uint256 feeRate, bool tooVolatile);
 
     function getAmountsForExchange(
         uint256 sourceAmount,
         bytes32 sourceCurrencyKey,
         bytes32 destinationCurrencyKey
-    ) external view returns (uint256 amountReceived, uint256 fee, uint256 exchangeFeeRate);
+    )
+        external
+        view
+        returns (uint256 amountReceived, uint256 fee, uint256 exchangeFeeRate);
 
     function priceDeviationThresholdFactor() external view returns (uint256);
 
     function waitingPeriodSecs() external view returns (uint256);
 
-    function lastExchangeRate(bytes32 currencyKey) external view returns (uint256);
+    function lastExchangeRate(bytes32 currencyKey)
+        external
+        view
+        returns (uint256);
 
     // Mutative functions
     function exchange(
@@ -131,9 +144,17 @@ interface ISynthetixInternal {
         address toAddress
     ) external;
 
-    function emitExchangeReclaim(address account, bytes32 currencyKey, uint256 amount) external;
+    function emitExchangeReclaim(
+        address account,
+        bytes32 currencyKey,
+        uint256 amount
+    ) external;
 
-    function emitExchangeRebate(address account, bytes32 currencyKey, uint256 amount) external;
+    function emitExchangeRebate(
+        address account,
+        bytes32 currencyKey,
+        uint256 amount
+    ) external;
 }
 
 interface IExchangerInternalDebtCache {

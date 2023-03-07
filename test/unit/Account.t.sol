@@ -40,7 +40,9 @@ contract AccountTest is Test, ConsolidatedEvents {
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
 
-        sUSD = ERC20(IAddressResolver(ADDRESS_RESOLVER).getAddress("ProxyERC20sUSD"));
+        sUSD = ERC20(
+            IAddressResolver(ADDRESS_RESOLVER).getAddress("ProxyERC20sUSD")
+        );
 
         Setup setup = new Setup();
         factory = setup.deploySmartMarginFactory({
@@ -59,12 +61,16 @@ contract AccountTest is Test, ConsolidatedEvents {
         account = Account(payable(factory.newAccount()));
 
         accountExposed = new AccountExposed();
-        accountExposed.setFuturesMarketManager(IFuturesMarketManager(FUTURES_MARKET_MANAGER));
+        accountExposed.setFuturesMarketManager(
+            IFuturesMarketManager(FUTURES_MARKET_MANAGER)
+        );
         accountExposed.setSettings(settings);
         accountExposed.setEvents(events);
 
         currentEthPriceInUSD = accountExposed.expose_sUSDRate(
-            IPerpsV2MarketConsolidated(accountExposed.expose_getPerpsV2Market(sETHPERP))
+            IPerpsV2MarketConsolidated(
+                accountExposed.expose_getPerpsV2Market(sETHPERP)
+            )
         );
     }
 
@@ -85,7 +91,10 @@ contract AccountTest is Test, ConsolidatedEvents {
     }
 
     function test_GetFuturesMarketManager() external view {
-        assert(account.futuresMarketManager() == IFuturesMarketManager(FUTURES_MARKET_MANAGER));
+        assert(
+            account.futuresMarketManager()
+                == IFuturesMarketManager(FUTURES_MARKET_MANAGER)
+        );
     }
 
     function test_GetSettings() external view {
@@ -196,12 +205,16 @@ contract AccountTest is Test, ConsolidatedEvents {
                              FEE UTILITIES
     //////////////////////////////////////////////////////////////*/
 
-    function test_CalculateTradeFee_EthMarket(int128 fuzzedSizeDelta) external {
+    function test_CalculateTradeFee_EthMarket(int128 fuzzedSizeDelta)
+        external
+    {
         uint256 conditionalOrderFee = MAX_BPS / 99;
         IPerpsV2MarketConsolidated market =
             IPerpsV2MarketConsolidated(getMarketAddressFromKey(sETHPERP));
         uint256 percentToTake = settings.tradeFee() + conditionalOrderFee;
-        uint256 fee = (accountExposed.expose_abs(int256(fuzzedSizeDelta)) * percentToTake) / MAX_BPS;
+        uint256 fee = (
+            accountExposed.expose_abs(int256(fuzzedSizeDelta)) * percentToTake
+        ) / MAX_BPS;
         (uint256 price, bool invalid) = market.assetPrice();
         assert(!invalid);
         uint256 feeInSUSD = (price * fee) / 1e18;
@@ -256,12 +269,18 @@ contract AccountTest is Test, ConsolidatedEvents {
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function getMarketAddressFromKey(bytes32 key) private view returns (address market) {
+    function getMarketAddressFromKey(bytes32 key)
+        private
+        view
+        returns (address market)
+    {
         // market and order related params
         market = address(
             IPerpsV2MarketConsolidated(
                 IFuturesMarketManager(
-                    IAddressResolver(ADDRESS_RESOLVER).getAddress("FuturesMarketManager")
+                    IAddressResolver(ADDRESS_RESOLVER).getAddress(
+                        "FuturesMarketManager"
+                    )
                 ).marketForKey(key)
             )
         );

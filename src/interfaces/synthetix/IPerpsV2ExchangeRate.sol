@@ -8,17 +8,23 @@ import "./IPyth.sol";
 interface IPerpsV2ExchangeRate {
     function setOffchainOracle(IPyth _offchainOracle) external;
 
-    function setOffchainPriceFeedId(bytes32 assetId, bytes32 priceFeedId) external;
+    function setOffchainPriceFeedId(bytes32 assetId, bytes32 priceFeedId)
+        external;
 
     /* ========== VIEWS ========== */
 
     function offchainOracle() external view returns (IPyth);
 
-    function offchainPriceFeedId(bytes32 assetId) external view returns (bytes32);
+    function offchainPriceFeedId(bytes32 assetId)
+        external
+        view
+        returns (bytes32);
 
     /* ---------- priceFeeds mutation ---------- */
 
-    function updatePythPrice(address sender, bytes[] calldata priceUpdateData) external payable;
+    function updatePythPrice(address sender, bytes[] calldata priceUpdateData)
+        external
+        payable;
 
     // it is a view but it can revert
     function resolveAndGetPrice(bytes32 assetId, uint256 maxAge)

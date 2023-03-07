@@ -3,7 +3,10 @@ pragma solidity 0.8.18;
 pragma experimental ABIEncoderV2;
 
 interface IPerpsV2MarketOffchainOrders {
-    function submitOffchainDelayedOrder(int256 sizeDelta, uint256 priceImpactDelta) external;
+    function submitOffchainDelayedOrder(
+        int256 sizeDelta,
+        uint256 priceImpactDelta
+    ) external;
 
     function submitOffchainDelayedOrderWithTracking(
         int256 sizeDelta,
@@ -13,7 +16,8 @@ interface IPerpsV2MarketOffchainOrders {
 
     function cancelOffchainDelayedOrder(address account) external;
 
-    function executeOffchainDelayedOrder(address account, bytes[] calldata priceUpdateData)
-        external
-        payable;
+    function executeOffchainDelayedOrder(
+        address account,
+        bytes[] calldata priceUpdateData
+    ) external payable;
 }

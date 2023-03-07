@@ -6,7 +6,8 @@ import {IEvents} from "./IEvents.sol";
 import {IExchanger} from "@synthetix/IExchanger.sol";
 import {IFactory} from "./IFactory.sol";
 import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
-import {IPerpsV2MarketConsolidated} from "@synthetix/IPerpsV2MarketConsolidated.sol";
+import {IPerpsV2MarketConsolidated} from
+    "@synthetix/IPerpsV2MarketConsolidated.sol";
 import {ISettings} from "./ISettings.sol";
 
 /// @title Kwenta Smart Margin Account Implementation Interface
@@ -113,7 +114,10 @@ interface IAccount {
     function factory() external view returns (IFactory);
 
     /// @return returns the address of the futures market manager
-    function futuresMarketManager() external view returns (IFuturesMarketManager);
+    function futuresMarketManager()
+        external
+        view
+        returns (IFuturesMarketManager);
 
     /// @return returns the address of the native settings for account
     function settings() external view returns (ISettings);
@@ -174,7 +178,9 @@ interface IAccount {
     /// @notice executes commands along with provided inputs
     /// @param _commands: array of commands, each represented as an enum
     /// @param _inputs: array of byte strings containing abi encoded inputs for each command
-    function execute(Command[] calldata _commands, bytes[] calldata _inputs) external payable;
+    function execute(Command[] calldata _commands, bytes[] calldata _inputs)
+        external
+        payable;
 
     /// @notice execute a gelato queued conditional order
     /// @notice only keepers can trigger this function

@@ -78,12 +78,16 @@ contract EventsTest is Test, ConsolidatedEvents {
         emit ConditionalOrderCancelled(
             ACCOUNT,
             id,
-            IAccount.ConditionalOrderCancelledReason.CONDITIONAL_ORDER_CANCELLED_BY_USER
+            IAccount
+                .ConditionalOrderCancelledReason
+                .CONDITIONAL_ORDER_CANCELLED_BY_USER
             );
         events.emitConditionalOrderCancelled({
             account: ACCOUNT,
             conditionalOrderId: id,
-            reason: IAccount.ConditionalOrderCancelledReason.CONDITIONAL_ORDER_CANCELLED_BY_USER
+            reason: IAccount
+                .ConditionalOrderCancelledReason
+                .CONDITIONAL_ORDER_CANCELLED_BY_USER
         });
     }
 

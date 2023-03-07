@@ -10,9 +10,15 @@ contract ConsolidatedEvents {
                                 IEVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Deposit(address indexed user, address indexed account, uint256 amount);
-    event Withdraw(address indexed user, address indexed account, uint256 amount);
-    event EthWithdraw(address indexed user, address indexed account, uint256 amount);
+    event Deposit(
+        address indexed user, address indexed account, uint256 amount
+    );
+    event Withdraw(
+        address indexed user, address indexed account, uint256 amount
+    );
+    event EthWithdraw(
+        address indexed user, address indexed account, uint256 amount
+    );
     event ConditionalOrderPlaced(
         address indexed account,
         uint256 conditionalOrderId,
@@ -30,7 +36,10 @@ contract ConsolidatedEvents {
         IAccount.ConditionalOrderCancelledReason reason
     );
     event ConditionalOrderFilled(
-        address indexed account, uint256 conditionalOrderId, uint256 fillPrice, uint256 keeperFee
+        address indexed account,
+        uint256 conditionalOrderId,
+        uint256 fillPrice,
+        uint256 keeperFee
     );
     event FeeImposed(address indexed account, uint256 amount);
 
@@ -38,7 +47,9 @@ contract ConsolidatedEvents {
                                 IFACTORY
     //////////////////////////////////////////////////////////////*/
 
-    event NewAccount(address indexed creator, address indexed account, bytes32 version);
+    event NewAccount(
+        address indexed creator, address indexed account, bytes32 version
+    );
     event AccountImplementationUpgraded(address implementation);
     event SettingsUpgraded(address settings);
     event EventsUpgraded(address events);

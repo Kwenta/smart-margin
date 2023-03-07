@@ -92,7 +92,10 @@ interface IOps {
      * @param modules List of modules to be set
      * @param moduleAddresses List of addresses for respective modules.
      */
-    function setModule(Module[] calldata modules, address[] calldata moduleAddresses) external;
+    function setModule(
+        Module[] calldata modules,
+        address[] calldata moduleAddresses
+    ) external;
 
     /**
      * @notice Helper function to query fee and feeToken to be used for payment. (For executions which pays itself)
@@ -109,7 +112,10 @@ interface IOps {
      *
      * @return bytes32[] List of taskIds created.
      */
-    function getTaskIdsByUser(address taskCreator) external view returns (bytes32[] memory);
+    function getTaskIdsByUser(address taskCreator)
+        external
+        view
+        returns (bytes32[] memory);
 
     /**
      * @notice Helper function to compute task id with module arguments

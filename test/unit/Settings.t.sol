@@ -63,11 +63,15 @@ contract SettingsTest is Test, ConsolidatedEvents {
 
     function test_SetTradeFee(uint256 x) public {
         if (x == settings.tradeFee()) {
-            vm.expectRevert(abi.encodeWithSelector(ISettings.DuplicateFee.selector));
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.DuplicateFee.selector)
+            );
             settings.setTradeFee(x);
             return;
         } else if (x > settings.MAX_BPS()) {
-            vm.expectRevert(abi.encodeWithSelector(ISettings.InvalidFee.selector, x));
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
+            );
             settings.setTradeFee(x);
             return;
         }
@@ -93,11 +97,15 @@ contract SettingsTest is Test, ConsolidatedEvents {
 
     function test_SetLimitOrderFee(uint256 x) public {
         if (x == settings.limitOrderFee()) {
-            vm.expectRevert(abi.encodeWithSelector(ISettings.DuplicateFee.selector));
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.DuplicateFee.selector)
+            );
             settings.setLimitOrderFee(x);
             return;
         } else if (x > settings.MAX_BPS()) {
-            vm.expectRevert(abi.encodeWithSelector(ISettings.InvalidFee.selector, x));
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
+            );
             settings.setLimitOrderFee(x);
             return;
         }
@@ -123,11 +131,15 @@ contract SettingsTest is Test, ConsolidatedEvents {
 
     function test_SetStopOrderFee(uint256 x) public {
         if (x == settings.stopOrderFee()) {
-            vm.expectRevert(abi.encodeWithSelector(ISettings.DuplicateFee.selector));
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.DuplicateFee.selector)
+            );
             settings.setStopOrderFee(x);
             return;
         } else if (x > settings.MAX_BPS()) {
-            vm.expectRevert(abi.encodeWithSelector(ISettings.InvalidFee.selector, x));
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
+            );
             settings.setStopOrderFee(x);
             return;
         }
@@ -153,11 +165,15 @@ contract SettingsTest is Test, ConsolidatedEvents {
 
     function test_SetTreasury(address addr) public {
         if (addr == address(0)) {
-            vm.expectRevert(abi.encodeWithSelector(ISettings.ZeroAddress.selector));
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.ZeroAddress.selector)
+            );
             settings.setTreasury(addr);
             return;
         } else if (addr == settings.treasury()) {
-            vm.expectRevert(abi.encodeWithSelector(ISettings.DuplicateAddress.selector));
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.DuplicateAddress.selector)
+            );
             settings.setTreasury(addr);
             return;
         }

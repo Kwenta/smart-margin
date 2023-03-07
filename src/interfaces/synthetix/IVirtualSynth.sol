@@ -5,7 +5,10 @@ import "./ISynth.sol";
 
 interface IVirtualSynth {
     // Views
-    function balanceOfUnderlying(address account) external view returns (uint256);
+    function balanceOfUnderlying(address account)
+        external
+        view
+        returns (uint256);
 
     function rate() external view returns (uint256);
 

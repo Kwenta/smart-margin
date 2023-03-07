@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    SafeERC20,
+    IERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IOps} from "../interfaces/IOps.sol";
 
 /// @dev Inherit this contract to allow your smart
@@ -19,7 +22,8 @@ abstract contract OpsReady {
     // address public constant OPS = 0x255F82563b5973264e89526345EcEa766DB3baB2; // Optimism Goerli
 
     /// @notice address of Gelato `OpsProxyFactory` contract
-    address private constant OPS_PROXY_FACTORY = 0xB3f5503f93d5Ef84b06993a1975B9D21B962892F; // Optimism
+    address private constant OPS_PROXY_FACTORY =
+        0xB3f5503f93d5Ef84b06993a1975B9D21B962892F; // Optimism
     // address private constant OPS_PROXY_FACTORY = 0x644CB00854EDC55FE8CCC9c1967BABb22F08Ad2f; // Optimism Goerli
 
     /// @notice internal address representation of ETH (used by Gelato)
@@ -46,7 +50,11 @@ abstract contract OpsReady {
     /// @notice get fee details from `Automate` contract
     /// @return fee amount
     /// @return feeToken address of fee token (or ETH)
-    function _getFeeDetails() internal view returns (uint256 fee, address feeToken) {
+    function _getFeeDetails()
+        internal
+        view
+        returns (uint256 fee, address feeToken)
+    {
         (fee, feeToken) = IOps(OPS).getFeeDetails();
     }
 }

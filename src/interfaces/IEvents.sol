@@ -10,28 +10,37 @@ interface IEvents {
     /// @param user: the address that withdrew from account
     /// @param account: the account that was withdrawn from
     /// @param amount: amount of marginAsset to withdraw from account
-    function emitDeposit(address user, address account, uint256 amount) external;
+    function emitDeposit(address user, address account, uint256 amount)
+        external;
 
     // @inheritdoc IAccount
-    event Deposit(address indexed user, address indexed account, uint256 amount);
+    event Deposit(
+        address indexed user, address indexed account, uint256 amount
+    );
 
     /// @notice emitted after a successful withdrawal
     /// @param user: the address that withdrew from account
     /// @param account: the account that was withdrawn from
     /// @param amount: amount of marginAsset to withdraw from account
-    function emitWithdraw(address user, address account, uint256 amount) external;
+    function emitWithdraw(address user, address account, uint256 amount)
+        external;
 
     // @inheritdoc IAccount
-    event Withdraw(address indexed user, address indexed account, uint256 amount);
+    event Withdraw(
+        address indexed user, address indexed account, uint256 amount
+    );
 
     /// @notice emitted after a successful ETH withdrawal
     /// @param user: the address that withdrew from account
     /// @param amount: the account that was withdrawn from
     /// @param amount: amount of ETH to withdraw from account
-    function emitEthWithdraw(address user, address account, uint256 amount) external;
+    function emitEthWithdraw(address user, address account, uint256 amount)
+        external;
 
     // @inheritdoc IAccount
-    event EthWithdraw(address indexed user, address indexed account, uint256 amount);
+    event EthWithdraw(
+        address indexed user, address indexed account, uint256 amount
+    );
 
     /// @notice emitted when a conditional order is placed
     /// @param account: account placing the conditional order
@@ -99,7 +108,10 @@ interface IEvents {
 
     // @inheritdoc IAccount
     event ConditionalOrderFilled(
-        address indexed account, uint256 conditionalOrderId, uint256 fillPrice, uint256 keeperFee
+        address indexed account,
+        uint256 conditionalOrderId,
+        uint256 fillPrice,
+        uint256 keeperFee
     );
 
     /// @notice emitted after a fee has been transferred to Treasury

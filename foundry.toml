@@ -5,7 +5,7 @@ libs = ['lib']
 solc_version = "0.8.18"
 
 [fmt]
-line_length = 100
+line_length = 80
 number_underscore = "thousands"
 
 [rpc_endpoints]

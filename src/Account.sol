@@ -12,7 +12,8 @@ import {
     IEvents
 } from "./interfaces/IAccount.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {Initializable} from
+    "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {OpsReady, IOps} from "./utils/OpsReady.sol";
 import {Owned} from "@solmate/auth/Owned.sol";
 
@@ -93,7 +94,9 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
     /// @notice disable initializers on initial contract deployment
     /// @dev set owner of implementation to zero address
-    constructor(address addressResolver, address marginAsset) Owned(address(0)) {
+    constructor(address addressResolver, address marginAsset)
+        Owned(address(0))
+    {
         // recommended to use this to lock implementation contracts
         // that are designed to be called through proxies
         _disableInitializers();
@@ -108,10 +111,12 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /// @param _settings: contract address for account settings
     /// @param _events: address of events contract for accounts
     /// @param _factory: contract address for account factory
-    function initialize(address _owner, address _settings, address _events, address _factory)
-        external
-        initializer
-    {
+    function initialize(
+        address _owner,
+        address _settings,
+        address _events,
+        address _factory
+    ) external initializer {
         owner = _owner;
         emit OwnershipTransferred(address(0), _owner);
 
@@ -122,7 +127,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         // get address for futures market manager
         futuresMarketManager = IFuturesMarketManager(
             ADDRESS_RESOLVER.requireAndGetAddress(
-                FUTURES_MARKET_MANAGER, "Account: Could not get Futures Market Manager"
+                FUTURES_MARKET_MANAGER,
+                "Account: Could not get Futures Market Manager"
             )
         );
     }
@@ -151,7 +157,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         (canExec,) = _validConditionalOrder(_conditionalOrderId);
 
         // calldata for execute func
-        execPayload = abi.encodeCall(this.executeConditionalOrder, _conditionalOrderId);
+        execPayload =
+            abi.encodeCall(this.executeConditionalOrder, _conditionalOrderId);
     }
 
     /// @inheritdoc IAccount
@@ -232,7 +239,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             (uint256 amount) = abi.decode(_inputs, (uint256));
             _withdrawEth({_amount: amount});
         } else if (_command == Command.PERPS_V2_MODIFY_MARGIN) {
-            (address market, int256 amount) = abi.decode(_inputs, (address, int256));
+            (address market, int256 amount) =
+                abi.decode(_inputs, (address, int256));
             _perpsV2ModifyMargin({_market: market, _amount: amount});
         } else if (_command == Command.PERPS_V2_WITHDRAW_ALL_MARGIN) {
             address market = abi.decode(_inputs, (address));
@@ -246,8 +254,12 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
                 _priceImpactDelta: priceImpactDelta
             });
         } else if (_command == Command.PERPS_V2_SUBMIT_DELAYED_ORDER) {
-            (address market, int256 sizeDelta, uint256 priceImpactDelta, uint256 desiredTimeDelta) =
-                abi.decode(_inputs, (address, int256, uint256, uint256));
+            (
+                address market,
+                int256 sizeDelta,
+                uint256 priceImpactDelta,
+                uint256 desiredTimeDelta
+            ) = abi.decode(_inputs, (address, int256, uint256, uint256));
             _perpsV2SubmitDelayedOrder({
                 _market: market,
                 _sizeDelta: sizeDelta,
@@ -269,8 +281,12 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             address market = abi.decode(_inputs, (address));
             _perpsV2CancelOffchainDelayedOrder({_market: market});
         } else if (_command == Command.PERPS_V2_CLOSE_POSITION) {
-            (address market, uint256 priceImpactDelta) = abi.decode(_inputs, (address, uint256));
-            _perpsV2ClosePosition({_market: market, _priceImpactDelta: priceImpactDelta});
+            (address market, uint256 priceImpactDelta) =
+                abi.decode(_inputs, (address, uint256));
+            _perpsV2ClosePosition({
+                _market: market,
+                _priceImpactDelta: priceImpactDelta
+            });
         } else if (_command == Command.GELATO_PLACE_CONDITIONAL_ORDER) {
             (
                 bytes32 marketKey,
@@ -281,7 +297,16 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
                 uint128 priceImpactDelta,
                 bool reduceOnly
             ) = abi.decode(
-                _inputs, (bytes32, int256, int256, uint256, ConditionalOrderTypes, uint128, bool)
+                _inputs,
+                (
+                    bytes32,
+                    int256,
+                    int256,
+                    uint256,
+                    ConditionalOrderTypes,
+                    uint128,
+                    bool
+                )
             );
             _placeConditionalOrder({
                 _marketKey: marketKey,
@@ -316,7 +341,11 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             (bool success,) = payable(owner).call{value: _amount}("");
             if (!success) revert EthWithdrawalFailed();
 
-            events.emitEthWithdraw({user: msg.sender, account: address(this), amount: _amount});
+            events.emitEthWithdraw({
+                user: msg.sender,
+                account: address(this),
+                amount: _amount
+            });
         }
     }
 
@@ -325,10 +354,15 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     function _modifyAccountMargin(int256 _amount) internal {
         // if amount is positive, deposit
         if (_amount > 0) {
-            bool success = MARGIN_ASSET.transferFrom(owner, address(this), _abs(_amount));
+            bool success =
+                MARGIN_ASSET.transferFrom(owner, address(this), _abs(_amount));
             if (!success) revert FailedMarginTransfer();
 
-            events.emitDeposit({user: msg.sender, account: address(this), amount: _abs(_amount)});
+            events.emitDeposit({
+                user: msg.sender,
+                account: address(this),
+                amount: _abs(_amount)
+            });
         } else if (_amount < 0) {
             // if amount is negative, withdraw
             if (_abs(_amount) > freeMargin()) {
@@ -405,7 +439,9 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /// @dev trade fee may be imposed on smart margin account
     /// @param _market: address of market
     /// @param _priceImpactDelta: price impact delta of order
-    function _perpsV2ClosePosition(address _market, uint256 _priceImpactDelta) internal {
+    function _perpsV2ClosePosition(address _market, uint256 _priceImpactDelta)
+        internal
+    {
         // establish Synthetix PerpsV2 Market position
         bytes32 marketKey = IPerpsV2MarketConsolidated(_market).marketKey();
 
@@ -484,7 +520,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
             })
         );
 
-        IPerpsV2MarketConsolidated(_market).submitOffchainDelayedOrderWithTracking({
+        IPerpsV2MarketConsolidated(_market)
+            .submitOffchainDelayedOrderWithTracking({
             sizeDelta: _sizeDelta,
             priceImpactDelta: _priceImpactDelta,
             trackingCode: TRACKING_CODE
@@ -494,7 +531,9 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /// @notice cancel a *pending* off-chain delayed order from a Synthetix PerpsV2 Market
     /// @dev will revert if no previous offchain delayed order
     function _perpsV2CancelOffchainDelayedOrder(address _market) internal {
-        IPerpsV2MarketConsolidated(_market).cancelOffchainDelayedOrder(address(this));
+        IPerpsV2MarketConsolidated(_market).cancelOffchainDelayedOrder(
+            address(this)
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -523,7 +562,9 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         if (_marginDelta > 0) {
             // ensure margin doesn't exceed max
             if (uint256(_marginDelta) > freeMargin()) {
-                revert InsufficientFreeMargin(freeMargin(), uint256(_marginDelta));
+                revert InsufficientFreeMargin(
+                    freeMargin(), uint256(_marginDelta)
+                );
             }
             committedMargin += _abs(_marginDelta);
         }
@@ -565,7 +606,9 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
         taskId = IOps(OPS).createTask({
             execAddress: address(this),
-            execData: abi.encodeCall(this.executeConditionalOrder, conditionalOrderId),
+            execData: abi.encodeCall(
+                this.executeConditionalOrder, conditionalOrderId
+                ),
             moduleData: moduleData,
             feeToken: ETH
         });
@@ -573,21 +616,30 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
     /// @notice create the Gelato ModuleData for a conditional order
     /// @dev see IOps for details on the task creation and the ModuleData struct
-    function _createGelatoModuleData() internal view returns (IOps.ModuleData memory moduleData) {
-        moduleData = IOps.ModuleData({modules: new IOps.Module[](2), args: new bytes[](2)});
+    function _createGelatoModuleData()
+        internal
+        view
+        returns (IOps.ModuleData memory moduleData)
+    {
+        moduleData = IOps.ModuleData({
+            modules: new IOps.Module[](2),
+            args: new bytes[](2)
+        });
 
         moduleData.modules[0] = IOps.Module.RESOLVER;
         moduleData.modules[1] = IOps.Module.SINGLE_EXEC;
 
-        moduleData.args[0] =
-            abi.encode(address(this), abi.encodeCall(this.checker, conditionalOrderId));
+        moduleData.args[0] = abi.encode(
+            address(this), abi.encodeCall(this.checker, conditionalOrderId)
+        );
         // moduleData.args[1] is empty for single exec thus no need to encode
     }
 
     /// @notice cancel a gelato queued conditional order
     /// @param _conditionalOrderId: key for an active conditional order
     function _cancelConditionalOrder(uint256 _conditionalOrderId) internal {
-        ConditionalOrder memory conditionalOrder = getConditionalOrder(_conditionalOrderId);
+        ConditionalOrder memory conditionalOrder =
+            getConditionalOrder(_conditionalOrderId);
 
         // if margin was committed, free it
         if (conditionalOrder.marginDelta > 0) {
@@ -604,7 +656,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         events.emitConditionalOrderCancelled({
             account: address(this),
             conditionalOrderId: _conditionalOrderId,
-            reason: ConditionalOrderCancelledReason.CONDITIONAL_ORDER_CANCELLED_BY_USER
+            reason: ConditionalOrderCancelledReason
+                .CONDITIONAL_ORDER_CANCELLED_BY_USER
         });
     }
 
@@ -613,7 +666,11 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
-    function executeConditionalOrder(uint256 _conditionalOrderId) external override onlyOps {
+    function executeConditionalOrder(uint256 _conditionalOrderId)
+        external
+        override
+        onlyOps
+    {
         (bool isValidConditionalOrder, uint256 fillPrice) =
             _validConditionalOrder(_conditionalOrderId);
 
@@ -621,25 +678,29 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         /// @dev this is a safety check; never intended to fail
         assert(isValidConditionalOrder);
 
-        ConditionalOrder memory conditionalOrder = getConditionalOrder(_conditionalOrderId);
+        ConditionalOrder memory conditionalOrder =
+            getConditionalOrder(_conditionalOrderId);
         address market = address(_getPerpsV2Market(conditionalOrder.marketKey));
 
         // if conditional order is reduce only, ensure position size is only reduced
         if (conditionalOrder.reduceOnly) {
-            int256 currentSize = _getPerpsV2Market(conditionalOrder.marketKey).positions({
-                account: address(this)
-            }).size;
+            int256 currentSize = _getPerpsV2Market(conditionalOrder.marketKey)
+                .positions({account: address(this)}).size;
 
             // ensure position exists and incoming size delta is NOT the same sign
             /// @dev if incoming size delta is the same sign, then the conditional order is not reduce only
-            if (currentSize == 0 || _isSameSign(currentSize, conditionalOrder.sizeDelta)) {
+            if (
+                currentSize == 0
+                    || _isSameSign(currentSize, conditionalOrder.sizeDelta)
+            ) {
                 // delete conditional order from conditional orders
                 delete conditionalOrders[_conditionalOrderId];
 
                 events.emitConditionalOrderCancelled({
                     account: address(this),
                     conditionalOrderId: _conditionalOrderId,
-                    reason: ConditionalOrderCancelledReason.CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
+                    reason: ConditionalOrderCancelledReason
+                        .CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
                 });
 
                 return;
@@ -664,10 +725,15 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
         // calculate conditional order fee imposed by Kwenta
         uint256 conditionalOrderFee = conditionalOrder.conditionalOrderType
-            == ConditionalOrderTypes.LIMIT ? settings.limitOrderFee() : settings.stopOrderFee();
+            == ConditionalOrderTypes.LIMIT
+            ? settings.limitOrderFee()
+            : settings.stopOrderFee();
 
         // execute trade
-        _perpsV2ModifyMargin({_market: market, _amount: conditionalOrder.marginDelta});
+        _perpsV2ModifyMargin({
+            _market: market,
+            _amount: conditionalOrder.marginDelta
+        });
         _perpsV2SubmitOffchainDelayedOrder({
             _market: market,
             _sizeDelta: conditionalOrder.sizeDelta,
@@ -705,12 +771,17 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         view
         returns (bool, uint256)
     {
-        ConditionalOrder memory conditionalOrder = getConditionalOrder(_conditionalOrderId);
+        ConditionalOrder memory conditionalOrder =
+            getConditionalOrder(_conditionalOrderId);
 
         // check if markets satisfy specific order type
-        if (conditionalOrder.conditionalOrderType == ConditionalOrderTypes.LIMIT) {
+        if (
+            conditionalOrder.conditionalOrderType == ConditionalOrderTypes.LIMIT
+        ) {
             return _validLimitOrder(conditionalOrder);
-        } else if (conditionalOrder.conditionalOrderType == ConditionalOrderTypes.STOP) {
+        } else if (
+            conditionalOrder.conditionalOrderType == ConditionalOrderTypes.STOP
+        ) {
             return _validStopOrder(conditionalOrder);
         } else {
             // unknown order type
@@ -729,7 +800,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         returns (bool, uint256)
     {
         /// @dev is marketKey is invalid, this will revert
-        uint256 price = _sUSDRate(_getPerpsV2Market(_conditionalOrder.marketKey));
+        uint256 price =
+            _sUSDRate(_getPerpsV2Market(_conditionalOrder.marketKey));
 
         if (_conditionalOrder.sizeDelta > 0) {
             // Long: increase position size (buy) once *below* target price
@@ -753,7 +825,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         returns (bool, uint256)
     {
         /// @dev is marketKey is invalid, this will revert
-        uint256 price = _sUSDRate(_getPerpsV2Market(_conditionalOrder.marketKey));
+        uint256 price =
+            _sUSDRate(_getPerpsV2Market(_conditionalOrder.marketKey));
 
         if (_conditionalOrder.sizeDelta > 0) {
             // Long: increase position size (buy) once *above* target price
@@ -780,7 +853,8 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         IPerpsV2MarketConsolidated _market,
         uint256 _conditionalOrderFee
     ) internal view returns (uint256 fee) {
-        fee = (_abs(_sizeDelta) * (settings.tradeFee() + _conditionalOrderFee)) / settings.MAX_BPS();
+        fee = (_abs(_sizeDelta) * (settings.tradeFee() + _conditionalOrderFee))
+            / settings.MAX_BPS();
 
         /// @notice fee is currently measured in the underlying base asset of the market
         /// @dev fee will be measured in sUSD, thus exchange rate is needed
@@ -815,13 +889,19 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         view
         returns (IPerpsV2MarketConsolidated)
     {
-        return IPerpsV2MarketConsolidated(futuresMarketManager.marketForKey(_marketKey));
+        return IPerpsV2MarketConsolidated(
+            futuresMarketManager.marketForKey(_marketKey)
+        );
     }
 
     /// @notice get exchange rate of underlying market asset in terms of sUSD
     /// @param _market: Synthetix PerpsV2 Market
     /// @return price in sUSD
-    function _sUSDRate(IPerpsV2MarketConsolidated _market) internal view returns (uint256) {
+    function _sUSDRate(IPerpsV2MarketConsolidated _market)
+        internal
+        view
+        returns (uint256)
+    {
         (uint256 price, bool invalid) = _market.assetPrice();
         if (invalid) {
             revert InvalidPrice();

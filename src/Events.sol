@@ -7,17 +7,26 @@ import {IEvents, IAccount} from "./interfaces/IEvents.sol";
 /// @author JaredBorders (jaredborders@pm.me)
 contract Events is IEvents {
     /// @inheritdoc IEvents
-    function emitDeposit(address user, address account, uint256 amount) external override {
+    function emitDeposit(address user, address account, uint256 amount)
+        external
+        override
+    {
         emit Deposit({user: user, account: account, amount: amount});
     }
 
     /// @inheritdoc IEvents
-    function emitWithdraw(address user, address account, uint256 amount) external override {
+    function emitWithdraw(address user, address account, uint256 amount)
+        external
+        override
+    {
         emit Withdraw({user: user, account: account, amount: amount});
     }
 
     /// @inheritdoc IEvents
-    function emitEthWithdraw(address user, address account, uint256 amount) external override {
+    function emitEthWithdraw(address user, address account, uint256 amount)
+        external
+        override
+    {
         emit EthWithdraw({user: user, account: account, amount: amount});
     }
 
@@ -75,7 +84,10 @@ contract Events is IEvents {
     }
 
     /// @inheritdoc IEvents
-    function emitFeeImposed(address account, uint256 amount) external override {
+    function emitFeeImposed(address account, uint256 amount)
+        external
+        override
+    {
         emit FeeImposed({account: account, amount: amount});
     }
 }

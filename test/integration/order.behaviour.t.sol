@@ -45,7 +45,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
 
-        sUSD = ERC20(IAddressResolver(ADDRESS_RESOLVER).getAddress("ProxyERC20sUSD"));
+        sUSD = ERC20(
+            IAddressResolver(ADDRESS_RESOLVER).getAddress("ProxyERC20sUSD")
+        );
 
         Setup setup = new Setup();
         factory = setup.deploySmartMarginFactory({
@@ -65,12 +67,16 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         fundAccount(AMOUNT);
 
         accountExposed = new AccountExposed();
-        accountExposed.setFuturesMarketManager(IFuturesMarketManager(FUTURES_MARKET_MANAGER));
+        accountExposed.setFuturesMarketManager(
+            IFuturesMarketManager(FUTURES_MARKET_MANAGER)
+        );
         accountExposed.setSettings(settings);
         accountExposed.setEvents(events);
 
         currentEthPriceInUSD = accountExposed.expose_sUSDRate(
-            IPerpsV2MarketConsolidated(accountExposed.expose_getPerpsV2Market(sETHPERP))
+            IPerpsV2MarketConsolidated(
+                accountExposed.expose_getPerpsV2Market(sETHPERP)
+            )
         );
     }
 
@@ -87,7 +93,13 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         commands[0] = IAccount.Command.GELATO_PLACE_CONDITIONAL_ORDER;
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(
-            sETHPERP, 0, int256(AMOUNT), 0, IAccount.ConditionalOrderTypes.LIMIT, 0, false
+            sETHPERP,
+            0,
+            int256(AMOUNT),
+            0,
+            IAccount.ConditionalOrderTypes.LIMIT,
+            0,
+            false
         );
 
         vm.expectRevert("UNAUTHORIZED");
@@ -97,12 +109,16 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_PlaceConditionalOrder_Invalid_ZeroSizeDelta() external {
         vm.expectRevert(
-            abi.encodeWithSelector(IAccount.ValueCannotBeZero.selector, bytes32("_sizeDelta"))
+            abi.encodeWithSelector(
+                IAccount.ValueCannotBeZero.selector, bytes32("_sizeDelta")
+            )
         );
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.GELATO_PLACE_CONDITIONAL_ORDER;
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(sETHPERP, 0, 0, 0, IAccount.ConditionalOrderTypes.LIMIT, 0, false);
+        inputs[0] = abi.encode(
+            sETHPERP, 0, 0, 0, IAccount.ConditionalOrderTypes.LIMIT, 0, false
+        );
         account.execute(commands, inputs);
     }
 
@@ -125,7 +141,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         );
 
         vm.expectRevert(
-            abi.encodeWithSelector(IAccount.InsufficientFreeMargin.selector, 0, int256(AMOUNT))
+            abi.encodeWithSelector(
+                IAccount.InsufficientFreeMargin.selector, 0, int256(AMOUNT)
+            )
         );
         vm.prank(USER);
         account.execute(commands, inputs);
@@ -142,7 +160,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             reduceOnly: false
         });
 
-        (, IOps.ModuleData memory moduleData) = generateGelatoModuleData(conditionalOrderId);
+        (, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
 
         // get task id
         bytes32 taskId = IOps(OPS).getTaskId({
@@ -154,14 +173,18 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         });
 
         // check account recorded task id matches gelato task id fetched
-        assertEq(taskId, account.getConditionalOrder(conditionalOrderId).gelatoTaskId);
+        assertEq(
+            taskId, account.getConditionalOrder(conditionalOrderId).gelatoTaskId
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
                    PLACING CONDITIONAL ORDERS: LIMIT
     //////////////////////////////////////////////////////////////*/
 
-    function test_PlaceConditionalOrder_Limit_Valid_Long(uint256 fuzzedTargetPrice) public {
+    function test_PlaceConditionalOrder_Limit_Valid_Long(
+        uint256 fuzzedTargetPrice
+    ) public {
         vm.assume(fuzzedTargetPrice >= currentEthPriceInUSD);
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
@@ -176,7 +199,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assertTrue(canExec);
     }
 
-    function test_PlaceConditionalOrder_Limit_Invalid_Long(uint256 fuzzedTargetPrice) public {
+    function test_PlaceConditionalOrder_Limit_Invalid_Long(
+        uint256 fuzzedTargetPrice
+    ) public {
         vm.assume(fuzzedTargetPrice < currentEthPriceInUSD);
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
@@ -191,7 +216,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assertFalse(canExec);
     }
 
-    function test_PlaceConditionalOrder_Limit_Valid_Short(uint256 fuzzedTargetPrice) public {
+    function test_PlaceConditionalOrder_Limit_Valid_Short(
+        uint256 fuzzedTargetPrice
+    ) public {
         vm.assume(fuzzedTargetPrice <= currentEthPriceInUSD);
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
@@ -206,7 +233,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assertTrue(canExec);
     }
 
-    function test_PlaceConditionalOrder_Limit_Invalid_Short(uint256 fuzzedTargetPrice) public {
+    function test_PlaceConditionalOrder_Limit_Invalid_Short(
+        uint256 fuzzedTargetPrice
+    ) public {
         vm.assume(fuzzedTargetPrice > currentEthPriceInUSD);
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
@@ -221,7 +250,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assertFalse(canExec);
     }
 
-    function test_PlaceConditionalOrder_Limit_Valid_State(int256 fuzzedSizeDelta) external {
+    function test_PlaceConditionalOrder_Limit_Valid_State(
+        int256 fuzzedSizeDelta
+    ) external {
         vm.assume(fuzzedSizeDelta != 0);
         uint256 orderId = account.conditionalOrderId();
         uint256 conditionalOrderId = placeConditionalOrder({
@@ -237,7 +268,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assertTrue(account.conditionalOrderId() == orderId + 1);
         assertTrue(conditionalOrderId == orderId);
         // check order was registered internally
-        IAccount.ConditionalOrder memory conditionalOrder = account.getConditionalOrder(orderId);
+        IAccount.ConditionalOrder memory conditionalOrder =
+            account.getConditionalOrder(orderId);
         assertTrue(conditionalOrder.marketKey == sETHPERP);
         assertTrue(conditionalOrder.marginDelta == int256(currentEthPriceInUSD));
         assertTrue(conditionalOrder.sizeDelta == fuzzedSizeDelta);
@@ -251,7 +283,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assertFalse(conditionalOrder.reduceOnly);
     }
 
-    function test_PlaceConditionalOrder_Limit_Valid_Event(int256 fuzzedSizeDelta) external {
+    function test_PlaceConditionalOrder_Limit_Valid_Event(
+        int256 fuzzedSizeDelta
+    ) external {
         vm.assume(fuzzedSizeDelta != 0);
         uint256 orderId = account.conditionalOrderId();
         vm.expectEmit(true, true, true, true);
@@ -281,7 +315,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     PLACING CONDITIONAL ORDERS: STOP
     //////////////////////////////////////////////////////////////*/
 
-    function test_PlaceConditionalOrder_Stop_Valid_Long(uint256 fuzzedTargetPrice) public {
+    function test_PlaceConditionalOrder_Stop_Valid_Long(
+        uint256 fuzzedTargetPrice
+    ) public {
         vm.assume(fuzzedTargetPrice <= currentEthPriceInUSD);
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
@@ -296,7 +332,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assertTrue(canExec);
     }
 
-    function test_PlaceConditionalOrder_Stop_Invalid_Long(uint256 fuzzedTargetPrice) public {
+    function test_PlaceConditionalOrder_Stop_Invalid_Long(
+        uint256 fuzzedTargetPrice
+    ) public {
         vm.assume(fuzzedTargetPrice > currentEthPriceInUSD);
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
@@ -311,7 +349,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assertFalse(canExec);
     }
 
-    function test_PlaceConditionalOrder_Stop_Valid_Short(uint256 fuzzedTargetPrice) public {
+    function test_PlaceConditionalOrder_Stop_Valid_Short(
+        uint256 fuzzedTargetPrice
+    ) public {
         vm.assume(fuzzedTargetPrice >= currentEthPriceInUSD);
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
@@ -326,7 +366,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assertTrue(canExec);
     }
 
-    function test_PlaceConditionalOrder_Stop_Invalid_Short(uint256 fuzzedTargetPrice) public {
+    function test_PlaceConditionalOrder_Stop_Invalid_Short(
+        uint256 fuzzedTargetPrice
+    ) public {
         vm.assume(fuzzedTargetPrice < currentEthPriceInUSD);
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
@@ -403,7 +445,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     accountExposed.expose_abs(fuzzedAmountToWithdraw)
                 )
             );
-        } else if (accountExposed.expose_abs(fuzzedAmountToWithdraw) > freeMargin) {
+        } else if (
+            accountExposed.expose_abs(fuzzedAmountToWithdraw) > freeMargin
+        ) {
             vm.expectRevert(
                 abi.encodeWithSelector(
                     IAccount.InsufficientFreeMargin.selector,
@@ -416,7 +460,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         modifyAccountMargin(fuzzedAmountToWithdraw);
     }
 
-    function test_PlaceConditionalOrder_Invalid_InsufficientFreeMargin() public {
+    function test_PlaceConditionalOrder_Invalid_InsufficientFreeMargin()
+        public
+    {
         placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: int256(AMOUNT),
@@ -426,7 +472,11 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             priceImpactDelta: PRICE_IMPACT_DELTA,
             reduceOnly: false
         });
-        vm.expectRevert(abi.encodeWithSelector(IAccount.InsufficientFreeMargin.selector, 0, AMOUNT));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccount.InsufficientFreeMargin.selector, 0, AMOUNT
+            )
+        );
         placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: int256(AMOUNT),
@@ -448,7 +498,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         cancelConditionalOrder({conditionalOrderId: 0});
     }
 
-    function test_CancelConditionalOrder_Nonexistent(uint256 fuzzedConditionalOrderId) external {
+    function test_CancelConditionalOrder_Nonexistent(
+        uint256 fuzzedConditionalOrderId
+    ) external {
         vm.expectRevert();
         cancelConditionalOrder(fuzzedConditionalOrderId);
     }
@@ -508,7 +560,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         emit ConditionalOrderCancelled(
             address(account),
             conditionalOrderId,
-            IAccount.ConditionalOrderCancelledReason.CONDITIONAL_ORDER_CANCELLED_BY_USER
+            IAccount
+                .ConditionalOrderCancelledReason
+                .CONDITIONAL_ORDER_CANCELLED_BY_USER
             );
         cancelConditionalOrder(conditionalOrderId);
     }
@@ -617,7 +671,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     }
 
     // assert fee transfer to gelato is called
-    function test_ExecuteConditionalOrder_Valid_TaskRemovedFromGelato() public {
+    function test_ExecuteConditionalOrder_Valid_TaskRemovedFromGelato()
+        public
+    {
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
@@ -752,7 +808,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             revertOnFailure: true
         });
         // get delayed order details
-        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order =
+            account.getDelayedOrder(sETHPERP);
         // confirm delayed order details are non-zero
         assert(order.isOffchain == true);
         assert(order.sizeDelta == 1 ether);
@@ -859,7 +916,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             revertOnFailure: true
         });
         // get delayed order details
-        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order =
+            account.getDelayedOrder(sETHPERP);
         // confirm delayed order details are non-zero
         assert(order.isOffchain == true);
         assert(order.sizeDelta == 1 ether);
@@ -958,7 +1016,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             revertOnFailure: true
         });
         // get delayed order details
-        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order =
+            account.getDelayedOrder(sETHPERP);
         // expect all details to be unset
         assert(order.isOffchain == true);
         assert(order.sizeDelta != 0);
@@ -979,7 +1038,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: 1 ether,
             priceImpactDelta: 1 ether / 2
         });
-        IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
+        IPerpsV2MarketConsolidated.Position memory position =
+            account.getPosition(sETHPERP);
         assert(position.size == 1 ether); // sanity check :D
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
@@ -998,7 +1058,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             emit ConditionalOrderCancelled(
                 address(account),
                 conditionalOrderId,
-                IAccount.ConditionalOrderCancelledReason.CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
+                IAccount
+                    .ConditionalOrderCancelledReason
+                    .CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
                 );
         } else if (fuzzedSizeDelta < 0) {
             if (fuzzedSizeDelta + position.size < 0) {
@@ -1038,7 +1100,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         });
     }
 
-    function test_ReduceOnlyOrder_Valid_Short(int256 fuzzedSizeDelta) external {
+    function test_ReduceOnlyOrder_Valid_Short(int256 fuzzedSizeDelta)
+        external
+    {
         vm.assume(fuzzedSizeDelta != 0);
         submitAtomicOrder({
             marketKey: sETHPERP,
@@ -1046,7 +1110,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: -1 ether,
             priceImpactDelta: 1 ether / 2
         });
-        IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
+        IPerpsV2MarketConsolidated.Position memory position =
+            account.getPosition(sETHPERP);
         assert(position.size == -1 ether); // sanity check :D
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
@@ -1065,7 +1130,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             emit ConditionalOrderCancelled(
                 address(account),
                 conditionalOrderId,
-                IAccount.ConditionalOrderCancelledReason.CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
+                IAccount
+                    .ConditionalOrderCancelledReason
+                    .CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
                 );
         } else if (fuzzedSizeDelta > 0) {
             if (fuzzedSizeDelta + position.size > 0) {
@@ -1143,7 +1210,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP));
         account.execute(commands, inputs);
-        IPerpsV2MarketConsolidated.DelayedOrder memory order = account.getDelayedOrder(sETHPERP);
+        IPerpsV2MarketConsolidated.DelayedOrder memory order =
+            account.getDelayedOrder(sETHPERP);
         assert(order.isOffchain == false);
         assert(order.sizeDelta == 0);
         assert(order.priceImpactDelta == 0);
@@ -1161,7 +1229,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function mintSUSD(address to, uint256 amount) private {
         address issuer = IAddressResolver(ADDRESS_RESOLVER).getAddress("Issuer");
-        ISynth synthsUSD = ISynth(IAddressResolver(ADDRESS_RESOLVER).getAddress("SynthsUSD"));
+        ISynth synthsUSD =
+            ISynth(IAddressResolver(ADDRESS_RESOLVER).getAddress("SynthsUSD"));
         vm.prank(issuer);
         synthsUSD.issue(to, amount);
     }
@@ -1173,11 +1242,17 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         modifyAccountMargin({amount: int256(amount)});
     }
 
-    function getMarketAddressFromKey(bytes32 key) private view returns (address market) {
+    function getMarketAddressFromKey(bytes32 key)
+        private
+        view
+        returns (address market)
+    {
         market = address(
             IPerpsV2MarketConsolidated(
                 IFuturesMarketManager(
-                    IAddressResolver(ADDRESS_RESOLVER).getAddress("FuturesMarketManager")
+                    IAddressResolver(ADDRESS_RESOLVER).getAddress(
+                        "FuturesMarketManager"
+                    )
                 ).marketForKey(key)
             )
         );
@@ -1188,15 +1263,21 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         view
         returns (bytes memory executionData, IOps.ModuleData memory moduleData)
     {
-        executionData = abi.encodeCall(account.executeConditionalOrder, conditionalOrderId);
+        executionData =
+            abi.encodeCall(account.executeConditionalOrder, conditionalOrderId);
 
-        moduleData = IOps.ModuleData({modules: new IOps.Module[](2), args: new bytes[](2)});
+        moduleData = IOps.ModuleData({
+            modules: new IOps.Module[](2),
+            args: new bytes[](2)
+        });
 
         moduleData.modules[0] = IOps.Module.RESOLVER;
         moduleData.modules[1] = IOps.Module.SINGLE_EXEC;
 
-        moduleData.args[0] =
-            abi.encode(address(account), abi.encodeCall(account.checker, conditionalOrderId));
+        moduleData.args[0] = abi.encode(
+            address(account),
+            abi.encodeCall(account.checker, conditionalOrderId)
+        );
         // moduleData.args[1] is empty for single exec thus no need to encode
     }
 

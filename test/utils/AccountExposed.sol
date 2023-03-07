@@ -19,7 +19,9 @@ contract AccountExposed is Account {
                       SETTERS FOR EXPOSED ACCOUNT
     //////////////////////////////////////////////////////////////*/
 
-    function setFuturesMarketManager(IFuturesMarketManager _futuresMarketManager) external {
+    function setFuturesMarketManager(
+        IFuturesMarketManager _futuresMarketManager
+    ) external {
         futuresMarketManager = _futuresMarketManager;
     }
 
@@ -55,7 +57,9 @@ contract AccountExposed is Account {
         _withdrawEth({_amount: amount});
     }
 
-    function expose_perpsV2ModifyMargin(address market, int256 amount) external {
+    function expose_perpsV2ModifyMargin(address market, int256 amount)
+        external
+    {
         _perpsV2ModifyMargin({_market: market, _amount: amount});
     }
 
@@ -105,12 +109,20 @@ contract AccountExposed is Account {
         _perpsV2CancelDelayedOrder({_market: market});
     }
 
-    function expose_perpsV2CancelOffchainDelayedOrder(address market) external {
+    function expose_perpsV2CancelOffchainDelayedOrder(address market)
+        external
+    {
         _perpsV2CancelOffchainDelayedOrder({_market: market});
     }
 
-    function expose_PERPS_V2_CLOSE_POSITION(address market, uint256 priceImpactDelta) external {
-        _perpsV2ClosePosition({_market: market, _priceImpactDelta: priceImpactDelta});
+    function expose_PERPS_V2_CLOSE_POSITION(
+        address market,
+        uint256 priceImpactDelta
+    ) external {
+        _perpsV2ClosePosition({
+            _market: market,
+            _priceImpactDelta: priceImpactDelta
+        });
     }
 
     function expose_placeConditionalOrder(
@@ -149,7 +161,11 @@ contract AccountExposed is Account {
         return _getPerpsV2Market(_marketKey);
     }
 
-    function expose_sUSDRate(IPerpsV2MarketConsolidated _market) public view returns (uint256) {
+    function expose_sUSDRate(IPerpsV2MarketConsolidated _market)
+        public
+        view
+        returns (uint256)
+    {
         return _sUSDRate(_market);
     }
 
