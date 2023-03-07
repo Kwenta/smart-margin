@@ -131,7 +131,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         account.execute(commands, inputs);
     }
 
-        function test_PlaceConditionalOrder_Valid_GelatoTaskId() external {
+    function test_PlaceConditionalOrder_Valid_GelatoTaskId() external {
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
@@ -142,8 +142,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             reduceOnly: false
         });
 
-        (, IOps.ModuleData memory moduleData) =
-            generateGelatoModuleData(conditionalOrderId);
+        (, IOps.ModuleData memory moduleData) = generateGelatoModuleData(conditionalOrderId);
 
         // get task id
         bytes32 taskId = IOps(OPS).getTaskId({
@@ -567,6 +566,43 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             generateGelatoModuleData(conditionalOrderId);
         // expect a call w/ empty calldata to gelato (payment through callvalue)
         vm.expectCall(GELATO, "");
+        vm.prank(GELATO);
+        IOps(OPS).exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: executionData,
+            moduleData: moduleData,
+            txFee: GELATO_FEE,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        });
+    }
+
+    function test_ExecuteConditionalOrder_Valid_InsufficientEth() public {
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
+        });
+
+        withdrawEthFromAccount(1 ether);
+
+        (bytes memory executionData, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
+
+        /// @dev gelato gets revert message defined in Kwenta's OpsReady contract
+        /// and for whatever reason modifies it, thus the error message we expect
+        /// is different from what is defined in our OpsReady contract
+        ///
+        /// kwenta's: "OpsReady: ETH transfer failed"
+        /// gelato's: "Ops.exec: OpsReady: ETH transfer failed"
+        vm.expectRevert("Ops.exec: OpsReady: ETH transfer failed");
+
         vm.prank(GELATO);
         IOps(OPS).exec({
             taskCreator: address(account),
@@ -1154,18 +1190,13 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     {
         executionData = abi.encodeCall(account.executeConditionalOrder, conditionalOrderId);
 
-        moduleData = IOps.ModuleData({
-            modules: new IOps.Module[](2),
-            args: new bytes[](2)
-        });
+        moduleData = IOps.ModuleData({modules: new IOps.Module[](2), args: new bytes[](2)});
 
         moduleData.modules[0] = IOps.Module.RESOLVER;
         moduleData.modules[1] = IOps.Module.SINGLE_EXEC;
 
-        moduleData.args[0] = abi.encode(
-            address(account),
-            abi.encodeCall(account.checker, conditionalOrderId)
-        );
+        moduleData.args[0] =
+            abi.encode(address(account), abi.encodeCall(account.checker, conditionalOrderId));
         // moduleData.args[1] is empty for single exec thus no need to encode
     }
 
@@ -1176,6 +1207,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     function modifyAccountMargin(int256 amount) private {
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.ACCOUNT_MODIFY_MARGIN;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(amount);
+        account.execute(commands, inputs);
+    }
+
+    function withdrawEthFromAccount(uint256 amount) private {
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.ACCOUNT_WITHDRAW_ETH;
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(amount);
         account.execute(commands, inputs);

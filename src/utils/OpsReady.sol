@@ -9,7 +9,6 @@ import {IOps} from "../interfaces/IOps.sol";
 /// call restrictions for functions to be automated.
 abstract contract OpsReady {
     error OnlyOps();
-    error EthTransferFailed();
 
     /// @notice address of Gelato Network contract
     address public constant GELATO = 0x01051113D81D7d6DA508462F2ad6d7fD96cF42Ef; // Optimism
@@ -38,7 +37,7 @@ abstract contract OpsReady {
     function _transfer(uint256 _amount, address _paymentToken) internal {
         if (_paymentToken == ETH) {
             (bool success,) = GELATO.call{value: _amount}("");
-            if (!success) revert EthTransferFailed();
+            require(success, "OpsReady: ETH transfer failed");
         } else {
             SafeERC20.safeTransfer(IERC20(_paymentToken), GELATO, _amount);
         }
