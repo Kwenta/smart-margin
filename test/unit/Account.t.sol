@@ -39,7 +39,9 @@ contract AccountTest is Test, ConsolidatedEvents {
 
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
+
         sUSD = ERC20(IAddressResolver(ADDRESS_RESOLVER).getAddress("ProxyERC20sUSD"));
+
         Setup setup = new Setup();
         factory = setup.deploySmartMarginFactory({
             owner: address(this),
@@ -50,12 +52,17 @@ contract AccountTest is Test, ConsolidatedEvents {
             addressResolver: ADDRESS_RESOLVER,
             marginAsset: MARGIN_ASSET
         });
+
         settings = Settings(factory.settings());
         events = Events(factory.events());
+
         account = Account(payable(factory.newAccount()));
+
         accountExposed = new AccountExposed();
-        accountExposed.setSettings(settings);
         accountExposed.setFuturesMarketManager(IFuturesMarketManager(FUTURES_MARKET_MANAGER));
+        accountExposed.setSettings(settings);
+        accountExposed.setEvents(events);
+
         currentEthPriceInUSD = accountExposed.expose_sUSDRate(
             IPerpsV2MarketConsolidated(accountExposed.expose_getPerpsV2Market(sETHPERP))
         );
@@ -163,13 +170,13 @@ contract AccountTest is Test, ConsolidatedEvents {
     function test_Deposit_Margin_OnlyOwner() external {
         account.transferOwnership(KWENTA_TREASURY);
         vm.expectRevert("UNAUTHORIZED");
-        account.deposit(AMOUNT);
+        modifyAccountMargin(int256(AMOUNT));
     }
 
     function test_Withdraw_Margin_OnlyOwner() external {
         account.transferOwnership(KWENTA_TREASURY);
         vm.expectRevert("UNAUTHORIZED");
-        account.withdraw(AMOUNT);
+        modifyAccountMargin(-int256(AMOUNT));
     }
 
     function test_Deposit_ETH_OnlyOwner() external {
@@ -182,7 +189,7 @@ contract AccountTest is Test, ConsolidatedEvents {
     function test_Withdraw_ETH_OnlyOwner() external {
         account.transferOwnership(KWENTA_TREASURY);
         vm.expectRevert("UNAUTHORIZED");
-        account.withdrawEth(1 ether);
+        withdrawEth(1 ether);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -258,5 +265,25 @@ contract AccountTest is Test, ConsolidatedEvents {
                 ).marketForKey(key)
             )
         );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           COMMAND SHORTCUTS
+    //////////////////////////////////////////////////////////////*/
+
+    function modifyAccountMargin(int256 amount) private {
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.ACCOUNT_MODIFY_MARGIN;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(amount);
+        account.execute(commands, inputs);
+    }
+
+    function withdrawEth(uint256 amount) private {
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.ACCOUNT_MODIFY_MARGIN;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(amount);
+        account.execute(commands, inputs);
     }
 }

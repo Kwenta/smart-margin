@@ -43,13 +43,10 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        // select block number
         vm.rollFork(BLOCK_NUMBER);
 
-        // establish sUSD address
         sUSD = ERC20(IAddressResolver(ADDRESS_RESOLVER).getAddress("ProxyERC20sUSD"));
 
-        // uses deployment script for tests (2 birds 1 stone)
         Setup setup = new Setup();
         factory = setup.deploySmartMarginFactory({
             owner: address(this),
@@ -63,14 +60,15 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
         settings = Settings(factory.settings());
         events = Events(factory.events());
-        account = createAccountAndDepositSUSD(AMOUNT);
 
-        // deploy contract that exposes Account's internal functions
+        account = Account(payable(factory.newAccount()));
+        fundAccount(AMOUNT);
+
         accountExposed = new AccountExposed();
-        accountExposed.setSettings(settings);
         accountExposed.setFuturesMarketManager(IFuturesMarketManager(FUTURES_MARKET_MANAGER));
+        accountExposed.setSettings(settings);
+        accountExposed.setEvents(events);
 
-        // fetch ETH amount in sUSD
         currentEthPriceInUSD = accountExposed.expose_sUSDRate(
             IPerpsV2MarketConsolidated(accountExposed.expose_getPerpsV2Market(sETHPERP))
         );
@@ -85,52 +83,79 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_PlaceConditionalOrder_Invalid_NotOwner() external {
-        vm.prank(USER);
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.GELATO_PLACE_CONDITIONAL_ORDER;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            sETHPERP, 0, int256(AMOUNT), 0, IAccount.ConditionalOrderTypes.LIMIT, 0, false
+        );
+
         vm.expectRevert("UNAUTHORIZED");
-        account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: 0,
-            _sizeDelta: int256(AMOUNT),
-            _targetPrice: 0,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: 0,
-            _reduceOnly: false
-        });
+        vm.prank(USER);
+        account.execute(commands, inputs);
     }
 
     function test_PlaceConditionalOrder_Invalid_ZeroSizeDelta() external {
-        vm.prank(USER);
         vm.expectRevert(
             abi.encodeWithSelector(IAccount.ValueCannotBeZero.selector, bytes32("_sizeDelta"))
         );
-        account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: 0,
-            _sizeDelta: 0,
-            _targetPrice: 0,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: 0,
-            _reduceOnly: false
-        });
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.GELATO_PLACE_CONDITIONAL_ORDER;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(sETHPERP, 0, 0, 0, IAccount.ConditionalOrderTypes.LIMIT, 0, false);
+        account.execute(commands, inputs);
     }
 
     function test_PlaceConditionalOrder_Invalid_InsufficientMargin() external {
         vm.prank(USER);
-        account = createAccount();
+        account = Account(payable(factory.newAccount()));
         vm.deal(address(account), 1 ether);
+
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.GELATO_PLACE_CONDITIONAL_ORDER;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            sETHPERP,
+            int256(AMOUNT),
+            int256(AMOUNT),
+            0,
+            IAccount.ConditionalOrderTypes.LIMIT,
+            0,
+            false
+        );
+
         vm.expectRevert(
             abi.encodeWithSelector(IAccount.InsufficientFreeMargin.selector, 0, int256(AMOUNT))
         );
         vm.prank(USER);
-        account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(AMOUNT),
-            _sizeDelta: int256(AMOUNT),
-            _targetPrice: 0,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: 0,
-            _reduceOnly: false
+        account.execute(commands, inputs);
+    }
+
+        function test_PlaceConditionalOrder_Valid_GelatoTaskId() external {
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
+
+        (, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
+
+        // get task id
+        bytes32 taskId = IOps(OPS).getTaskId({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execSelector: account.executeConditionalOrder.selector,
+            moduleData: moduleData,
+            feeToken: ETH
+        });
+
+        // check account recorded task id matches gelato task id fetched
+        assertEq(taskId, account.getConditionalOrder(conditionalOrderId).gelatoTaskId);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -139,14 +164,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_PlaceConditionalOrder_Limit_Valid_Long(uint256 fuzzedTargetPrice) public {
         vm.assume(fuzzedTargetPrice >= currentEthPriceInUSD);
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(AMOUNT),
-            _sizeDelta: int256(AMOUNT),
-            _targetPrice: fuzzedTargetPrice,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(AMOUNT),
+            sizeDelta: int256(AMOUNT),
+            targetPrice: fuzzedTargetPrice,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         (bool canExec,) = account.checker(conditionalOrderId);
         assertTrue(canExec);
@@ -154,14 +179,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_PlaceConditionalOrder_Limit_Invalid_Long(uint256 fuzzedTargetPrice) public {
         vm.assume(fuzzedTargetPrice < currentEthPriceInUSD);
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(AMOUNT),
-            _sizeDelta: int256(AMOUNT),
-            _targetPrice: fuzzedTargetPrice,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(AMOUNT),
+            sizeDelta: int256(AMOUNT),
+            targetPrice: fuzzedTargetPrice,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         (bool canExec,) = account.checker(conditionalOrderId);
         assertFalse(canExec);
@@ -169,14 +194,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_PlaceConditionalOrder_Limit_Valid_Short(uint256 fuzzedTargetPrice) public {
         vm.assume(fuzzedTargetPrice <= currentEthPriceInUSD);
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(AMOUNT),
-            _sizeDelta: -int256(AMOUNT),
-            _targetPrice: fuzzedTargetPrice,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(AMOUNT),
+            sizeDelta: -int256(AMOUNT),
+            targetPrice: fuzzedTargetPrice,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         (bool canExec,) = account.checker(conditionalOrderId);
         assertTrue(canExec);
@@ -184,14 +209,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_PlaceConditionalOrder_Limit_Invalid_Short(uint256 fuzzedTargetPrice) public {
         vm.assume(fuzzedTargetPrice > currentEthPriceInUSD);
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(AMOUNT),
-            _sizeDelta: -int256(AMOUNT),
-            _targetPrice: fuzzedTargetPrice,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(AMOUNT),
+            sizeDelta: -int256(AMOUNT),
+            targetPrice: fuzzedTargetPrice,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         (bool canExec,) = account.checker(conditionalOrderId);
         assertFalse(canExec);
@@ -200,14 +225,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     function test_PlaceConditionalOrder_Limit_Valid_State(int256 fuzzedSizeDelta) external {
         vm.assume(fuzzedSizeDelta != 0);
         uint256 orderId = account.conditionalOrderId();
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(currentEthPriceInUSD),
-            _sizeDelta: fuzzedSizeDelta,
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: fuzzedSizeDelta,
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         // check conditionalOrderId incremented
         assertTrue(account.conditionalOrderId() == orderId + 1);
@@ -242,14 +267,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             PRICE_IMPACT_DELTA,
             false
             );
-        account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(currentEthPriceInUSD),
-            _sizeDelta: fuzzedSizeDelta,
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: fuzzedSizeDelta,
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
     }
 
@@ -259,14 +284,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_PlaceConditionalOrder_Stop_Valid_Long(uint256 fuzzedTargetPrice) public {
         vm.assume(fuzzedTargetPrice <= currentEthPriceInUSD);
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(AMOUNT),
-            _sizeDelta: int256(AMOUNT),
-            _targetPrice: fuzzedTargetPrice,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(AMOUNT),
+            sizeDelta: int256(AMOUNT),
+            targetPrice: fuzzedTargetPrice,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         (bool canExec,) = account.checker(conditionalOrderId);
         assertTrue(canExec);
@@ -274,14 +299,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_PlaceConditionalOrder_Stop_Invalid_Long(uint256 fuzzedTargetPrice) public {
         vm.assume(fuzzedTargetPrice > currentEthPriceInUSD);
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(AMOUNT),
-            _sizeDelta: int256(AMOUNT),
-            _targetPrice: fuzzedTargetPrice,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(AMOUNT),
+            sizeDelta: int256(AMOUNT),
+            targetPrice: fuzzedTargetPrice,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         (bool canExec,) = account.checker(conditionalOrderId);
         assertFalse(canExec);
@@ -289,14 +314,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_PlaceConditionalOrder_Stop_Valid_Short(uint256 fuzzedTargetPrice) public {
         vm.assume(fuzzedTargetPrice >= currentEthPriceInUSD);
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(AMOUNT),
-            _sizeDelta: -int256(AMOUNT),
-            _targetPrice: fuzzedTargetPrice,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(AMOUNT),
+            sizeDelta: -int256(AMOUNT),
+            targetPrice: fuzzedTargetPrice,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         (bool canExec,) = account.checker(conditionalOrderId);
         assertTrue(canExec);
@@ -304,23 +329,23 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_PlaceConditionalOrder_Stop_Invalid_Short(uint256 fuzzedTargetPrice) public {
         vm.assume(fuzzedTargetPrice < currentEthPriceInUSD);
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(AMOUNT),
-            _sizeDelta: -int256(AMOUNT),
-            _targetPrice: fuzzedTargetPrice,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(AMOUNT),
+            sizeDelta: -int256(AMOUNT),
+            targetPrice: fuzzedTargetPrice,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         (bool canExec,) = account.checker(conditionalOrderId);
         assertFalse(canExec);
     }
 
     function test_PlaceConditionalOrder_Invalid_OrderType() public {
-        (bool success,) = address(account).call(
+        (bool success,) = address(accountExposed).call(
             abi.encodeWithSelector(
-                account.placeConditionalOrder.selector,
+                AccountExposed.expose_placeConditionalOrder.selector,
                 sETHPERP,
                 int256(AMOUNT),
                 int256(AMOUNT),
@@ -339,71 +364,78 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_PlaceConditionalOrder_CommittingMargin_Deposit() public {
         assertEq(account.committedMargin(), 0);
-        account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(AMOUNT),
-            _sizeDelta: int256(AMOUNT),
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(AMOUNT),
+            sizeDelta: int256(AMOUNT),
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         assertEq(account.committedMargin(), AMOUNT);
     }
 
     function test_PlaceConditionalOrder_CommittingMargin_Withdraw(
         uint256 fuzzedCommitedMargin,
-        uint256 fuzzedAmountToWithdraw
+        int256 fuzzedAmountToWithdraw
     ) public {
-        vm.assume(fuzzedCommitedMargin > 0);
+        vm.assume(fuzzedCommitedMargin != 0);
         vm.assume(fuzzedCommitedMargin <= AMOUNT);
-        vm.assume(fuzzedAmountToWithdraw > 0);
-        assertEq(account.committedMargin(), 0);
-        account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(fuzzedCommitedMargin),
-            _sizeDelta: int256(AMOUNT),
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        vm.assume(fuzzedAmountToWithdraw < 0);
+
+        placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(fuzzedCommitedMargin),
+            sizeDelta: int256(AMOUNT),
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
+
         uint256 freeMargin = AMOUNT - fuzzedCommitedMargin;
+
         if (freeMargin == 0) {
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    IAccount.InsufficientFreeMargin.selector, 0, fuzzedAmountToWithdraw
+                    IAccount.InsufficientFreeMargin.selector,
+                    0,
+                    accountExposed.expose_abs(fuzzedAmountToWithdraw)
                 )
             );
-        } else if (fuzzedAmountToWithdraw > freeMargin) {
+        } else if (accountExposed.expose_abs(fuzzedAmountToWithdraw) > freeMargin) {
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    IAccount.InsufficientFreeMargin.selector, freeMargin, fuzzedAmountToWithdraw
+                    IAccount.InsufficientFreeMargin.selector,
+                    freeMargin,
+                    accountExposed.expose_abs(fuzzedAmountToWithdraw)
                 )
             );
         }
-        account.withdraw(fuzzedAmountToWithdraw);
+
+        modifyAccountMargin(fuzzedAmountToWithdraw);
     }
 
     function test_PlaceConditionalOrder_Invalid_InsufficientFreeMargin() public {
-        account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(AMOUNT),
-            _sizeDelta: int256(AMOUNT),
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(AMOUNT),
+            sizeDelta: int256(AMOUNT),
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         vm.expectRevert(abi.encodeWithSelector(IAccount.InsufficientFreeMargin.selector, 0, AMOUNT));
-        account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(AMOUNT),
-            _sizeDelta: int256(AMOUNT),
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(AMOUNT),
+            sizeDelta: int256(AMOUNT),
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
     }
 
@@ -414,25 +446,25 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     function test_CancelConditionalOrder_Invalid_NotOwner() external {
         vm.prank(USER);
         vm.expectRevert("UNAUTHORIZED");
-        account.cancelConditionalOrder({_conditionalOrderId: 0});
+        cancelConditionalOrder({conditionalOrderId: 0});
     }
 
     function test_CancelConditionalOrder_Nonexistent(uint256 fuzzedConditionalOrderId) external {
         vm.expectRevert();
-        account.cancelConditionalOrder(fuzzedConditionalOrderId);
+        cancelConditionalOrder(fuzzedConditionalOrderId);
     }
 
     function test_CancelConditionalOrder_State() external {
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(currentEthPriceInUSD),
-            _sizeDelta: int256(currentEthPriceInUSD),
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: int256(currentEthPriceInUSD),
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
-        account.cancelConditionalOrder(conditionalOrderId);
+        cancelConditionalOrder(conditionalOrderId);
         // check order was removed internally
         IAccount.ConditionalOrder memory conditionalOrder =
             account.getConditionalOrder(conditionalOrderId);
@@ -448,30 +480,30 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_CancelConditionalOrder_Margin() external {
         uint256 preCommittedMargin = account.committedMargin();
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(currentEthPriceInUSD),
-            _sizeDelta: int256(currentEthPriceInUSD),
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: int256(currentEthPriceInUSD),
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         uint256 postCommittedMargin = account.committedMargin();
         assertEq(preCommittedMargin, postCommittedMargin - currentEthPriceInUSD);
-        account.cancelConditionalOrder(conditionalOrderId);
+        cancelConditionalOrder(conditionalOrderId);
         assertEq(account.committedMargin(), preCommittedMargin);
     }
 
     function test_CancelConditionalOrder_Event() external {
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(currentEthPriceInUSD),
-            _sizeDelta: int256(currentEthPriceInUSD),
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: int256(currentEthPriceInUSD),
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         vm.expectEmit(true, true, true, true);
         emit ConditionalOrderCancelled(
@@ -479,7 +511,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             conditionalOrderId,
             IAccount.ConditionalOrderCancelledReason.CONDITIONAL_ORDER_CANCELLED_BY_USER
             );
-        account.cancelConditionalOrder(conditionalOrderId);
+        cancelConditionalOrder(conditionalOrderId);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -495,14 +527,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     // assert successful execution frees committed margin
     function test_ExecuteConditionalOrder_Valid_GelatoFee() public {
         uint256 existingGelatoBalance = GELATO.balance;
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(currentEthPriceInUSD),
-            _sizeDelta: 1 ether,
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
             generateGelatoModuleData(conditionalOrderId);
@@ -522,19 +554,61 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     // assert fee transfer to gelato is called
     function test_ExecuteConditionalOrder_Valid_FeeTransfer() public {
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(currentEthPriceInUSD),
-            _sizeDelta: 1 ether,
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
             generateGelatoModuleData(conditionalOrderId);
         // expect a call w/ empty calldata to gelato (payment through callvalue)
         vm.expectCall(GELATO, "");
+        vm.prank(GELATO);
+        IOps(OPS).exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: executionData,
+            moduleData: moduleData,
+            txFee: GELATO_FEE,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        });
+    }
+
+    // assert fee transfer to gelato is called
+    function test_ExecuteConditionalOrder_Valid_TaskRemovedFromGelato() public {
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
+        });
+
+        (bytes memory executionData, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
+
+        vm.prank(GELATO);
+        IOps(OPS).exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: executionData,
+            moduleData: moduleData,
+            txFee: GELATO_FEE,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        });
+
+        // attempt to execute the same task again
+        vm.expectRevert("Ops.exec: Task not found");
         vm.prank(GELATO);
         IOps(OPS).exec({
             taskCreator: address(account),
@@ -554,14 +628,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_ExecuteConditionalOrder_Limit_Valid_Margin() external {
         uint256 preCommittedMargin = account.committedMargin();
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(currentEthPriceInUSD),
-            _sizeDelta: 1 ether,
-            _targetPrice: currentEthPriceInUSD * 2,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD * 2,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         uint256 postCommittedMargin = account.committedMargin();
         assertEq(preCommittedMargin, postCommittedMargin - currentEthPriceInUSD);
@@ -583,14 +657,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     }
 
     function test_ExecuteConditionalOrder_Limit_Valid_State() external {
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(currentEthPriceInUSD),
-            _sizeDelta: 1 ether,
-            _targetPrice: currentEthPriceInUSD * 2,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD * 2,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
             generateGelatoModuleData(conditionalOrderId);
@@ -619,14 +693,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     }
 
     function test_ExecuteConditionalOrder_Limit_Valid_Synthetix() external {
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(currentEthPriceInUSD),
-            _sizeDelta: 1 ether,
-            _targetPrice: currentEthPriceInUSD * 2,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD * 2,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
             generateGelatoModuleData(conditionalOrderId);
@@ -661,14 +735,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_ExecuteConditionalOrder_Stop_Valid_Margin() external {
         uint256 preCommittedMargin = account.committedMargin();
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(currentEthPriceInUSD),
-            _sizeDelta: 1 ether,
-            _targetPrice: currentEthPriceInUSD / 2,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD / 2,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         uint256 postCommittedMargin = account.committedMargin();
         assertEq(preCommittedMargin, postCommittedMargin - currentEthPriceInUSD);
@@ -690,14 +764,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     }
 
     function test_ExecuteConditionalOrder_Stop_Valid_State() external {
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(currentEthPriceInUSD),
-            _sizeDelta: 1 ether,
-            _targetPrice: currentEthPriceInUSD / 2,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD / 2,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
             generateGelatoModuleData(conditionalOrderId);
@@ -726,14 +800,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     }
 
     function test_ExecuteConditionalOrder_Stop_Valid_Synthetix() external {
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(currentEthPriceInUSD),
-            _sizeDelta: 1 ether,
-            _targetPrice: currentEthPriceInUSD / 2,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD / 2,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
             generateGelatoModuleData(conditionalOrderId);
@@ -778,14 +852,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         inputs[0] = abi.encode(market, marginDelta);
         inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
         account.execute(commands, inputs);
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: 0,
-            _sizeDelta: -(1 ether / 2),
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: true
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: 0,
+            sizeDelta: -(1 ether / 2),
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: true
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
             generateGelatoModuleData(conditionalOrderId);
@@ -825,14 +899,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         inputs[0] = abi.encode(market, marginDelta);
         inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
         account.execute(commands, inputs);
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: 0,
-            _sizeDelta: -(1 ether / 2),
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: true
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: 0,
+            sizeDelta: -(1 ether / 2),
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: true
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
             generateGelatoModuleData(conditionalOrderId);
@@ -871,14 +945,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         });
         IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
         assert(position.size == 1 ether); // sanity check :D
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: 0,
-            _sizeDelta: fuzzedSizeDelta,
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: true
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: 0,
+            sizeDelta: fuzzedSizeDelta,
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: true
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
             generateGelatoModuleData(conditionalOrderId);
@@ -938,14 +1012,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         });
         IPerpsV2MarketConsolidated.Position memory position = account.getPosition(sETHPERP);
         assert(position.size == -1 ether); // sanity check :D
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: 0,
-            _sizeDelta: fuzzedSizeDelta,
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: true
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: 0,
+            sizeDelta: fuzzedSizeDelta,
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: true
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
             generateGelatoModuleData(conditionalOrderId);
@@ -1003,14 +1077,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     /// 2. Execute conditional order (as Gelato)
     /// 3. Cancel pending Synthetix delayed order
     function test_ConditionalOrder_Limit_Valid_Execute_Cancel() external {
-        uint256 conditionalOrderId = account.placeConditionalOrder({
-            _marketKey: sETHPERP,
-            _marginDelta: int256(currentEthPriceInUSD),
-            _sizeDelta: 1 ether,
-            _targetPrice: currentEthPriceInUSD,
-            _conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            _priceImpactDelta: PRICE_IMPACT_DELTA,
-            _reduceOnly: false
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: false
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
             generateGelatoModuleData(conditionalOrderId);
@@ -1056,17 +1130,11 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         synthsUSD.issue(to, amount);
     }
 
-    function createAccount() private returns (Account account) {
-        account = Account(payable(factory.newAccount()));
-    }
-
-    function createAccountAndDepositSUSD(uint256 amount) private returns (Account) {
-        account = createAccount();
+    function fundAccount(uint256 amount) private {
+        vm.deal(address(account), 1 ether);
         mintSUSD(address(this), amount);
         sUSD.approve(address(account), amount);
-        account.deposit(amount);
-        vm.deal(address(account), 1 ether);
-        return account;
+        modifyAccountMargin({amount: int256(amount)});
     }
 
     function getMarketAddressFromKey(bytes32 key) private view returns (address market) {
@@ -1081,16 +1149,36 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function generateGelatoModuleData(uint256 conditionalOrderId)
         internal
-        pure
+        view
         returns (bytes memory executionData, IOps.ModuleData memory moduleData)
     {
-        IOps.Module[] memory modules = new IOps.Module[](1);
-        modules[0] = IOps.Module.RESOLVER;
-        bytes[] memory args = new bytes[](1);
-        args[0] = abi.encodeWithSelector(IAccount.checker.selector, conditionalOrderId);
-        moduleData = IOps.ModuleData({modules: modules, args: args});
-        executionData =
-            abi.encodeWithSelector(IAccount.executeConditionalOrder.selector, conditionalOrderId);
+        executionData = abi.encodeCall(account.executeConditionalOrder, conditionalOrderId);
+
+        moduleData = IOps.ModuleData({
+            modules: new IOps.Module[](2),
+            args: new bytes[](2)
+        });
+
+        moduleData.modules[0] = IOps.Module.RESOLVER;
+        moduleData.modules[1] = IOps.Module.SINGLE_EXEC;
+
+        moduleData.args[0] = abi.encode(
+            address(account),
+            abi.encodeCall(account.checker, conditionalOrderId)
+        );
+        // moduleData.args[1] is empty for single exec thus no need to encode
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           COMMAND SHORTCUTS
+    //////////////////////////////////////////////////////////////*/
+
+    function modifyAccountMargin(int256 amount) private {
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.ACCOUNT_MODIFY_MARGIN;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(amount);
+        account.execute(commands, inputs);
     }
 
     function submitAtomicOrder(
@@ -1106,6 +1194,39 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
         inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+        account.execute(commands, inputs);
+    }
+
+    function placeConditionalOrder(
+        bytes32 marketKey,
+        int256 marginDelta,
+        int256 sizeDelta,
+        uint256 targetPrice,
+        IAccount.ConditionalOrderTypes conditionalOrderType,
+        uint256 priceImpactDelta,
+        bool reduceOnly
+    ) private returns (uint256 conditionalOrderId) {
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.GELATO_PLACE_CONDITIONAL_ORDER;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            marketKey,
+            marginDelta,
+            sizeDelta,
+            targetPrice,
+            conditionalOrderType,
+            priceImpactDelta,
+            reduceOnly
+        );
+        account.execute(commands, inputs);
+        conditionalOrderId = account.conditionalOrderId() - 1;
+    }
+
+    function cancelConditionalOrder(uint256 conditionalOrderId) private {
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.GELATO_CANCEL_CONDITIONAL_ORDER;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(conditionalOrderId);
         account.execute(commands, inputs);
     }
 }

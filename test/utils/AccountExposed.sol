@@ -5,7 +5,9 @@ import {
     Account,
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated,
-    ISettings
+    ISettings,
+    IEvents,
+    IOps
 } from "../../src/Account.sol";
 import "./Constants.sol";
 
@@ -13,21 +15,25 @@ import "./Constants.sol";
 contract AccountExposed is Account {
     constructor() Account(ADDRESS_RESOLVER, MARGIN_ASSET) {}
 
-    function setSettings(ISettings _settings) public {
-        settings = _settings;
-    }
+    /*//////////////////////////////////////////////////////////////
+                      SETTERS FOR EXPOSED ACCOUNT
+    //////////////////////////////////////////////////////////////*/
 
     function setFuturesMarketManager(IFuturesMarketManager _futuresMarketManager) external {
         futuresMarketManager = _futuresMarketManager;
     }
 
-    function expose_abs(int256 x) public pure returns (uint256) {
-        return _abs(x);
+    function setSettings(ISettings _settings) public {
+        settings = _settings;
     }
 
-    function expose_isSameSign(int256 x, int256 y) public pure returns (bool) {
-        return _isSameSign(x, y);
+    function setEvents(IEvents _events) public {
+        events = _events;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                         EXPOSED FEE UTILITIES
+    //////////////////////////////////////////////////////////////*/
 
     function expose_calculateTradeFee(
         int256 _sizeDelta,
@@ -37,9 +43,103 @@ contract AccountExposed is Account {
         return _calculateTradeFee(_sizeDelta, _market, _conditionalOrderFee);
     }
 
-    function expose_sUSDRate(IPerpsV2MarketConsolidated _market) public view returns (uint256) {
-        return _sUSDRate(_market);
+    /*//////////////////////////////////////////////////////////////
+                            EXPOSED COMMANDS
+    //////////////////////////////////////////////////////////////*/
+
+    function expose_modifyAccountMargin(int256 amount) external {
+        _modifyAccountMargin({_amount: amount});
     }
+
+    function expose_withdrawEth(uint256 amount) external {
+        _withdrawEth({_amount: amount});
+    }
+
+    function expose_perpsV2ModifyMargin(address market, int256 amount) external {
+        _perpsV2ModifyMargin({_market: market, _amount: amount});
+    }
+
+    function expose_perpsV2WithdrawAllMargin(address market) external {
+        _perpsV2WithdrawAllMargin({_market: market});
+    }
+
+    function expose_perpsV2SubmitAtomicOrder(
+        address market,
+        int256 sizeDelta,
+        uint256 priceImpactDelta
+    ) external {
+        _perpsV2SubmitAtomicOrder({
+            _market: market,
+            _sizeDelta: sizeDelta,
+            _priceImpactDelta: priceImpactDelta
+        });
+    }
+
+    function expose_perpsV2SubmitDelayedOrder(
+        address market,
+        int256 sizeDelta,
+        uint256 priceImpactDelta,
+        uint256 desiredTimeDelta
+    ) external {
+        _perpsV2SubmitDelayedOrder({
+            _market: market,
+            _sizeDelta: sizeDelta,
+            _priceImpactDelta: priceImpactDelta,
+            _desiredTimeDelta: desiredTimeDelta
+        });
+    }
+
+    function expose_perpsV2SubmitOffchainDelayedOrder(
+        address market,
+        int256 sizeDelta,
+        uint256 priceImpactDelta
+    ) external {
+        _perpsV2SubmitOffchainDelayedOrder({
+            _market: market,
+            _sizeDelta: sizeDelta,
+            _priceImpactDelta: priceImpactDelta
+        });
+    }
+
+    function expose_perpsV2CancelDelayedOrder(address market) external {
+        _perpsV2CancelDelayedOrder({_market: market});
+    }
+
+    function expose_perpsV2CancelOffchainDelayedOrder(address market) external {
+        _perpsV2CancelOffchainDelayedOrder({_market: market});
+    }
+
+    function expose_PERPS_V2_CLOSE_POSITION(address market, uint256 priceImpactDelta) external {
+        _perpsV2ClosePosition({_market: market, _priceImpactDelta: priceImpactDelta});
+    }
+
+    function expose_placeConditionalOrder(
+        bytes32 marketKey,
+        int256 marginDelta,
+        int256 sizeDelta,
+        uint256 targetPrice,
+        ConditionalOrderTypes conditionalOrderType,
+        uint128 priceImpactDelta,
+        bool reduceOnly
+    ) external {
+        _placeConditionalOrder({
+            _marketKey: marketKey,
+            _marginDelta: marginDelta,
+            _sizeDelta: sizeDelta,
+            _targetPrice: targetPrice,
+            _conditionalOrderType: conditionalOrderType,
+            _priceImpactDelta: priceImpactDelta,
+            _reduceOnly: reduceOnly
+        });
+    }
+
+    function expose_cancelConditionalOrder(uint256 orderId) external {
+        _cancelConditionalOrder({_conditionalOrderId: orderId});
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        EXPOSED GETTER UTILITIES
+    //////////////////////////////////////////////////////////////*/
 
     function expose_getPerpsV2Market(bytes32 _marketKey)
         public
@@ -49,11 +149,27 @@ contract AccountExposed is Account {
         return _getPerpsV2Market(_marketKey);
     }
 
-    function exposed_validConditionalOrder(uint256 _conditionalOrderId)
+    function expose_sUSDRate(IPerpsV2MarketConsolidated _market) public view returns (uint256) {
+        return _sUSDRate(_market);
+    }
+
+    function expose_validConditionalOrder(uint256 _conditionalOrderId)
         external
         view
         returns (bool, uint256)
     {
         return (_validConditionalOrder(_conditionalOrderId));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         EXPOSED MATH UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    function expose_abs(int256 x) public pure returns (uint256) {
+        return _abs(x);
+    }
+
+    function expose_isSameSign(int256 x, int256 y) public pure returns (bool) {
+        return _isSameSign(x, y);
     }
 }
