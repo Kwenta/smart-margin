@@ -31,11 +31,6 @@ interface IFactory {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice thrown when newAccount() is called
-    /// by an address which has already made an account
-    /// @param account: address of account previously created
-    error OnlyOneAccountPerAddress(address account);
-
     /// @notice thrown when Account creation fails at initialization step
     /// @param data: data returned from failed low-level call
     error AccountFailedToInitialize(bytes data);
@@ -47,17 +42,14 @@ interface IFactory {
     /// @notice thrown when factory is not upgradable
     error CannotUpgrade();
 
-    /// @notice thrown account owner is unrecognized via ownerToAccount mapping
+    /// @notice thrown when account is unrecognized by factory
     error AccountDoesNotExist();
-
-    /// @notice thrown when caller is not an account
-    error CallerMustBeAccount();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
-    /// @return canUpgrade: bool to determine if factory can be upgraded
+    /// @return canUpgrade: bool to determine if system can be upgraded
     function canUpgrade() external view returns (bool);
 
     /// @return logic: account logic address
@@ -69,9 +61,16 @@ interface IFactory {
     /// @return events: address of events contract for accounts
     function events() external view returns (address);
 
-    /// @return address of account owned by _owner
-    /// @param _owner: owner of account
-    function ownerToAccount(address _owner) external view returns (address);
+    /// @return whether or not account exists
+    /// @param _account: address of account
+    function accounts(address _account) external view returns (bool);
+
+    /// @param _account: address of account
+    /// @return owner of account
+    function getAccountOwner(address _account)
+        external
+        view
+        returns (address);
 
     /*//////////////////////////////////////////////////////////////
                                 MUTATIVE
@@ -80,12 +79,6 @@ interface IFactory {
     /// @notice create unique account proxy for function caller
     /// @return accountAddress address of account created
     function newAccount() external returns (address payable accountAddress);
-
-    /// @notice update account owner
-    /// @param _oldOwner: old owner of account
-    /// @param _newOwner: new owner of account
-    function updateAccountOwner(address _oldOwner, address _newOwner)
-        external;
 
     /*//////////////////////////////////////////////////////////////
                              UPGRADABILITY
