@@ -94,9 +94,12 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
     /// @notice disable initializers on initial contract deployment
     /// @dev set owner of implementation to zero address
-    constructor(address addressResolver, address marginAsset)
-        Owned(address(0))
-    {
+    constructor(
+        address addressResolver,
+        address marginAsset,
+        address gelato,
+        address ops
+    ) Owned(address(0)) OpsReady(gelato, ops) {
         // recommended to use this to lock implementation contracts
         // that are designed to be called through proxies
         _disableInitializers();
