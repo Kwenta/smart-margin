@@ -2,14 +2,50 @@
 pragma solidity 0.8.18;
 
 import {IEvents, IAccount} from "./interfaces/IEvents.sol";
+import {IFactory} from "./interfaces/IFactory.sol";
 
 /// @title Consolidates all events emitted by the Smart Margin Accounts
 /// @author JaredBorders (jaredborders@pm.me)
 contract Events is IEvents {
+    /*//////////////////////////////////////////////////////////////
+                               IMMUTABLES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IEvents
+    address public immutable factory;
+
+    /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev modifier that restricts access to only accounts
+    modifier onlyAccounts() {
+        if (!IFactory(factory).accounts(msg.sender)) {
+            revert OnlyAccounts();
+        }
+
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice constructs the Events contract
+    /// @param _factory: address of the factory contract
+    constructor(address _factory) {
+        factory = _factory;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
     /// @inheritdoc IEvents
     function emitDeposit(address user, address account, uint256 amount)
         external
         override
+        onlyAccounts
     {
         emit Deposit({user: user, account: account, amount: amount});
     }
@@ -18,6 +54,7 @@ contract Events is IEvents {
     function emitWithdraw(address user, address account, uint256 amount)
         external
         override
+        onlyAccounts
     {
         emit Withdraw({user: user, account: account, amount: amount});
     }
@@ -26,6 +63,7 @@ contract Events is IEvents {
     function emitEthWithdraw(address user, address account, uint256 amount)
         external
         override
+        onlyAccounts
     {
         emit EthWithdraw({user: user, account: account, amount: amount});
     }
@@ -41,7 +79,7 @@ contract Events is IEvents {
         IAccount.ConditionalOrderTypes conditionalOrderType,
         uint128 priceImpactDelta,
         bool reduceOnly
-    ) external override {
+    ) external override onlyAccounts {
         emit ConditionalOrderPlaced({
             account: account,
             conditionalOrderId: conditionalOrderId,
@@ -60,7 +98,7 @@ contract Events is IEvents {
         address account,
         uint256 conditionalOrderId,
         IAccount.ConditionalOrderCancelledReason reason
-    ) external override {
+    ) external override onlyAccounts {
         emit ConditionalOrderCancelled({
             account: account,
             conditionalOrderId: conditionalOrderId,
@@ -74,7 +112,7 @@ contract Events is IEvents {
         uint256 conditionalOrderId,
         uint256 fillPrice,
         uint256 keeperFee
-    ) external override {
+    ) external override onlyAccounts {
         emit ConditionalOrderFilled({
             account: account,
             conditionalOrderId: conditionalOrderId,
@@ -87,6 +125,7 @@ contract Events is IEvents {
     function emitFeeImposed(address account, uint256 amount)
         external
         override
+        onlyAccounts
     {
         emit FeeImposed({account: account, amount: amount});
     }

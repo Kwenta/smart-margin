@@ -6,6 +6,12 @@ import {IAccount} from "./IAccount.sol";
 /// @title Interface for contract that emits all events emitted by the Smart Margin Accounts
 /// @author JaredBorders (jaredborders@pm.me)
 interface IEvents {
+    /// @notice emitted when a non-account contract attempts to call a restricted function
+    error OnlyAccounts();
+
+    /// @notice returns the address of the factory contract
+    function factory() external view returns (address);
+
     /// @notice emitted after a successful withdrawal
     /// @param user: the address that withdrew from account
     /// @param account: the account that was withdrawn from
