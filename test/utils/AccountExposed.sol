@@ -13,7 +13,7 @@ import "./Constants.sol";
 
 /// @dev This contract exposes the internal functions of Account.sol for testing purposes
 contract AccountExposed is Account {
-    constructor() Account(ADDRESS_RESOLVER, MARGIN_ASSET) {}
+    constructor() Account(ADDRESS_RESOLVER, MARGIN_ASSET, GELATO, OPS) {}
 
     /*//////////////////////////////////////////////////////////////
                       SETTERS FOR EXPOSED ACCOUNT

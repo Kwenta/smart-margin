@@ -83,7 +83,6 @@ bytes32 constant sBTCPERP = "sBTCPERP";
 // Gelato related addresses
 address constant GELATO = 0x01051113D81D7d6DA508462F2ad6d7fD96cF42Ef;
 address constant OPS = 0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c;
-address constant OPS_PROXY_FACTORY = 0xB3f5503f93d5Ef84b06993a1975B9D21B962892F;
 address constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
 // test fee Gelato will charge for filling conditional orders
