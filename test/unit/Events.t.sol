@@ -2,9 +2,16 @@
 pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
+import {Account} from "../../src/Account.sol";
+import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {Events} from "../../src/Events.sol";
-import {IAccount} from "../../src/interfaces/IAccount.sol";
+import {Factory} from "../../src/Factory.sol";
+import {IFactory} from "../../src/interfaces/IFactory.sol";
+import {MockAccount1, MockAccount2} from "../utils/MockAccounts.sol";
+import {Settings} from "../../src/Settings.sol";
+import {Setup} from "../../script/Deploy.s.sol";
+import {UpgradedAccount} from "../utils/UpgradedAccount.sol";
 import "../utils/Constants.sol";
 
 contract EventsTest is Test, ConsolidatedEvents {
@@ -12,7 +19,12 @@ contract EventsTest is Test, ConsolidatedEvents {
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
+    Settings private settings;
     Events private events;
+    Factory private factory;
+    Account private implementation;
+
+    address private account;
 
     /*//////////////////////////////////////////////////////////////
                                  SETUP
@@ -20,7 +32,22 @@ contract EventsTest is Test, ConsolidatedEvents {
 
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
-        events = new Events();
+        Setup setup = new Setup();
+        factory = setup.deploySmartMarginFactory({
+            owner: address(this),
+            treasury: KWENTA_TREASURY,
+            tradeFee: TRADE_FEE,
+            limitOrderFee: LIMIT_ORDER_FEE,
+            stopOrderFee: STOP_ORDER_FEE,
+            addressResolver: ADDRESS_RESOLVER,
+            marginAsset: MARGIN_ASSET
+        });
+        settings = Settings(factory.settings());
+        events = Events(factory.events());
+        implementation = Account(payable(factory.implementation()));
+
+        // create account
+        account = factory.newAccount();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -30,18 +57,21 @@ contract EventsTest is Test, ConsolidatedEvents {
     function test_EmitDeposit_Event() public {
         vm.expectEmit(true, true, true, true);
         emit Deposit(USER, ACCOUNT, AMOUNT);
+        vm.prank(account);
         events.emitDeposit({user: USER, account: ACCOUNT, amount: AMOUNT});
     }
 
     function test_EmitWithdraw_Event() public {
         vm.expectEmit(true, true, true, true);
         emit Withdraw(USER, ACCOUNT, AMOUNT);
+        vm.prank(account);
         events.emitWithdraw({user: USER, account: ACCOUNT, amount: AMOUNT});
     }
 
     function test_EmitEthWithdraw_Event() public {
         vm.expectEmit(true, true, true, true);
         emit EthWithdraw(USER, ACCOUNT, AMOUNT);
+        vm.prank(account);
         events.emitEthWithdraw({user: USER, account: ACCOUNT, amount: AMOUNT});
     }
 
@@ -59,6 +89,7 @@ contract EventsTest is Test, ConsolidatedEvents {
             PRICE_IMPACT_DELTA,
             true
             );
+        vm.prank(account);
         events.emitConditionalOrderPlaced({
             account: ACCOUNT,
             conditionalOrderId: id,
@@ -82,6 +113,7 @@ contract EventsTest is Test, ConsolidatedEvents {
                 .ConditionalOrderCancelledReason
                 .CONDITIONAL_ORDER_CANCELLED_BY_USER
             );
+        vm.prank(account);
         events.emitConditionalOrderCancelled({
             account: ACCOUNT,
             conditionalOrderId: id,
@@ -94,6 +126,7 @@ contract EventsTest is Test, ConsolidatedEvents {
     function test_EmitConditionalOrderFilled_Event() public {
         vm.expectEmit(true, true, true, true);
         emit ConditionalOrderFilled(ACCOUNT, 0, FILL_PRICE, GELATO_FEE);
+        vm.prank(account);
         events.emitConditionalOrderFilled({
             account: ACCOUNT,
             conditionalOrderId: 0,
@@ -105,6 +138,7 @@ contract EventsTest is Test, ConsolidatedEvents {
     function test_EmitFeeImposed_Event() public {
         vm.expectEmit(true, true, true, true);
         emit FeeImposed(ACCOUNT, AMOUNT);
+        vm.prank(account);
         events.emitFeeImposed({account: ACCOUNT, amount: AMOUNT});
     }
 }
