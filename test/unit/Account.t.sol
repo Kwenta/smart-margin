@@ -52,7 +52,9 @@ contract AccountTest is Test, ConsolidatedEvents {
             limitOrderFee: LIMIT_ORDER_FEE,
             stopOrderFee: STOP_ORDER_FEE,
             addressResolver: ADDRESS_RESOLVER,
-            marginAsset: MARGIN_ASSET
+            marginAsset: MARGIN_ASSET,
+            gelato: GELATO,
+            ops: OPS
         });
 
         settings = Settings(factory.settings());
