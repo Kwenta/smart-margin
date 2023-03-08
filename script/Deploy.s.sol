@@ -27,8 +27,6 @@ contract Setup {
             _stopOrderFee: stopOrderFee
         });
 
-        Events events = new Events();
-
         Account implementation = new Account({
             addressResolver: addressResolver, 
             marginAsset: marginAsset
@@ -36,11 +34,18 @@ contract Setup {
 
         // deploy Factory
         factory = new Factory({
-            _owner: owner,
+            _owner: address(this),
             _settings: address(settings),
-            _events: address(events),
+            _events: address(0),
             _implementation: address(implementation)
         });
+
+        // set events
+        Events events = new Events({_factory: address(factory)});
+        factory.upgradeEvents(address(events));
+
+        // set proper owner of factory
+        factory.transferOwnership(owner);
     }
 }
 
