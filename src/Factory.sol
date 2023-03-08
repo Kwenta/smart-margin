@@ -29,6 +29,8 @@ contract Factory is IFactory, Owned {
     /// @inheritdoc IFactory
     mapping(address accounts => bool exist) public accounts;
 
+    mapping (address owner => address[] accounts) public ownerAccounts;
+
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -72,6 +74,39 @@ contract Factory is IFactory, Owned {
     }
 
     /*//////////////////////////////////////////////////////////////
+                               OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
+
+    error OnlyAccountOwner();
+
+    function updateAccountOwnership(address _account, address _newOwner)
+        external
+        onlyOwner
+    {
+        // ensure account is registered by factory
+        if (!accounts[_account]) revert AccountDoesNotExist();
+
+        // ensure function caller is the account
+        if (msg.sender != _account) revert OnlyAccountOwner();
+
+        uint length = ownerAccounts[msg.sender].length;
+
+        for (uint256 i = 0; i < length;) {
+            
+            if (ownerAccounts[msg.sender][i] == _account) {
+                ownerAccounts[msg.sender][i] = ownerAccounts[msg.sender][length - 1];
+                ownerAccounts[msg.sender].pop();
+                ownerAccounts[_newOwner].push(_account);
+                break;
+            }
+
+            unchecked {
+                i++;
+            }
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
                            ACCOUNT DEPLOYMENT
     //////////////////////////////////////////////////////////////*/
 
@@ -86,6 +121,9 @@ contract Factory is IFactory, Owned {
 
         // add account to accounts mapping
         accounts[accountAddress] = true;
+
+        // add account to ownerAccounts mapping
+        ownerAccounts[msg.sender].push(accountAddress);
 
         // initialize new account
         (bool success, bytes memory data) = accountAddress.call(

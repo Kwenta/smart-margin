@@ -191,6 +191,20 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     }
 
     /*//////////////////////////////////////////////////////////////
+                               OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
+
+    function transferOwnership(address _newOwner)
+        public
+        override
+        onlyOwner
+    {
+        owner = _newOwner;
+
+        emit OwnershipTransferred(msg.sender, _newOwner);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                EXECUTION
     //////////////////////////////////////////////////////////////*/
 
