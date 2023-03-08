@@ -1,6 +1,7 @@
 {
     "extends": "solhint:recommended",
     "rules": {
+        "no-global-import": "off",
         "no-inline-assembly": "off",
         "func-name-mixedcase": "off",
         "no-empty-blocks": "off",
