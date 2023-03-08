@@ -93,6 +93,84 @@ contract FactoryTest is Test, ConsolidatedEvents {
     }
 
     /*//////////////////////////////////////////////////////////////
+                           ACCOUNT OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
+
+    function test_UpdateAccountOwnership_OldOwner_SingleAccount() public {
+        address payable accountAddress = factory.newAccount();
+        Account(accountAddress).transferOwnership(USER);
+
+        // check `ownerAccounts` mapping updated
+        assertEq(factory.getAccountsOwnedBy(USER).length, 1);
+        assertEq(factory.getAccountsOwnedBy(USER)[0], accountAddress);
+        assertEq(factory.getAccountsOwnedBy(address(this)).length, 0);
+
+        // check owner changed
+        assertEq(factory.getAccountOwner(accountAddress), USER);
+    }
+
+    function test_UpdateAccountOwnership_OldOwner_MultipleAccount(uint256 x)
+        public
+    {
+        vm.assume(x < 10); // avoid running out of gas
+
+        uint256 y = x;
+        while (y > 0) {
+            factory.newAccount();
+            y--;
+        }
+
+        address payable accountAddress = factory.newAccount();
+        Account(accountAddress).transferOwnership(USER);
+
+        // check `ownerAccounts` mapping updated
+        assertEq(factory.getAccountsOwnedBy(USER).length, 1);
+        assertEq(factory.getAccountsOwnedBy(USER)[0], accountAddress);
+        assertEq(factory.getAccountsOwnedBy(address(this)).length, x);
+
+        // check owner changed
+        assertEq(factory.getAccountOwner(accountAddress), USER);
+    }
+
+    function test_UpdateAccountOwnership_NewOwner_MultipleAccount(uint256 x)
+        public
+    {
+        vm.assume(x < 10); // avoid running out of gas
+
+        address payable accountAddress;
+
+        uint256 y = x;
+        while (y > 0) {
+            accountAddress = factory.newAccount();
+            Account(accountAddress).transferOwnership(USER);
+
+            // check `ownerAccounts` mapping updated
+            assertEq(factory.getAccountsOwnedBy(USER)[x - y], accountAddress);
+
+            // check owner changed
+            assertEq(factory.getAccountOwner(accountAddress), USER);
+            y--;
+        }
+
+        // check `ownerAccounts` mapping updated
+        assertEq(factory.getAccountsOwnedBy(USER).length, x);
+        assertEq(factory.getAccountsOwnedBy(address(this)).length, 0);
+    }
+
+    function test_UpdateAccountOwnership_OnlyAccount() public {
+        address payable accountAddress = factory.newAccount();
+        vm.expectRevert(abi.encodeWithSelector(IFactory.OnlyAccount.selector));
+        factory.updateAccountOwnership(accountAddress, USER);
+    }
+
+    function test_UpdateAccountOwnership_AccountDoesNotExist() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(IFactory.AccountDoesNotExist.selector)
+        );
+        factory.updateAccountOwnership(address(0xCAFEBAE), USER);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                            ACCOUNT DEPLOYMENT
     //////////////////////////////////////////////////////////////*/
 
