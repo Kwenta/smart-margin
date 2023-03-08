@@ -194,14 +194,15 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
                                OWNERSHIP
     //////////////////////////////////////////////////////////////*/
 
-    function transferOwnership(address _newOwner)
-        public
-        override
-        onlyOwner
-    {
-        owner = _newOwner;
+    /// @inheritdoc Owned
+    function transferOwnership(address _newOwner) public override onlyOwner {
+        // update the factory's record of owners and account addresses
+        factory.updateAccountOwnership({
+            _account: address(this),
+            _newOwner: _newOwner
+        });
 
-        emit OwnershipTransferred(msg.sender, _newOwner);
+        super.transferOwnership(_newOwner);
     }
 
     /*//////////////////////////////////////////////////////////////

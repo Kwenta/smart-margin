@@ -29,7 +29,8 @@ contract Factory is IFactory, Owned {
     /// @inheritdoc IFactory
     mapping(address accounts => bool exist) public accounts;
 
-    mapping (address owner => address[] accounts) public ownerAccounts;
+    /// @notice mapping of owner to accounts owned by owner
+    mapping(address owner => address[] accounts) private ownerAccounts;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -57,7 +58,7 @@ contract Factory is IFactory, Owned {
 
     /// @inheritdoc IFactory
     function getAccountOwner(address _account)
-        external
+        public
         view
         override
         returns (address)
@@ -73,37 +74,71 @@ contract Factory is IFactory, Owned {
         return abi.decode(data, (address));
     }
 
+    /// @inheritdoc IFactory
+    function getAccountsOwnedBy(address _owner)
+        external
+        view
+        override
+        returns (address[] memory)
+    {
+        return ownerAccounts[_owner];
+    }
+
     /*//////////////////////////////////////////////////////////////
                                OWNERSHIP
     //////////////////////////////////////////////////////////////*/
 
-    error OnlyAccountOwner();
-
+    /// @inheritdoc IFactory
     function updateAccountOwnership(address _account, address _newOwner)
         external
-        onlyOwner
+        override
     {
         // ensure account is registered by factory
         if (!accounts[_account]) revert AccountDoesNotExist();
 
         // ensure function caller is the account
-        if (msg.sender != _account) revert OnlyAccountOwner();
+        if (msg.sender != _account) revert OnlyAccount();
 
-        uint length = ownerAccounts[msg.sender].length;
+        // get owner of account
+        address oldOwner = getAccountOwner(_account);
 
+        uint256 length = ownerAccounts[oldOwner].length;
         for (uint256 i = 0; i < length;) {
-            
-            if (ownerAccounts[msg.sender][i] == _account) {
-                ownerAccounts[msg.sender][i] = ownerAccounts[msg.sender][length - 1];
-                ownerAccounts[msg.sender].pop();
+            if (ownerAccounts[oldOwner][i] == _account) {
+                // remove account from ownerAccounts mapping for old owner
+                _shiftArrayLeftFrom({_index: i, _array: ownerAccounts[oldOwner]});
+
+                // add account to ownerAccounts mapping for new owner
                 ownerAccounts[_newOwner].push(_account);
-                break;
+
+                return;
             }
 
             unchecked {
                 i++;
             }
         }
+    }
+
+    /// @notice shifts every element in the array left from the specified index
+    /// @dev index will *NEVER* be out of bounds
+    /// @param _index: index to start shifting from
+    /// @param _array: array to shift
+    /// @custom:example _shiftArrayLeftFrom(1, [1, 2, 3, 4, 5]) => [1, 3, 4, 5]
+    function _shiftArrayLeftFrom(uint256 _index, address[] storage _array)
+        internal
+    {
+        uint256 length = _array.length;
+
+        for (uint256 i = _index; i < length - 1;) {
+            _array[i] = _array[i + 1];
+
+            unchecked {
+                i++;
+            }
+        }
+
+        _array.pop();
     }
 
     /*//////////////////////////////////////////////////////////////
