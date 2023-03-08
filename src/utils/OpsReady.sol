@@ -14,17 +14,10 @@ abstract contract OpsReady {
     error OnlyOps();
 
     /// @notice address of Gelato Network contract
-    address public constant GELATO = 0x01051113D81D7d6DA508462F2ad6d7fD96cF42Ef; // Optimism
-    // address public constant GELATO = 0xF82D64357D9120a760e1E4C75f646C0618eFc2F3; // Optimism Goerli
+    address public immutable GELATO;
 
     /// @notice address of Gelato `Automate` contract
-    address public constant OPS = 0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c; // Optimism
-    // address public constant OPS = 0x255F82563b5973264e89526345EcEa766DB3baB2; // Optimism Goerli
-
-    /// @notice address of Gelato `OpsProxyFactory` contract
-    address private constant OPS_PROXY_FACTORY =
-        0xB3f5503f93d5Ef84b06993a1975B9D21B962892F; // Optimism
-    // address private constant OPS_PROXY_FACTORY = 0x644CB00854EDC55FE8CCC9c1967BABb22F08Ad2f; // Optimism Goerli
+    address public immutable OPS;
 
     /// @notice internal address representation of ETH (used by Gelato)
     address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -33,6 +26,11 @@ abstract contract OpsReady {
     modifier onlyOps() {
         if (msg.sender != OPS) revert OnlyOps();
         _;
+    }
+
+    constructor(address _gelato, address _ops) {
+        GELATO = _gelato;
+        OPS = _ops;
     }
 
     /// @notice transfers fee to gelato for synchronous fee payments
