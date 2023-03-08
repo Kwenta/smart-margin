@@ -85,13 +85,23 @@ Finally, all associated functionality related to upgradability can be disabled b
 
 ## Folder Structure
 
-    ├── ...
-    ├── src                     # Source contracts
-    ├── script                  # Foundry deployment scripts
-    ├── test                    # Test files
-    │   ├── integration         # End-to-end, integration tests using Foundry
-    │   └── unit                # Contract focused, fuzzed/non-fuzzed tests using Foundry
-    └── ...
+src
+├── Account.sol
+├── AccountProxy.sol
+├── Events.sol
+├── Factory.sol
+├── Settings.sol
+├── interfaces
+│   ├── IAccount.sol
+│   ├── IAccountProxy.sol
+│   ├── IEvents.sol
+│   ├── IFactory.sol
+│   ├── IOps.sol
+│   ├── ISettings.sol
+│   └── synthetix
+│       ├── (...)
+└── utils
+    └── OpsReady.sol
 
 ## Test Coverage
 
