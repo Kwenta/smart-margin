@@ -45,6 +45,9 @@ interface IFactory {
     /// @notice thrown when account is unrecognized by factory
     error AccountDoesNotExist();
 
+    /// @notice thrown when caller is not a factory authenticated account
+    error OnlyAccount();
+
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
@@ -61,8 +64,8 @@ interface IFactory {
     /// @return events: address of events contract for accounts
     function events() external view returns (address);
 
-    /// @return whether or not account exists
     /// @param _account: address of account
+    /// @return whether or not account exists
     function accounts(address _account) external view returns (bool);
 
     /// @param _account: address of account
@@ -72,8 +75,26 @@ interface IFactory {
         view
         returns (address);
 
+    /// @param _owner: address of owner
+    /// @return array of accounts owned by _owner
+    function getAccountsOwnedBy(address _owner)
+        external
+        view
+        returns (address[] memory);
+
     /*//////////////////////////////////////////////////////////////
-                                MUTATIVE
+                               OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice update owner to account(s) mapping
+    /// @dev does *NOT* check new owner != old owner
+    /// @param _account: account whose owner is being updated
+    /// @param _newOwner: new owner of account
+    function updateAccountOwnership(address _account, address _newOwner)
+        external;
+
+    /*//////////////////////////////////////////////////////////////
+                           ACCOUNT DEPLOYMENT
     //////////////////////////////////////////////////////////////*/
 
     /// @notice create unique account proxy for function caller
