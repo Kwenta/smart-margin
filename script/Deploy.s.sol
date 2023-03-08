@@ -17,7 +17,9 @@ contract Setup {
         uint256 limitOrderFee,
         uint256 stopOrderFee,
         address addressResolver,
-        address marginAsset
+        address marginAsset,
+        address gelato,
+        address ops
     ) public returns (Factory factory) {
         Settings settings = new Settings({
             _owner: owner,
@@ -31,7 +33,9 @@ contract Setup {
 
         Account implementation = new Account({
             addressResolver: addressResolver, 
-            marginAsset: marginAsset
+            marginAsset: marginAsset,
+            gelato: gelato,
+            ops: ops
         });
 
         // deploy Factory
@@ -62,6 +66,9 @@ contract DeployOptimism is Script, Setup {
     address private constant MARGIN_ASSET =
         0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9;
 
+    address private constant GELATO = 0x01051113D81D7d6DA508462F2ad6d7fD96cF42Ef;
+    address private constant OPS = 0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c;
+
     function run() public {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
@@ -73,7 +80,9 @@ contract DeployOptimism is Script, Setup {
             limitOrderFee: SETTINGS_LIMIT_ORDER_FEE,
             stopOrderFee: SETTINGS_STOP_ORDER_FEE,
             addressResolver: ADDRESS_RESOLVER,
-            marginAsset: MARGIN_ASSET
+            marginAsset: MARGIN_ASSET,
+            gelato: GELATO,
+            ops: OPS
         });
 
         vm.stopBroadcast();
@@ -98,6 +107,9 @@ contract DeployOptimismGoerli is Script, Setup {
     address private constant MARGIN_ASSET =
         0xeBaEAAD9236615542844adC5c149F86C36aD1136;
 
+    address private constant GELATO = 0xF82D64357D9120a760e1E4C75f646C0618eFc2F3;
+    address private constant OPS = 0x255F82563b5973264e89526345EcEa766DB3baB2;
+
     function run() public {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
@@ -109,7 +121,9 @@ contract DeployOptimismGoerli is Script, Setup {
             limitOrderFee: SETTINGS_LIMIT_ORDER_FEE,
             stopOrderFee: SETTINGS_STOP_ORDER_FEE,
             addressResolver: ADDRESS_RESOLVER,
-            marginAsset: MARGIN_ASSET
+            marginAsset: MARGIN_ASSET,
+            gelato: GELATO,
+            ops: OPS
         });
 
         vm.stopBroadcast();
