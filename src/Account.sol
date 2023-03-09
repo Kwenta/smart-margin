@@ -122,9 +122,6 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
         settings = ISettings(_settings);
         events = IEvents(_events);
-
-        // @TODO consider removing factory from account before audit
-        // (keep for now incase we need it later?)
         factory = IFactory(_factory);
 
         // get address for futures market manager
@@ -194,7 +191,9 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
                                OWNERSHIP
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc Owned
+    /// @notice transfer ownership of account to new address
+    /// @dev update factory's record of account ownership
+    /// @param _newOwner: new account owner
     function transferOwnership(address _newOwner) public override onlyOwner {
         // update the factory's record of owners and account addresses
         factory.updateAccountOwnership({
