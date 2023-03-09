@@ -5,6 +5,7 @@ import {IEvents, IAccount} from "./interfaces/IEvents.sol";
 import {IFactory} from "./interfaces/IFactory.sol";
 
 /// @title Consolidates all events emitted by the Smart Margin Accounts
+/// @dev restricted to only Smart Margin Accounts
 /// @author JaredBorders (jaredborders@pm.me)
 contract Events is IEvents {
     /*//////////////////////////////////////////////////////////////
