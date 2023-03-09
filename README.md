@@ -15,6 +15,12 @@
 
 Contracts to manage account abstractions and features on top of [Synthetix Perps V2](https://github.com/Synthetixio/synthetix/blob/develop/contracts/PerpsV2Market.sol).
 
+### System Diagram
+
+<p align="center">
+  <img src="/diagrams/System-Diagram.png" width="1000" height="600" alt="System-Diagram"/>
+</p>
+
 ## Contracts Overview
 > See ./deploy-addresses/ for deployed contract addresses
 
@@ -60,11 +66,13 @@ Encoding parameters in a bytes string in this way gives us maximum flexiblity to
 
 For a more detailed breakdown of which parameters you should provide for each command take a look at the `Account.dispatch` function.
 
-Developer documentation to give a detailed explanation of the inputs for every command will be coming soon ✨!
+Developer documentation to give a detailed explanation of the inputs for every command can be found in the [wiki](https://github.com/Kwenta/margin-manager/wiki/Commands-&-Inputs)
 
 #### Diagram
 
-coming soon ✨
+<p align="center">
+  <img src="/diagrams/Execution-Flow.png" width="1000" height="600" alt="Execution-Flow"/>
+</p>
 
 #### Reference
 
