@@ -106,16 +106,17 @@ src
 ├── Factory.sol
 ├── Settings.sol
 ├── interfaces
-│ ├── IAccount.sol
-│ ├── IAccountProxy.sol
-│ ├── IEvents.sol
-│ ├── IFactory.sol
-│ ├── IOps.sol
-│ ├── ISettings.sol
-│ └── synthetix
-│ ├── (...)
+│   ├── IAccount.sol
+│   ├── IAccountProxy.sol
+│   ├── IEvents.sol
+│   ├── IFactory.sol
+│   ├── IOps.sol
+│   ├── ISettings.sol
+│   └── synthetix
+│       ├── IPerpsV2MarketConsolidated.sol
+│       ├── (...)
 └── utils
-└── OpsReady.sol
+    └── OpsReady.sol
 
 ## Test Coverage
 
