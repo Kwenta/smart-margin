@@ -98,7 +98,7 @@ Smart margin accounts are upgradable. This is achieved by using a proxy pattern,
 Finally, all associated functionality related to upgradability can be disabled by the `Factory` contract owner.
 
 ## Folder Structure
-
+```
 src
 ├── Account.sol
 ├── AccountProxy.sol
@@ -117,6 +117,7 @@ src
 │       ├── (...)
 └── utils
     └── OpsReady.sol
+```
 
 ## Test Coverage
 
