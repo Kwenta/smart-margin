@@ -45,16 +45,76 @@ contract SettingsTest is Test, ConsolidatedEvents {
         assertEq(settings.treasury(), KWENTA_TREASURY);
     }
 
-    function test_TradeFeeSet() public {
-        assertEq(settings.tradeFee(), TRADE_FEE);
+    function test_TradeFeeSet(uint256 x) public {
+        if (x > MAX_BPS) {
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
+            );
+            settings = new Settings({
+                _owner: address(this),
+                _treasury: KWENTA_TREASURY,
+                _tradeFee: x,
+                _limitOrderFee: LIMIT_ORDER_FEE,
+                _stopOrderFee: STOP_ORDER_FEE
+            });
+        } else {
+            settings = new Settings({
+                _owner: address(this),
+                _treasury: KWENTA_TREASURY,
+                _tradeFee: x,
+                _limitOrderFee: LIMIT_ORDER_FEE,
+                _stopOrderFee: STOP_ORDER_FEE
+            });
+            assertEq(settings.tradeFee(), x);
+        }
     }
 
-    function test_LimitOrderFeeSet() public {
-        assertEq(settings.limitOrderFee(), LIMIT_ORDER_FEE);
+    function test_LimitOrderFeeSet(uint256 x) public {
+        if (x > MAX_BPS) {
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
+            );
+            settings = new Settings({
+                _owner: address(this),
+                _treasury: KWENTA_TREASURY,
+                _tradeFee: TRADE_FEE,
+                _limitOrderFee: x,
+                _stopOrderFee: STOP_ORDER_FEE
+            });
+        } else {
+            settings = new Settings({
+                _owner: address(this),
+                _treasury: KWENTA_TREASURY,
+                _tradeFee: TRADE_FEE,
+                _limitOrderFee: x,
+                _stopOrderFee: STOP_ORDER_FEE
+            });
+            assertEq(settings.limitOrderFee(), x);
+        }
     }
 
-    function test_StopOrderFeeSet() public {
-        assertEq(settings.stopOrderFee(), STOP_ORDER_FEE);
+    function test_StopOrderFeeSet(uint256 x) public {
+        if (x > MAX_BPS) {
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
+            );
+            settings = new Settings({
+                _owner: address(this),
+                _treasury: KWENTA_TREASURY,
+                _tradeFee: TRADE_FEE,
+                _limitOrderFee: LIMIT_ORDER_FEE,
+                _stopOrderFee: x
+            });
+        } else {
+            settings = new Settings({
+                _owner: address(this),
+                _treasury: KWENTA_TREASURY,
+                _tradeFee: TRADE_FEE,
+                _limitOrderFee: LIMIT_ORDER_FEE,
+                _stopOrderFee: x
+            });
+            assertEq(settings.stopOrderFee(), x);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -163,22 +223,23 @@ contract SettingsTest is Test, ConsolidatedEvents {
                               SET TREASURY
     //////////////////////////////////////////////////////////////*/
 
-    function test_SetTreasury(address addr) public {
-        if (addr == address(0)) {
-            vm.expectRevert(
-                abi.encodeWithSelector(ISettings.ZeroAddress.selector)
-            );
-            settings.setTreasury(addr);
-            return;
-        } else if (addr == settings.treasury()) {
-            vm.expectRevert(
-                abi.encodeWithSelector(ISettings.DuplicateAddress.selector)
-            );
-            settings.setTreasury(addr);
-            return;
-        }
+    function test_SetTreasury_NewAddress(address addr) public {
+        vm.assume(addr != address(0));
+        vm.assume(addr != settings.treasury());
         settings.setTreasury(addr);
         assertTrue(settings.treasury() == addr);
+    }
+
+    function test_SetTreasury_ZeroAddress() public {
+        vm.expectRevert(abi.encodeWithSelector(ISettings.ZeroAddress.selector));
+        settings.setTreasury(address(0));
+    }
+
+    function test_SetTreasury_DuplicateAddress() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(ISettings.DuplicateAddress.selector)
+        );
+        settings.setTreasury(KWENTA_TREASURY);
     }
 
     function test_SetTreasury_OnlyOwner() public {
