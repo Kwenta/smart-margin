@@ -10,6 +10,8 @@ import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 import "../utils/Constants.sol";
 
+// functions tagged with @HELPER are helper functions and not tests
+// tests tagged with @AUDITOR are flags for desired increased scrutiny by the auditors
 contract FactoryBehaviorTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
                                  STATE
