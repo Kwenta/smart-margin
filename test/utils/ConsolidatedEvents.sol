@@ -7,6 +7,16 @@ import {IAccount} from "../../src/interfaces/IAccount.sol";
 
 contract ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
+                                 IAUTH
+    //////////////////////////////////////////////////////////////*/
+
+    event OwnershipTransferred(address indexed user, address indexed newOwner);
+    event DelegatedAccountAdded(address indexed user, address indexed delegate);
+    event DelegatedAccountRemoved(
+        address indexed user, address indexed delegate
+    );
+
+    /*//////////////////////////////////////////////////////////////
                                 IEVENTS
     //////////////////////////////////////////////////////////////*/
 
