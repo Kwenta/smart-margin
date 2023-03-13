@@ -2,9 +2,14 @@
 pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
+import {Account} from "../../src/Account.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {Events} from "../../src/Events.sol";
+import {Factory} from "../../src/Factory.sol";
 import {IAccount} from "../../src/interfaces/IAccount.sol";
+import {IEvents} from "../../src/interfaces/IEvents.sol";
+import {Settings} from "../../src/Settings.sol";
+import {Setup} from "../../script/Deploy.s.sol";
 import "../utils/Constants.sol";
 
 contract EventsTest is Test, ConsolidatedEvents {
@@ -12,7 +17,11 @@ contract EventsTest is Test, ConsolidatedEvents {
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
+    Settings private settings;
     Events private events;
+    Factory private factory;
+    Account private implementation;
+    address private account;
 
     /*//////////////////////////////////////////////////////////////
                                  SETUP
@@ -20,28 +29,71 @@ contract EventsTest is Test, ConsolidatedEvents {
 
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
-        events = new Events();
+        Setup setup = new Setup();
+        factory = setup.deploySmartMarginFactory({
+            owner: address(this),
+            treasury: KWENTA_TREASURY,
+            tradeFee: TRADE_FEE,
+            limitOrderFee: LIMIT_ORDER_FEE,
+            stopOrderFee: STOP_ORDER_FEE,
+            addressResolver: ADDRESS_RESOLVER,
+            marginAsset: MARGIN_ASSET
+        });
+        settings = Settings(factory.settings());
+        events = Events(factory.events());
+        implementation = Account(payable(factory.implementation()));
+        account = factory.newAccount();
     }
 
     /*//////////////////////////////////////////////////////////////
                                  TESTS
     //////////////////////////////////////////////////////////////*/
 
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Constructor_FactorySett() public {
+        assertEq(events.factory(), address(factory));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
     function test_EmitDeposit_Event() public {
         vm.expectEmit(true, true, true, true);
         emit Deposit(USER, ACCOUNT, AMOUNT);
+        vm.prank(account);
+        events.emitDeposit({user: USER, account: ACCOUNT, amount: AMOUNT});
+    }
+
+    function test_EmitDeposit_OnlyAccounts() public {
+        vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
         events.emitDeposit({user: USER, account: ACCOUNT, amount: AMOUNT});
     }
 
     function test_EmitWithdraw_Event() public {
         vm.expectEmit(true, true, true, true);
         emit Withdraw(USER, ACCOUNT, AMOUNT);
+        vm.prank(account);
+        events.emitWithdraw({user: USER, account: ACCOUNT, amount: AMOUNT});
+    }
+
+    function test_EmitWithdraw_OnlyAccounts() public {
+        vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
         events.emitWithdraw({user: USER, account: ACCOUNT, amount: AMOUNT});
     }
 
     function test_EmitEthWithdraw_Event() public {
         vm.expectEmit(true, true, true, true);
         emit EthWithdraw(USER, ACCOUNT, AMOUNT);
+        vm.prank(account);
+        events.emitEthWithdraw({user: USER, account: ACCOUNT, amount: AMOUNT});
+    }
+
+    function test_EmitEthWithdraw_OnlyAccounts() public {
+        vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
         events.emitEthWithdraw({user: USER, account: ACCOUNT, amount: AMOUNT});
     }
 
@@ -59,9 +111,25 @@ contract EventsTest is Test, ConsolidatedEvents {
             PRICE_IMPACT_DELTA,
             true
             );
+        vm.prank(account);
         events.emitConditionalOrderPlaced({
             account: ACCOUNT,
             conditionalOrderId: id,
+            marketKey: sETHPERP,
+            marginDelta: MARGIN_DELTA,
+            sizeDelta: SIZE_DELTA,
+            targetPrice: TARGET_PRICE,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            priceImpactDelta: PRICE_IMPACT_DELTA,
+            reduceOnly: true
+        });
+    }
+
+    function test_EmitConditionalOrderPlaced_OnlyAccounts() public {
+        vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
+        events.emitConditionalOrderPlaced({
+            account: ACCOUNT,
+            conditionalOrderId: 0,
             marketKey: sETHPERP,
             marginDelta: MARGIN_DELTA,
             sizeDelta: SIZE_DELTA,
@@ -82,6 +150,7 @@ contract EventsTest is Test, ConsolidatedEvents {
                 .ConditionalOrderCancelledReason
                 .CONDITIONAL_ORDER_CANCELLED_BY_USER
             );
+        vm.prank(account);
         events.emitConditionalOrderCancelled({
             account: ACCOUNT,
             conditionalOrderId: id,
@@ -91,9 +160,31 @@ contract EventsTest is Test, ConsolidatedEvents {
         });
     }
 
+    function test_EmitConditionalOrderCancelled_OnlyAccounts() public {
+        vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
+        events.emitConditionalOrderCancelled({
+            account: ACCOUNT,
+            conditionalOrderId: 0,
+            reason: IAccount
+                .ConditionalOrderCancelledReason
+                .CONDITIONAL_ORDER_CANCELLED_BY_USER
+        });
+    }
+
     function test_EmitConditionalOrderFilled_Event() public {
         vm.expectEmit(true, true, true, true);
         emit ConditionalOrderFilled(ACCOUNT, 0, FILL_PRICE, GELATO_FEE);
+        vm.prank(account);
+        events.emitConditionalOrderFilled({
+            account: ACCOUNT,
+            conditionalOrderId: 0,
+            fillPrice: FILL_PRICE,
+            keeperFee: GELATO_FEE
+        });
+    }
+
+    function test_EmitConditionalOrderFilled_OnlyAccounts() public {
+        vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
         events.emitConditionalOrderFilled({
             account: ACCOUNT,
             conditionalOrderId: 0,
@@ -105,6 +196,12 @@ contract EventsTest is Test, ConsolidatedEvents {
     function test_EmitFeeImposed_Event() public {
         vm.expectEmit(true, true, true, true);
         emit FeeImposed(ACCOUNT, AMOUNT);
+        vm.prank(account);
+        events.emitFeeImposed({account: ACCOUNT, amount: AMOUNT});
+    }
+
+    function test_EmitFeeImposed_OnlyAccounts() public {
+        vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
         events.emitFeeImposed({account: ACCOUNT, amount: AMOUNT});
     }
 }

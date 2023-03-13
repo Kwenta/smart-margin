@@ -15,7 +15,14 @@
 
 Contracts to manage account abstractions and features on top of [Synthetix Perps V2](https://github.com/Synthetixio/synthetix/blob/develop/contracts/PerpsV2Market.sol).
 
+### System Diagram
+
+<p align="center">
+  <img src="/diagrams/Abstract-System-Diagram.png" width="1000" height="600" alt="System-Diagram"/>
+</p>
+
 ## Contracts Overview
+
 > See ./deploy-addresses/ for deployed contract addresses
 
 The Margin Manager codebase consists of the `Factory` and `Account` contracts, and all of the associated dependencies. The purpose of the `Factory` is to create/deploy trading accounts (`Account` contracts) for users that support features ranging from cross-margin, conditional orders, copy trading, etc.. Once a smart margin account has been created, the main point of entry is the `Account.execute` function. `Account.execute` allows users to execute a set of commands describing the actions/trades they want executed by their account.
@@ -29,17 +36,21 @@ Calls to `Account.execute`, the entrypoint to the smart margin account, require 
 
 `commands[i]` is the command that will use `inputs[i]` as its encoded input parameters.
 
-The supported commands can be found below:
+The supported commands can be found below (ordering may _not_ match what is defined in `IAccount.sol`):
 
 ```
+ACCOUNT_MODIFY_MARGIN,
+ACCOUNT_WITHDRAW_ETH,
 PERPS_V2_MODIFY_MARGIN,
-PERPS_V2_CLOSE_POSITION,
 PERPS_V2_WITHDRAW_ALL_MARGIN,
 PERPS_V2_SUBMIT_ATOMIC_ORDER,
 PERPS_V2_SUBMIT_DELAYED_ORDER,
 PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER,
 PERPS_V2_CANCEL_DELAYED_ORDER,
-PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER
+PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER,
+PERPS_V2_CLOSE_POSITION,
+GELATO_PLACE_CONDITIONAL_ORDER,
+GELATO_CANCEL_CONDITIONAL_ORDER
 ```
 
 #### How the input bytes are structured
@@ -60,11 +71,13 @@ Encoding parameters in a bytes string in this way gives us maximum flexiblity to
 
 For a more detailed breakdown of which parameters you should provide for each command take a look at the `Account.dispatch` function.
 
-Developer documentation to give a detailed explanation of the inputs for every command will be coming soon ✨!
+Developer documentation to give a detailed explanation of the inputs for every command can be found in the [wiki](https://github.com/Kwenta/margin-manager/wiki/Commands-&-Inputs)
 
 #### Diagram
 
-coming soon ✨
+<p align="center">
+  <img src="/diagrams/Execution-Flow.png" width="1000" height="600" alt="Execution-Flow"/>
+</p>
 
 #### Reference
 
@@ -75,33 +88,47 @@ The command execution design was inspired by Uniswap's [Universal Router](https:
 Certain actions performed by the smart margin account emit events (such as depositing margin, or placing a conditional order). These events can be used to track the state of the account and to monitor the account's activity. To avoid monitoring a large number of accounts for events, we consolidate all events into a single `Events' contract`. Smart margin accounts make external calls to the `Events` contract to emit events. This costs more gas, but significantly reduces the load on our event monitoring infrastructure.
 
 ### Orders
+
 The term "order" is used often in this codebase. Smart margin accounts natively define conditional orders, which include limit orders, stop-loss orders, and redcue-only flavors of the former two. It also supports a variety of other Synthetix PerpsV2 orders which are explicity defined by `IAccount.Command commands`.
 
 ### Upgradability
 
-Smart margin accounts are upgradable. This is achieved by using a proxy pattern, where the `Account` contract is the implementation and the `AccountProxy` contract is the proxy. The `AccountProxy` contract is the contract that is deployed by the `Factory` and is the contract that users interact with. The `AccountProxy` contract delegates all calls to the `Account` contract. The `Account` contract can be upgraded by the `Factory` contract due to the `Factory` acting as a Beacon contract for the proxy. See further details on Beacons [here](https://docs.openzeppelin.com/contracts/3.x/api/proxy#beacon). One important difference between the standard Beacon implementation and our own, is that the Beacon (i.e. the `Factory`) is *not* upgradeable. This is to prevent the Beacon from being upgraded and the proxy implementation being changed to a malicious contract.
+Smart margin accounts are upgradable. This is achieved by using a proxy pattern, where the `Account` contract is the implementation and the `AccountProxy` contract is the proxy. The `AccountProxy` contract is the contract that is deployed by the `Factory` and is the contract that users interact with. The `AccountProxy` contract delegates all calls to the `Account` contract. The `Account` contract can be upgraded by the `Factory` contract due to the `Factory` acting as a Beacon contract for the proxy. See further details on Beacons [here](https://docs.openzeppelin.com/contracts/3.x/api/proxy#beacon). One important difference between the standard Beacon implementation and our own, is that the Beacon (i.e. the `Factory`) is _not_ upgradeable. This is to prevent the Beacon from being upgraded and the proxy implementation being changed to a malicious contract.
 
 Finally, all associated functionality related to upgradability can be disabled by the `Factory` contract owner.
 
 ## Folder Structure
-
-    ├── ...
-    ├── src                     # Source contracts
-    ├── script                  # Foundry deployment scripts
-    ├── test                    # Test files
-    │   ├── integration         # End-to-end, integration tests using Foundry
-    │   └── unit                # Contract focused, fuzzed/non-fuzzed tests using Foundry
-    └── ...
+```
+src
+├── Account.sol
+├── AccountProxy.sol
+├── Events.sol
+├── Factory.sol
+├── Settings.sol
+├── interfaces
+│   ├── IAccount.sol
+│   ├── IAccountProxy.sol
+│   ├── IEvents.sol
+│   ├── IFactory.sol
+│   ├── IOps.sol
+│   ├── ISettings.sol
+│   └── synthetix
+│       ├── IPerpsV2MarketConsolidated.sol
+│       ├── (...)
+└── utils
+    └── OpsReady.sol
+```
 
 ## Test Coverage
 
-| File                           | % Lines          | % Statements     | % Branches      | % Funcs         |
-|--------------------------------|------------------|------------------|-----------------|-----------------|
-| src/Account.sol                | 98.19% (163/166) | 96.92% (189/195) | 85.29% (58/68)  | 100.00% (34/34) |
-| src/AccountProxy.sol           | 100.00% (10/10)  | 76.92% (10/13)   | 50.00% (3/6)    | 100.00% (6/6)   |
-| src/Events.sol                 | 100.00% (7/7)    | 100.00% (7/7)    | 100.00% (0/0)   | 100.00% (7/7)   |
-| src/Factory.sol                | 88.46% (23/26)   | 88.24% (30/34)   | 88.89% (16/18)  | 83.33% (5/6)    |
-| src/Settings.sol               | 100.00% (16/16)  | 91.67% (22/24)   | 87.50% (14/16)  | 100.00% (4/4)   |
+| File                           | % Lines          | % Statements     | % Branches       | % Funcs         |
+|--------------------------------|------------------|------------------|------------------|-----------------|
+| src/Account.sol                | 98.28% (171/174) | 96.89% (187/193) | 84.21% (64/76)   | 100.00% (33/33) |
+| src/AccountProxy.sol           | 100.00% (10/10)  | 76.92% (10/13)   | 50.00% (3/6)     | 100.00% (6/6)   |
+| src/Events.sol                 | 100.00% (7/7)    | 100.00% (7/7)    | 100.00% (0/0)    | 100.00% (7/7)   |
+| src/Factory.sol                | 94.87% (37/39)   | 96.08% (49/51)   | 95.00% (19/20)   | 100.00% (9/9)   |
+| src/Settings.sol               | 100.00% (16/16)  | 100.00% (24/24)  | 100.00% (16/16)  | 100.00% (4/4)   |
+| src/utils/OpsReady.sol         | 60.00% (3/5)     | 66.67% (4/6)     | 100.00% (4/4)    | 50.00% (1/2)    |
 
 ## Usage
 
@@ -132,29 +159,34 @@ npm run test
 > tests will fail if you have not set up your .env (see .env.example)
 
 ### Upgradability
-> Upgrades can be dangerous. Please ensure you have a good understanding of the implications of upgrading your contracts before proceeding. Storage collisions, Function signature collisions, and other issues can occur. 
+
+> Upgrades can be dangerous. Please ensure you have a good understanding of the implications of upgrading your contracts before proceeding. Storage collisions, Function signature collisions, and other issues can occur.
+
 #### Update Account Implementation
+
 > note that updates to `Account` are reflected in all smart margin accounts, regardless of whether they were created before or after the `Account` upgrade.
+
 1. Create new version of `Account.sol` (ex: `AccountV2.sol`)
 2. Run slither analysis to ensure no storage collisions with previous version
 
 ```
 slither-check-upgradeability . Account --new-contract-name AccountV2 --proxy-name AccountProxy
 ```
+
 3. Reference `./script` directory and Upgrade.s.sol
 
 #### Update Account Settings
 
-1. The `Factory` owner has permission to upgrade the `Settings` contract address via `Factory.upgradeSettings`. 
+1. The `Factory` owner has permission to upgrade the `Settings` contract address via `Factory.upgradeSettings`.
 2. This "upgrade" does not suffer from the same dangers as the `Account` upgrade. State collisions are not possible nor are function signature collisions. However, it is still important to ensure that the new `Settings` contract is compatible with the `Account` contract and expected `getters` exist for the `Account` contract to function properly.
-3. Upgrades to the `Settings` contract will *NOT* impact existing smart margin accounts. However, any new smart margin accounts will use the new `Settings` contract, and thus be affected.
+3. Upgrades to the `Settings` contract will _NOT_ impact existing smart margin accounts. However, any new smart margin accounts will use the new `Settings` contract, and thus be affected.
 4. It is expected that the `Settings` contract will be upgraded simultaneously with the `Account` contract. However, this is not required.
 
 #### Update Account Events
 
-1. The `Factory` owner has permission to upgrade the `Events` contract address via `Factory.upgradeEvents`. 
+1. The `Factory` owner has permission to upgrade the `Events` contract address via `Factory.upgradeEvents`.
 2. This "upgrade" does not suffer from the same dangers as the `Account` upgrade. State collisions are not possible nor are function signature collisions. However, it is still important to ensure that the new `Events` contract is compatible with the `Account` contract and expected functions that emit events exist for the `Account` contract to function properly.
-3. Upgrades to the `Events` contract will *NOT* impact existing smart margin accounts. However, any new smart margin accounts will use the new `Events` contract, and thus be affected.
+3. Upgrades to the `Events` contract will _NOT_ impact existing smart margin accounts. However, any new smart margin accounts will use the new `Events` contract, and thus be affected.
 4. It is expected that the `Events` contract will be upgraded simultaneously with the `Account` contract. However, this is not required.
 
 ## Project Tools
@@ -162,11 +194,13 @@ slither-check-upgradeability . Account --new-contract-name AccountV2 --proxy-nam
 ### Static Analysis
 
 1. [Slither](https://github.com/crytic/slither)
+
 ```
 npm run analysis:slither
 ```
 
 2. [Solsat](https://github.com/0xKitsune/solstat)
+
 ```
 npm run analysis:solsat
 ```
@@ -174,6 +208,7 @@ npm run analysis:solsat
 ### Formatting
 
 1. Project uses Foundry's formatter:
+
 ```
 npm run format
 ```
@@ -181,6 +216,7 @@ npm run format
 ### Code Coverage
 
 1. Project uses Foundry's code coverage tool:
+
 ```
 npm run coverage
 ```

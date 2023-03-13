@@ -18,16 +18,19 @@ contract Factory is IFactory, Owned {
     bool public canUpgrade = true;
 
     /// @inheritdoc IFactory
-    address public implementation;
-
-    /// @inheritdoc IFactory
     address public settings;
 
     /// @inheritdoc IFactory
     address public events;
 
     /// @inheritdoc IFactory
-    mapping(address accountOwner => address account) public ownerToAccount;
+    address public implementation;
+
+    /// @inheritdoc IFactory
+    mapping(address accounts => bool exist) public accounts;
+
+    /// @notice mapping of owner to accounts owned by owner
+    mapping(address owner => address[] accounts) private ownerAccounts;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -50,6 +53,95 @@ contract Factory is IFactory, Owned {
     }
 
     /*//////////////////////////////////////////////////////////////
+                                 VIEWS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IFactory
+    function getAccountOwner(address _account)
+        public
+        view
+        override
+        returns (address)
+    {
+        // ensure account is registered
+        if (!accounts[_account]) revert AccountDoesNotExist();
+
+        // fetch owner from account
+        (bool success, bytes memory data) =
+            _account.staticcall(abi.encodeWithSignature("owner()"));
+        assert(success); // should never fail (account is a contract
+
+        return abi.decode(data, (address));
+    }
+
+    /// @inheritdoc IFactory
+    function getAccountsOwnedBy(address _owner)
+        external
+        view
+        override
+        returns (address[] memory)
+    {
+        return ownerAccounts[_owner];
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IFactory
+    function updateAccountOwnership(address _account, address _newOwner)
+        external
+        override
+    {
+        // ensure account is registered by factory
+        if (!accounts[_account]) revert AccountDoesNotExist();
+
+        // ensure function caller is the account
+        if (msg.sender != _account) revert OnlyAccount();
+
+        // get owner of account
+        address oldOwner = getAccountOwner(_account);
+
+        uint256 length = ownerAccounts[oldOwner].length;
+        for (uint256 i = 0; i < length;) {
+            if (ownerAccounts[oldOwner][i] == _account) {
+                // remove account from ownerAccounts mapping for old owner
+                _shiftArrayLeftFrom({_index: i, _array: ownerAccounts[oldOwner]});
+
+                // add account to ownerAccounts mapping for new owner
+                ownerAccounts[_newOwner].push(_account);
+
+                return;
+            }
+
+            unchecked {
+                i++;
+            }
+        }
+    }
+
+    /// @notice shifts every element in the array left from the specified index
+    /// @dev index will *NEVER* be out of bounds
+    /// @param _index: index to start shifting from
+    /// @param _array: array to shift
+    /// @custom:example _shiftArrayLeftFrom(1, [1, 2, 3, 4, 5]) => [1, 3, 4, 5]
+    function _shiftArrayLeftFrom(uint256 _index, address[] storage _array)
+        internal
+    {
+        uint256 length = _array.length;
+
+        for (uint256 i = _index; i < length - 1;) {
+            _array[i] = _array[i + 1];
+
+            unchecked {
+                i++;
+            }
+        }
+
+        _array.pop();
+    }
+
+    /*//////////////////////////////////////////////////////////////
                            ACCOUNT DEPLOYMENT
     //////////////////////////////////////////////////////////////*/
 
@@ -59,16 +151,14 @@ contract Factory is IFactory, Owned {
         override
         returns (address payable accountAddress)
     {
-        /// @dev ensure one account per address
-        if (ownerToAccount[msg.sender] != address(0)) {
-            revert OnlyOneAccountPerAddress(ownerToAccount[msg.sender]);
-        }
-
         // create account and set beacon to this address (i.e. factory address)
         accountAddress = payable(address(new AccountProxy(address(this))));
 
-        // update owner to account mapping
-        ownerToAccount[msg.sender] = accountAddress;
+        // add account to accounts mapping
+        accounts[accountAddress] = true;
+
+        // add account to ownerAccounts mapping
+        ownerAccounts[msg.sender].push(accountAddress);
 
         // initialize new account
         (bool success, bytes memory data) = accountAddress.call(
@@ -92,33 +182,6 @@ contract Factory is IFactory, Owned {
             account: accountAddress,
             version: abi.decode(data, (bytes32))
         });
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                           ACCOUNT OWNERSHIP
-    //////////////////////////////////////////////////////////////*/
-
-    /// @inheritdoc IFactory
-    function updateAccountOwner(address _oldOwner, address _newOwner)
-        external
-        override
-    {
-        /// @dev ensure _newOwner does not already have an account
-        if (ownerToAccount[_newOwner] != address(0)) {
-            revert OnlyOneAccountPerAddress(ownerToAccount[_newOwner]);
-        }
-
-        // get account address
-        address account = ownerToAccount[_oldOwner];
-
-        // ensure account exists
-        if (account == address(0)) revert AccountDoesNotExist();
-
-        // ensure account owned by _oldOwner is the caller
-        if (msg.sender != account) revert CallerMustBeAccount();
-
-        delete ownerToAccount[_oldOwner];
-        ownerToAccount[_newOwner] = account;
     }
 
     /*//////////////////////////////////////////////////////////////
