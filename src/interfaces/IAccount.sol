@@ -18,7 +18,7 @@ interface IAccount {
     ///////////////////////////////////////////////////////////////*/
 
     /// @notice Command Flags used to decode commands to execute
-    /// @dev under the hood PERPS_V2_MODIFY_MARGIN = 0, PERPS_V2_WITHDRAW_ALL_MARGIN = 1
+    /// @dev under the hood ACCOUNT_MODIFY_MARGIN = 0, ACCOUNT_WITHDRAW_ETH = 1
     enum Command {
         ACCOUNT_MODIFY_MARGIN,
         ACCOUNT_WITHDRAW_ETH,
