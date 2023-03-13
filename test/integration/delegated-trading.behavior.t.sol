@@ -63,15 +63,7 @@ contract DelegatedTradingBehavior is Test, ConsolidatedEvents {
 
         settings = Settings(factory.settings());
         events = Events(factory.events());
-
         account = Account(payable(factory.newAccount()));
-
-        accountExposed = new AccountExposed();
-        accountExposed.setFuturesMarketManager(
-            IFuturesMarketManager(FUTURES_MARKET_MANAGER)
-        );
-        accountExposed.setSettings(settings);
-        accountExposed.setEvents(events);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -97,6 +89,10 @@ contract DelegatedTradingBehavior is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_DelegatedTrader_TransferAccountOwnership() public {}
+
+    /*//////////////////////////////////////////////////////////////
+                           COMMAND EXECUTION
+    //////////////////////////////////////////////////////////////*/
 
     function test_DelegatedTrader_Execute_ACCOUNT_MODIFY_MARGIN() public {}
     function test_DelegatedTrader_Execute_ACCOUNT_WITHDRAW_ETH() public {}
