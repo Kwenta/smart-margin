@@ -239,8 +239,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     }
 
     function _dispatch(Command _command, bytes memory _inputs) internal {
-        // @TODO optimize via grouping commands: i.e. if uint(command) > 5, etc.
-
         uint256 commandIndex = uint256(_command);
 
         if (commandIndex < 2) {
@@ -268,7 +266,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                     _perpsV2WithdrawAllMargin({_market: market});
                 }
             } else if (commandIndex < 8) {
-                // prepare fee here to save gas
+                /// @custom:todo optimize fee calculation and impose it here
 
                 if (_command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
                     (address market, int256 sizeDelta, uint256 priceImpactDelta)
