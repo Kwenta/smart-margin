@@ -90,7 +90,8 @@ interface IFactory {
     /// @dev does *NOT* check new owner != old owner
     /// @param _account: account whose owner is being updated
     /// @param _newOwner: new owner of account
-    function updateAccountOwnership(address _account, address _newOwner)
+    /// @param _oldOwner: old owner of account
+    function updateAccountOwnership(address _account, address _newOwner, address _oldOwner)
         external;
 
     /*//////////////////////////////////////////////////////////////

@@ -89,7 +89,7 @@ contract Factory is IFactory, Owned {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IFactory
-    function updateAccountOwnership(address _account, address _newOwner)
+    function updateAccountOwnership(address _account, address _newOwner, address _oldOwner)
         external
         override
     {
@@ -99,14 +99,11 @@ contract Factory is IFactory, Owned {
         // ensure function caller is the account
         if (msg.sender != _account) revert OnlyAccount();
 
-        // get owner of account
-        address oldOwner = getAccountOwner(_account);
-
-        uint256 length = ownerAccounts[oldOwner].length;
+        uint256 length = ownerAccounts[_oldOwner].length;
         for (uint256 i = 0; i < length;) {
-            if (ownerAccounts[oldOwner][i] == _account) {
+            if (ownerAccounts[_oldOwner][i] == _account) {
                 // remove account from ownerAccounts mapping for old owner
-                _shiftArrayLeftFrom({_index: i, _array: ownerAccounts[oldOwner]});
+                _shiftArrayLeftFrom({_index: i, _array: ownerAccounts[_oldOwner]});
 
                 // add account to ownerAccounts mapping for new owner
                 ownerAccounts[_newOwner].push(_account);

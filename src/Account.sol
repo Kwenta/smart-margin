@@ -198,15 +198,15 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @dev update factory's record of account ownership
     /// @param _newOwner: new account owner
     function transferOwnership(address _newOwner) public override {
-        if (!isOwner()) revert Unauthorized();
+        // will revert if msg.sender is *NOT* owner
+        super.transferOwnership(_newOwner);
 
         // update the factory's record of owners and account addresses
         factory.updateAccountOwnership({
             _account: address(this),
-            _newOwner: _newOwner
+            _newOwner: _newOwner,
+            _oldOwner: msg.sender // verified to be old owner
         });
-
-        super.transferOwnership(_newOwner);
     }
 
     /*//////////////////////////////////////////////////////////////
