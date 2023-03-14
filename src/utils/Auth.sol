@@ -3,7 +3,15 @@ pragma solidity 0.8.18;
 
 /// @notice Authorization mixin for Smart Margin Accounts
 /// @author JaredBorders (jaredborders@pm.me)
+/// @dev This contract is intended to be inherited by the Account contract
 abstract contract Auth {
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice max BPS; used for decimals calculations
+    uint256 public constant MAX_BPS = 10_000;
+
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
@@ -11,10 +19,11 @@ abstract contract Auth {
     /// @notice owner of the account
     address public owner;
 
-    /// @notice mapping of delegates who can execute trades
-    /// but cannot transfer ownership, add/remove delegates,
-    /// nor withdraw/deposit funds from an account
+    /// @notice mapping of delegate address
     mapping(address delegate => bool) public delegates;
+
+    /// @notice mapping of delegate addresses to fees they impose on trades
+    mapping(address delegate => uint256 fee) public delegateFees;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -25,27 +34,36 @@ abstract contract Auth {
     error Unauthorized();
 
     /// @notice thrown when the delegate address is invalid
-    error InvalidDelegate();
+    /// @param delegateAddress: address of the delegate attempting to be added
+    error InvalidDelegateAddress(address delegateAddress);
+
+    /// @notice thrown when the delegate fee is invalid
+    /// @param delegateFee: fee the delegate charges for executing trades
+    error InvalidDelegateFee(uint256 delegateFee);
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice emitted after ownership transfer
-    /// @param user: previous owner
+    /// @param caller: previous owner
     /// @param newOwner: new owner
-    event OwnershipTransferred(address indexed user, address indexed newOwner);
+    event OwnershipTransferred(
+        address indexed caller, address indexed newOwner
+    );
 
     /// @notice emitted after a delegate is added
-    /// @param user: owner of the account
+    /// @param caller: owner of the account
     /// @param delegate: address of the delegate being added
-    event DelegatedAccountAdded(address indexed user, address indexed delegate);
+    event DelegatedAccountAdded(
+        address indexed caller, address indexed delegate
+    );
 
     /// @notice emitted after a delegate is removed
-    /// @param user: owner of the account
+    /// @param caller: owner of the account
     /// @param delegate: address of the delegate being removed
     event DelegatedAccountRemoved(
-        address indexed user, address indexed delegate
+        address indexed caller, address indexed delegate
     );
 
     /*//////////////////////////////////////////////////////////////
@@ -92,16 +110,25 @@ abstract contract Auth {
     /// @notice Add a delegate to the account
     /// @dev only owner can add a delegate (not delegates)
     /// @param _delegate The address of the delegate
-    function addDelegate(address _delegate) public virtual {
+    /// @param _delegateFee The fee the delegate charges for executing trades
+    function addDelegate(address _delegate, uint256 _delegateFee)
+        public
+        virtual
+    {
         if (!isOwner()) revert Unauthorized();
 
         if (_delegate == address(0) || delegates[_delegate]) {
-            revert InvalidDelegate();
+            revert InvalidDelegateAddress(_delegate);
+        }
+
+        if (_delegateFee > MAX_BPS) {
+            revert InvalidDelegateFee(_delegateFee);
         }
 
         delegates[_delegate] = true;
+        delegateFees[_delegate] = _delegateFee;
 
-        emit DelegatedAccountAdded({user: msg.sender, delegate: _delegate});
+        emit DelegatedAccountAdded({caller: msg.sender, delegate: _delegate});
     }
 
     /// @notice Remove a delegate from the account
@@ -111,11 +138,12 @@ abstract contract Auth {
         if (!isOwner()) revert Unauthorized();
 
         if (_delegate == address(0) || !delegates[_delegate]) {
-            revert InvalidDelegate();
+            revert InvalidDelegateAddress(_delegate);
         }
 
         delete delegates[_delegate];
+        delete delegateFees[_delegate];
 
-        emit DelegatedAccountRemoved({user: msg.sender, delegate: _delegate});
+        emit DelegatedAccountRemoved({caller: msg.sender, delegate: _delegate});
     }
 }
