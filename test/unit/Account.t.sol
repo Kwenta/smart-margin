@@ -2,7 +2,7 @@
 pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
-import {Account} from "../../src/Account.sol";
+import {Account, Auth} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
@@ -207,26 +207,25 @@ contract AccountTest is Test, ConsolidatedEvents {
 
     function test_Deposit_Margin_OnlyOwner() external {
         account.transferOwnership(KWENTA_TREASURY);
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         modifyAccountMargin(int256(AMOUNT));
     }
 
     function test_Withdraw_Margin_OnlyOwner() external {
         account.transferOwnership(KWENTA_TREASURY);
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         modifyAccountMargin(-int256(AMOUNT));
     }
 
-    function test_Deposit_ETH_OnlyOwner() external {
+    function test_Deposit_ETH_AnyCaller() external {
         account.transferOwnership(KWENTA_TREASURY);
-        vm.expectRevert("UNAUTHORIZED");
         (bool s,) = address(account).call{value: 1 ether}("");
         assert(s);
     }
 
     function test_Withdraw_ETH_OnlyOwner() external {
         account.transferOwnership(KWENTA_TREASURY);
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         withdrawEth(1 ether);
     }
 
