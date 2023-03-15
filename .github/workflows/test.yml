@@ -30,7 +30,7 @@ jobs:
 
             - name: Run forge test
               run: |
-                  forge test --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} -vvv
+                  forge test --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }} -vvv
               id: test
 
             - name: Run forge coverage
