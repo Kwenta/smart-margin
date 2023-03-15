@@ -9,7 +9,6 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-        
             - uses: actions/checkout@v3
               with:
                   submodules: recursive
@@ -29,3 +28,15 @@ jobs:
               run: |
                   forge test --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} -vvv
               id: test
+
+            - name: Run forge coverage
+              run: |
+                  forge coverage --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --report lcov
+
+            - name: Upload Coverage Report
+              uses: codecov/codecov-action@v3
+              with:
+                  files: ./lcov.info
+                  name: codecov-unit
+                  fail_ci_if_error: true
+                  verbose: true
