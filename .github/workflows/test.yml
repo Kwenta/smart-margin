@@ -3,26 +3,29 @@ name: test
 on: [push]
 
 jobs:
-  check:
-    name: Foundry project
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
+    check:
+        name: Foundry project
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
+        runs-on: ubuntu-latest
 
-      - name: Run forge build
-        run: |
-            forge --version
-            forge build --sizes
-        id: build
+        steps:
+        
+            - uses: actions/checkout@v3
+              with:
+                  submodules: recursive
 
-      - name: Run forge test
-          run: |
-            forge test --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} -vvv
-          id: test
+            - name: Install Foundry
+              uses: foundry-rs/foundry-toolchain@v1
+              with:
+                  version: nightly
+
+            - name: Run forge build
+              run: |
+                  forge --version
+                  forge build --sizes
+              id: build
+
+            - name: Run forge test
+              run: |
+                  forge test --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} -vvv
+              id: test
