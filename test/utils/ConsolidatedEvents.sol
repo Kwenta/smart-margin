@@ -10,10 +10,14 @@ contract ConsolidatedEvents {
                                  IAUTH
     //////////////////////////////////////////////////////////////*/
 
-    event OwnershipTransferred(address indexed user, address indexed newOwner);
-    event DelegatedAccountAdded(address indexed user, address indexed delegate);
+    event OwnershipTransferred(
+        address indexed caller, address indexed newOwner
+    );
+    event DelegatedAccountAdded(
+        address indexed caller, address indexed delegate
+    );
     event DelegatedAccountRemoved(
-        address indexed user, address indexed delegate
+        address indexed caller, address indexed delegate
     );
 
     /*//////////////////////////////////////////////////////////////

@@ -265,6 +265,61 @@ contract AccountTest is Test, ConsolidatedEvents {
     }
 
     /*//////////////////////////////////////////////////////////////
+                               DELEGATION
+    //////////////////////////////////////////////////////////////*/
+
+    /*//////////////////////////////////////////////////////////////
+                      ADD/REMOVE DELEGATED TRADERS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_AddDelegatedTrader() public {}
+    function test_AddDelegatedTrader_OnlyOwner() public {}
+    function test_AddDelegatedTrader_ZeroAddress() public {}
+    function test_AddDelegatedTrader_AlreadyDelegated() public {}
+
+    function test_RemoveDelegatedTrader() public {}
+    function test_RemoveDelegatedTrader_OnlyOwner() public {}
+    function test_RemoveDelegatedTrader_ZeroAddress() public {}
+    function test_RemoveDelegatedTrader_NotDelegated() public {}
+
+    /*//////////////////////////////////////////////////////////////
+                      DELEGATED TRADER PERMISSIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_DelegatedTrader_TransferAccountOwnership() public {}
+
+    /*//////////////////////////////////////////////////////////////
+                           COMMAND EXECUTION
+    //////////////////////////////////////////////////////////////*/
+
+    function test_DelegatedTrader_Execute_ACCOUNT_MODIFY_MARGIN() public {}
+    function test_DelegatedTrader_Execute_ACCOUNT_WITHDRAW_ETH() public {}
+    function test_DelegatedTrader_Execute_PERPS_V2_MODIFY_MARGIN() public {}
+    function test_DelegatedTrader_Execute_PERPS_V2_WITHDRAW_ALL_MARGIN()
+        public
+    {}
+    function test_DelegatedTrader_Execute_PERPS_V2_SUBMIT_ATOMIC_ORDER()
+        public
+    {}
+    function test_DelegatedTrader_Execute_PERPS_V2_SUBMIT_DELAYED_ORDER()
+        public
+    {}
+    function test_DelegatedTrader_Execute_PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER(
+    ) public {}
+    function test_DelegatedTrader_Execute_PERPS_V2_CANCEL_DELAYED_ORDER()
+        public
+    {}
+    function test_DelegatedTrader_Execute_PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER(
+    ) public {}
+    function test_DelegatedTrader_Execute_PERPS_V2_CLOSE_POSITION() public {}
+    function test_DelegatedTrader_Execute_GELATO_PLACE_CONDITIONAL_ORDER()
+        public
+    {}
+    function test_DelegatedTrader_Execute_GELATO_CANCEL_CONDITIONAL_ORDER()
+        public
+    {}
+
+    /*//////////////////////////////////////////////////////////////
                              MATH UTILITIES
     //////////////////////////////////////////////////////////////*/
 
