@@ -178,7 +178,7 @@ contract AccountTest is Test, ConsolidatedEvents {
                                OWNERSHIP
     //////////////////////////////////////////////////////////////*/
 
-    function test_ownership_transfer() external {
+    function test_Ownership_Transfer() external {
         // ensure factory and account state align
         address currentOwner = factory.getAccountOwner(address(account));
         assert(
@@ -199,6 +199,12 @@ contract AccountTest is Test, ConsolidatedEvents {
         assert(
             factory.getAccountsOwnedBy(KWENTA_TREASURY)[0] == address(account)
         );
+    }
+
+    function test_Ownership_Transfer_Event() external {
+        vm.expectEmit(true, true, true, true);
+        emit OwnershipTransferred(address(this), KWENTA_TREASURY);
+        account.transferOwnership(KWENTA_TREASURY);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -272,52 +278,111 @@ contract AccountTest is Test, ConsolidatedEvents {
                       ADD/REMOVE DELEGATED TRADERS
     //////////////////////////////////////////////////////////////*/
 
-    function test_AddDelegatedTrader() public {}
-    function test_AddDelegatedTrader_OnlyOwner() public {}
-    function test_AddDelegatedTrader_ZeroAddress() public {}
-    function test_AddDelegatedTrader_AlreadyDelegated() public {}
+    function test_AddDelegatedTrader() public {
+        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        assert(account.delegates(DELEGATE));
+        assert(account.delegateFees(DELEGATE) == MAX_BPS);
+    }
 
-    function test_RemoveDelegatedTrader() public {}
-    function test_RemoveDelegatedTrader_OnlyOwner() public {}
-    function test_RemoveDelegatedTrader_ZeroAddress() public {}
-    function test_RemoveDelegatedTrader_NotDelegated() public {}
+    function test_AddDelegatedTrader_Event() public {
+        vm.expectEmit(true, true, true, true);
+        emit DelegatedAccountAdded(address(this), DELEGATE);
+        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+    }
+
+    function test_AddDelegatedTrader_OnlyOwner() public {
+        account.transferOwnership(KWENTA_TREASURY);
+        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
+        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+    }
+
+    function test_AddDelegatedTrader_ZeroAddress() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Auth.InvalidDelegateAddress.selector, address(0)
+            )
+        );
+        account.addDelegate({_delegate: address(0), _delegateFee: MAX_BPS});
+    }
+
+    function test_AddDelegatedTrader_AlreadyDelegated() public {
+        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Auth.InvalidDelegateAddress.selector, DELEGATE
+            )
+        );
+        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+    }
+
+    function test_RemoveDelegatedTrader() public {
+        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        account.removeDelegate({_delegate: DELEGATE});
+        assert(!account.delegates(DELEGATE));
+        assert(account.delegateFees(DELEGATE) == 0);
+    }
+
+    function test_RemoveDelegatedTrader_Event() public {
+        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        vm.expectEmit(true, true, true, true);
+        emit DelegatedAccountRemoved(address(this), DELEGATE);
+        account.removeDelegate({_delegate: DELEGATE});
+    }
+
+    function test_RemoveDelegatedTrader_OnlyOwner() public {
+        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        account.transferOwnership(KWENTA_TREASURY);
+        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
+        account.removeDelegate({_delegate: DELEGATE});
+    }
+
+    function test_RemoveDelegatedTrader_ZeroAddress() public {
+        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Auth.InvalidDelegateAddress.selector, address(0)
+            )
+        );
+        account.removeDelegate({_delegate: address(0)});
+    }
+
+    function test_RemoveDelegatedTrader_NotDelegated() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Auth.InvalidDelegateAddress.selector, DELEGATE
+            )
+        );
+        account.removeDelegate({_delegate: DELEGATE});
+    }
 
     /*//////////////////////////////////////////////////////////////
                       DELEGATED TRADER PERMISSIONS
     //////////////////////////////////////////////////////////////*/
 
-    function test_DelegatedTrader_TransferAccountOwnership() public {}
+    function test_DelegatedTrader_TransferAccountOwnership() public {
+        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        vm.prank(DELEGATE);
+        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
+        account.transferOwnership(DELEGATE);
+    }
 
     /*//////////////////////////////////////////////////////////////
                            COMMAND EXECUTION
     //////////////////////////////////////////////////////////////*/
 
-    function test_DelegatedTrader_Execute_ACCOUNT_MODIFY_MARGIN() public {}
-    function test_DelegatedTrader_Execute_ACCOUNT_WITHDRAW_ETH() public {}
-    function test_DelegatedTrader_Execute_PERPS_V2_MODIFY_MARGIN() public {}
-    function test_DelegatedTrader_Execute_PERPS_V2_WITHDRAW_ALL_MARGIN()
-        public
-    {}
-    function test_DelegatedTrader_Execute_PERPS_V2_SUBMIT_ATOMIC_ORDER()
-        public
-    {}
-    function test_DelegatedTrader_Execute_PERPS_V2_SUBMIT_DELAYED_ORDER()
-        public
-    {}
-    function test_DelegatedTrader_Execute_PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER(
-    ) public {}
-    function test_DelegatedTrader_Execute_PERPS_V2_CANCEL_DELAYED_ORDER()
-        public
-    {}
-    function test_DelegatedTrader_Execute_PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER(
-    ) public {}
-    function test_DelegatedTrader_Execute_PERPS_V2_CLOSE_POSITION() public {}
-    function test_DelegatedTrader_Execute_GELATO_PLACE_CONDITIONAL_ORDER()
-        public
-    {}
-    function test_DelegatedTrader_Execute_GELATO_CANCEL_CONDITIONAL_ORDER()
-        public
-    {}
+    function test_DelegatedTrader_Execute_ACCOUNT_MODIFY_MARGIN() public {
+        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        vm.prank(DELEGATE);
+        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
+        modifyAccountMargin(int256(AMOUNT));
+    }
+
+    function test_DelegatedTrader_Execute_ACCOUNT_WITHDRAW_ETH() public {
+        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        vm.prank(DELEGATE);
+        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
+        withdrawEth(AMOUNT);
+    }
 
     /*//////////////////////////////////////////////////////////////
                              MATH UTILITIES

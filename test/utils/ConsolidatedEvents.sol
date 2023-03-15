@@ -76,4 +76,5 @@ contract ConsolidatedEvents {
     event TradeFeeChanged(uint256 fee);
     event LimitOrderFeeChanged(uint256 fee);
     event StopOrderFeeChanged(uint256 fee);
+    event DelegateFeeProportionChanged(uint256 feeProportion);
 }

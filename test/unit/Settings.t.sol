@@ -37,15 +37,15 @@ contract SettingsTest is Test, ConsolidatedEvents {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    function test_OwnerSet() public {
+    function test_Owner_Set() public {
         assertEq(settings.owner(), address(this));
     }
 
-    function test_TreasurySet() public {
+    function test_Treasury_Set() public {
         assertEq(settings.treasury(), KWENTA_TREASURY);
     }
 
-    function test_TradeFeeSet(uint256 x) public {
+    function test_TradeFee_Set(uint256 x) public {
         if (x > MAX_BPS) {
             vm.expectRevert(
                 abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
@@ -69,7 +69,7 @@ contract SettingsTest is Test, ConsolidatedEvents {
         }
     }
 
-    function test_LimitOrderFeeSet(uint256 x) public {
+    function test_LimitOrderFee_Set(uint256 x) public {
         if (x > MAX_BPS) {
             vm.expectRevert(
                 abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
@@ -93,7 +93,7 @@ contract SettingsTest is Test, ConsolidatedEvents {
         }
     }
 
-    function test_StopOrderFeeSet(uint256 x) public {
+    function test_StopOrderFee_Set(uint256 x) public {
         if (x > MAX_BPS) {
             vm.expectRevert(
                 abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
@@ -115,6 +115,10 @@ contract SettingsTest is Test, ConsolidatedEvents {
             });
             assertEq(settings.stopOrderFee(), x);
         }
+    }
+
+    function test_DelegateFeeProportion_Set() public {
+        assertEq(settings.delegateFeeProportion(), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -253,5 +257,38 @@ contract SettingsTest is Test, ConsolidatedEvents {
         emit TreasuryAddressChanged(USER);
         settings.setTreasury(USER);
         assertTrue(settings.treasury() == USER);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        DELEGATE FEE PROPORTION
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SetDelegateFeeProportion(uint256 x) public {
+        if (x == settings.delegateFeeProportion()) {
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.DuplicateFee.selector)
+            );
+            settings.setDelegateFeeProportion(x);
+        } else if (x > settings.MAX_BPS()) {
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
+            );
+            settings.setDelegateFeeProportion(x);
+        } else {
+            settings.setDelegateFeeProportion(x);
+            assertTrue(settings.delegateFeeProportion() == x);
+        }
+    }
+
+    function test_SetDelegateFeeProportion_OnlyOwner() public {
+        vm.expectRevert("UNAUTHORIZED");
+        vm.prank(USER);
+        settings.setDelegateFeeProportion(1 ether);
+    }
+
+    function test_SetDelegateFeeProportion_Event() public {
+        vm.expectEmit(true, true, true, true);
+        emit DelegateFeeProportionChanged(STOP_ORDER_FEE * 2);
+        settings.setDelegateFeeProportion(STOP_ORDER_FEE * 2);
     }
 }
