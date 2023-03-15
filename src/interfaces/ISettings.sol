@@ -67,7 +67,7 @@ interface ISettings {
     function stopOrderFee() external view returns (uint256);
 
     /// @return fee imposed on delegate traders
-    function delegateFeeProportion() external view returns (uint);
+    function delegateFeeProportion() external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                                 MUTATIVE

@@ -31,7 +31,7 @@ contract Settings is ISettings, Owned {
     uint256 public stopOrderFee;
 
     /// @inheritdoc ISettings
-    uint public delegateFeeProportion;
+    uint256 public delegateFeeProportion;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -126,7 +126,11 @@ contract Settings is ISettings, Owned {
     }
 
     /// @inheritdoc ISettings
-    function setDelegateFeeProportion(uint256 _feeProportion) external override onlyOwner {
+    function setDelegateFeeProportion(uint256 _feeProportion)
+        external
+        override
+        onlyOwner
+    {
         /// @notice ensure valid fee proportion
         if (_feeProportion > MAX_BPS) revert InvalidFee(_feeProportion);
 
