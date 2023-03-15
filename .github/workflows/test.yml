@@ -2,9 +2,6 @@ name: test
 
 on: [push]
 
-env:
-    FOUNDRY_PROFILE: ci
-
 jobs:
     check:
         name: Foundry project
