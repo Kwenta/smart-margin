@@ -91,8 +91,11 @@ interface IFactory {
     /// @param _account: account whose owner is being updated
     /// @param _newOwner: new owner of account
     /// @param _oldOwner: old owner of account
-    function updateAccountOwnership(address _account, address _newOwner, address _oldOwner)
-        external;
+    function updateAccountOwnership(
+        address _account,
+        address _newOwner,
+        address _oldOwner
+    ) external;
 
     /*//////////////////////////////////////////////////////////////
                            ACCOUNT DEPLOYMENT
