@@ -25,6 +25,10 @@ interface ISettings {
     /// @param fee: fee denoted in BPS
     event StopOrderFeeChanged(uint256 fee);
 
+    /// @notice emitted after a successful delegate fee proportion change
+    /// @param feeProportion: fee proportion denoted in BPS
+    event DelegateFeeProportionChanged(uint256 feeProportion);
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -62,6 +66,9 @@ interface ISettings {
     /// @return fee imposed on stop losses
     function stopOrderFee() external view returns (uint256);
 
+    /// @return fee imposed on delegate traders
+    function delegateFeeProportion() external view returns (uint);
+
     /*//////////////////////////////////////////////////////////////
                                 MUTATIVE
     //////////////////////////////////////////////////////////////*/
@@ -81,4 +88,8 @@ interface ISettings {
     /// @notice set new stop loss fee
     /// @param _fee: fee imposed on stop losses
     function setStopOrderFee(uint256 _fee) external;
+
+    /// @notice set new delegate fee proportion
+    /// @param _feeProportion: fee imposed on delegate traders
+    function setDelegateFeeProportion(uint256 _feeProportion) external;
 }

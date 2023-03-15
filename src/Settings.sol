@@ -30,6 +30,9 @@ contract Settings is ISettings, Owned {
     /// @inheritdoc ISettings
     uint256 public stopOrderFee;
 
+    /// @inheritdoc ISettings
+    uint public delegateFeeProportion;
+
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -58,6 +61,8 @@ contract Settings is ISettings, Owned {
         tradeFee = _tradeFee;
         limitOrderFee = _limitOrderFee;
         stopOrderFee = _stopOrderFee;
+
+        /// @dev delegateFeeProportion is left as default value of 0
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -118,5 +123,19 @@ contract Settings is ISettings, Owned {
         stopOrderFee = _fee;
 
         emit StopOrderFeeChanged(_fee);
+    }
+
+    /// @inheritdoc ISettings
+    function setDelegateFeeProportion(uint256 _feeProportion) external override onlyOwner {
+        /// @notice ensure valid fee proportion
+        if (_feeProportion > MAX_BPS) revert InvalidFee(_feeProportion);
+
+        // @notice ensure fee proportion will change
+        if (_feeProportion == delegateFeeProportion) revert DuplicateFee();
+
+        /// @notice set fee proportion
+        delegateFeeProportion = _feeProportion;
+
+        emit DelegateFeeProportionChanged(_feeProportion);
     }
 }
