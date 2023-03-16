@@ -2,9 +2,6 @@ name: test
 
 on: [push]
 
-env:
-    ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
-
 jobs:
     check:
         strategy:
