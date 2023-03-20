@@ -66,9 +66,6 @@ interface ISettings {
     /// @return fee imposed on stop losses
     function stopOrderFee() external view returns (uint256);
 
-    /// @return fee imposed on delegate traders
-    function delegateFeeProportion() external view returns (uint256);
-
     /*//////////////////////////////////////////////////////////////
                                 MUTATIVE
     //////////////////////////////////////////////////////////////*/
@@ -88,8 +85,4 @@ interface ISettings {
     /// @notice set new stop loss fee
     /// @param _fee: fee imposed on stop losses
     function setStopOrderFee(uint256 _fee) external;
-
-    /// @notice set new delegate fee proportion
-    /// @param _feeProportion: fee imposed on delegate traders
-    function setDelegateFeeProportion(uint256 _feeProportion) external;
 }

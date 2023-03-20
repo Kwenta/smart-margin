@@ -22,9 +22,6 @@ abstract contract Auth {
     /// @notice mapping of delegate address
     mapping(address delegate => bool) public delegates;
 
-    /// @notice mapping of delegate addresses to fees they impose on trades
-    mapping(address delegate => uint256 fee) public delegateFees;
-
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -36,10 +33,6 @@ abstract contract Auth {
     /// @notice thrown when the delegate address is invalid
     /// @param delegateAddress: address of the delegate attempting to be added
     error InvalidDelegateAddress(address delegateAddress);
-
-    /// @notice thrown when the delegate fee is invalid
-    /// @param delegateFee: fee the delegate charges for executing trades
-    error InvalidDelegateFee(uint256 delegateFee);
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -110,23 +103,14 @@ abstract contract Auth {
     /// @notice Add a delegate to the account
     /// @dev only owner can add a delegate (not delegates)
     /// @param _delegate The address of the delegate
-    /// @param _delegateFee The fee the delegate charges for executing trades
-    function addDelegate(address _delegate, uint256 _delegateFee)
-        public
-        virtual
-    {
+    function addDelegate(address _delegate) public virtual {
         if (!isOwner()) revert Unauthorized();
 
         if (_delegate == address(0) || delegates[_delegate]) {
             revert InvalidDelegateAddress(_delegate);
         }
 
-        if (_delegateFee > MAX_BPS) {
-            revert InvalidDelegateFee(_delegateFee);
-        }
-
         delegates[_delegate] = true;
-        delegateFees[_delegate] = _delegateFee;
 
         emit DelegatedAccountAdded({caller: msg.sender, delegate: _delegate});
     }
@@ -142,7 +126,6 @@ abstract contract Auth {
         }
 
         delete delegates[_delegate];
-        delete delegateFees[_delegate];
 
         emit DelegatedAccountRemoved({caller: msg.sender, delegate: _delegate});
     }

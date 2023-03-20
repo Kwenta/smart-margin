@@ -279,21 +279,20 @@ contract AccountTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_AddDelegatedTrader() public {
-        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        account.addDelegate({_delegate: DELEGATE});
         assert(account.delegates(DELEGATE));
-        assert(account.delegateFees(DELEGATE) == MAX_BPS);
     }
 
     function test_AddDelegatedTrader_Event() public {
         vm.expectEmit(true, true, true, true);
         emit DelegatedAccountAdded(address(this), DELEGATE);
-        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        account.addDelegate({_delegate: DELEGATE});
     }
 
     function test_AddDelegatedTrader_OnlyOwner() public {
         account.transferOwnership(KWENTA_TREASURY);
         vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
-        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        account.addDelegate({_delegate: DELEGATE});
     }
 
     function test_AddDelegatedTrader_ZeroAddress() public {
@@ -302,42 +301,41 @@ contract AccountTest is Test, ConsolidatedEvents {
                 Auth.InvalidDelegateAddress.selector, address(0)
             )
         );
-        account.addDelegate({_delegate: address(0), _delegateFee: MAX_BPS});
+        account.addDelegate({_delegate: address(0)});
     }
 
     function test_AddDelegatedTrader_AlreadyDelegated() public {
-        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        account.addDelegate({_delegate: DELEGATE});
         vm.expectRevert(
             abi.encodeWithSelector(
                 Auth.InvalidDelegateAddress.selector, DELEGATE
             )
         );
-        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        account.addDelegate({_delegate: DELEGATE});
     }
 
     function test_RemoveDelegatedTrader() public {
-        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        account.addDelegate({_delegate: DELEGATE});
         account.removeDelegate({_delegate: DELEGATE});
         assert(!account.delegates(DELEGATE));
-        assert(account.delegateFees(DELEGATE) == 0);
     }
 
     function test_RemoveDelegatedTrader_Event() public {
-        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        account.addDelegate({_delegate: DELEGATE});
         vm.expectEmit(true, true, true, true);
         emit DelegatedAccountRemoved(address(this), DELEGATE);
         account.removeDelegate({_delegate: DELEGATE});
     }
 
     function test_RemoveDelegatedTrader_OnlyOwner() public {
-        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        account.addDelegate({_delegate: DELEGATE});
         account.transferOwnership(KWENTA_TREASURY);
         vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         account.removeDelegate({_delegate: DELEGATE});
     }
 
     function test_RemoveDelegatedTrader_ZeroAddress() public {
-        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        account.addDelegate({_delegate: DELEGATE});
         vm.expectRevert(
             abi.encodeWithSelector(
                 Auth.InvalidDelegateAddress.selector, address(0)
@@ -360,7 +358,7 @@ contract AccountTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_DelegatedTrader_TransferAccountOwnership() public {
-        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        account.addDelegate({_delegate: DELEGATE});
         vm.prank(DELEGATE);
         vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         account.transferOwnership(DELEGATE);
@@ -371,14 +369,14 @@ contract AccountTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_DelegatedTrader_Execute_ACCOUNT_MODIFY_MARGIN() public {
-        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        account.addDelegate({_delegate: DELEGATE});
         vm.prank(DELEGATE);
         vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         modifyAccountMargin(int256(AMOUNT));
     }
 
     function test_DelegatedTrader_Execute_ACCOUNT_WITHDRAW_ETH() public {
-        account.addDelegate({_delegate: DELEGATE, _delegateFee: MAX_BPS});
+        account.addDelegate({_delegate: DELEGATE});
         vm.prank(DELEGATE);
         vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         withdrawEth(AMOUNT);
