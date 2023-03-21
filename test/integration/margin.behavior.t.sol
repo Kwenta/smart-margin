@@ -630,7 +630,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         uint256 feeInSUSD = (price * fee) / 1e18;
 
         vm.expectEmit(true, true, true, true);
-        emit FeeImposed(address(account), feeInSUSD);
+        emit FeeImposed(address(account), feeInSUSD, bytes32("TRADE_FEE"));
         account.execute(commands, inputs);
     }
 

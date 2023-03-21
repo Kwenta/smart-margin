@@ -197,13 +197,13 @@ contract EventsTest is Test, ConsolidatedEvents {
 
     function test_EmitFeeImposed_Event() public {
         vm.expectEmit(true, true, true, true);
-        emit FeeImposed(ACCOUNT, AMOUNT);
+        emit FeeImposed(ACCOUNT, AMOUNT, bytes32("REASON"));
         vm.prank(account);
-        events.emitFeeImposed({account: ACCOUNT, amount: AMOUNT});
+        events.emitFeeImposed({account: ACCOUNT, amount: AMOUNT, reason: bytes32("REASON")});
     }
 
     function test_EmitFeeImposed_OnlyAccounts() public {
         vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
-        events.emitFeeImposed({account: ACCOUNT, amount: AMOUNT});
+        events.emitFeeImposed({account: ACCOUNT, amount: AMOUNT, reason: bytes32("REASON")});
     }
 }

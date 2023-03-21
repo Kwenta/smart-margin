@@ -37,12 +37,12 @@ contract AccountExposed is Account {
                          EXPOSED FEE UTILITIES
     //////////////////////////////////////////////////////////////*/
 
-    function expose_calculateTradeFee(
+    function expose_calculateFee(
         int256 _sizeDelta,
         IPerpsV2MarketConsolidated _market,
         uint256 _conditionalOrderFee
     ) public view returns (uint256 fee) {
-        return _calculateTradeFee(_sizeDelta, _market, _conditionalOrderFee);
+        return _calculateFee(_sizeDelta, _market, _conditionalOrderFee);
     }
 
     /*//////////////////////////////////////////////////////////////

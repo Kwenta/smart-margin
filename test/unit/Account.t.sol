@@ -239,9 +239,7 @@ contract AccountTest is Test, ConsolidatedEvents {
                              FEE UTILITIES
     //////////////////////////////////////////////////////////////*/
 
-    function test_CalculateTradeFee_EthMarket(int128 fuzzedSizeDelta)
-        external
-    {
+    function test_CalculateFee_EthMarket(int128 fuzzedSizeDelta) external {
         uint256 conditionalOrderFee = MAX_BPS / 99;
         IPerpsV2MarketConsolidated market =
             IPerpsV2MarketConsolidated(getMarketAddressFromKey(sETHPERP));
@@ -252,7 +250,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         (uint256 price, bool invalid) = market.assetPrice();
         assert(!invalid);
         uint256 feeInSUSD = (price * fee) / 1e18;
-        uint256 actualFee = accountExposed.expose_calculateTradeFee({
+        uint256 actualFee = accountExposed.expose_calculateFee({
             _sizeDelta: fuzzedSizeDelta,
             _market: market,
             _conditionalOrderFee: conditionalOrderFee
@@ -260,10 +258,10 @@ contract AccountTest is Test, ConsolidatedEvents {
         assertEq(actualFee, feeInSUSD);
     }
 
-    function test_CalculateTradeFee_InvalidMarket() external {
+    function test_CalculateFee_InvalidMarket() external {
         int256 sizeDelta = -1 ether;
         vm.expectRevert();
-        accountExposed.expose_calculateTradeFee({
+        accountExposed.expose_calculateFee({
             _sizeDelta: sizeDelta,
             _market: IPerpsV2MarketConsolidated(address(0)),
             _conditionalOrderFee: LIMIT_ORDER_FEE
