@@ -123,11 +123,11 @@ contract Events is IEvents {
     }
 
     /// @inheritdoc IEvents
-    function emitFeeImposed(address account, uint256 amount)
+    function emitFeeImposed(address account, uint256 amount, bytes32 reason)
         external
         override
         onlyAccounts
     {
-        emit FeeImposed({account: account, amount: amount});
+        emit FeeImposed({account: account, amount: amount, reason: reason});
     }
 }
