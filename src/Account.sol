@@ -454,11 +454,12 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         uint256 _priceImpactDelta
     ) internal {
         _imposeFee(
-            _calculateTradeFee({
+            _calculateFee({
                 _sizeDelta: _sizeDelta,
                 _market: IPerpsV2MarketConsolidated(_market),
                 _conditionalOrderFee: 0
-            })
+            }),
+            "TRADE_FEE"
         );
 
         IPerpsV2MarketConsolidated(_market).modifyPositionWithTracking({
@@ -485,11 +486,12 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         );
 
         _imposeFee(
-            _calculateTradeFee({
+            _calculateFee({
                 _sizeDelta: getPosition(marketKey).size,
                 _market: IPerpsV2MarketConsolidated(_market),
                 _conditionalOrderFee: 0
-            })
+            }),
+            "TRADE_FEE"
         );
     }
 
@@ -510,11 +512,12 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         uint256 _desiredTimeDelta
     ) internal {
         _imposeFee(
-            _calculateTradeFee({
+            _calculateFee({
                 _sizeDelta: _sizeDelta,
                 _market: IPerpsV2MarketConsolidated(_market),
                 _conditionalOrderFee: 0
-            })
+            }),
+            "TRADE_FEE"
         );
 
         IPerpsV2MarketConsolidated(_market).submitDelayedOrderWithTracking({
@@ -546,11 +549,12 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         uint256 _priceImpactDelta
     ) internal {
         _imposeFee(
-            _calculateTradeFee({
+            _calculateFee({
                 _sizeDelta: _sizeDelta,
                 _market: IPerpsV2MarketConsolidated(_market),
                 _conditionalOrderFee: 0
-            })
+            }),
+            "TRADE_FEE"
         );
 
         IPerpsV2MarketConsolidated(_market)
@@ -777,13 +781,14 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
         _transfer({_amount: fee, _paymentToken: feeToken});
 
-        // pay Kwenta imposed fee for conditional order execution
+        // pay Kwenta imposed fee for both the trade and the conditional order execution
         _imposeFee(
-            _calculateTradeFee({
+            _calculateFee({
                 _sizeDelta: conditionalOrder.sizeDelta,
                 _market: IPerpsV2MarketConsolidated(market),
                 _conditionalOrderFee: conditionalOrderFee
-            })
+            }),
+            "TRADE_AND_CONDITIONAL_ORDER_FEE"
         );
 
         events.emitConditionalOrderFilled({
@@ -881,7 +886,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @param _market: Synthetix PerpsV2 Market
     /// @param _conditionalOrderFee: additional fee charged for conditional orders
     /// @return fee to be imposed based on size delta
-    function _calculateTradeFee(
+    function _calculateFee(
         int256 _sizeDelta,
         IPerpsV2MarketConsolidated _market,
         uint256 _conditionalOrderFee
@@ -896,7 +901,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
 
     /// @notice impose fee on account
     /// @param _fee: fee to impose
-    function _imposeFee(uint256 _fee) internal {
+    function _imposeFee(uint256 _fee, bytes32 _reason) internal {
         /// @dev send fee to Kwenta's treasury
         if (_fee > freeMargin()) {
             // fee canot be greater than available margin
@@ -906,7 +911,11 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
             bool success = MARGIN_ASSET.transfer(settings.treasury(), _fee);
             if (!success) revert FailedMarginTransfer();
 
-            events.emitFeeImposed({account: address(this), amount: _fee});
+            events.emitFeeImposed({
+                account: address(this),
+                amount: _fee,
+                reason: _reason
+            });
         }
     }
 
