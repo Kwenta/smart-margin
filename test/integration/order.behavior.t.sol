@@ -2,7 +2,7 @@
 pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
-import {Account} from "../../src/Account.sol";
+import {Account, Auth} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
@@ -104,7 +104,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             false
         );
 
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         vm.prank(USER);
         account.execute(commands, inputs);
     }
@@ -496,7 +496,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_CancelConditionalOrder_Invalid_NotOwner() external {
         vm.prank(USER);
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         cancelConditionalOrder({conditionalOrderId: 0});
     }
 

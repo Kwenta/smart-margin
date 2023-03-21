@@ -2,9 +2,6 @@ name: test
 
 on: [push]
 
-env:
-    FOUNDRY_PROFILE: ci
-
 jobs:
     check:
         strategy:
@@ -25,17 +22,17 @@ jobs:
             - name: Run forge build
               run: |
                   forge --version
-                  forge build --sizes
+                  forge build
               id: build
 
             - name: Run forge test
               run: |
-                  forge test --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }}
+                  forge test --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }} -vvv
               id: test
 
             - name: Run forge coverage
               run: |
-                forge coverage --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --report lcov
+                  forge coverage --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --report lcov
 
             - name: Upload Coverage Report
               uses: codecov/codecov-action@v3

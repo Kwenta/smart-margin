@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
+import {Auth} from "./utils/Auth.sol";
 import {
     IAccount,
     IAddressResolver,
@@ -15,12 +16,11 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Initializable} from
     "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {OpsReady, IOps} from "./utils/OpsReady.sol";
-import {Owned} from "@solmate/auth/Owned.sol";
 
 /// @title Kwenta Smart Margin Account Implementation
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice flexible smart margin account enabling users to trade on-chain derivatives
-contract Account is IAccount, OpsReady, Owned, Initializable {
+contract Account is IAccount, OpsReady, Auth, Initializable {
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -99,7 +99,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         address marginAsset,
         address gelato,
         address ops
-    ) Owned(address(0)) OpsReady(gelato, ops) {
+    ) Auth(address(0)) OpsReady(gelato, ops) {
         // recommended to use this to lock implementation contracts
         // that are designed to be called through proxies
         _disableInitializers();
@@ -197,14 +197,16 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     /// @notice transfer ownership of account to new address
     /// @dev update factory's record of account ownership
     /// @param _newOwner: new account owner
-    function transferOwnership(address _newOwner) public override onlyOwner {
+    function transferOwnership(address _newOwner) public override {
+        // will revert if msg.sender is *NOT* owner
+        super.transferOwnership(_newOwner);
+
         // update the factory's record of owners and account addresses
         factory.updateAccountOwnership({
             _account: address(this),
-            _newOwner: _newOwner
+            _newOwner: _newOwner,
+            _oldOwner: msg.sender // verified to be old owner
         });
-
-        super.transferOwnership(_newOwner);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -216,7 +218,6 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
         external
         payable
         override
-        onlyOwner
     {
         uint256 numCommands = _commands.length;
         if (_inputs.length != numCommands) {
@@ -238,99 +239,123 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
     }
 
     function _dispatch(Command _command, bytes memory _inputs) internal {
-        // @TODO optimize via grouping commands: i.e. if uint(command) > 5, etc.
+        uint256 commandIndex = uint256(_command);
 
-        if (_command == Command.ACCOUNT_MODIFY_MARGIN) {
-            (int256 amount) = abi.decode(_inputs, (int256));
-            _modifyAccountMargin({_amount: amount});
-        } else if (_command == Command.ACCOUNT_WITHDRAW_ETH) {
-            (uint256 amount) = abi.decode(_inputs, (uint256));
-            _withdrawEth({_amount: amount});
-        } else if (_command == Command.PERPS_V2_MODIFY_MARGIN) {
-            (address market, int256 amount) =
-                abi.decode(_inputs, (address, int256));
-            _perpsV2ModifyMargin({_market: market, _amount: amount});
-        } else if (_command == Command.PERPS_V2_WITHDRAW_ALL_MARGIN) {
-            address market = abi.decode(_inputs, (address));
-            _perpsV2WithdrawAllMargin({_market: market});
-        } else if (_command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
-            (address market, int256 sizeDelta, uint256 priceImpactDelta) =
-                abi.decode(_inputs, (address, int256, uint256));
-            _perpsV2SubmitAtomicOrder({
-                _market: market,
-                _sizeDelta: sizeDelta,
-                _priceImpactDelta: priceImpactDelta
-            });
-        } else if (_command == Command.PERPS_V2_SUBMIT_DELAYED_ORDER) {
-            (
-                address market,
-                int256 sizeDelta,
-                uint256 priceImpactDelta,
-                uint256 desiredTimeDelta
-            ) = abi.decode(_inputs, (address, int256, uint256, uint256));
-            _perpsV2SubmitDelayedOrder({
-                _market: market,
-                _sizeDelta: sizeDelta,
-                _priceImpactDelta: priceImpactDelta,
-                _desiredTimeDelta: desiredTimeDelta
-            });
-        } else if (_command == Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER) {
-            (address market, int256 sizeDelta, uint256 priceImpactDelta) =
-                abi.decode(_inputs, (address, int256, uint256));
-            _perpsV2SubmitOffchainDelayedOrder({
-                _market: market,
-                _sizeDelta: sizeDelta,
-                _priceImpactDelta: priceImpactDelta
-            });
-        } else if (_command == Command.PERPS_V2_CANCEL_DELAYED_ORDER) {
-            address market = abi.decode(_inputs, (address));
-            _perpsV2CancelDelayedOrder({_market: market});
-        } else if (_command == Command.PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER) {
-            address market = abi.decode(_inputs, (address));
-            _perpsV2CancelOffchainDelayedOrder({_market: market});
-        } else if (_command == Command.PERPS_V2_CLOSE_POSITION) {
-            (address market, uint256 priceImpactDelta) =
-                abi.decode(_inputs, (address, uint256));
-            _perpsV2ClosePosition({
-                _market: market,
-                _priceImpactDelta: priceImpactDelta
-            });
-        } else if (_command == Command.GELATO_PLACE_CONDITIONAL_ORDER) {
-            (
-                bytes32 marketKey,
-                int256 marginDelta,
-                int256 sizeDelta,
-                uint256 targetPrice,
-                ConditionalOrderTypes conditionalOrderType,
-                uint128 priceImpactDelta,
-                bool reduceOnly
-            ) = abi.decode(
-                _inputs,
-                (
-                    bytes32,
-                    int256,
-                    int256,
-                    uint256,
-                    ConditionalOrderTypes,
-                    uint128,
-                    bool
-                )
-            );
-            _placeConditionalOrder({
-                _marketKey: marketKey,
-                _marginDelta: marginDelta,
-                _sizeDelta: sizeDelta,
-                _targetPrice: targetPrice,
-                _conditionalOrderType: conditionalOrderType,
-                _priceImpactDelta: priceImpactDelta,
-                _reduceOnly: reduceOnly
-            });
-        } else if (_command == Command.GELATO_CANCEL_CONDITIONAL_ORDER) {
-            uint256 orderId = abi.decode(_inputs, (uint256));
-            _cancelConditionalOrder({_conditionalOrderId: orderId});
+        if (commandIndex < 2) {
+            if (!isOwner()) revert Unauthorized();
+
+            if (_command == Command.ACCOUNT_MODIFY_MARGIN) {
+                (int256 amount) = abi.decode(_inputs, (int256));
+                _modifyAccountMargin({_amount: amount});
+            } else {
+                // ACCOUNT_WITHDRAW_ETH
+                (uint256 amount) = abi.decode(_inputs, (uint256));
+                _withdrawEth({_amount: amount});
+            }
         } else {
-            // placeholder area for further commands
-            revert InvalidCommandType(uint256(_command));
+            if (!isAuth()) revert Unauthorized();
+
+            if (commandIndex < 4) {
+                if (_command == Command.PERPS_V2_MODIFY_MARGIN) {
+                    (address market, int256 amount) =
+                        abi.decode(_inputs, (address, int256));
+                    _perpsV2ModifyMargin({_market: market, _amount: amount});
+                } else {
+                    // PERPS_V2_WITHDRAW_ALL_MARGIN
+                    address market = abi.decode(_inputs, (address));
+                    _perpsV2WithdrawAllMargin({_market: market});
+                }
+            } else if (commandIndex < 8) {
+                /// @custom:todo optimize fee calculation and impose it here
+
+                if (_command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
+                    (address market, int256 sizeDelta, uint256 priceImpactDelta)
+                    = abi.decode(_inputs, (address, int256, uint256));
+                    _perpsV2SubmitAtomicOrder({
+                        _market: market,
+                        _sizeDelta: sizeDelta,
+                        _priceImpactDelta: priceImpactDelta
+                    });
+                } else if (_command == Command.PERPS_V2_SUBMIT_DELAYED_ORDER) {
+                    (
+                        address market,
+                        int256 sizeDelta,
+                        uint256 priceImpactDelta,
+                        uint256 desiredTimeDelta
+                    ) = abi.decode(_inputs, (address, int256, uint256, uint256));
+                    _perpsV2SubmitDelayedOrder({
+                        _market: market,
+                        _sizeDelta: sizeDelta,
+                        _priceImpactDelta: priceImpactDelta,
+                        _desiredTimeDelta: desiredTimeDelta
+                    });
+                } else if (
+                    _command == Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
+                ) {
+                    (address market, int256 sizeDelta, uint256 priceImpactDelta)
+                    = abi.decode(_inputs, (address, int256, uint256));
+                    _perpsV2SubmitOffchainDelayedOrder({
+                        _market: market,
+                        _sizeDelta: sizeDelta,
+                        _priceImpactDelta: priceImpactDelta
+                    });
+                } else {
+                    // PERPS_V2_CLOSE_POSITION
+                    (address market, uint256 priceImpactDelta) =
+                        abi.decode(_inputs, (address, uint256));
+                    _perpsV2ClosePosition({
+                        _market: market,
+                        _priceImpactDelta: priceImpactDelta
+                    });
+                }
+            } else {
+                // commandIndex >= 8
+                if (_command == Command.PERPS_V2_CANCEL_DELAYED_ORDER) {
+                    address market = abi.decode(_inputs, (address));
+                    _perpsV2CancelDelayedOrder({_market: market});
+                } else if (
+                    _command == Command.PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER
+                ) {
+                    address market = abi.decode(_inputs, (address));
+                    _perpsV2CancelOffchainDelayedOrder({_market: market});
+                } else if (_command == Command.GELATO_PLACE_CONDITIONAL_ORDER) {
+                    (
+                        bytes32 marketKey,
+                        int256 marginDelta,
+                        int256 sizeDelta,
+                        uint256 targetPrice,
+                        ConditionalOrderTypes conditionalOrderType,
+                        uint128 priceImpactDelta,
+                        bool reduceOnly
+                    ) = abi.decode(
+                        _inputs,
+                        (
+                            bytes32,
+                            int256,
+                            int256,
+                            uint256,
+                            ConditionalOrderTypes,
+                            uint128,
+                            bool
+                        )
+                    );
+                    _placeConditionalOrder({
+                        _marketKey: marketKey,
+                        _marginDelta: marginDelta,
+                        _sizeDelta: sizeDelta,
+                        _targetPrice: targetPrice,
+                        _conditionalOrderType: conditionalOrderType,
+                        _priceImpactDelta: priceImpactDelta,
+                        _reduceOnly: reduceOnly
+                    });
+                } else if (_command == Command.GELATO_CANCEL_CONDITIONAL_ORDER)
+                {
+                    uint256 orderId = abi.decode(_inputs, (uint256));
+                    _cancelConditionalOrder({_conditionalOrderId: orderId});
+                } else {
+                    revert InvalidCommandType(commandIndex);
+                }
+            }
         }
     }
 
@@ -340,7 +365,7 @@ contract Account is IAccount, OpsReady, Owned, Initializable {
 
     /// @notice allows ETH to be deposited directly into a margin account
     /// @notice ETH can be withdrawn
-    receive() external payable onlyOwner {}
+    receive() external payable {}
 
     /// @notice allow users to withdraw ETH deposited for keeper fees
     /// @param _amount: amount to withdraw

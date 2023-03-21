@@ -37,15 +37,15 @@ contract SettingsTest is Test, ConsolidatedEvents {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    function test_OwnerSet() public {
+    function test_Owner_Set() public {
         assertEq(settings.owner(), address(this));
     }
 
-    function test_TreasurySet() public {
+    function test_Treasury_Set() public {
         assertEq(settings.treasury(), KWENTA_TREASURY);
     }
 
-    function test_TradeFeeSet(uint256 x) public {
+    function test_TradeFee_Set(uint256 x) public {
         if (x > MAX_BPS) {
             vm.expectRevert(
                 abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
@@ -69,7 +69,7 @@ contract SettingsTest is Test, ConsolidatedEvents {
         }
     }
 
-    function test_LimitOrderFeeSet(uint256 x) public {
+    function test_LimitOrderFee_Set(uint256 x) public {
         if (x > MAX_BPS) {
             vm.expectRevert(
                 abi.encodeWithSelector(ISettings.InvalidFee.selector, x)
@@ -93,7 +93,7 @@ contract SettingsTest is Test, ConsolidatedEvents {
         }
     }
 
-    function test_StopOrderFeeSet(uint256 x) public {
+    function test_StopOrderFee_Set(uint256 x) public {
         if (x > MAX_BPS) {
             vm.expectRevert(
                 abi.encodeWithSelector(ISettings.InvalidFee.selector, x)

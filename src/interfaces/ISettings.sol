@@ -25,6 +25,10 @@ interface ISettings {
     /// @param fee: fee denoted in BPS
     event StopOrderFeeChanged(uint256 fee);
 
+    /// @notice emitted after a successful delegate fee proportion change
+    /// @param feeProportion: fee proportion denoted in BPS
+    event DelegateFeeProportionChanged(uint256 feeProportion);
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/

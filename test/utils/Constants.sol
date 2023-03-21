@@ -16,6 +16,9 @@ address constant USER = 0x42f9134E9d3Bf7eEE1f8A5Ac2a4328B059E7468c;
 // test smart margin account address (does not need to be a real account)
 address constant ACCOUNT = address(0xBEEF);
 
+// test delegate address
+address constant DELEGATE = address(0xBEEFBAE);
+
 // test amount used throughout tests
 uint256 constant AMOUNT = 10_000 ether;
 

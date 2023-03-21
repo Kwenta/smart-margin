@@ -7,6 +7,20 @@ import {IAccount} from "../../src/interfaces/IAccount.sol";
 
 contract ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
+                                 IAUTH
+    //////////////////////////////////////////////////////////////*/
+
+    event OwnershipTransferred(
+        address indexed caller, address indexed newOwner
+    );
+    event DelegatedAccountAdded(
+        address indexed caller, address indexed delegate
+    );
+    event DelegatedAccountRemoved(
+        address indexed caller, address indexed delegate
+    );
+
+    /*//////////////////////////////////////////////////////////////
                                 IEVENTS
     //////////////////////////////////////////////////////////////*/
 
@@ -62,4 +76,5 @@ contract ConsolidatedEvents {
     event TradeFeeChanged(uint256 fee);
     event LimitOrderFeeChanged(uint256 fee);
     event StopOrderFeeChanged(uint256 fee);
+    event DelegateFeeProportionChanged(uint256 feeProportion);
 }
