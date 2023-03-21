@@ -368,9 +368,17 @@ contract AccountTest is Test, ConsolidatedEvents {
                            COMMAND EXECUTION
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice The following commands *ARE NOT* allowed to be executed by a Delegate
+     * @dev All commands can be executed by the owner and this behavior is tested in
+     * test/integration/margin.behavior.t.sol and test/integration/order.behavior.t.sol
+     */
+
     function test_DelegatedTrader_Execute_ACCOUNT_MODIFY_MARGIN() public {
         account.addDelegate({_delegate: DELEGATE});
         vm.prank(DELEGATE);
+
+        /// @notice delegate CANNOT execute the following COMMAND
         vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         modifyAccountMargin(int256(AMOUNT));
     }
@@ -378,8 +386,214 @@ contract AccountTest is Test, ConsolidatedEvents {
     function test_DelegatedTrader_Execute_ACCOUNT_WITHDRAW_ETH() public {
         account.addDelegate({_delegate: DELEGATE});
         vm.prank(DELEGATE);
+
+        /// @notice delegate CANNOT execute the following COMMAND
         vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         withdrawEth(AMOUNT);
+    }
+
+    /**
+     * @notice The following commands *ARE* allowed to be executed by a Delegate
+     * @dev All commands can be executed by the owner and this behavior is tested in
+     * test/integration/margin.behavior.t.sol and test/integration/order.behavior.t.sol
+     */
+
+    function test_DelegatedTrader_Execute_PERPS_V2_MODIFY_MARGIN() public {
+        account.addDelegate({_delegate: DELEGATE});
+
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        inputs[0] =
+            abi.encode(getMarketAddressFromKey(sETHPERP), int256(AMOUNT));
+
+        vm.prank(DELEGATE);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccount.InsufficientFreeMargin.selector, 0, AMOUNT
+            )
+        );
+
+        /// @notice delegate CAN execute the following COMMAND
+        /// @dev execute will fail for other reasons (e.g. insufficient free margin)
+        account.execute(commands, inputs);
+    }
+
+    function test_DelegatedTrader_Execute_PERPS_V2_WITHDRAW_ALL_MARGIN()
+        public
+    {
+        account.addDelegate({_delegate: DELEGATE});
+
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.PERPS_V2_WITHDRAW_ALL_MARGIN;
+        inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP));
+
+        vm.prank(DELEGATE);
+        vm.expectCall(
+            getMarketAddressFromKey(sETHPERP),
+            abi.encodeWithSelector(
+                IPerpsV2MarketConsolidated.withdrawAllMargin.selector
+            )
+        );
+
+        /// @notice delegate CAN execute the following COMMAND
+        account.execute(commands, inputs);
+    }
+
+    function test_DelegatedTrader_Execute_PERPS_V2_SUBMIT_ATOMIC_ORDER()
+        public
+    {
+        account.addDelegate({_delegate: DELEGATE});
+
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+        inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP), 0, 0);
+
+        vm.prank(DELEGATE);
+
+        /// @notice delegate CAN execute the following COMMAND
+        /// @dev execute will fail for other reasons (e.g. Synthetix reverts due to empty order)
+        vm.expectRevert("Cannot submit empty order");
+        account.execute(commands, inputs);
+    }
+
+    function test_DelegatedTrader_Execute_PERPS_V2_SUBMIT_DELAYED_ORDER()
+        public
+    {
+        account.addDelegate({_delegate: DELEGATE});
+
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.PERPS_V2_SUBMIT_DELAYED_ORDER;
+        inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP), 0, 0, 0);
+
+        vm.prank(DELEGATE);
+
+        /// @notice delegate CAN execute the following COMMAND
+        /// @dev execute will fail for other reasons (e.g. Synthetix reverts due to empty order)
+        vm.expectRevert("Cannot submit empty order");
+        account.execute(commands, inputs);
+    }
+
+    function test_DelegatedTrader_Execute_PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER(
+    ) public {
+        account.addDelegate({_delegate: DELEGATE});
+
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
+        inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP), 0, 0);
+
+        vm.prank(DELEGATE);
+
+        /// @notice delegate CAN execute the following COMMAND
+        /// @dev execute will fail for other reasons (e.g. Synthetix reverts due to empty order)
+        vm.expectRevert("Cannot submit empty order");
+        account.execute(commands, inputs);
+    }
+
+    function test_DelegatedTrader_Execute_PERPS_V2_CLOSE_POSITION() public {
+        account.addDelegate({_delegate: DELEGATE});
+
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.PERPS_V2_CLOSE_POSITION;
+        inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP), 0);
+
+        vm.prank(DELEGATE);
+
+        /// @notice delegate CAN execute the following COMMAND
+        /// @dev execute will fail for other reasons (e.g. No position in Synthetix market to close)
+        vm.expectRevert("No position open");
+        account.execute(commands, inputs);
+    }
+
+    function test_DelegatedTrader_Execute_PERPS_V2_CANCEL_DELAYED_ORDER()
+        public
+    {
+        account.addDelegate({_delegate: DELEGATE});
+
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.PERPS_V2_CANCEL_DELAYED_ORDER;
+        inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP));
+
+        vm.prank(DELEGATE);
+
+        /// @notice delegate CAN execute the following COMMAND
+        /// @dev execute will fail for other reasons (e.g. no previous order in Synthetix market)
+        vm.expectRevert("no previous order");
+        account.execute(commands, inputs);
+    }
+
+    function test_DelegatedTrader_Execute_PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER(
+    ) public {
+        account.addDelegate({_delegate: DELEGATE});
+
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER;
+        inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP));
+
+        vm.prank(DELEGATE);
+
+        /// @notice delegate CAN execute the following COMMAND
+        /// @dev execute will fail for other reasons (e.g. no previous order in Synthetix market)
+        vm.expectRevert("no previous order");
+        account.execute(commands, inputs);
+    }
+
+    function test_DelegatedTrader_Execute_GELATO_PLACE_CONDITIONAL_ORDER()
+        public
+    {
+        account.addDelegate({_delegate: DELEGATE});
+
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.GELATO_PLACE_CONDITIONAL_ORDER;
+        inputs[0] = abi.encode(
+            sETHPERP, 0, 0, 0, IAccount.ConditionalOrderTypes.LIMIT, 0, false
+        );
+
+        vm.prank(DELEGATE);
+
+        /// @notice delegate CAN execute the following COMMAND
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccount.ValueCannotBeZero.selector, bytes32("_sizeDelta")
+            )
+        );
+        account.execute(commands, inputs);
+    }
+
+    function test_DelegatedTrader_Execute_GELATO_CANCEL_CONDITIONAL_ORDER()
+        public
+    {
+        account.addDelegate({_delegate: DELEGATE});
+
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.GELATO_CANCEL_CONDITIONAL_ORDER;
+        inputs[0] = abi.encode(0);
+
+        vm.prank(DELEGATE);
+
+        /// @notice delegate CAN execute the following COMMAND
+        /// @dev execute will fail for other reasons (e.g. no task exists with id 0)
+        vm.expectRevert("Ops.cancelTask: Task not found");
+        account.execute(commands, inputs);
     }
 
     /*//////////////////////////////////////////////////////////////
