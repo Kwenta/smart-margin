@@ -48,6 +48,14 @@ interface IAccount {
         CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
     }
 
+    /// @notice denotes imposed fee reasons for code clarity
+    /// @dev under the hood TRADE_FEE = 0, TRADE_AND_CONDITIONAL_ORDER_FEE = 1
+    /// @dev expect to see further fee reasons in the future (i.e. delagates, etc)
+    enum FeeReason {
+        TRADE_FEE,
+        TRADE_AND_CONDITIONAL_ORDER_FEE
+    }
+
     /// marketKey: Synthetix PerpsV2 Market id/key
     /// marginDelta: amount of margin to deposit or withdraw; positive indicates deposit, negative withdraw
     /// sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of Synthetix PerpsV2 position
