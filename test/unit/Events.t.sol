@@ -197,11 +197,12 @@ contract EventsTest is Test, ConsolidatedEvents {
 
     function test_EmitFeeImposed_Event() public {
         vm.expectEmit(true, true, true, true);
-        emit FeeImposed(ACCOUNT, AMOUNT, bytes32("REASON"));
+        emit FeeImposed(ACCOUNT, AMOUNT, sETHPERP, bytes32("REASON"));
         vm.prank(account);
         events.emitFeeImposed({
             account: ACCOUNT,
             amount: AMOUNT,
+            marketKey: sETHPERP,
             reason: bytes32("REASON")
         });
     }
@@ -211,6 +212,7 @@ contract EventsTest is Test, ConsolidatedEvents {
         events.emitFeeImposed({
             account: ACCOUNT,
             amount: AMOUNT,
+            marketKey: sETHPERP,
             reason: bytes32("REASON")
         });
     }

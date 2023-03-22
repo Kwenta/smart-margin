@@ -129,9 +129,16 @@ interface IEvents {
     /// @notice emitted after a fee has been transferred to Treasury
     /// @param account: the address of the account the fee was imposed on
     /// @param amount: fee amount sent to Treasury
+    /// @param marketKey: Synthetix PerpsV2 market key
     /// @param reason: reason for fee
-    function emitFeeImposed(address account, uint256 amount, bytes32 reason)
-        external;
+    function emitFeeImposed(
+        address account,
+        uint256 amount,
+        bytes32 marketKey,
+        bytes32 reason
+    ) external;
 
-    event FeeImposed(address indexed account, uint256 amount, bytes32 reason);
+    event FeeImposed(
+        address account, uint256 amount, bytes32 marketKey, bytes32 reason
+    );
 }
