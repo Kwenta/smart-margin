@@ -112,13 +112,15 @@ contract Events is IEvents {
         address account,
         uint256 conditionalOrderId,
         uint256 fillPrice,
-        uint256 keeperFee
+        uint256 keeperFee,
+        uint256 kwentaFee
     ) external override onlyAccounts {
         emit ConditionalOrderFilled({
             account: account,
             conditionalOrderId: conditionalOrderId,
             fillPrice: fillPrice,
-            keeperFee: keeperFee
+            keeperFee: keeperFee,
+            kwentaFee: kwentaFee
         });
     }
 

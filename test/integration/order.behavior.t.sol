@@ -53,9 +53,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         factory = setup.deploySmartMarginFactory({
             owner: address(this),
             treasury: KWENTA_TREASURY,
-            tradeFee: TRADE_FEE,
-            limitOrderFee: LIMIT_ORDER_FEE,
-            stopOrderFee: STOP_ORDER_FEE,
+            tradeFee: 0,
+            limitOrderFee: 0,
+            stopOrderFee: 0,
             addressResolver: ADDRESS_RESOLVER,
             marginAsset: MARGIN_ASSET,
             gelato: GELATO,
@@ -1072,7 +1072,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     account: address(account),
                     conditionalOrderId: conditionalOrderId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE
+                    keeperFee: GELATO_FEE,
+                    kwentaFee: 0
                 });
             } else if (fuzzedSizeDelta + position.size >= 0) {
                 // expect conditional order to be filled with specified fuzzedSizeDelta
@@ -1081,7 +1082,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     account: address(account),
                     conditionalOrderId: conditionalOrderId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE
+                    keeperFee: GELATO_FEE,
+                    kwentaFee: 0
                 });
             } else {
                 revert("Uncaught case");
@@ -1144,7 +1146,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     account: address(account),
                     conditionalOrderId: conditionalOrderId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE
+                    keeperFee: GELATO_FEE,
+                    kwentaFee: 0
                 });
             } else if (fuzzedSizeDelta + position.size <= 0) {
                 // expect conditional order to be filled with specified fuzzedSizeDelta
@@ -1153,7 +1156,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     account: address(account),
                     conditionalOrderId: conditionalOrderId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE
+                    keeperFee: GELATO_FEE,
+                    kwentaFee: 0
                 });
             } else {
                 revert("Uncaught case");

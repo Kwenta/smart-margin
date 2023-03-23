@@ -112,18 +112,21 @@ interface IEvents {
     /// @param conditionalOrderId: id of conditional order
     /// @param fillPrice: price the conditional order was executed at
     /// @param keeperFee: fees paid to the executor
+    /// @param kwentaFee: fees paid to Kwenta
     function emitConditionalOrderFilled(
         address account,
         uint256 conditionalOrderId,
         uint256 fillPrice,
-        uint256 keeperFee
+        uint256 keeperFee,
+        uint256 kwentaFee
     ) external;
 
     event ConditionalOrderFilled(
         address indexed account,
         uint256 conditionalOrderId,
         uint256 fillPrice,
-        uint256 keeperFee
+        uint256 keeperFee,
+        uint256 kwentaFee
     );
 
     /// @notice emitted after a fee has been transferred to Treasury

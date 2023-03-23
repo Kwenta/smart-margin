@@ -786,12 +786,13 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         _transfer({_amount: fee, _paymentToken: feeToken});
 
         // pay Kwenta imposed fee for both the trade and the conditional order execution
+        uint256 kwentaImposedFee = _calculateFee({
+            _sizeDelta: conditionalOrder.sizeDelta,
+            _market: IPerpsV2MarketConsolidated(market),
+            _conditionalOrderFee: conditionalOrderFee
+        });
         _imposeFee({
-            _fee: _calculateFee({
-                _sizeDelta: conditionalOrder.sizeDelta,
-                _market: IPerpsV2MarketConsolidated(market),
-                _conditionalOrderFee: conditionalOrderFee
-            }),
+            _fee: kwentaImposedFee,
             _marketKey: conditionalOrder.marketKey,
             _reason: FeeReason.TRADE_AND_CONDITIONAL_ORDER_FEE
         });
@@ -800,7 +801,8 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
             account: address(this),
             conditionalOrderId: _conditionalOrderId,
             fillPrice: fillPrice,
-            keeperFee: fee
+            keeperFee: fee,
+            kwentaFee: kwentaImposedFee
         });
     }
 
