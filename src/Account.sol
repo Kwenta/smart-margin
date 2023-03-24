@@ -280,14 +280,14 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                     (
                         address market,
                         int256 sizeDelta,
-                        uint256 priceImpactDelta,
-                        uint256 desiredTimeDelta
+                        uint256 desiredTimeDelta,
+                        uint256 desiredFillPrice
                     ) = abi.decode(_inputs, (address, int256, uint256, uint256));
                     _perpsV2SubmitDelayedOrder({
                         _market: market,
                         _sizeDelta: sizeDelta,
-                        _priceImpactDelta: priceImpactDelta,
-                        _desiredTimeDelta: desiredTimeDelta
+                        _desiredTimeDelta: desiredTimeDelta,
+                        _desiredFillPrice: desiredFillPrice
                     });
                 } else if (
                     _command == Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
@@ -505,13 +505,13 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @dev trade fee may be imposed on smart margin account
     /// @param _market: address of market
     /// @param _sizeDelta: size delta of order
-    /// @param _priceImpactDelta: price impact delta of order
     /// @param _desiredTimeDelta: desired time delta of order
+    /// @param _desiredFillPrice: desired fill price of order
     function _perpsV2SubmitDelayedOrder(
         address _market,
         int256 _sizeDelta,
-        uint256 _priceImpactDelta,
-        uint256 _desiredTimeDelta
+        uint256 _desiredTimeDelta,
+        uint256 _desiredFillPrice
     ) internal {
         _imposeFee({
             _fee: _calculateFee({
@@ -525,8 +525,8 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
 
         IPerpsV2MarketConsolidated(_market).submitDelayedOrderWithTracking({
             sizeDelta: _sizeDelta,
-            priceImpactDelta: _priceImpactDelta,
             desiredTimeDelta: _desiredTimeDelta,
+            desiredFillPrice: _desiredFillPrice,
             trackingCode: TRACKING_CODE
         });
     }
