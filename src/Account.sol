@@ -688,7 +688,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         }
 
         // cancel gelato task
-        /// @dev will revert if task id does not exist {Ops.cancelTask: Task not found}
+        /// @dev will revert if task id does not exist {Automate.cancelTask: Task not found}
         IOps(OPS).cancelTask({taskId: conditionalOrder.gelatoTaskId});
 
         // delete order from conditional orders

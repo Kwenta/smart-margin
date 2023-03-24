@@ -44,9 +44,8 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
 
-        sUSD = ERC20(
-            (IAddressResolver(ADDRESS_RESOLVER)).getAddress("ProxyERC20sUSD")
-        );
+        sUSD =
+            ERC20((IAddressResolver(ADDRESS_RESOLVER)).getAddress("ProxysUSD"));
 
         Setup setup = new Setup();
         factory = setup.deploySmartMarginFactory({
@@ -68,7 +67,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
 
         accountExposed = new AccountExposed();
         accountExposed.setFuturesMarketManager(
-            IFuturesMarketManager(FUTURES_MARKET_MANAGER)
+            IFuturesMarketManager(account.futuresMarketManager())
         );
         accountExposed.setSettings(settings);
         accountExposed.setEvents(events);

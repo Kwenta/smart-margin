@@ -45,9 +45,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
 
-        sUSD = ERC20(
-            IAddressResolver(ADDRESS_RESOLVER).getAddress("ProxyERC20sUSD")
-        );
+        sUSD = ERC20(IAddressResolver(ADDRESS_RESOLVER).getAddress("ProxysUSD"));
 
         Setup setup = new Setup();
         factory = setup.deploySmartMarginFactory({
@@ -68,18 +66,18 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         account = Account(payable(factory.newAccount()));
         fundAccount(AMOUNT);
 
-        accountExposed = new AccountExposed();
-        accountExposed.setFuturesMarketManager(
-            IFuturesMarketManager(FUTURES_MARKET_MANAGER)
-        );
-        accountExposed.setSettings(settings);
-        accountExposed.setEvents(events);
+        // accountExposed = new AccountExposed();
+        // accountExposed.setFuturesMarketManager(
+        //     IFuturesMarketManager(address(account.futuresMarketManager()))
+        // );
+        // accountExposed.setSettings(settings);
+        // accountExposed.setEvents(events);
 
-        currentEthPriceInUSD = accountExposed.expose_sUSDRate(
-            IPerpsV2MarketConsolidated(
-                accountExposed.expose_getPerpsV2Market(sETHPERP)
-            )
-        );
+        // currentEthPriceInUSD = accountExposed.expose_sUSDRate(
+        //     IPerpsV2MarketConsolidated(
+        //         accountExposed.expose_getPerpsV2Market(sETHPERP)
+        //     )
+        // );
     }
 
     /*//////////////////////////////////////////////////////////////
