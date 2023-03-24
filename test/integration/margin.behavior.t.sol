@@ -471,6 +471,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         uint256 desiredFillPrice = 1 ether;
         uint256 desiredTimeDelta = 0;
 
+        // create delayed order data
         IAccount.Command[] memory commands = new IAccount.Command[](2);
         commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
         commands[1] = IAccount.Command.PERPS_V2_SUBMIT_DELAYED_ORDER;
@@ -478,11 +479,17 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         inputs[0] = abi.encode(market, marginDelta);
         inputs[1] =
             abi.encode(market, sizeDelta, desiredTimeDelta, desiredFillPrice);
+
+        // submit delayed order
         account.execute(commands, inputs);
+
+        // create cancel delayed order data
         commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.PERPS_V2_CANCEL_DELAYED_ORDER;
         inputs = new bytes[](1);
         inputs[0] = abi.encode(market);
+
+        // submit cancel delayed order data
         account.execute(commands, inputs);
 
         IPerpsV2MarketConsolidated.DelayedOrder memory order =
