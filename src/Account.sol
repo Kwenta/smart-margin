@@ -301,11 +301,11 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                     });
                 } else {
                     // PERPS_V2_CLOSE_POSITION
-                    (address market, uint256 priceImpactDelta) =
+                    (address market, uint256 desiredFillPrice) =
                         abi.decode(_inputs, (address, uint256));
                     _perpsV2ClosePosition({
                         _market: market,
-                        _priceImpactDelta: priceImpactDelta
+                        _desiredFillPrice: desiredFillPrice
                     });
                 }
             } else {
@@ -473,8 +473,8 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @notice close Synthetix PerpsV2 Market position via an atomic order
     /// @dev trade fee may be imposed on smart margin account
     /// @param _market: address of market
-    /// @param _priceImpactDelta: price impact delta of order
-    function _perpsV2ClosePosition(address _market, uint256 _priceImpactDelta)
+    /// @param _desiredFillPrice: desired fill price of order
+    function _perpsV2ClosePosition(address _market, uint256 _desiredFillPrice)
         internal
     {
         // establish Synthetix PerpsV2 Market position
@@ -482,9 +482,10 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
 
         // close position (i.e. reduce size to zero)
         /// @dev this does not remove margin from market
-        IPerpsV2MarketConsolidated(_market).closePositionWithTracking(
-            _priceImpactDelta, TRACKING_CODE
-        );
+        IPerpsV2MarketConsolidated(_market).closePositionWithTracking({
+            desiredFillPrice: _desiredFillPrice,
+            trackingCode: TRACKING_CODE
+        });
 
         _imposeFee({
             _fee: _calculateFee({
