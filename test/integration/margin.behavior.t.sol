@@ -358,14 +358,14 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(AMOUNT) / 10;
         int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 1 ether / 2;
+        uint256 desiredFillPrice = 1 ether;
 
         IAccount.Command[] memory commands = new IAccount.Command[](2);
         commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
         commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
         account.execute(commands, inputs);
 
         IPerpsV2MarketConsolidated.Position memory position =
@@ -387,8 +387,8 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(AMOUNT) / 10;
         int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 1 ether / 2;
         uint256 desiredTimeDelta = 0;
+        uint256 desiredFillPrice = 1 ether;
 
         IAccount.Command[] memory commands = new IAccount.Command[](2);
         commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
@@ -396,14 +396,14 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
         inputs[1] =
-            abi.encode(market, sizeDelta, priceImpactDelta, desiredTimeDelta);
+            abi.encode(market, sizeDelta, desiredTimeDelta, desiredFillPrice);
         account.execute(commands, inputs);
 
         IPerpsV2MarketConsolidated.DelayedOrder memory order =
             account.getDelayedOrder(sETHPERP);
         assert(order.isOffchain == false);
         assert(order.sizeDelta == sizeDelta);
-        assert(order.priceImpactDelta == priceImpactDelta);
+        assert(order.desiredFillPrice == desiredFillPrice);
         assert(order.targetRoundId != 0);
         assert(order.commitDeposit != 0);
         assert(order.keeperDeposit != 0);
@@ -422,21 +422,21 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(AMOUNT) / 10;
         int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 1 ether;
+        uint256 desiredFillPrice = 1 ether;
 
         IAccount.Command[] memory commands = new IAccount.Command[](2);
         commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
         commands[1] = IAccount.Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
         account.execute(commands, inputs);
 
         IPerpsV2MarketConsolidated.DelayedOrder memory order =
             account.getDelayedOrder(sETHPERP);
         assert(order.isOffchain == true);
         assert(order.sizeDelta == sizeDelta);
-        assert(order.priceImpactDelta == priceImpactDelta);
+        assert(order.desiredFillPrice == desiredFillPrice);
         assert(order.targetRoundId != 0);
         assert(order.commitDeposit != 0);
         assert(order.keeperDeposit != 0);
@@ -468,7 +468,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(AMOUNT) / 10;
         int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 1 ether / 2;
+        uint256 desiredFillPrice = 1 ether;
         uint256 desiredTimeDelta = 0;
 
         IAccount.Command[] memory commands = new IAccount.Command[](2);
@@ -477,7 +477,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
         inputs[1] =
-            abi.encode(market, sizeDelta, priceImpactDelta, desiredTimeDelta);
+            abi.encode(market, sizeDelta, desiredTimeDelta, desiredFillPrice);
         account.execute(commands, inputs);
         commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.PERPS_V2_CANCEL_DELAYED_ORDER;
@@ -489,7 +489,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             account.getDelayedOrder(sETHPERP);
         assert(order.isOffchain == false);
         assert(order.sizeDelta == 0);
-        assert(order.priceImpactDelta == 0);
+        assert(order.desiredFillPrice == 0);
         assert(order.targetRoundId == 0);
         assert(order.commitDeposit == 0);
         assert(order.keeperDeposit == 0);
@@ -521,14 +521,14 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(AMOUNT) / 10;
         int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 1 ether;
+        uint256 desiredFillPrice = 1 ether;
 
         IAccount.Command[] memory commands = new IAccount.Command[](2);
         commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
         commands[1] = IAccount.Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
         account.execute(commands, inputs);
 
         // fast forward time
@@ -545,7 +545,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             account.getDelayedOrder(sETHPERP);
         assert(order.isOffchain == false);
         assert(order.sizeDelta == 0);
-        assert(order.priceImpactDelta == 0);
+        assert(order.desiredFillPrice == 0);
         assert(order.targetRoundId == 0);
         assert(order.commitDeposit == 0);
         assert(order.keeperDeposit == 0);
@@ -562,12 +562,12 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         fundAccount(AMOUNT);
 
         address market = getMarketAddressFromKey(sETHPERP);
-        uint256 priceImpactDelta = 1 ether / 2;
+        uint256 desiredFillPrice = 1 ether;
 
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.PERPS_V2_CLOSE_POSITION;
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(market, priceImpactDelta);
+        inputs[0] = abi.encode(market, desiredFillPrice);
         vm.expectRevert("No position open");
         account.execute(commands, inputs);
     }
@@ -578,20 +578,20 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(AMOUNT) / 10;
         int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 1 ether / 2;
+        uint256 desiredFillPrice = 1 ether;
 
         IAccount.Command[] memory commands = new IAccount.Command[](2);
         commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
         commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
         account.execute(commands, inputs);
 
         commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.PERPS_V2_CLOSE_POSITION;
         inputs = new bytes[](1);
-        inputs[0] = abi.encode(market, priceImpactDelta);
+        inputs[0] = abi.encode(market, desiredFillPrice);
         account.execute(commands, inputs);
 
         IPerpsV2MarketConsolidated.Position memory position =
@@ -612,14 +612,14 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             IPerpsV2MarketConsolidated(getMarketAddressFromKey(sETHPERP));
         int256 marginDelta = int256(AMOUNT) / 10;
         int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 1 ether / 2;
+        uint256 desiredFillPrice = 1 ether;
 
         IAccount.Command[] memory commands = new IAccount.Command[](2);
         commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
         commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(address(market), marginDelta);
-        inputs[1] = abi.encode(address(market), sizeDelta, priceImpactDelta);
+        inputs[1] = abi.encode(address(market), sizeDelta, desiredFillPrice);
 
         uint256 percentToTake = settings.tradeFee();
         uint256 fee =
@@ -645,14 +645,14 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(AMOUNT);
         int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 1 ether / 2;
+        uint256 desiredFillPrice = 1 ether;
 
         IAccount.Command[] memory commands = new IAccount.Command[](2);
         commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
         commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
         vm.expectRevert(abi.encodeWithSelector(IAccount.CannotPayFee.selector));
         account.execute(commands, inputs);
     }
@@ -674,7 +674,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(AMOUNT) / 10;
         int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 1 ether;
+        uint256 desiredFillPrice = 1 ether;
 
         // init commands and inputs
         IAccount.Command[] memory commands = new IAccount.Command[](3);
@@ -688,7 +688,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         // define inputs
         inputs[0] = abi.encode(AMOUNT);
         inputs[1] = abi.encode(market, marginDelta);
-        inputs[2] = abi.encode(market, sizeDelta, priceImpactDelta);
+        inputs[2] = abi.encode(market, sizeDelta, desiredFillPrice);
 
         // execute commands w/ inputs
         account.execute(commands, inputs);

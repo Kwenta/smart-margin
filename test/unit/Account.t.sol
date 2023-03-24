@@ -105,7 +105,7 @@ contract AccountTest is Test, ConsolidatedEvents {
             account.getDelayedOrder({_marketKey: sETHPERP});
         assertEq(delayedOrder.isOffchain, false);
         assertEq(delayedOrder.sizeDelta, 0);
-        assertEq(delayedOrder.priceImpactDelta, 0);
+        assertEq(delayedOrder.desiredFillPrice, 0);
         assertEq(delayedOrder.targetRoundId, 0);
         assertEq(delayedOrder.commitDeposit, 0);
         assertEq(delayedOrder.keeperDeposit, 0);
@@ -155,7 +155,7 @@ contract AccountTest is Test, ConsolidatedEvents {
             uint256(conditionalOrder.conditionalOrderType),
             uint256(IAccount.ConditionalOrderTypes.LIMIT)
         );
-        assertEq(conditionalOrder.priceImpactDelta, 0);
+        assertEq(conditionalOrder.desiredFillPrice, 0);
         assertEq(conditionalOrder.reduceOnly, false);
     }
 

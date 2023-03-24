@@ -37,8 +37,8 @@ uint256 constant TARGET_PRICE = 9 ether;
 // test fill price used throughout tests
 uint256 constant FILL_PRICE = 10 ether;
 
-// test price impact delta used throughout tests
-uint128 constant PRICE_IMPACT_DELTA = 1 ether / 2;
+// test desiredFillPrice used throughout tests
+uint128 constant DESIRED_FILL_PRICE = 1 ether;
 
 // minimum ETH balance required to place a conditional order
 uint256 constant MIN_ETH = 1 ether / 100;

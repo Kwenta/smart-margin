@@ -110,7 +110,7 @@ contract EventsTest is Test, ConsolidatedEvents {
             SIZE_DELTA,
             TARGET_PRICE,
             IAccount.ConditionalOrderTypes.LIMIT,
-            PRICE_IMPACT_DELTA,
+            DESIRED_FILL_PRICE,
             true
             );
         vm.prank(account);
@@ -122,7 +122,7 @@ contract EventsTest is Test, ConsolidatedEvents {
             sizeDelta: SIZE_DELTA,
             targetPrice: TARGET_PRICE,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: true
         });
     }
@@ -137,7 +137,7 @@ contract EventsTest is Test, ConsolidatedEvents {
             sizeDelta: SIZE_DELTA,
             targetPrice: TARGET_PRICE,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: true
         });
     }
