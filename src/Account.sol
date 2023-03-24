@@ -269,12 +269,12 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                 /// @custom:todo optimize fee calculation and impose it here
 
                 if (_command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
-                    (address market, int256 sizeDelta, uint256 priceImpactDelta)
+                    (address market, int256 sizeDelta, uint256 desiredFillPrice)
                     = abi.decode(_inputs, (address, int256, uint256));
                     _perpsV2SubmitAtomicOrder({
                         _market: market,
                         _sizeDelta: sizeDelta,
-                        _priceImpactDelta: priceImpactDelta
+                        _desiredFillPrice: desiredFillPrice
                     });
                 } else if (_command == Command.PERPS_V2_SUBMIT_DELAYED_ORDER) {
                     (
@@ -447,11 +447,11 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @dev trade fee may be imposed on smart margin account
     /// @param _market: address of market
     /// @param _sizeDelta: size delta of order
-    /// @param _priceImpactDelta: price impact delta of order
+    /// @param _desiredFillPrice: desired fill price of order
     function _perpsV2SubmitAtomicOrder(
         address _market,
         int256 _sizeDelta,
-        uint256 _priceImpactDelta
+        uint256 _desiredFillPrice
     ) internal {
         _imposeFee({
             _fee: _calculateFee({
@@ -465,7 +465,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
 
         IPerpsV2MarketConsolidated(_market).modifyPositionWithTracking({
             sizeDelta: _sizeDelta,
-            priceImpactDelta: _priceImpactDelta,
+            desiredFillPrice: _desiredFillPrice,
             trackingCode: TRACKING_CODE
         });
     }
