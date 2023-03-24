@@ -31,7 +31,6 @@ interface IEvents {
     function emitDeposit(address user, address account, uint256 amount)
         external;
 
-    // @inheritdoc IAccount
     event Deposit(
         address indexed user, address indexed account, uint256 amount
     );
@@ -43,7 +42,6 @@ interface IEvents {
     function emitWithdraw(address user, address account, uint256 amount)
         external;
 
-    // @inheritdoc IAccount
     event Withdraw(
         address indexed user, address indexed account, uint256 amount
     );
@@ -55,7 +53,6 @@ interface IEvents {
     function emitEthWithdraw(address user, address account, uint256 amount)
         external;
 
-    // @inheritdoc IAccount
     event EthWithdraw(
         address indexed user, address indexed account, uint256 amount
     );
@@ -82,7 +79,6 @@ interface IEvents {
         bool reduceOnly
     ) external;
 
-    // @inheritdoc IAccount
     event ConditionalOrderPlaced(
         address indexed account,
         uint256 conditionalOrderId,
@@ -105,7 +101,6 @@ interface IEvents {
         IAccount.ConditionalOrderCancelledReason reason
     ) external;
 
-    // @inheritdoc IAccount
     event ConditionalOrderCancelled(
         address indexed account,
         uint256 conditionalOrderId,
@@ -117,26 +112,36 @@ interface IEvents {
     /// @param conditionalOrderId: id of conditional order
     /// @param fillPrice: price the conditional order was executed at
     /// @param keeperFee: fees paid to the executor
+    /// @param kwentaFee: fees paid to Kwenta
     function emitConditionalOrderFilled(
         address account,
         uint256 conditionalOrderId,
         uint256 fillPrice,
-        uint256 keeperFee
+        uint256 keeperFee,
+        uint256 kwentaFee
     ) external;
 
-    // @inheritdoc IAccount
     event ConditionalOrderFilled(
         address indexed account,
         uint256 conditionalOrderId,
         uint256 fillPrice,
-        uint256 keeperFee
+        uint256 keeperFee,
+        uint256 kwentaFee
     );
 
     /// @notice emitted after a fee has been transferred to Treasury
     /// @param account: the address of the account the fee was imposed on
     /// @param amount: fee amount sent to Treasury
-    function emitFeeImposed(address account, uint256 amount) external;
+    /// @param marketKey: Synthetix PerpsV2 market key
+    /// @param reason: reason for fee
+    function emitFeeImposed(
+        address account,
+        uint256 amount,
+        bytes32 marketKey,
+        bytes32 reason
+    ) external;
 
-    // @inheritdoc IAccount
-    event FeeImposed(address indexed account, uint256 amount);
+    event FeeImposed(
+        address account, uint256 amount, bytes32 marketKey, bytes32 reason
+    );
 }

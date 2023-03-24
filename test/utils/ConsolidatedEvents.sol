@@ -53,9 +53,12 @@ contract ConsolidatedEvents {
         address indexed account,
         uint256 conditionalOrderId,
         uint256 fillPrice,
-        uint256 keeperFee
+        uint256 keeperFee,
+        uint kwentaFee
     );
-    event FeeImposed(address indexed account, uint256 amount);
+    event FeeImposed(
+        address account, uint256 amount, bytes32 marketKey, bytes32 reason
+    );
 
     /*//////////////////////////////////////////////////////////////
                                 IFACTORY

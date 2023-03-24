@@ -71,7 +71,7 @@ Encoding parameters in a bytes string in this way gives us maximum flexiblity to
 
 For a more detailed breakdown of which parameters you should provide for each command take a look at the `Account.dispatch` function.
 
-Developer documentation to give a detailed explanation of the inputs for every command can be found in the [wiki](https://github.com/Kwenta/margin-manager/wiki/Commands-&-Inputs)
+Developer documentation to give a detailed explanation of the inputs for every command can be found in the [wiki](https://github.com/Kwenta/margin-manager/wiki/Commands)
 
 #### Diagram
 

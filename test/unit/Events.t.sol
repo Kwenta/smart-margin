@@ -33,9 +33,9 @@ contract EventsTest is Test, ConsolidatedEvents {
         factory = setup.deploySmartMarginFactory({
             owner: address(this),
             treasury: KWENTA_TREASURY,
-            tradeFee: TRADE_FEE,
-            limitOrderFee: LIMIT_ORDER_FEE,
-            stopOrderFee: STOP_ORDER_FEE,
+            tradeFee: 0,
+            limitOrderFee: 0,
+            stopOrderFee: 0,
             addressResolver: ADDRESS_RESOLVER,
             marginAsset: MARGIN_ASSET,
             gelato: GELATO,
@@ -175,13 +175,14 @@ contract EventsTest is Test, ConsolidatedEvents {
 
     function test_EmitConditionalOrderFilled_Event() public {
         vm.expectEmit(true, true, true, true);
-        emit ConditionalOrderFilled(ACCOUNT, 0, FILL_PRICE, GELATO_FEE);
+        emit ConditionalOrderFilled(ACCOUNT, 0, FILL_PRICE, GELATO_FEE, 0);
         vm.prank(account);
         events.emitConditionalOrderFilled({
             account: ACCOUNT,
             conditionalOrderId: 0,
             fillPrice: FILL_PRICE,
-            keeperFee: GELATO_FEE
+            keeperFee: GELATO_FEE,
+            kwentaFee: 0
         });
     }
 
@@ -191,19 +192,30 @@ contract EventsTest is Test, ConsolidatedEvents {
             account: ACCOUNT,
             conditionalOrderId: 0,
             fillPrice: FILL_PRICE,
-            keeperFee: GELATO_FEE
+            keeperFee: GELATO_FEE,
+            kwentaFee: 0
         });
     }
 
     function test_EmitFeeImposed_Event() public {
         vm.expectEmit(true, true, true, true);
-        emit FeeImposed(ACCOUNT, AMOUNT);
+        emit FeeImposed(ACCOUNT, AMOUNT, sETHPERP, bytes32("REASON"));
         vm.prank(account);
-        events.emitFeeImposed({account: ACCOUNT, amount: AMOUNT});
+        events.emitFeeImposed({
+            account: ACCOUNT,
+            amount: AMOUNT,
+            marketKey: sETHPERP,
+            reason: bytes32("REASON")
+        });
     }
 
     function test_EmitFeeImposed_OnlyAccounts() public {
         vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
-        events.emitFeeImposed({account: ACCOUNT, amount: AMOUNT});
+        events.emitFeeImposed({
+            account: ACCOUNT,
+            amount: AMOUNT,
+            marketKey: sETHPERP,
+            reason: bytes32("REASON")
+        });
     }
 }
