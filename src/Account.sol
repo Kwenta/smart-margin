@@ -589,7 +589,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of position
     /// @param _targetPrice: expected conditional order price
     /// @param _conditionalOrderType: expected conditional order type enum where 0 = LIMIT, 1 = STOP, etc..
-    /// @param _desiredFillPrice: desired fill price of order
+    /// @param _desiredFillPrice: desired price to fill Synthetix PerpsV2 order at execution time
     /// @param _reduceOnly: if true, only allows position's absolute size to decrease
     function _placeConditionalOrder(
         bytes32 _marketKey,

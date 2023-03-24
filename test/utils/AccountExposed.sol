@@ -70,38 +70,38 @@ contract AccountExposed is Account {
     function expose_perpsV2SubmitAtomicOrder(
         address market,
         int256 sizeDelta,
-        uint256 priceImpactDelta
+        uint256 desiredFillPrice
     ) external {
         _perpsV2SubmitAtomicOrder({
             _market: market,
             _sizeDelta: sizeDelta,
-            _priceImpactDelta: priceImpactDelta
+            _desiredFillPrice: desiredFillPrice
         });
     }
 
     function expose_perpsV2SubmitDelayedOrder(
         address market,
         int256 sizeDelta,
-        uint256 priceImpactDelta,
-        uint256 desiredTimeDelta
+        uint256 desiredTimeDelta,
+        uint256 desiredFillPrice
     ) external {
         _perpsV2SubmitDelayedOrder({
             _market: market,
             _sizeDelta: sizeDelta,
-            _priceImpactDelta: priceImpactDelta,
-            _desiredTimeDelta: desiredTimeDelta
+            _desiredTimeDelta: desiredTimeDelta,
+            _desiredFillPrice: desiredFillPrice
         });
     }
 
     function expose_perpsV2SubmitOffchainDelayedOrder(
         address market,
         int256 sizeDelta,
-        uint256 priceImpactDelta
+        uint256 desiredFillPrice
     ) external {
         _perpsV2SubmitOffchainDelayedOrder({
             _market: market,
             _sizeDelta: sizeDelta,
-            _priceImpactDelta: priceImpactDelta
+            _desiredFillPrice: desiredFillPrice
         });
     }
 
@@ -117,11 +117,11 @@ contract AccountExposed is Account {
 
     function expose_PERPS_V2_CLOSE_POSITION(
         address market,
-        uint256 priceImpactDelta
+        uint256 desiredFillPrice
     ) external {
         _perpsV2ClosePosition({
             _market: market,
-            _priceImpactDelta: priceImpactDelta
+            _desiredFillPrice: desiredFillPrice
         });
     }
 
@@ -131,7 +131,7 @@ contract AccountExposed is Account {
         int256 sizeDelta,
         uint256 targetPrice,
         ConditionalOrderTypes conditionalOrderType,
-        uint128 priceImpactDelta,
+        uint256 desiredFillPrice,
         bool reduceOnly
     ) external {
         _placeConditionalOrder({
@@ -140,7 +140,7 @@ contract AccountExposed is Account {
             _sizeDelta: sizeDelta,
             _targetPrice: targetPrice,
             _conditionalOrderType: conditionalOrderType,
-            _priceImpactDelta: priceImpactDelta,
+            _desiredFillPrice: desiredFillPrice,
             _reduceOnly: reduceOnly
         });
     }
