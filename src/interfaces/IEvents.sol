@@ -65,7 +65,7 @@ interface IEvents {
     /// @param sizeDelta: size change
     /// @param targetPrice: targeted fill price
     /// @param conditionalOrderType: expected conditional order type enum where 0 = LIMIT, 1 = STOP, etc..
-    /// @param priceImpactDelta: price impact tolerance as a percentage
+    /// @param desiredFillPrice: desired price to fill Synthetix PerpsV2 order at execution time
     /// @param reduceOnly: if true, only allows position's absolute size to decrease
     function emitConditionalOrderPlaced(
         address account,
@@ -75,7 +75,7 @@ interface IEvents {
         int256 sizeDelta,
         uint256 targetPrice,
         IAccount.ConditionalOrderTypes conditionalOrderType,
-        uint128 priceImpactDelta,
+        uint256 desiredFillPrice,
         bool reduceOnly
     ) external;
 
@@ -87,7 +87,7 @@ interface IEvents {
         int256 sizeDelta,
         uint256 targetPrice,
         IAccount.ConditionalOrderTypes conditionalOrderType,
-        uint128 priceImpactDelta,
+        uint256 desiredFillPrice,
         bool reduceOnly
     );
 

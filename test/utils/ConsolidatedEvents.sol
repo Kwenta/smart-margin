@@ -41,7 +41,7 @@ contract ConsolidatedEvents {
         int256 sizeDelta,
         uint256 targetPrice,
         IAccount.ConditionalOrderTypes conditionalOrderType,
-        uint128 priceImpactDelta,
+        uint256 desiredFillPrice,
         bool reduceOnly
     );
     event ConditionalOrderCancelled(

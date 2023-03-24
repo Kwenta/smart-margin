@@ -78,7 +78,7 @@ contract Events is IEvents {
         int256 sizeDelta,
         uint256 targetPrice,
         IAccount.ConditionalOrderTypes conditionalOrderType,
-        uint128 priceImpactDelta,
+        uint128 desiredFillPrice,
         bool reduceOnly
     ) external override onlyAccounts {
         emit ConditionalOrderPlaced({
@@ -89,7 +89,7 @@ contract Events is IEvents {
             sizeDelta: sizeDelta,
             targetPrice: targetPrice,
             conditionalOrderType: conditionalOrderType,
-            priceImpactDelta: priceImpactDelta,
+            desiredFillPrice: desiredFillPrice,
             reduceOnly: reduceOnly
         });
     }

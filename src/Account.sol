@@ -325,7 +325,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                         int256 sizeDelta,
                         uint256 targetPrice,
                         ConditionalOrderTypes conditionalOrderType,
-                        uint128 priceImpactDelta,
+                        uint256 desiredFillPrice,
                         bool reduceOnly
                     ) = abi.decode(
                         _inputs,
@@ -335,7 +335,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                             int256,
                             uint256,
                             ConditionalOrderTypes,
-                            uint128,
+                            uint256,
                             bool
                         )
                     );
@@ -345,7 +345,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                         _sizeDelta: sizeDelta,
                         _targetPrice: targetPrice,
                         _conditionalOrderType: conditionalOrderType,
-                        _priceImpactDelta: priceImpactDelta,
+                        _desiredFillPrice: desiredFillPrice,
                         _reduceOnly: reduceOnly
                     });
                 } else if (_command == Command.GELATO_CANCEL_CONDITIONAL_ORDER)
@@ -589,7 +589,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of position
     /// @param _targetPrice: expected conditional order price
     /// @param _conditionalOrderType: expected conditional order type enum where 0 = LIMIT, 1 = STOP, etc..
-    /// @param _priceImpactDelta: price impact tolerance as a percentage
+    /// @param _desiredFillPrice: desired fill price of order
     /// @param _reduceOnly: if true, only allows position's absolute size to decrease
     function _placeConditionalOrder(
         bytes32 _marketKey,
@@ -597,7 +597,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         int256 _sizeDelta,
         uint256 _targetPrice,
         ConditionalOrderTypes _conditionalOrderType,
-        uint128 _priceImpactDelta,
+        uint256 _desiredFillPrice,
         bool _reduceOnly
     ) internal notZero(_abs(_sizeDelta), "_sizeDelta") {
         // if more margin is desired on the position we must commit the margin
@@ -622,7 +622,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
             targetPrice: _targetPrice,
             gelatoTaskId: taskId,
             conditionalOrderType: _conditionalOrderType,
-            priceImpactDelta: _priceImpactDelta,
+            desiredFillPrice: _desiredFillPrice,
             reduceOnly: _reduceOnly
         });
 
@@ -634,7 +634,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
             sizeDelta: _sizeDelta,
             targetPrice: _targetPrice,
             conditionalOrderType: _conditionalOrderType,
-            priceImpactDelta: _priceImpactDelta,
+            desiredFillPrice: _desiredFillPrice,
             reduceOnly: _reduceOnly
         });
 
@@ -779,7 +779,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         _perpsV2SubmitOffchainDelayedOrder({
             _market: market,
             _sizeDelta: conditionalOrder.sizeDelta,
-            _priceImpactDelta: conditionalOrder.priceImpactDelta
+            _desiredFillPrice: conditionalOrder.desiredFillPrice
         });
 
         // pay Gelato imposed fee for conditional order execution

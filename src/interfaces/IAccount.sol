@@ -59,10 +59,10 @@ interface IAccount {
     /// marketKey: Synthetix PerpsV2 Market id/key
     /// marginDelta: amount of margin to deposit or withdraw; positive indicates deposit, negative withdraw
     /// sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of Synthetix PerpsV2 position
-    /// targetPrice: limit or stop price to fill at
+    /// targetPrice: limit or stop price target needing to be met to submit Synthetix PerpsV2 order
     /// gelatoTaskId: unqiue taskId from gelato necessary for cancelling conditional orders
     /// conditionalOrderType: conditional order type to determine conditional order fill logic
-    /// priceImpactDelta: price impact tolerance as a percentage used on fillPrice at execution
+    /// desiredFillPrice: desired price to fill Synthetix PerpsV2 order at execution time
     /// reduceOnly: if true, only allows position's absolute size to decrease
     struct ConditionalOrder {
         bytes32 marketKey;
@@ -71,9 +71,15 @@ interface IAccount {
         uint256 targetPrice;
         bytes32 gelatoTaskId;
         ConditionalOrderTypes conditionalOrderType;
-        uint128 priceImpactDelta;
+        uint256 desiredFillPrice;
         bool reduceOnly;
     }
+    /// @dev see example below elucidating targtPrice vs desiredFillPrice:
+    /// 1. targetPrice met (ex: targetPrice = X)
+    /// 2. account submits delayed order to Synthetix PerpsV2 with desiredFillPrice = Y
+    /// 3. keeper executes Synthetix PerpsV2 order after delay period
+    /// 4. if current market price defined by Synthetix PerpsV2 
+    ///    after delay period satisfies desiredFillPrice order is filled
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
