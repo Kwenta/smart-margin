@@ -440,10 +440,10 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         assert(order.isOffchain == true);
         assert(order.sizeDelta == sizeDelta);
         assert(order.desiredFillPrice == desiredFillPrice);
-        assert(order.targetRoundId == 0); /// @custom:todo why did this change
+        assert(order.targetRoundId == 0); // @custom:todo why?
         assert(order.commitDeposit == 0); // no commit deposit post Almach release
         assert(order.keeperDeposit != 0);
-        assert(order.executableAtTime == 0); /// @custom:todo why did this change
+        assert(order.executableAtTime == 0); // @custom:todo why?
         assert(order.intentionTime != 0);
         assert(order.trackingCode == TRACKING_CODE);
     }
@@ -487,7 +487,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         // submit delayed order
         account.execute(commands, inputs);
 
-        // fast forward time; must ff to allow order cancellations 
+        // fast forward time; must ff to allow order cancellations
         // (i.e. ff past the window of settlement)
         // solhint-disable-next-line not-rely-on-time
         vm.warp(block.timestamp + 10_000 seconds);
@@ -607,7 +607,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
         inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
-        
+
         // open position
         account.execute(commands, inputs);
 
