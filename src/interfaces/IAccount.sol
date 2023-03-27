@@ -78,7 +78,7 @@ interface IAccount {
     /// 1. targetPrice met (ex: targetPrice = X)
     /// 2. account submits delayed order to Synthetix PerpsV2 with desiredFillPrice = Y
     /// 3. keeper executes Synthetix PerpsV2 order after delay period
-    /// 4. if current market price defined by Synthetix PerpsV2 
+    /// 4. if current market price defined by Synthetix PerpsV2
     ///    after delay period satisfies desiredFillPrice order is filled
 
     /*//////////////////////////////////////////////////////////////
