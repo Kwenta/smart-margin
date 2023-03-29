@@ -627,6 +627,18 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         // assert(position.margin != 0);
     }
 
+    /*
+        PERPS_V2_CLOSE_DELAYED_ORDER
+    */
+
+    function test_Commands_CloseDelayedOrder() external {}
+
+    /*
+        PERPS_V2_CLOSE_OFFCHAIN_DELAYED_ORDER
+    */
+
+    function test_Commands_CloseOffchainDelayedOrder() external {}
+
     /*//////////////////////////////////////////////////////////////
                               TRADING FEES
     //////////////////////////////////////////////////////////////*/
