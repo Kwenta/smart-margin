@@ -628,16 +628,112 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
     }
 
     /*
-        PERPS_V2_CLOSE_DELAYED_ORDER
+        PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER
     */
 
-    function test_Commands_CloseDelayedOrder() external {}
+    function test_Commands_SubmitCloseDelayedOrder_NoneExists() external {
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER;
+        inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP), 0, 0);
+
+        vm.expectRevert("no existing position");
+        account.execute(commands, inputs);
+    }
+
+    function test_Commands_SubmitCloseDelayedOrder() external {
+        fundAccount(AMOUNT);
+
+        address market = getMarketAddressFromKey(sETHPERP);
+        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 sizeDelta = 1 ether;
+        (uint256 desiredFillPrice,) =
+            IPerpsV2MarketConsolidated(market).assetPrice();
+
+        // define atomic order to open position
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(market, marginDelta);
+        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
+
+        // open position
+        account.execute(commands, inputs);
+
+        // define close position order
+        commands = new IAccount.Command[](1);
+        inputs = new bytes[](1);
+        commands[0] = IAccount.Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER;
+        inputs[0] =
+            abi.encode(getMarketAddressFromKey(sETHPERP), 0, desiredFillPrice);
+
+        // submit close position
+        account.execute(commands, inputs);
+
+        // check submitted order
+        IPerpsV2MarketConsolidated.DelayedOrder memory order =
+            account.getDelayedOrder(sETHPERP);
+        assert(order.isOffchain == false);
+        assert(order.sizeDelta == -sizeDelta);
+    }
 
     /*
-        PERPS_V2_CLOSE_OFFCHAIN_DELAYED_ORDER
+        PERPS_V2_SUBMIT_CLOSE_OFFCHAIN_DELAYED_ORDER
     */
 
-    function test_Commands_CloseOffchainDelayedOrder() external {}
+    function test_Commands_SubmitCloseOffchainDelayedOrder_NoneExists()
+        external
+    {
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] =
+            IAccount.Command.PERPS_V2_SUBMIT_CLOSE_OFFCHAIN_DELAYED_ORDER;
+        inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP), 0);
+
+        vm.expectRevert("no existing position");
+        account.execute(commands, inputs);
+    }
+
+    function test_Commands_SubmitCloseOffchainDelayedOrder() external {
+        fundAccount(AMOUNT);
+
+        address market = getMarketAddressFromKey(sETHPERP);
+        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 sizeDelta = 1 ether;
+        (uint256 desiredFillPrice,) =
+            IPerpsV2MarketConsolidated(market).assetPrice();
+
+        // define atomic order to open position
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(market, marginDelta);
+        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
+
+        // open position
+        account.execute(commands, inputs);
+
+        // define close position order
+        commands = new IAccount.Command[](1);
+        inputs = new bytes[](1);
+        commands[0] =
+            IAccount.Command.PERPS_V2_SUBMIT_CLOSE_OFFCHAIN_DELAYED_ORDER;
+        inputs[0] =
+            abi.encode(getMarketAddressFromKey(sETHPERP), desiredFillPrice);
+
+        // submit close position
+        account.execute(commands, inputs);
+
+        // check submitted order
+        IPerpsV2MarketConsolidated.DelayedOrder memory order =
+            account.getDelayedOrder(sETHPERP);
+        assert(order.isOffchain == true);
+        assert(order.sizeDelta == -sizeDelta);
+    }
 
     /*//////////////////////////////////////////////////////////////
                               TRADING FEES
