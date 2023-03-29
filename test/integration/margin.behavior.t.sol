@@ -621,10 +621,10 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         // close position
         account.execute(commands, inputs);
 
-        // IPerpsV2MarketConsolidated.Position memory position =
-        //     account.getPosition(sETHPERP);
-        // assert(position.size == 0);
-        // assert(position.margin != 0);
+        IPerpsV2MarketConsolidated.Position memory position =
+            account.getPosition(sETHPERP);
+        assert(position.size == 0);
+        assert(position.margin != 0);
     }
 
     /*
