@@ -11,7 +11,7 @@ import {Settings} from "src/Settings.sol";
 /// @author JaredBorders (jaredborders@pm.me)
 contract Setup {
     function deploySmartMarginFactory(
-        bool isMainnet,
+        bool useDeployer,
         address owner,
         address treasury,
         uint256 tradeFee,
