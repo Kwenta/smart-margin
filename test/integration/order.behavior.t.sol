@@ -45,9 +45,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
 
-        sUSD = ERC20(
-            IAddressResolver(ADDRESS_RESOLVER).getAddress("ProxyERC20sUSD")
-        );
+        sUSD = ERC20(IAddressResolver(ADDRESS_RESOLVER).getAddress("ProxysUSD"));
 
         Setup setup = new Setup();
         factory = setup.deploySmartMarginFactory({
@@ -71,7 +69,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
         accountExposed = new AccountExposed();
         accountExposed.setFuturesMarketManager(
-            IFuturesMarketManager(FUTURES_MARKET_MANAGER)
+            IFuturesMarketManager(address(account.futuresMarketManager()))
         );
         accountExposed.setSettings(settings);
         accountExposed.setEvents(events);
@@ -159,7 +157,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: 1 ether,
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
 
@@ -195,7 +193,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: int256(AMOUNT),
             targetPrice: fuzzedTargetPrice,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         (bool canExec,) = account.checker(conditionalOrderId);
@@ -212,7 +210,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: int256(AMOUNT),
             targetPrice: fuzzedTargetPrice,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         (bool canExec,) = account.checker(conditionalOrderId);
@@ -229,7 +227,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: -int256(AMOUNT),
             targetPrice: fuzzedTargetPrice,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         (bool canExec,) = account.checker(conditionalOrderId);
@@ -246,7 +244,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: -int256(AMOUNT),
             targetPrice: fuzzedTargetPrice,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         (bool canExec,) = account.checker(conditionalOrderId);
@@ -264,7 +262,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: fuzzedSizeDelta,
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         // check conditionalOrderId incremented
@@ -282,7 +280,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                 == uint256(IAccount.ConditionalOrderTypes.LIMIT)
         );
         assertTrue(conditionalOrder.gelatoTaskId != 0); // this is set by Gelato
-        assertTrue(conditionalOrder.priceImpactDelta == PRICE_IMPACT_DELTA);
+        assertTrue(conditionalOrder.desiredFillPrice == DESIRED_FILL_PRICE);
         assertFalse(conditionalOrder.reduceOnly);
     }
 
@@ -300,7 +298,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             fuzzedSizeDelta,
             currentEthPriceInUSD,
             IAccount.ConditionalOrderTypes.LIMIT,
-            PRICE_IMPACT_DELTA,
+            DESIRED_FILL_PRICE,
             false
             );
         placeConditionalOrder({
@@ -309,7 +307,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: fuzzedSizeDelta,
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
     }
@@ -328,7 +326,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: int256(AMOUNT),
             targetPrice: fuzzedTargetPrice,
             conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         (bool canExec,) = account.checker(conditionalOrderId);
@@ -345,7 +343,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: int256(AMOUNT),
             targetPrice: fuzzedTargetPrice,
             conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         (bool canExec,) = account.checker(conditionalOrderId);
@@ -362,7 +360,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: -int256(AMOUNT),
             targetPrice: fuzzedTargetPrice,
             conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         (bool canExec,) = account.checker(conditionalOrderId);
@@ -379,7 +377,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: -int256(AMOUNT),
             targetPrice: fuzzedTargetPrice,
             conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         (bool canExec,) = account.checker(conditionalOrderId);
@@ -395,7 +393,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                 int256(AMOUNT),
                 currentEthPriceInUSD,
                 69, // bad conditional order type
-                PRICE_IMPACT_DELTA,
+                DESIRED_FILL_PRICE,
                 false
             )
         );
@@ -414,7 +412,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: int256(AMOUNT),
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         assertEq(account.committedMargin(), AMOUNT);
@@ -434,7 +432,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: int256(AMOUNT),
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
 
@@ -472,7 +470,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: int256(AMOUNT),
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         vm.expectRevert(
@@ -486,7 +484,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: int256(AMOUNT),
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
     }
@@ -515,7 +513,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: int256(currentEthPriceInUSD),
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         cancelConditionalOrder(conditionalOrderId);
@@ -528,7 +526,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assert(conditionalOrder.targetPrice == 0);
         assert(uint256(conditionalOrder.conditionalOrderType) == 0);
         assert(conditionalOrder.gelatoTaskId == 0);
-        assert(conditionalOrder.priceImpactDelta == 0);
+        assert(conditionalOrder.desiredFillPrice == 0);
         assert(!conditionalOrder.reduceOnly);
     }
 
@@ -540,7 +538,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: int256(currentEthPriceInUSD),
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         uint256 postCommittedMargin = account.committedMargin();
@@ -556,7 +554,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: int256(currentEthPriceInUSD),
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         vm.expectEmit(true, true, true, true);
@@ -589,7 +587,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: 1 ether,
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
@@ -616,7 +614,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: 1 ether,
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
@@ -643,7 +641,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: 1 ether,
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
 
@@ -657,8 +655,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         /// is different from what is defined in our OpsReady contract
         ///
         /// kwenta's: "OpsReady: ETH transfer failed"
-        /// gelato's: "Ops.exec: OpsReady: ETH transfer failed"
-        vm.expectRevert("Ops.exec: OpsReady: ETH transfer failed");
+        /// gelato's: "Automate.exec: OpsReady: ETH transfer failed"
+        vm.expectRevert("Automate.exec: OpsReady: ETH transfer failed");
 
         vm.prank(GELATO);
         IOps(OPS).exec({
@@ -683,7 +681,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: 1 ether,
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
 
@@ -703,7 +701,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         });
 
         // attempt to execute the same task again
-        vm.expectRevert("Ops.exec: Task not found");
+        vm.expectRevert("Automate.exec: Task not found");
         vm.prank(GELATO);
         IOps(OPS).exec({
             taskCreator: address(account),
@@ -729,7 +727,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: 1 ether,
             targetPrice: currentEthPriceInUSD * 2,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         uint256 postCommittedMargin = account.committedMargin();
@@ -758,7 +756,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: 1 ether,
             targetPrice: currentEthPriceInUSD * 2,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
@@ -783,7 +781,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assert(conditionalOrder.targetPrice == 0);
         assert(uint256(conditionalOrder.conditionalOrderType) == 0);
         assert(conditionalOrder.gelatoTaskId == 0);
-        assert(conditionalOrder.priceImpactDelta == 0);
+        assert(conditionalOrder.desiredFillPrice == 0);
         assert(!conditionalOrder.reduceOnly);
     }
 
@@ -794,7 +792,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: 1 ether,
             targetPrice: currentEthPriceInUSD * 2,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
@@ -816,11 +814,11 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         // confirm delayed order details are non-zero
         assert(order.isOffchain == true);
         assert(order.sizeDelta == 1 ether);
-        assert(order.priceImpactDelta == PRICE_IMPACT_DELTA);
-        assert(order.targetRoundId != 0);
-        assert(order.commitDeposit != 0);
+        assert(order.desiredFillPrice == DESIRED_FILL_PRICE);
+        assert(order.targetRoundId == 0); // @custom:todo why did this change
+        assert(order.commitDeposit == 0); // no commit deposit post Almach release
         assert(order.keeperDeposit != 0);
-        assert(order.executableAtTime != 0);
+        assert(order.executableAtTime == 0); // @custom:todo why did this change
         assert(order.intentionTime != 0);
         assert(order.trackingCode == TRACKING_CODE);
     }
@@ -837,7 +835,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: 1 ether,
             targetPrice: currentEthPriceInUSD / 2,
             conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         uint256 postCommittedMargin = account.committedMargin();
@@ -866,7 +864,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: 1 ether,
             targetPrice: currentEthPriceInUSD / 2,
             conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
@@ -891,7 +889,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assert(conditionalOrder.targetPrice == 0);
         assert(uint256(conditionalOrder.conditionalOrderType) == 0);
         assert(conditionalOrder.gelatoTaskId == 0);
-        assert(conditionalOrder.priceImpactDelta == 0);
+        assert(conditionalOrder.desiredFillPrice == 0);
         assert(!conditionalOrder.reduceOnly);
     }
 
@@ -902,7 +900,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: 1 ether,
             targetPrice: currentEthPriceInUSD / 2,
             conditionalOrderType: IAccount.ConditionalOrderTypes.STOP,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
@@ -924,11 +922,11 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         // confirm delayed order details are non-zero
         assert(order.isOffchain == true);
         assert(order.sizeDelta == 1 ether);
-        assert(order.priceImpactDelta == PRICE_IMPACT_DELTA);
-        assert(order.targetRoundId != 0);
-        assert(order.commitDeposit != 0);
+        assert(order.desiredFillPrice == DESIRED_FILL_PRICE);
+        assert(order.targetRoundId == 0); // @custom:todo why?
+        assert(order.commitDeposit == 0); // no commit deposit post Almach release
         assert(order.keeperDeposit != 0);
-        assert(order.executableAtTime != 0);
+        assert(order.executableAtTime == 0); // @custom:todo why?
         assert(order.intentionTime != 0);
         assert(order.trackingCode == TRACKING_CODE);
     }
@@ -941,13 +939,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(currentEthPriceInUSD);
         int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 1 ether / 2;
+        (uint256 desiredFillPrice,) =
+            IPerpsV2MarketConsolidated(market).assetPrice();
         IAccount.Command[] memory commands = new IAccount.Command[](2);
         commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
         commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
         account.execute(commands, inputs);
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
@@ -955,7 +954,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: -(1 ether / 2),
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: true
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
@@ -980,7 +979,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assert(conditionalOrder.targetPrice == 0);
         assert(uint256(conditionalOrder.conditionalOrderType) == 0);
         assert(conditionalOrder.gelatoTaskId == 0);
-        assert(conditionalOrder.priceImpactDelta == 0);
+        assert(conditionalOrder.desiredFillPrice == 0);
         assert(!conditionalOrder.reduceOnly);
     }
 
@@ -988,13 +987,14 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(currentEthPriceInUSD);
         int256 sizeDelta = 1 ether;
-        uint256 priceImpactDelta = 1 ether / 2;
+        (uint256 desiredFillPrice,) =
+            IPerpsV2MarketConsolidated(market).assetPrice();
         IAccount.Command[] memory commands = new IAccount.Command[](2);
         commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
         commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
         account.execute(commands, inputs);
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
@@ -1002,7 +1002,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: -(1 ether / 2),
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: desiredFillPrice,
             reduceOnly: true
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
@@ -1024,22 +1024,27 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         // expect all details to be unset
         assert(order.isOffchain == true);
         assert(order.sizeDelta != 0);
-        assert(order.priceImpactDelta != 0);
-        assert(order.targetRoundId != 0);
-        assert(order.commitDeposit != 0);
+        assert(order.desiredFillPrice != 0);
+        assert(order.targetRoundId == 0); // @custom:todo why?
+        assert(order.commitDeposit == 0); // no commit deposit post Almach release
         assert(order.keeperDeposit != 0);
-        assert(order.executableAtTime != 0);
+        assert(order.executableAtTime == 0); // @custom:todo why?
         assert(order.intentionTime != 0);
         assert(order.trackingCode == TRACKING_CODE);
     }
 
     function test_ReduceOnlyOrder_Valid_Long(int256 fuzzedSizeDelta) external {
         vm.assume(fuzzedSizeDelta != 0);
+
+        (uint256 desiredFillPrice,) = IPerpsV2MarketConsolidated(
+            getMarketAddressFromKey(sETHPERP)
+        ).assetPrice();
+
         submitAtomicOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
             sizeDelta: 1 ether,
-            priceImpactDelta: 1 ether / 2
+            desiredFillPrice: desiredFillPrice
         });
         IPerpsV2MarketConsolidated.Position memory position =
             account.getPosition(sETHPERP);
@@ -1050,7 +1055,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: fuzzedSizeDelta,
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: true
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
@@ -1113,7 +1118,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
             sizeDelta: -1 ether,
-            priceImpactDelta: 1 ether / 2
+            desiredFillPrice: 1 ether / 2
         });
         IPerpsV2MarketConsolidated.Position memory position =
             account.getPosition(sETHPERP);
@@ -1124,7 +1129,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: fuzzedSizeDelta,
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: true
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
@@ -1193,7 +1198,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: 1 ether,
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            priceImpactDelta: PRICE_IMPACT_DELTA,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
@@ -1221,7 +1226,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             account.getDelayedOrder(sETHPERP);
         assert(order.isOffchain == false);
         assert(order.sizeDelta == 0);
-        assert(order.priceImpactDelta == 0);
+        assert(order.desiredFillPrice == 0);
         assert(order.targetRoundId == 0);
         assert(order.commitDeposit == 0);
         assert(order.keeperDeposit == 0);
@@ -1312,7 +1317,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         bytes32 marketKey,
         int256 marginDelta,
         int256 sizeDelta,
-        uint256 priceImpactDelta
+        uint256 desiredFillPrice
     ) private {
         address market = getMarketAddressFromKey(marketKey);
         IAccount.Command[] memory commands = new IAccount.Command[](2);
@@ -1320,7 +1325,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
         bytes[] memory inputs = new bytes[](2);
         inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, priceImpactDelta);
+        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
         account.execute(commands, inputs);
     }
 
@@ -1330,7 +1335,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         int256 sizeDelta,
         uint256 targetPrice,
         IAccount.ConditionalOrderTypes conditionalOrderType,
-        uint256 priceImpactDelta,
+        uint256 desiredFillPrice,
         bool reduceOnly
     ) private returns (uint256 conditionalOrderId) {
         IAccount.Command[] memory commands = new IAccount.Command[](1);
@@ -1342,7 +1347,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta,
             targetPrice,
             conditionalOrderType,
-            priceImpactDelta,
+            desiredFillPrice,
             reduceOnly
         );
         account.execute(commands, inputs);

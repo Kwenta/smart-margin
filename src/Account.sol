@@ -269,43 +269,43 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                 /// @custom:todo optimize fee calculation and impose it here
 
                 if (_command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
-                    (address market, int256 sizeDelta, uint256 priceImpactDelta)
+                    (address market, int256 sizeDelta, uint256 desiredFillPrice)
                     = abi.decode(_inputs, (address, int256, uint256));
                     _perpsV2SubmitAtomicOrder({
                         _market: market,
                         _sizeDelta: sizeDelta,
-                        _priceImpactDelta: priceImpactDelta
+                        _desiredFillPrice: desiredFillPrice
                     });
                 } else if (_command == Command.PERPS_V2_SUBMIT_DELAYED_ORDER) {
                     (
                         address market,
                         int256 sizeDelta,
-                        uint256 priceImpactDelta,
-                        uint256 desiredTimeDelta
+                        uint256 desiredTimeDelta,
+                        uint256 desiredFillPrice
                     ) = abi.decode(_inputs, (address, int256, uint256, uint256));
                     _perpsV2SubmitDelayedOrder({
                         _market: market,
                         _sizeDelta: sizeDelta,
-                        _priceImpactDelta: priceImpactDelta,
-                        _desiredTimeDelta: desiredTimeDelta
+                        _desiredTimeDelta: desiredTimeDelta,
+                        _desiredFillPrice: desiredFillPrice
                     });
                 } else if (
                     _command == Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
                 ) {
-                    (address market, int256 sizeDelta, uint256 priceImpactDelta)
+                    (address market, int256 sizeDelta, uint256 desiredFillPrice)
                     = abi.decode(_inputs, (address, int256, uint256));
                     _perpsV2SubmitOffchainDelayedOrder({
                         _market: market,
                         _sizeDelta: sizeDelta,
-                        _priceImpactDelta: priceImpactDelta
+                        _desiredFillPrice: desiredFillPrice
                     });
                 } else {
                     // PERPS_V2_CLOSE_POSITION
-                    (address market, uint256 priceImpactDelta) =
+                    (address market, uint256 desiredFillPrice) =
                         abi.decode(_inputs, (address, uint256));
                     _perpsV2ClosePosition({
                         _market: market,
-                        _priceImpactDelta: priceImpactDelta
+                        _desiredFillPrice: desiredFillPrice
                     });
                 }
             } else {
@@ -325,7 +325,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                         int256 sizeDelta,
                         uint256 targetPrice,
                         ConditionalOrderTypes conditionalOrderType,
-                        uint128 priceImpactDelta,
+                        uint256 desiredFillPrice,
                         bool reduceOnly
                     ) = abi.decode(
                         _inputs,
@@ -335,7 +335,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                             int256,
                             uint256,
                             ConditionalOrderTypes,
-                            uint128,
+                            uint256,
                             bool
                         )
                     );
@@ -345,7 +345,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                         _sizeDelta: sizeDelta,
                         _targetPrice: targetPrice,
                         _conditionalOrderType: conditionalOrderType,
-                        _priceImpactDelta: priceImpactDelta,
+                        _desiredFillPrice: desiredFillPrice,
                         _reduceOnly: reduceOnly
                     });
                 } else if (_command == Command.GELATO_CANCEL_CONDITIONAL_ORDER)
@@ -447,11 +447,11 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @dev trade fee may be imposed on smart margin account
     /// @param _market: address of market
     /// @param _sizeDelta: size delta of order
-    /// @param _priceImpactDelta: price impact delta of order
+    /// @param _desiredFillPrice: desired fill price of order
     function _perpsV2SubmitAtomicOrder(
         address _market,
         int256 _sizeDelta,
-        uint256 _priceImpactDelta
+        uint256 _desiredFillPrice
     ) internal {
         _imposeFee({
             _fee: _calculateFee({
@@ -465,7 +465,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
 
         IPerpsV2MarketConsolidated(_market).modifyPositionWithTracking({
             sizeDelta: _sizeDelta,
-            priceImpactDelta: _priceImpactDelta,
+            desiredFillPrice: _desiredFillPrice,
             trackingCode: TRACKING_CODE
         });
     }
@@ -473,8 +473,8 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @notice close Synthetix PerpsV2 Market position via an atomic order
     /// @dev trade fee may be imposed on smart margin account
     /// @param _market: address of market
-    /// @param _priceImpactDelta: price impact delta of order
-    function _perpsV2ClosePosition(address _market, uint256 _priceImpactDelta)
+    /// @param _desiredFillPrice: desired fill price of order
+    function _perpsV2ClosePosition(address _market, uint256 _desiredFillPrice)
         internal
     {
         // establish Synthetix PerpsV2 Market position
@@ -482,9 +482,10 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
 
         // close position (i.e. reduce size to zero)
         /// @dev this does not remove margin from market
-        IPerpsV2MarketConsolidated(_market).closePositionWithTracking(
-            _priceImpactDelta, TRACKING_CODE
-        );
+        IPerpsV2MarketConsolidated(_market).closePositionWithTracking({
+            desiredFillPrice: _desiredFillPrice,
+            trackingCode: TRACKING_CODE
+        });
 
         _imposeFee({
             _fee: _calculateFee({
@@ -505,13 +506,13 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @dev trade fee may be imposed on smart margin account
     /// @param _market: address of market
     /// @param _sizeDelta: size delta of order
-    /// @param _priceImpactDelta: price impact delta of order
     /// @param _desiredTimeDelta: desired time delta of order
+    /// @param _desiredFillPrice: desired fill price of order
     function _perpsV2SubmitDelayedOrder(
         address _market,
         int256 _sizeDelta,
-        uint256 _priceImpactDelta,
-        uint256 _desiredTimeDelta
+        uint256 _desiredTimeDelta,
+        uint256 _desiredFillPrice
     ) internal {
         _imposeFee({
             _fee: _calculateFee({
@@ -525,8 +526,8 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
 
         IPerpsV2MarketConsolidated(_market).submitDelayedOrderWithTracking({
             sizeDelta: _sizeDelta,
-            priceImpactDelta: _priceImpactDelta,
             desiredTimeDelta: _desiredTimeDelta,
+            desiredFillPrice: _desiredFillPrice,
             trackingCode: TRACKING_CODE
         });
     }
@@ -545,11 +546,11 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @dev trade fee may be imposed on smart margin account
     /// @param _market: address of market
     /// @param _sizeDelta: size delta of order
-    /// @param _priceImpactDelta: price impact delta of order
+    /// @param _desiredFillPrice: desired fill price of order
     function _perpsV2SubmitOffchainDelayedOrder(
         address _market,
         int256 _sizeDelta,
-        uint256 _priceImpactDelta
+        uint256 _desiredFillPrice
     ) internal {
         _imposeFee({
             _fee: _calculateFee({
@@ -564,7 +565,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         IPerpsV2MarketConsolidated(_market)
             .submitOffchainDelayedOrderWithTracking({
             sizeDelta: _sizeDelta,
-            priceImpactDelta: _priceImpactDelta,
+            desiredFillPrice: _desiredFillPrice,
             trackingCode: TRACKING_CODE
         });
     }
@@ -588,7 +589,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @param _sizeDelta: denominated in market currency (i.e. ETH, BTC, etc), size of position
     /// @param _targetPrice: expected conditional order price
     /// @param _conditionalOrderType: expected conditional order type enum where 0 = LIMIT, 1 = STOP, etc..
-    /// @param _priceImpactDelta: price impact tolerance as a percentage
+    /// @param _desiredFillPrice: desired price to fill Synthetix PerpsV2 order at execution time
     /// @param _reduceOnly: if true, only allows position's absolute size to decrease
     function _placeConditionalOrder(
         bytes32 _marketKey,
@@ -596,7 +597,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         int256 _sizeDelta,
         uint256 _targetPrice,
         ConditionalOrderTypes _conditionalOrderType,
-        uint128 _priceImpactDelta,
+        uint256 _desiredFillPrice,
         bool _reduceOnly
     ) internal notZero(_abs(_sizeDelta), "_sizeDelta") {
         // if more margin is desired on the position we must commit the margin
@@ -621,7 +622,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
             targetPrice: _targetPrice,
             gelatoTaskId: taskId,
             conditionalOrderType: _conditionalOrderType,
-            priceImpactDelta: _priceImpactDelta,
+            desiredFillPrice: _desiredFillPrice,
             reduceOnly: _reduceOnly
         });
 
@@ -633,7 +634,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
             sizeDelta: _sizeDelta,
             targetPrice: _targetPrice,
             conditionalOrderType: _conditionalOrderType,
-            priceImpactDelta: _priceImpactDelta,
+            desiredFillPrice: _desiredFillPrice,
             reduceOnly: _reduceOnly
         });
 
@@ -688,7 +689,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         }
 
         // cancel gelato task
-        /// @dev will revert if task id does not exist {Ops.cancelTask: Task not found}
+        /// @dev will revert if task id does not exist {Automate.cancelTask: Task not found}
         IOps(OPS).cancelTask({taskId: conditionalOrder.gelatoTaskId});
 
         // delete order from conditional orders
@@ -778,7 +779,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         _perpsV2SubmitOffchainDelayedOrder({
             _market: market,
             _sizeDelta: conditionalOrder.sizeDelta,
-            _priceImpactDelta: conditionalOrder.priceImpactDelta
+            _desiredFillPrice: conditionalOrder.desiredFillPrice
         });
 
         // pay Gelato imposed fee for conditional order execution

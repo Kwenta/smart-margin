@@ -5,13 +5,13 @@ pragma solidity 0.8.18;
                               TEST VALUES
 //////////////////////////////////////////////////////////////*/
 
-// BLOCK_NUMBER corresponds to Jan-04-2023 08:36:29 PM +UTC
+// BLOCK_NUMBER corresponds to Optimism Goerli network state @ Mar-24-2023 06:48:48 PM +UTC
 // hard coded addresses are only guaranteed for this block
 // used to create a consistent and realistic test environment exposing Synthetix PerpsV2
-uint256 constant BLOCK_NUMBER = 60_242_268;
+uint256 constant BLOCK_NUMBER = 7_127_830;
 
 // test user address
-address constant USER = 0x42f9134E9d3Bf7eEE1f8A5Ac2a4328B059E7468c;
+address constant USER = 0x35eFbD8Ab6F7258C13D3ecDfc56c2c0DD094678F;
 
 // test smart margin account address (does not need to be a real account)
 address constant ACCOUNT = address(0xBEEF);
@@ -37,8 +37,8 @@ uint256 constant TARGET_PRICE = 9 ether;
 // test fill price used throughout tests
 uint256 constant FILL_PRICE = 10 ether;
 
-// test price impact delta used throughout tests
-uint128 constant PRICE_IMPACT_DELTA = 1 ether / 2;
+// test desiredFillPrice used throughout tests
+uint128 constant DESIRED_FILL_PRICE = 1 ether;
 
 // minimum ETH balance required to place a conditional order
 uint256 constant MIN_ETH = 1 ether / 100;
@@ -48,7 +48,7 @@ uint256 constant MIN_ETH = 1 ether / 100;
 //////////////////////////////////////////////////////////////*/
 
 // kwenta treasury multisig
-address constant KWENTA_TREASURY = 0x82d2242257115351899894eF384f779b5ba8c695;
+address constant KWENTA_TREASURY = 0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4;
 
 // tracking code used when modifying positions
 bytes32 constant TRACKING_CODE = "KWENTA";
@@ -66,14 +66,10 @@ uint256 constant STOP_ORDER_FEE = 3;
 //////////////////////////////////////////////////////////////*/
 
 // Synthetix (ReadProxyAddressResolver)
-address constant ADDRESS_RESOLVER = 0x1Cb059b7e74fD21665968C908806143E744D5F30;
+address constant ADDRESS_RESOLVER = 0x9Fc84992dF5496797784374B810E04238728743d;
 
 // Synthetix (ProxyERC20sUSD)
-address constant MARGIN_ASSET = 0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9;
-
-// Synthetix (FuturesMarketManager)
-address constant FUTURES_MARKET_MANAGER =
-    0xdb89f3fc45A707Dd49781495f77f8ae69bF5cA6e;
+address constant MARGIN_ASSET = 0xeBaEAAD9236615542844adC5c149F86C36aD1136;
 
 // Synthetix PerpsV2 market key(s)
 bytes32 constant sETHPERP = "sETHPERP";
@@ -84,8 +80,8 @@ bytes32 constant sBTCPERP = "sBTCPERP";
 //////////////////////////////////////////////////////////////*/
 
 // Gelato related addresses
-address constant GELATO = 0x01051113D81D7d6DA508462F2ad6d7fD96cF42Ef;
-address constant OPS = 0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c;
+address constant GELATO = 0xF82D64357D9120a760e1E4C75f646C0618eFc2F3;
+address constant OPS = 0x255F82563b5973264e89526345EcEa766DB3baB2;
 address constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
 // test fee Gelato will charge for filling conditional orders

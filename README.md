@@ -61,7 +61,7 @@ The inputs for `PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER` is the encoding of 3 par
 
 `address`: The Synthetix PerpsV2 Market address
 `int256`: The size delta of the order to be submitted
-`uint256`: The price impact delta of the order to be submitted
+`uint256`: The desired fill price of the order
 
 Whereas in contrast `PERPS_V2_CANCEL_DELAYED_ORDER` has just 1 parameter encoded:
 
@@ -124,7 +124,7 @@ src
 
 | File                           | % Lines          | % Statements     | % Branches       | % Funcs         |
 |--------------------------------|------------------|------------------|------------------|-----------------|
-| src/Account.sol                | 98.31% (174/177) | 96.98% (193/199) | 85.00% (68/80)   | 100.00% (33/33) |
+| src/Account.sol                | 98.31% (175/178) | 97.01% (195/201) | 85.00% (68/80)   | 100.00% (33/33) |
 | src/AccountProxy.sol           | 100.00% (10/10)  | 76.92% (10/13)   | 50.00% (3/6)     | 100.00% (6/6)   |
 | src/Events.sol                 | 100.00% (7/7)    | 100.00% (7/7)    | 100.00% (0/0)    | 100.00% (7/7)   |
 | src/Factory.sol                | 94.74% (36/38)   | 95.92% (47/49)   | 95.00% (19/20)   | 100.00% (9/9)   |
