@@ -500,6 +500,44 @@ contract AccountTest is Test, ConsolidatedEvents {
         account.execute(commands, inputs);
     }
 
+    function test_DelegatedTrader_Execute_PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER()
+        public
+    {
+        account.addDelegate({_delegate: DELEGATE});
+
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER;
+        inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP), 0, 0);
+
+        vm.prank(DELEGATE);
+
+        /// @notice delegate CAN execute the following COMMAND
+        /// @dev execute will fail for other reasons (e.g. No position in Synthetix market to close)
+        vm.expectRevert("no existing position");
+        account.execute(commands, inputs);
+    }
+
+    function test_DelegatedTrader_Execute_PERPS_V2_SUBMIT_CLOSE_OFFCHAIN_DELAYED_ORDER(
+    ) public {
+        account.addDelegate({_delegate: DELEGATE});
+
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] =
+            IAccount.Command.PERPS_V2_SUBMIT_CLOSE_OFFCHAIN_DELAYED_ORDER;
+        inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP), 0);
+
+        vm.prank(DELEGATE);
+
+        /// @notice delegate CAN execute the following COMMAND
+        /// @dev execute will fail for other reasons (e.g. No position in Synthetix market to close)
+        vm.expectRevert("no existing position");
+        account.execute(commands, inputs);
+    }
+
     function test_DelegatedTrader_Execute_PERPS_V2_CANCEL_DELAYED_ORDER()
         public
     {

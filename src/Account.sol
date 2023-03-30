@@ -265,7 +265,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                     address market = abi.decode(_inputs, (address));
                     _perpsV2WithdrawAllMargin({_market: market});
                 }
-            } else if (commandIndex < 8) {
+            } else if (commandIndex < 10) {
                 /// @custom:todo optimize fee calculation and impose it here
 
                 if (_command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
@@ -299,17 +299,37 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                         _sizeDelta: sizeDelta,
                         _desiredFillPrice: desiredFillPrice
                     });
-                } else {
-                    // PERPS_V2_CLOSE_POSITION
+                } else if (_command == Command.PERPS_V2_CLOSE_POSITION) {
                     (address market, uint256 desiredFillPrice) =
                         abi.decode(_inputs, (address, uint256));
                     _perpsV2ClosePosition({
                         _market: market,
                         _desiredFillPrice: desiredFillPrice
                     });
+                } else if (
+                    _command == Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER
+                ) {
+                    (
+                        address market,
+                        uint256 desiredTimeDelta,
+                        uint256 desiredFillPrice
+                    ) = abi.decode(_inputs, (address, uint256, uint256));
+                    _perpsV2SubmitCloseDelayedOrder({
+                        _market: market,
+                        _desiredTimeDelta: desiredTimeDelta,
+                        _desiredFillPrice: desiredFillPrice
+                    });
+                } else {
+                    // PERPS_V2_SUBMIT_CLOSE_OFFCHAIN_DELAYED_ORDER
+                    (address market, uint256 desiredFillPrice) =
+                        abi.decode(_inputs, (address, uint256));
+                    _perpsV2SubmitCloseOffchainDelayedOrder({
+                        _market: market,
+                        _desiredFillPrice: desiredFillPrice
+                    });
                 }
             } else {
-                // commandIndex >= 8
+                // commandIndex >= 10
                 if (_command == Command.PERPS_V2_CANCEL_DELAYED_ORDER) {
                     address market = abi.decode(_inputs, (address));
                     _perpsV2CancelDelayedOrder({_market: market});
@@ -538,6 +558,38 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         IPerpsV2MarketConsolidated(_market).cancelDelayedOrder(address(this));
     }
 
+    /// @notice close Synthetix PerpsV2 Market position via a delayed order
+    /// @dev trade fee may be imposed on smart margin account
+    /// @param _market: address of market
+    /// @param _desiredTimeDelta: desired time delta of order
+    /// @param _desiredFillPrice: desired fill price of order
+    function _perpsV2SubmitCloseDelayedOrder(
+        address _market,
+        uint256 _desiredTimeDelta,
+        uint256 _desiredFillPrice
+    ) internal {
+        // establish Synthetix PerpsV2 Market position
+        bytes32 marketKey = IPerpsV2MarketConsolidated(_market).marketKey();
+
+        _imposeFee({
+            _fee: _calculateFee({
+                _sizeDelta: getPosition(marketKey).size,
+                _market: IPerpsV2MarketConsolidated(_market),
+                _conditionalOrderFee: 0
+            }),
+            _marketKey: IPerpsV2MarketConsolidated(_market).marketKey(),
+            _reason: FeeReason.TRADE_FEE
+        });
+
+        // close position (i.e. reduce size to zero)
+        /// @dev this does not remove margin from market
+        IPerpsV2MarketConsolidated(_market).submitCloseDelayedOrderWithTracking({
+            desiredTimeDelta: _desiredTimeDelta,
+            desiredFillPrice: _desiredFillPrice,
+            trackingCode: TRACKING_CODE
+        });
+    }
+
     /*//////////////////////////////////////////////////////////////
                         DELAYED OFF-CHAIN ORDERS
     //////////////////////////////////////////////////////////////*/
@@ -576,6 +628,36 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         IPerpsV2MarketConsolidated(_market).cancelOffchainDelayedOrder(
             address(this)
         );
+    }
+
+    /// @notice close Synthetix PerpsV2 Market position via an offchain delayed order
+    /// @dev trade fee may be imposed on smart margin account
+    /// @param _market: address of market
+    /// @param _desiredFillPrice: desired fill price of order
+    function _perpsV2SubmitCloseOffchainDelayedOrder(
+        address _market,
+        uint256 _desiredFillPrice
+    ) internal {
+        // establish Synthetix PerpsV2 Market position
+        bytes32 marketKey = IPerpsV2MarketConsolidated(_market).marketKey();
+
+        _imposeFee({
+            _fee: _calculateFee({
+                _sizeDelta: getPosition(marketKey).size,
+                _market: IPerpsV2MarketConsolidated(_market),
+                _conditionalOrderFee: 0
+            }),
+            _marketKey: IPerpsV2MarketConsolidated(_market).marketKey(),
+            _reason: FeeReason.TRADE_FEE
+        });
+
+        // close position (i.e. reduce size to zero)
+        /// @dev this does not remove margin from market
+        IPerpsV2MarketConsolidated(_market)
+            .submitCloseOffchainDelayedOrderWithTracking({
+            desiredFillPrice: _desiredFillPrice,
+            trackingCode: TRACKING_CODE
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
