@@ -50,6 +50,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
 
         Setup setup = new Setup();
         factory = setup.deploySmartMarginFactory({
+            isMainnet: false,
             owner: address(this),
             treasury: KWENTA_TREASURY,
             tradeFee: TRADE_FEE,
