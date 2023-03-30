@@ -11,6 +11,7 @@ import {Settings} from "src/Settings.sol";
 /// @author JaredBorders (jaredborders@pm.me)
 contract Setup {
     function deploySmartMarginFactory(
+        bool isMainnet,
         address owner,
         address treasury,
         uint256 tradeFee,
@@ -21,6 +22,8 @@ contract Setup {
         address gelato,
         address ops
     ) public returns (Factory factory) {
+        address mainnetDeployer = 0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4;
+
         Settings settings = new Settings({
             _owner: owner,
             _treasury: treasury,
@@ -38,7 +41,7 @@ contract Setup {
 
         // deploy Factory
         factory = new Factory({
-            _owner: address(this),
+            _owner: isMainnet ? mainnetDeployer : address(this),
             _settings: address(settings),
             _events: address(0),
             _implementation: address(implementation)
@@ -79,6 +82,7 @@ contract DeployOptimism is Script, Setup {
         vm.startBroadcast(deployerPrivateKey);
 
         Setup.deploySmartMarginFactory({
+            isMainnet: true,
             owner: KWENTA_ADMIN_DAO_MULTI_SIG,
             treasury: KWENTA_TREASURY_MULTI_SIG,
             tradeFee: SETTINGS_TRADE_FEE,
@@ -120,6 +124,7 @@ contract DeployOptimismGoerli is Script, Setup {
         vm.startBroadcast(deployerPrivateKey);
 
         Setup.deploySmartMarginFactory({
+            isMainnet: false,
             owner: KWENTA_ADMIN_DAO_MULTI_SIG,
             treasury: KWENTA_TREASURY_MULTI_SIG,
             tradeFee: SETTINGS_TRADE_FEE,
