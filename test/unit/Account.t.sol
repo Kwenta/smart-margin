@@ -73,35 +73,35 @@ contract AccountTest is Test, ConsolidatedEvents {
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
-    function test_GetVerison() external view {
+    function test_GetVerison() public view {
         assert(account.VERSION() == "2.0.0");
     }
 
-    function test_GetFactory() external view {
+    function test_GetFactory() public view {
         assert(account.factory() == factory);
     }
 
-    function test_GetFuturesMarketManager() external view {
+    function test_GetFuturesMarketManager() public view {
         assert(address(account.futuresMarketManager()) != address(0));
     }
 
-    function test_GetSettings() external view {
+    function test_GetSettings() public view {
         assert(account.settings() == settings);
     }
 
-    function test_GetEvents() external view {
+    function test_GetEvents() public view {
         assert(account.events() == events);
     }
 
-    function test_GetCommittedMargin() external view {
+    function test_GetCommittedMargin() public view {
         assert(account.committedMargin() == 0);
     }
 
-    function test_GetConditionalOrderId() external view {
+    function test_GetConditionalOrderId() public view {
         assert(account.conditionalOrderId() == 0);
     }
 
-    function test_GetDelayedOrder_EthMarket() external {
+    function test_GetDelayedOrder_EthMarket() public {
         IPerpsV2MarketConsolidated.DelayedOrder memory delayedOrder =
             account.getDelayedOrder({_marketKey: sETHPERP});
         assertEq(delayedOrder.isOffchain, false);
@@ -115,21 +115,21 @@ contract AccountTest is Test, ConsolidatedEvents {
         assertEq(delayedOrder.trackingCode, "");
     }
 
-    function test_GetDelayedOrder_InvalidMarket() external {
+    function test_GetDelayedOrder_InvalidMarket() public {
         vm.expectRevert();
         account.getDelayedOrder({_marketKey: "unknown"});
     }
 
-    function test_Checker() external {
+    function test_Checker() public {
         vm.expectRevert();
         account.checker({_conditionalOrderId: 0});
     }
 
-    function test_GetFreeMargin() external {
+    function test_GetFreeMargin() public {
         assertEq(account.freeMargin(), 0);
     }
 
-    function test_GetPosition_EthMarket() external {
+    function test_GetPosition_EthMarket() public {
         IPerpsV2MarketConsolidated.Position memory position =
             account.getPosition({_marketKey: sETHPERP});
         assertEq(position.id, 0);
@@ -139,12 +139,12 @@ contract AccountTest is Test, ConsolidatedEvents {
         assertEq(position.size, 0);
     }
 
-    function test_GetPosition_InvalidMarket() external {
+    function test_GetPosition_InvalidMarket() public {
         vm.expectRevert();
         account.getPosition({_marketKey: "unknown"});
     }
 
-    function test_GetConditionalOrder() external {
+    function test_GetConditionalOrder() public {
         IAccount.ConditionalOrder memory conditionalOrder =
             account.getConditionalOrder({_conditionalOrderId: 0});
         assertEq(conditionalOrder.marketKey, "");
@@ -164,7 +164,7 @@ contract AccountTest is Test, ConsolidatedEvents {
                                OWNERSHIP
     //////////////////////////////////////////////////////////////*/
 
-    function test_Ownership_Transfer() external {
+    function test_Ownership_Transfer() public {
         // ensure factory and account state align
         address currentOwner = factory.getAccountOwner(address(account));
         assert(
@@ -187,7 +187,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         );
     }
 
-    function test_Ownership_Transfer_Event() external {
+    function test_Ownership_Transfer_Event() public {
         vm.expectEmit(true, true, true, true);
         emit OwnershipTransferred(address(this), KWENTA_TREASURY);
         account.transferOwnership(KWENTA_TREASURY);
@@ -197,25 +197,25 @@ contract AccountTest is Test, ConsolidatedEvents {
                        ACCOUNT DEPOSITS/WITHDRAWS
     //////////////////////////////////////////////////////////////*/
 
-    function test_Deposit_Margin_OnlyOwner() external {
+    function test_Deposit_Margin_OnlyOwner() public {
         account.transferOwnership(KWENTA_TREASURY);
         vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         modifyAccountMargin(int256(AMOUNT));
     }
 
-    function test_Withdraw_Margin_OnlyOwner() external {
+    function test_Withdraw_Margin_OnlyOwner() public {
         account.transferOwnership(KWENTA_TREASURY);
         vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         modifyAccountMargin(-int256(AMOUNT));
     }
 
-    function test_Deposit_ETH_AnyCaller() external {
+    function test_Deposit_ETH_AnyCaller() public {
         account.transferOwnership(KWENTA_TREASURY);
         (bool s,) = address(account).call{value: 1 ether}("");
         assert(s);
     }
 
-    function test_Withdraw_ETH_OnlyOwner() external {
+    function test_Withdraw_ETH_OnlyOwner() public {
         account.transferOwnership(KWENTA_TREASURY);
         vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         withdrawEth(1 ether);
@@ -225,7 +225,7 @@ contract AccountTest is Test, ConsolidatedEvents {
                              FEE UTILITIES
     //////////////////////////////////////////////////////////////*/
 
-    function test_CalculateFee_EthMarket(int128 fuzzedSizeDelta) external {
+    function test_CalculateFee_EthMarket(int128 fuzzedSizeDelta) public {
         uint256 conditionalOrderFee = MAX_BPS / 99;
         IPerpsV2MarketConsolidated market =
             IPerpsV2MarketConsolidated(getMarketAddressFromKey(sETHPERP));
@@ -244,7 +244,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         assertEq(actualFee, feeInSUSD);
     }
 
-    function test_CalculateFee_InvalidMarket() external {
+    function test_CalculateFee_InvalidMarket() public {
         int256 sizeDelta = -1 ether;
         vm.expectRevert();
         accountExposed.expose_calculateFee({
