@@ -815,10 +815,10 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assert(order.isOffchain == true);
         assert(order.sizeDelta == 1 ether);
         assert(order.desiredFillPrice == DESIRED_FILL_PRICE);
-        assert(order.targetRoundId == 0); // @custom:todo why did this change
+        assert(order.targetRoundId == 0); // off chain doesn’t use internal oracle so it’ll always be zero
         assert(order.commitDeposit == 0); // no commit deposit post Almach release
         assert(order.keeperDeposit != 0);
-        assert(order.executableAtTime == 0); // @custom:todo why did this change
+        assert(order.executableAtTime == 0); // only used for delayed (on-chain)
         assert(order.intentionTime != 0);
         assert(order.trackingCode == TRACKING_CODE);
     }
@@ -923,10 +923,10 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assert(order.isOffchain == true);
         assert(order.sizeDelta == 1 ether);
         assert(order.desiredFillPrice == DESIRED_FILL_PRICE);
-        assert(order.targetRoundId == 0); // @custom:todo why?
+        assert(order.targetRoundId == 0); // off chain doesn’t use internal oracle so it’ll always be zero
         assert(order.commitDeposit == 0); // no commit deposit post Almach release
         assert(order.keeperDeposit != 0);
-        assert(order.executableAtTime == 0); // @custom:todo why?
+        assert(order.executableAtTime == 0); // only used for delayed (on-chain)
         assert(order.intentionTime != 0);
         assert(order.trackingCode == TRACKING_CODE);
     }
@@ -1025,10 +1025,10 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assert(order.isOffchain == true);
         assert(order.sizeDelta != 0);
         assert(order.desiredFillPrice != 0);
-        assert(order.targetRoundId == 0); // @custom:todo why?
+        assert(order.targetRoundId == 0); // off chain doesn’t use internal oracle so it’ll always be zero
         assert(order.commitDeposit == 0); // no commit deposit post Almach release
         assert(order.keeperDeposit != 0);
-        assert(order.executableAtTime == 0); // @custom:todo why?
+        assert(order.executableAtTime == 0); // only used for delayed (on-chain)
         assert(order.intentionTime != 0);
         assert(order.trackingCode == TRACKING_CODE);
     }

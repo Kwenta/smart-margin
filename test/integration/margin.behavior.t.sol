@@ -497,10 +497,10 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         assert(order.isOffchain == true);
         assert(order.sizeDelta == sizeDelta);
         assert(order.desiredFillPrice == desiredFillPrice);
-        assert(order.targetRoundId == 0); // @custom:todo why?
+        assert(order.targetRoundId == 0); // off chain doesn’t use internal oracle so it’ll always be zero
         assert(order.commitDeposit == 0); // no commit deposit post Almach release
         assert(order.keeperDeposit != 0);
-        assert(order.executableAtTime == 0); // @custom:todo why?
+        assert(order.executableAtTime == 0); // only used for delayed (on-chain)
         assert(order.intentionTime != 0);
         assert(order.trackingCode == TRACKING_CODE);
     }
