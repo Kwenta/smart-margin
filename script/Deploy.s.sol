@@ -65,9 +65,9 @@ contract DeployOptimism is Script, Setup {
     address private constant KWENTA_TREASURY_MULTI_SIG =
         0x82d2242257115351899894eF384f779b5ba8c695;
 
-    uint256 private constant SETTINGS_TRADE_FEE = 1;
-    uint256 private constant SETTINGS_LIMIT_ORDER_FEE = 1;
-    uint256 private constant SETTINGS_STOP_ORDER_FEE = 1;
+    uint256 private constant SETTINGS_TRADE_FEE = 0;
+    uint256 private constant SETTINGS_LIMIT_ORDER_FEE = 2;
+    uint256 private constant SETTINGS_STOP_ORDER_FEE = 2;
 
     address private constant ADDRESS_RESOLVER =
         0x1Cb059b7e74fD21665968C908806143E744D5F30;
@@ -107,9 +107,9 @@ contract DeployOptimismGoerli is Script, Setup {
     address private constant KWENTA_TREASURY_MULTI_SIG =
         0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4; // deployer address
 
-    uint256 private constant SETTINGS_TRADE_FEE = 1;
-    uint256 private constant SETTINGS_LIMIT_ORDER_FEE = 1;
-    uint256 private constant SETTINGS_STOP_ORDER_FEE = 1;
+    uint256 private constant SETTINGS_TRADE_FEE = 0;
+    uint256 private constant SETTINGS_LIMIT_ORDER_FEE = 2;
+    uint256 private constant SETTINGS_STOP_ORDER_FEE = 2;
 
     address private constant ADDRESS_RESOLVER =
         0x9Fc84992dF5496797784374B810E04238728743d;
