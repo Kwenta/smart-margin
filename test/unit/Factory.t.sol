@@ -31,7 +31,7 @@ contract FactoryTest is Test, ConsolidatedEvents {
         vm.rollFork(BLOCK_NUMBER);
         Setup setup = new Setup();
         factory = setup.deploySmartMarginFactory({
-            isMainnet: false,
+            useDeployer: false,
             owner: address(this),
             treasury: KWENTA_TREASURY,
             tradeFee: TRADE_FEE,

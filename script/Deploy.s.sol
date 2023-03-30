@@ -41,7 +41,7 @@ contract Setup {
 
         // deploy Factory
         factory = new Factory({
-            _owner: isMainnet ? mainnetDeployer : address(this),
+            _owner: useDeployer ? mainnetDeployer : address(this),
             _settings: address(settings),
             _events: address(0),
             _implementation: address(implementation)
@@ -82,7 +82,7 @@ contract DeployOptimism is Script, Setup {
         vm.startBroadcast(deployerPrivateKey);
 
         Setup.deploySmartMarginFactory({
-            isMainnet: true,
+            useDeployer: true,
             owner: KWENTA_ADMIN_DAO_MULTI_SIG,
             treasury: KWENTA_TREASURY_MULTI_SIG,
             tradeFee: SETTINGS_TRADE_FEE,
@@ -124,7 +124,7 @@ contract DeployOptimismGoerli is Script, Setup {
         vm.startBroadcast(deployerPrivateKey);
 
         Setup.deploySmartMarginFactory({
-            isMainnet: false,
+            useDeployer: true,
             owner: KWENTA_ADMIN_DAO_MULTI_SIG,
             treasury: KWENTA_TREASURY_MULTI_SIG,
             tradeFee: SETTINGS_TRADE_FEE,
