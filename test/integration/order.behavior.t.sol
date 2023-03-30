@@ -502,7 +502,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     function test_CancelConditionalOrder_Nonexistent(
         uint256 fuzzedConditionalOrderId
     ) external {
-        vm.expectRevert();
+        vm.expectRevert("Automate.cancelTask: Task not found");
         cancelConditionalOrder(fuzzedConditionalOrderId);
     }
 

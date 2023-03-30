@@ -152,8 +152,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         ACCOUNT_MODIFY_MARGIN
     */
 
-    /// @dev add tests for error FailedMarginTransfer()
-
     function test_Deposit_Margin(int256 x) external {
         vm.assume(x >= 0);
 
@@ -164,7 +162,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             // no-op
             modifyAccountMargin({amount: x});
         } else if (x > int256(AMOUNT)) {
-            vm.expectRevert();
+            vm.expectRevert("Insufficient balance after any settlement owing");
             modifyAccountMargin({amount: x});
         } else {
             vm.expectEmit(true, true, true, true);
@@ -263,7 +261,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             }
         } else if (fuzzedMarginDelta < 0) {
             // there is no margin in market to withdraw
-            vm.expectRevert();
+            vm.expectRevert("Insufficient margin");
             modifyMarketMargin({market: market, amount: fuzzedMarginDelta});
         }
     }
@@ -294,7 +292,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         } else if (fuzzedMarginDelta < 0) {
             if (accountExposed.expose_abs(fuzzedMarginDelta) > AMOUNT) {
                 // margin delta larger than what is available in market
-                vm.expectRevert();
+                vm.expectRevert("Insufficient margin");
                 modifyMarketMargin({market: market, amount: fuzzedMarginDelta});
             } else {
                 modifyMarketMargin({market: market, amount: fuzzedMarginDelta});

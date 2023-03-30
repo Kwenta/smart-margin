@@ -407,9 +407,8 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     function _modifyAccountMargin(int256 _amount) internal {
         // if amount is positive, deposit
         if (_amount > 0) {
-            bool success =
-                MARGIN_ASSET.transferFrom(owner, address(this), _abs(_amount));
-            if (!success) revert FailedMarginTransfer();
+            /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
+            MARGIN_ASSET.transferFrom(owner, address(this), _abs(_amount));
 
             events.emitDeposit({
                 user: msg.sender,
@@ -422,8 +421,8 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                 /// @dev make sure committed margin isn't withdrawn
                 revert InsufficientFreeMargin(freeMargin(), _abs(_amount));
             } else {
-                bool success = MARGIN_ASSET.transfer(owner, _abs(_amount));
-                if (!success) revert FailedMarginTransfer();
+                /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
+                MARGIN_ASSET.transfer(owner, _abs(_amount));
 
                 events.emitWithdraw({
                     user: msg.sender,
@@ -1002,8 +1001,8 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
             revert CannotPayFee();
         } else {
             // attempt to transfer margin asset from user to Kwenta's treasury
-            bool success = MARGIN_ASSET.transfer(settings.treasury(), _fee);
-            if (!success) revert FailedMarginTransfer();
+            /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
+            MARGIN_ASSET.transfer(settings.treasury(), _fee);
 
             events.emitFeeImposed({
                 account: address(this),

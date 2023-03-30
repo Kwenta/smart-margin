@@ -93,9 +93,6 @@ interface IAccount {
     /// @notice thrown when Command given is not valid
     error InvalidCommandType(uint256 commandType);
 
-    /// @notice thrown when margin asset transfer fails
-    error FailedMarginTransfer();
-
     /// @notice given value cannot be zero
     /// @param valueName: name of the variable that cannot be zero
     error ValueCannotBeZero(bytes32 valueName);
