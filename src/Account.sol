@@ -214,7 +214,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
-    function execute(Command[] memory _commands, bytes[] memory _inputs)
+    function execute(Command[] calldata _commands, bytes[] calldata _inputs)
         external
         payable
         override
@@ -226,63 +226,81 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
 
         // loop through all given commands and execute them
         for (uint256 commandIndex = 0; commandIndex < numCommands;) {
-            Command command = _commands[commandIndex];
-
-            bytes memory input = _inputs[commandIndex];
-
-            _dispatch(command, input);
-
+            _dispatch(_commands[commandIndex], _inputs[commandIndex]);
             unchecked {
                 commandIndex++;
             }
         }
     }
 
-    function _dispatch(Command _command, bytes memory _inputs) internal {
+    function _dispatch(Command _command, bytes calldata _inputs) internal {
         uint256 commandIndex = uint256(_command);
 
         if (commandIndex < 2) {
+            /// @dev only owner can execute the following commands
             if (!isOwner()) revert Unauthorized();
 
             if (_command == Command.ACCOUNT_MODIFY_MARGIN) {
-                (int256 amount) = abi.decode(_inputs, (int256));
+                int256 amount;
+                assembly {
+                    amount := calldataload(_inputs.offset)
+                }
                 _modifyAccountMargin({_amount: amount});
             } else {
-                // ACCOUNT_WITHDRAW_ETH
-                (uint256 amount) = abi.decode(_inputs, (uint256));
+                uint256 amount;
+                assembly {
+                    amount := calldataload(_inputs.offset)
+                }
                 _withdrawEth({_amount: amount});
             }
         } else {
+            /// @dev both owner and delegates can execute the following commands
             if (!isAuth()) revert Unauthorized();
 
             if (commandIndex < 4) {
+                address market;
+
                 if (_command == Command.PERPS_V2_MODIFY_MARGIN) {
-                    (address market, int256 amount) =
-                        abi.decode(_inputs, (address, int256));
+                    int256 amount;
+                    assembly {
+                        market := calldataload(_inputs.offset)
+                        amount := calldataload(add(_inputs.offset, 0x20))
+                    }
                     _perpsV2ModifyMargin({_market: market, _amount: amount});
                 } else {
-                    // PERPS_V2_WITHDRAW_ALL_MARGIN
-                    address market = abi.decode(_inputs, (address));
+                    assembly {
+                        market := calldataload(_inputs.offset)
+                    }
                     _perpsV2WithdrawAllMargin({_market: market});
                 }
             } else if (commandIndex < 10) {
-                /// @custom:todo optimize fee calculation and impose it here
+                address market;
+                int256 sizeDelta;
+                uint256 desiredFillPrice;
+                bytes32 marketKey;
 
                 if (_command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
-                    (address market, int256 sizeDelta, uint256 desiredFillPrice)
-                    = abi.decode(_inputs, (address, int256, uint256));
+                    assembly {
+                        market := calldataload(_inputs.offset)
+                        sizeDelta := calldataload(add(_inputs.offset, 0x20))
+                        desiredFillPrice :=
+                            calldataload(add(_inputs.offset, 0x40))
+                    }
                     _perpsV2SubmitAtomicOrder({
                         _market: market,
                         _sizeDelta: sizeDelta,
                         _desiredFillPrice: desiredFillPrice
                     });
                 } else if (_command == Command.PERPS_V2_SUBMIT_DELAYED_ORDER) {
-                    (
-                        address market,
-                        int256 sizeDelta,
-                        uint256 desiredTimeDelta,
-                        uint256 desiredFillPrice
-                    ) = abi.decode(_inputs, (address, int256, uint256, uint256));
+                    uint256 desiredTimeDelta;
+                    assembly {
+                        market := calldataload(_inputs.offset)
+                        sizeDelta := calldataload(add(_inputs.offset, 0x20))
+                        desiredTimeDelta :=
+                            calldataload(add(_inputs.offset, 0x40))
+                        desiredFillPrice :=
+                            calldataload(add(_inputs.offset, 0x60))
+                    }
                     _perpsV2SubmitDelayedOrder({
                         _market: market,
                         _sizeDelta: sizeDelta,
@@ -292,16 +310,26 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                 } else if (
                     _command == Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
                 ) {
-                    (address market, int256 sizeDelta, uint256 desiredFillPrice)
-                    = abi.decode(_inputs, (address, int256, uint256));
+                    assembly {
+                        market := calldataload(_inputs.offset)
+                        sizeDelta := calldataload(add(_inputs.offset, 0x20))
+                        desiredFillPrice :=
+                            calldataload(add(_inputs.offset, 0x40))
+                    }
                     _perpsV2SubmitOffchainDelayedOrder({
                         _market: market,
                         _sizeDelta: sizeDelta,
                         _desiredFillPrice: desiredFillPrice
                     });
                 } else if (_command == Command.PERPS_V2_CLOSE_POSITION) {
-                    (address market, uint256 desiredFillPrice) =
-                        abi.decode(_inputs, (address, uint256));
+                    assembly {
+                        market := calldataload(_inputs.offset)
+                        desiredFillPrice :=
+                            calldataload(add(_inputs.offset, 0x20))
+                    }
+                    /// @dev define current position size before closing so fee can be imposed later
+                    marketKey = IPerpsV2MarketConsolidated(market).marketKey();
+                    sizeDelta = getPosition(marketKey).size;
                     _perpsV2ClosePosition({
                         _market: market,
                         _desiredFillPrice: desiredFillPrice
@@ -309,56 +337,89 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                 } else if (
                     _command == Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER
                 ) {
-                    (
-                        address market,
-                        uint256 desiredTimeDelta,
-                        uint256 desiredFillPrice
-                    ) = abi.decode(_inputs, (address, uint256, uint256));
+                    uint256 desiredTimeDelta;
+                    assembly {
+                        market := calldataload(_inputs.offset)
+                        desiredTimeDelta :=
+                            calldataload(add(_inputs.offset, 0x20))
+                        desiredFillPrice :=
+                            calldataload(add(_inputs.offset, 0x40))
+                    }
+                    /// @dev define current position size before closing so fee can be imposed later
+                    marketKey = IPerpsV2MarketConsolidated(market).marketKey();
+                    sizeDelta = getPosition(marketKey).size;
                     _perpsV2SubmitCloseDelayedOrder({
                         _market: market,
                         _desiredTimeDelta: desiredTimeDelta,
                         _desiredFillPrice: desiredFillPrice
                     });
                 } else {
-                    // PERPS_V2_SUBMIT_CLOSE_OFFCHAIN_DELAYED_ORDER
-                    (address market, uint256 desiredFillPrice) =
-                        abi.decode(_inputs, (address, uint256));
+                    assembly {
+                        market := calldataload(_inputs.offset)
+                        desiredFillPrice :=
+                            calldataload(add(_inputs.offset, 0x20))
+                    }
+                    /// @dev define current position size before closing so fee can be imposed later
+                    marketKey = IPerpsV2MarketConsolidated(market).marketKey();
+                    sizeDelta = getPosition(marketKey).size;
                     _perpsV2SubmitCloseOffchainDelayedOrder({
                         _market: market,
                         _desiredFillPrice: desiredFillPrice
                     });
                 }
+
+                /// @dev has marketKey already been defined? if so, no need to fetch it again
+                marketKey = marketKey == bytes32(0)
+                    ? IPerpsV2MarketConsolidated(market).marketKey()
+                    : marketKey;
+
+                // the above commands are all subject to a trade fee if delta size is non-zero
+                if (sizeDelta != 0) {
+                    _imposeFee({
+                        _fee: _calculateFee({
+                            _sizeDelta: sizeDelta,
+                            _market: IPerpsV2MarketConsolidated(market),
+                            _conditionalOrderFee: 0
+                        }),
+                        _marketKey: marketKey,
+                        _reason: FeeReason.TRADE_FEE
+                    });
+                }
             } else {
                 // commandIndex >= 10
                 if (_command == Command.PERPS_V2_CANCEL_DELAYED_ORDER) {
-                    address market = abi.decode(_inputs, (address));
+                    address market;
+                    assembly {
+                        market := calldataload(_inputs.offset)
+                    }
                     _perpsV2CancelDelayedOrder({_market: market});
                 } else if (
                     _command == Command.PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER
                 ) {
-                    address market = abi.decode(_inputs, (address));
+                    address market;
+                    assembly {
+                        market := calldataload(_inputs.offset)
+                    }
                     _perpsV2CancelOffchainDelayedOrder({_market: market});
                 } else if (_command == Command.GELATO_PLACE_CONDITIONAL_ORDER) {
-                    (
-                        bytes32 marketKey,
-                        int256 marginDelta,
-                        int256 sizeDelta,
-                        uint256 targetPrice,
-                        ConditionalOrderTypes conditionalOrderType,
-                        uint256 desiredFillPrice,
-                        bool reduceOnly
-                    ) = abi.decode(
-                        _inputs,
-                        (
-                            bytes32,
-                            int256,
-                            int256,
-                            uint256,
-                            ConditionalOrderTypes,
-                            uint256,
-                            bool
-                        )
-                    );
+                    bytes32 marketKey;
+                    int256 marginDelta;
+                    int256 sizeDelta;
+                    uint256 targetPrice;
+                    ConditionalOrderTypes conditionalOrderType;
+                    uint256 desiredFillPrice;
+                    bool reduceOnly;
+                    assembly {
+                        marketKey := calldataload(_inputs.offset)
+                        marginDelta := calldataload(add(_inputs.offset, 0x20))
+                        sizeDelta := calldataload(add(_inputs.offset, 0x40))
+                        targetPrice := calldataload(add(_inputs.offset, 0x60))
+                        conditionalOrderType :=
+                            calldataload(add(_inputs.offset, 0x80))
+                        desiredFillPrice :=
+                            calldataload(add(_inputs.offset, 0xa0))
+                        reduceOnly := calldataload(add(_inputs.offset, 0xc0))
+                    }
                     _placeConditionalOrder({
                         _marketKey: marketKey,
                         _marginDelta: marginDelta,
@@ -370,7 +431,10 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                     });
                 } else if (_command == Command.GELATO_CANCEL_CONDITIONAL_ORDER)
                 {
-                    uint256 orderId = abi.decode(_inputs, (uint256));
+                    uint256 orderId;
+                    assembly {
+                        orderId := calldataload(_inputs.offset)
+                    }
                     _cancelConditionalOrder({_conditionalOrderId: orderId});
                 } else {
                     revert InvalidCommandType(commandIndex);
@@ -472,16 +536,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         int256 _sizeDelta,
         uint256 _desiredFillPrice
     ) internal {
-        _imposeFee({
-            _fee: _calculateFee({
-                _sizeDelta: _sizeDelta,
-                _market: IPerpsV2MarketConsolidated(_market),
-                _conditionalOrderFee: 0
-            }),
-            _marketKey: IPerpsV2MarketConsolidated(_market).marketKey(),
-            _reason: FeeReason.TRADE_FEE
-        });
-
         IPerpsV2MarketConsolidated(_market).modifyPositionWithTracking({
             sizeDelta: _sizeDelta,
             desiredFillPrice: _desiredFillPrice,
@@ -496,24 +550,11 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     function _perpsV2ClosePosition(address _market, uint256 _desiredFillPrice)
         internal
     {
-        // establish Synthetix PerpsV2 Market position
-        bytes32 marketKey = IPerpsV2MarketConsolidated(_market).marketKey();
-
         // close position (i.e. reduce size to zero)
         /// @dev this does not remove margin from market
         IPerpsV2MarketConsolidated(_market).closePositionWithTracking({
             desiredFillPrice: _desiredFillPrice,
             trackingCode: TRACKING_CODE
-        });
-
-        _imposeFee({
-            _fee: _calculateFee({
-                _sizeDelta: getPosition(marketKey).size,
-                _market: IPerpsV2MarketConsolidated(_market),
-                _conditionalOrderFee: 0
-            }),
-            _marketKey: marketKey,
-            _reason: FeeReason.TRADE_FEE
         });
     }
 
@@ -533,16 +574,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         uint256 _desiredTimeDelta,
         uint256 _desiredFillPrice
     ) internal {
-        _imposeFee({
-            _fee: _calculateFee({
-                _sizeDelta: _sizeDelta,
-                _market: IPerpsV2MarketConsolidated(_market),
-                _conditionalOrderFee: 0
-            }),
-            _marketKey: IPerpsV2MarketConsolidated(_market).marketKey(),
-            _reason: FeeReason.TRADE_FEE
-        });
-
         IPerpsV2MarketConsolidated(_market).submitDelayedOrderWithTracking({
             sizeDelta: _sizeDelta,
             desiredTimeDelta: _desiredTimeDelta,
@@ -567,19 +598,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         uint256 _desiredTimeDelta,
         uint256 _desiredFillPrice
     ) internal {
-        // establish Synthetix PerpsV2 Market position
-        bytes32 marketKey = IPerpsV2MarketConsolidated(_market).marketKey();
-
-        _imposeFee({
-            _fee: _calculateFee({
-                _sizeDelta: getPosition(marketKey).size,
-                _market: IPerpsV2MarketConsolidated(_market),
-                _conditionalOrderFee: 0
-            }),
-            _marketKey: IPerpsV2MarketConsolidated(_market).marketKey(),
-            _reason: FeeReason.TRADE_FEE
-        });
-
         // close position (i.e. reduce size to zero)
         /// @dev this does not remove margin from market
         IPerpsV2MarketConsolidated(_market).submitCloseDelayedOrderWithTracking({
@@ -603,16 +621,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         int256 _sizeDelta,
         uint256 _desiredFillPrice
     ) internal {
-        _imposeFee({
-            _fee: _calculateFee({
-                _sizeDelta: _sizeDelta,
-                _market: IPerpsV2MarketConsolidated(_market),
-                _conditionalOrderFee: 0
-            }),
-            _marketKey: IPerpsV2MarketConsolidated(_market).marketKey(),
-            _reason: FeeReason.TRADE_FEE
-        });
-
         IPerpsV2MarketConsolidated(_market)
             .submitOffchainDelayedOrderWithTracking({
             sizeDelta: _sizeDelta,
@@ -637,19 +645,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         address _market,
         uint256 _desiredFillPrice
     ) internal {
-        // establish Synthetix PerpsV2 Market position
-        bytes32 marketKey = IPerpsV2MarketConsolidated(_market).marketKey();
-
-        _imposeFee({
-            _fee: _calculateFee({
-                _sizeDelta: getPosition(marketKey).size,
-                _market: IPerpsV2MarketConsolidated(_market),
-                _conditionalOrderFee: 0
-            }),
-            _marketKey: IPerpsV2MarketConsolidated(_market).marketKey(),
-            _reason: FeeReason.TRADE_FEE
-        });
-
         // close position (i.e. reduce size to zero)
         /// @dev this does not remove margin from market
         IPerpsV2MarketConsolidated(_market)
