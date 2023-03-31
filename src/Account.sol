@@ -5,7 +5,6 @@ import {Auth} from "./utils/Auth.sol";
 import {
     IAccount,
     IAddressResolver,
-    IExchanger,
     IFactory,
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated,
