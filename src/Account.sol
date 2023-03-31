@@ -94,6 +94,10 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
 
     /// @notice disable initializers on initial contract deployment
     /// @dev set owner of implementation to zero address
+    /// @param addressResolver: address of Synthetix ReadProxyAddressResolver
+    /// @param marginAsset: address of Synthetix ProxyERC20sUSD
+    /// @param gelato: address of Gelato
+    /// @param ops: address of Ops
     constructor(
         address addressResolver,
         address marginAsset,
@@ -233,6 +237,9 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         }
     }
 
+    /// @notice Decodes and executes the given command with the given inputs
+    /// @param _command: The command type to execute
+    /// @param _inputs: The inputs to execute the command with
     function _dispatch(Command _command, bytes calldata _inputs) internal {
         uint256 commandIndex = uint256(_command);
 
