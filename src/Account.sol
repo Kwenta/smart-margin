@@ -5,7 +5,6 @@ import {Auth} from "./utils/Auth.sol";
 import {
     IAccount,
     IAddressResolver,
-    IExchanger,
     IFactory,
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated,
@@ -94,6 +93,10 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
 
     /// @notice disable initializers on initial contract deployment
     /// @dev set owner of implementation to zero address
+    /// @param addressResolver: address of Synthetix ReadProxyAddressResolver
+    /// @param marginAsset: address of Synthetix ProxyERC20sUSD
+    /// @param gelato: address of Gelato
+    /// @param ops: address of Ops
     constructor(
         address addressResolver,
         address marginAsset,
@@ -157,7 +160,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         view
         returns (bool canExec, bytes memory execPayload)
     {
-        (canExec,) = _validConditionalOrder(_conditionalOrderId);
+        canExec = _validConditionalOrder(_conditionalOrderId);
 
         // calldata for execute func
         execPayload =
@@ -233,6 +236,9 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         }
     }
 
+    /// @notice Decodes and executes the given command with the given inputs
+    /// @param _command: The command type to execute
+    /// @param _inputs: The inputs to execute the command with
     function _dispatch(Command _command, bytes calldata _inputs) internal {
         uint256 commandIndex = uint256(_command);
 
@@ -745,11 +751,11 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         });
 
         moduleData.modules[0] = IOps.Module.RESOLVER;
-        moduleData.modules[1] = IOps.Module.SINGLE_EXEC;
-
         moduleData.args[0] = abi.encode(
             address(this), abi.encodeCall(this.checker, conditionalOrderId)
         );
+
+        moduleData.modules[1] = IOps.Module.SINGLE_EXEC;
         // moduleData.args[1] is empty for single exec thus no need to encode
     }
 
@@ -789,15 +795,17 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         override
         onlyOps
     {
-        (bool isValidConditionalOrder, uint256 fillPrice) =
-            _validConditionalOrder(_conditionalOrderId);
-
-        // Account.checker() will prevent this from being called if the conditional order is not valid
-        /// @dev this is a safety/sanity check; never intended to fail
-        assert(isValidConditionalOrder);
-
         ConditionalOrder memory conditionalOrder =
             getConditionalOrder(_conditionalOrderId);
+
+        // delete conditional order from conditional orders
+        delete conditionalOrders[_conditionalOrderId];
+
+        /// @dev conditional order is valid given checker() returns true; define fill price
+        uint256 fillPrice =
+            _sUSDRate(_getPerpsV2Market(conditionalOrder.marketKey));
+
+        // define market address
         address market = address(_getPerpsV2Market(conditionalOrder.marketKey));
 
         // if conditional order is reduce only, ensure position size is only reduced
@@ -811,9 +819,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                 currentSize == 0
                     || _isSameSign(currentSize, conditionalOrder.sizeDelta)
             ) {
-                // delete conditional order from conditional orders
-                delete conditionalOrders[_conditionalOrderId];
-
                 events.emitConditionalOrderCancelled({
                     account: address(this),
                     conditionalOrderId: _conditionalOrderId,
@@ -837,9 +842,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         if (conditionalOrder.marginDelta > 0) {
             committedMargin -= _abs(conditionalOrder.marginDelta);
         }
-
-        // delete conditional order from conditional orders
-        delete conditionalOrders[_conditionalOrderId];
 
         // calculate conditional order fee imposed by Kwenta
         uint256 conditionalOrderFee = conditionalOrder.conditionalOrderType
@@ -887,77 +889,69 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @dev this is where order type logic checks are handled
     /// @param _conditionalOrderId: key for an active order
     /// @return true if conditional order is valid by execution rules
-    /// @return price that the order will be filled at (only valid if prev is true)
     function _validConditionalOrder(uint256 _conditionalOrderId)
         internal
         view
-        returns (bool, uint256)
+        returns (bool)
     {
         ConditionalOrder memory conditionalOrder =
             getConditionalOrder(_conditionalOrderId);
+
+        /// @dev is marketKey is invalid, this will revert
+        uint256 price = _sUSDRate(_getPerpsV2Market(conditionalOrder.marketKey));
 
         // check if markets satisfy specific order type
         if (
             conditionalOrder.conditionalOrderType == ConditionalOrderTypes.LIMIT
         ) {
-            return _validLimitOrder(conditionalOrder);
+            return _validLimitOrder(conditionalOrder, price);
         } else if (
             conditionalOrder.conditionalOrderType == ConditionalOrderTypes.STOP
         ) {
-            return _validStopOrder(conditionalOrder);
-        } else {
-            // unknown order type
-            return (false, 0);
+            return _validStopOrder(conditionalOrder, price);
         }
+
+        // unknown order type
+        return false;
     }
 
     /// @notice limit order logic condition checker
     /// @dev sizeDelta will never be zero due to check when submitting conditional order
     /// @param _conditionalOrder: struct for an active conditional order
+    /// @param _price: current price of market asset
     /// @return true if conditional order is valid by execution rules
-    /// @return price that the conditional order will be submitted
-    function _validLimitOrder(ConditionalOrder memory _conditionalOrder)
-        internal
-        view
-        returns (bool, uint256)
-    {
-        /// @dev is marketKey is invalid, this will revert
-        uint256 price =
-            _sUSDRate(_getPerpsV2Market(_conditionalOrder.marketKey));
-
+    function _validLimitOrder(
+        ConditionalOrder memory _conditionalOrder,
+        uint256 _price
+    ) internal pure returns (bool) {
         if (_conditionalOrder.sizeDelta > 0) {
             // Long: increase position size (buy) once *below* target price
             // ex: open long position once price is below target
-            return (price <= _conditionalOrder.targetPrice, price);
+            return _price <= _conditionalOrder.targetPrice;
         } else {
             // Short: decrease position size (sell) once *above* target price
             // ex: open short position once price is above target
-            return (price >= _conditionalOrder.targetPrice, price);
+            return _price >= _conditionalOrder.targetPrice;
         }
     }
 
     /// @notice stop order logic condition checker
     /// @dev sizeDelta will never be zero due to check when submitting order
     /// @param _conditionalOrder: struct for an active conditional order
+    /// @param _price: current price of market asset
     /// @return true if conditional order is valid by execution rules
-    /// @return price that the conditional order will be submitted
-    function _validStopOrder(ConditionalOrder memory _conditionalOrder)
-        internal
-        view
-        returns (bool, uint256)
-    {
-        /// @dev is marketKey is invalid, this will revert
-        uint256 price =
-            _sUSDRate(_getPerpsV2Market(_conditionalOrder.marketKey));
-
+    function _validStopOrder(
+        ConditionalOrder memory _conditionalOrder,
+        uint256 _price
+    ) internal pure returns (bool) {
         if (_conditionalOrder.sizeDelta > 0) {
             // Long: increase position size (buy) once *above* target price
             // ex: unwind short position once price is above target (prevent further loss)
-            return (price >= _conditionalOrder.targetPrice, price);
+            return _price >= _conditionalOrder.targetPrice;
         } else {
             // Short: decrease position size (sell) once *below* target price
             // ex: unwind long position once price is below target (prevent further loss)
-            return (price <= _conditionalOrder.targetPrice, price);
+            return _price <= _conditionalOrder.targetPrice;
         }
     }
 

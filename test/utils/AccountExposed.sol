@@ -180,7 +180,7 @@ contract AccountExposed is Account {
     function expose_validConditionalOrder(uint256 _conditionalOrderId)
         external
         view
-        returns (bool, uint256)
+        returns (bool)
     {
         return (_validConditionalOrder(_conditionalOrderId));
     }
