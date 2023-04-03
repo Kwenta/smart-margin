@@ -89,7 +89,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                   PLACING CONDITIONAL ORDERS: GENERAL
     //////////////////////////////////////////////////////////////*/
 
-    function test_PlaceConditionalOrder_Invalid_NotOwner() external {
+    function test_PlaceConditionalOrder_Invalid_NotOwner() public {
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.GELATO_PLACE_CONDITIONAL_ORDER;
         bytes[] memory inputs = new bytes[](1);
@@ -108,7 +108,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         account.execute(commands, inputs);
     }
 
-    function test_PlaceConditionalOrder_Invalid_ZeroSizeDelta() external {
+    function test_PlaceConditionalOrder_Invalid_ZeroSizeDelta() public {
         vm.expectRevert(
             abi.encodeWithSelector(
                 IAccount.ValueCannotBeZero.selector, bytes32("_sizeDelta")
@@ -123,7 +123,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         account.execute(commands, inputs);
     }
 
-    function test_PlaceConditionalOrder_Invalid_InsufficientMargin() external {
+    function test_PlaceConditionalOrder_Invalid_InsufficientMargin() public {
         vm.prank(USER);
         account = Account(payable(factory.newAccount()));
         vm.deal(address(account), 1 ether);
@@ -150,7 +150,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         account.execute(commands, inputs);
     }
 
-    function test_PlaceConditionalOrder_Valid_GelatoTaskId() external {
+    function test_PlaceConditionalOrder_Valid_GelatoTaskId() public {
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
@@ -253,7 +253,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_PlaceConditionalOrder_Limit_Valid_State(
         int256 fuzzedSizeDelta
-    ) external {
+    ) public {
         vm.assume(fuzzedSizeDelta != 0);
         uint256 orderId = account.conditionalOrderId();
         uint256 conditionalOrderId = placeConditionalOrder({
@@ -286,7 +286,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_PlaceConditionalOrder_Limit_Valid_Event(
         int256 fuzzedSizeDelta
-    ) external {
+    ) public {
         vm.assume(fuzzedSizeDelta != 0);
         uint256 orderId = account.conditionalOrderId();
         vm.expectEmit(true, true, true, true);
@@ -493,7 +493,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                  CANCELING CONDITIONAL ORDERS: GENERAL
     //////////////////////////////////////////////////////////////*/
 
-    function test_CancelConditionalOrder_Invalid_NotOwner() external {
+    function test_CancelConditionalOrder_Invalid_NotOwner() public {
         vm.prank(USER);
         vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         cancelConditionalOrder({conditionalOrderId: 0});
@@ -501,12 +501,12 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function test_CancelConditionalOrder_Nonexistent(
         uint256 fuzzedConditionalOrderId
-    ) external {
-        vm.expectRevert();
+    ) public {
+        vm.expectRevert("Automate.cancelTask: Task not found");
         cancelConditionalOrder(fuzzedConditionalOrderId);
     }
 
-    function test_CancelConditionalOrder_State() external {
+    function test_CancelConditionalOrder_State() public {
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
@@ -530,7 +530,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assert(!conditionalOrder.reduceOnly);
     }
 
-    function test_CancelConditionalOrder_Margin() external {
+    function test_CancelConditionalOrder_Margin() public {
         uint256 preCommittedMargin = account.committedMargin();
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
@@ -547,7 +547,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assertEq(account.committedMargin(), preCommittedMargin);
     }
 
-    function test_CancelConditionalOrder_Event() external {
+    function test_CancelConditionalOrder_Event() public {
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
@@ -572,7 +572,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                  EXECUTING CONDITIONAL ORDERS: GENERAL
     //////////////////////////////////////////////////////////////*/
 
-    function test_ExecuteConditionalOrder_Invalid_NotOps() external {
+    function test_ExecuteConditionalOrder_Invalid_NotOps() public {
         vm.prank(USER);
         vm.expectRevert(abi.encodeWithSelector(OpsReady.OnlyOps.selector));
         account.executeConditionalOrder({_conditionalOrderId: 0});
@@ -719,7 +719,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                   EXECUTING CONDITIONAL ORDERS: LIMIT
     //////////////////////////////////////////////////////////////*/
 
-    function test_ExecuteConditionalOrder_Limit_Valid_Margin() external {
+    function test_ExecuteConditionalOrder_Limit_Valid_Margin() public {
         uint256 preCommittedMargin = account.committedMargin();
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
@@ -749,7 +749,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assertEq(account.committedMargin(), preCommittedMargin);
     }
 
-    function test_ExecuteConditionalOrder_Limit_Valid_State() external {
+    function test_ExecuteConditionalOrder_Limit_Valid_State() public {
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
@@ -785,7 +785,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assert(!conditionalOrder.reduceOnly);
     }
 
-    function test_ExecuteConditionalOrder_Limit_Valid_Synthetix() external {
+    function test_ExecuteConditionalOrder_Limit_Valid_Synthetix() public {
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
@@ -815,10 +815,10 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assert(order.isOffchain == true);
         assert(order.sizeDelta == 1 ether);
         assert(order.desiredFillPrice == DESIRED_FILL_PRICE);
-        assert(order.targetRoundId == 0); // @custom:todo why did this change
+        assert(order.targetRoundId == 0); // off chain doesn’t use internal oracle so it’ll always be zero
         assert(order.commitDeposit == 0); // no commit deposit post Almach release
         assert(order.keeperDeposit != 0);
-        assert(order.executableAtTime == 0); // @custom:todo why did this change
+        assert(order.executableAtTime == 0); // only used for delayed (on-chain)
         assert(order.intentionTime != 0);
         assert(order.trackingCode == TRACKING_CODE);
     }
@@ -827,7 +827,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                    EXECUTING CONDITIONAL ORDERS: STOP
     //////////////////////////////////////////////////////////////*/
 
-    function test_ExecuteConditionalOrder_Stop_Valid_Margin() external {
+    function test_ExecuteConditionalOrder_Stop_Valid_Margin() public {
         uint256 preCommittedMargin = account.committedMargin();
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
@@ -857,7 +857,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assertEq(account.committedMargin(), preCommittedMargin);
     }
 
-    function test_ExecuteConditionalOrder_Stop_Valid_State() external {
+    function test_ExecuteConditionalOrder_Stop_Valid_State() public {
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
@@ -893,7 +893,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assert(!conditionalOrder.reduceOnly);
     }
 
-    function test_ExecuteConditionalOrder_Stop_Valid_Synthetix() external {
+    function test_ExecuteConditionalOrder_Stop_Valid_Synthetix() public {
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
@@ -923,10 +923,10 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assert(order.isOffchain == true);
         assert(order.sizeDelta == 1 ether);
         assert(order.desiredFillPrice == DESIRED_FILL_PRICE);
-        assert(order.targetRoundId == 0); // @custom:todo why?
+        assert(order.targetRoundId == 0); // off chain doesn’t use internal oracle so it’ll always be zero
         assert(order.commitDeposit == 0); // no commit deposit post Almach release
         assert(order.keeperDeposit != 0);
-        assert(order.executableAtTime == 0); // @custom:todo why?
+        assert(order.executableAtTime == 0); // only used for delayed (on-chain)
         assert(order.intentionTime != 0);
         assert(order.trackingCode == TRACKING_CODE);
     }
@@ -935,7 +935,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                               REDUCE ONLY
     //////////////////////////////////////////////////////////////*/
 
-    function test_ReduceOnlyOrder_Valid_State() external {
+    function test_ReduceOnlyOrder_Valid_State() public {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(currentEthPriceInUSD);
         int256 sizeDelta = 1 ether;
@@ -983,7 +983,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assert(!conditionalOrder.reduceOnly);
     }
 
-    function test_ReduceOnlyOrder_Valid_Synthetix() external {
+    function test_ReduceOnlyOrder_Valid_Synthetix() public {
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(currentEthPriceInUSD);
         int256 sizeDelta = 1 ether;
@@ -1025,15 +1025,15 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assert(order.isOffchain == true);
         assert(order.sizeDelta != 0);
         assert(order.desiredFillPrice != 0);
-        assert(order.targetRoundId == 0); // @custom:todo why?
+        assert(order.targetRoundId == 0); // off chain doesn’t use internal oracle so it’ll always be zero
         assert(order.commitDeposit == 0); // no commit deposit post Almach release
         assert(order.keeperDeposit != 0);
-        assert(order.executableAtTime == 0); // @custom:todo why?
+        assert(order.executableAtTime == 0); // only used for delayed (on-chain)
         assert(order.intentionTime != 0);
         assert(order.trackingCode == TRACKING_CODE);
     }
 
-    function test_ReduceOnlyOrder_Valid_Long(int256 fuzzedSizeDelta) external {
+    function test_ReduceOnlyOrder_Valid_Long(int256 fuzzedSizeDelta) public {
         vm.assume(fuzzedSizeDelta != 0);
 
         (uint256 desiredFillPrice,) = IPerpsV2MarketConsolidated(
@@ -1110,9 +1110,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         });
     }
 
-    function test_ReduceOnlyOrder_Valid_Short(int256 fuzzedSizeDelta)
-        external
-    {
+    function test_ReduceOnlyOrder_Valid_Short(int256 fuzzedSizeDelta) public {
         vm.assume(fuzzedSizeDelta != 0);
         submitAtomicOrder({
             marketKey: sETHPERP,
@@ -1191,7 +1189,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     /// 1. Place conditional order (limit)
     /// 2. Execute conditional order (as Gelato)
     /// 3. Cancel pending Synthetix delayed order
-    function test_ConditionalOrder_Limit_Valid_Execute_Cancel() external {
+    function test_ConditionalOrder_Limit_Valid_Execute_Cancel() public {
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),

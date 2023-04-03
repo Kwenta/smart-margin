@@ -45,6 +45,14 @@ contract AccountExposed is Account {
         return _calculateFee(_sizeDelta, _market, _conditionalOrderFee);
     }
 
+    function expose_imposeFee(
+        uint256 _fee,
+        bytes32 _marketKey,
+        FeeReason _reason
+    ) public {
+        _imposeFee(_fee, _marketKey, _reason);
+    }
+
     /*//////////////////////////////////////////////////////////////
                             EXPOSED COMMANDS
     //////////////////////////////////////////////////////////////*/
