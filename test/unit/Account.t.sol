@@ -515,7 +515,7 @@ contract AccountTest is Test, ConsolidatedEvents {
 
         /// @notice delegate CAN execute the following COMMAND
         /// @dev execute will fail for other reasons (e.g. No position in Synthetix market to close)
-        vm.expectRevert("no existing position");
+        vm.expectRevert("No position ope");
         account.execute(commands, inputs);
     }
 
@@ -534,7 +534,7 @@ contract AccountTest is Test, ConsolidatedEvents {
 
         /// @notice delegate CAN execute the following COMMAND
         /// @dev execute will fail for other reasons (e.g. No position in Synthetix market to close)
-        vm.expectRevert("no existing position");
+        vm.expectRevert("No position open");
         account.execute(commands, inputs);
     }
 

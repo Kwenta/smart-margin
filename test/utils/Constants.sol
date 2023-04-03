@@ -8,7 +8,7 @@ pragma solidity 0.8.18;
 // BLOCK_NUMBER corresponds to Optimism Goerli network state @ Mar-24-2023 06:48:48 PM +UTC
 // hard coded addresses are only guaranteed for this block
 // used to create a consistent and realistic test environment exposing Synthetix PerpsV2
-uint256 constant BLOCK_NUMBER = 7_127_830;
+uint256 constant BLOCK_NUMBER = 7_559_742;
 
 // test user address
 address constant USER = 0x35eFbD8Ab6F7258C13D3ecDfc56c2c0DD094678F;

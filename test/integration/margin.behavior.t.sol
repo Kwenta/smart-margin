@@ -764,7 +764,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         commands[0] = IAccount.Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER;
         inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP), 0, 0);
 
-        vm.expectRevert("no existing position");
+        vm.expectRevert("No position open");
         account.execute(commands, inputs);
     }
 
@@ -858,7 +858,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             IAccount.Command.PERPS_V2_SUBMIT_CLOSE_OFFCHAIN_DELAYED_ORDER;
         inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP), 0);
 
-        vm.expectRevert("no existing position");
+        vm.expectRevert("No position open");
         account.execute(commands, inputs);
     }
 
