@@ -897,7 +897,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         ConditionalOrder memory conditionalOrder =
             getConditionalOrder(_conditionalOrderId);
 
-        /// @dev is marketKey is invalid, this will revert
+        /// @dev if marketKey is invalid, this will revert
         uint256 price = _sUSDRate(_getPerpsV2Market(conditionalOrder.marketKey));
 
         // check if markets satisfy specific order type
