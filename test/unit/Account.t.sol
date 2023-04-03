@@ -515,7 +515,7 @@ contract AccountTest is Test, ConsolidatedEvents {
 
         /// @notice delegate CAN execute the following COMMAND
         /// @dev execute will fail for other reasons (e.g. No position in Synthetix market to close)
-        vm.expectRevert("No position ope");
+        vm.expectRevert("No position open");
         account.execute(commands, inputs);
     }
 
