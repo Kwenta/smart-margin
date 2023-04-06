@@ -1277,18 +1277,16 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             abi.encodeCall(account.executeConditionalOrder, conditionalOrderId);
 
         moduleData = IOps.ModuleData({
-            modules: new IOps.Module[](2),
-            args: new bytes[](2)
+            modules: new IOps.Module[](1),
+            args: new bytes[](1)
         });
 
         moduleData.modules[0] = IOps.Module.RESOLVER;
-        moduleData.modules[1] = IOps.Module.SINGLE_EXEC;
 
         moduleData.args[0] = abi.encode(
             address(account),
             abi.encodeCall(account.checker, conditionalOrderId)
         );
-        // moduleData.args[1] is empty for single exec thus no need to encode
     }
 
     /*//////////////////////////////////////////////////////////////
