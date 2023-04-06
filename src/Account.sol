@@ -36,9 +36,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @notice constant for sUSD currency key
     bytes32 private constant SUSD = "sUSD";
 
-    /// @notice minimum ETH balance required to place a conditional order
-    uint256 private constant MIN_ETH = 1 ether / 100;
-
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
     //////////////////////////////////////////////////////////////*/
