@@ -14,7 +14,6 @@ import {
     IPerpsV2MarketConsolidated
 } from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
-import {IPerpsV2MarketSettings} from "@synthetix/IPerpsV2MarketSettings.sol";
 import {ISynth} from "@synthetix/ISynth.sol";
 import {OpsReady, IOps} from "../../src/utils/OpsReady.sol";
 import {Settings} from "../../src/Settings.sol";
@@ -195,7 +194,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             vm.expectEmit(true, true, true, true);
             emit Withdraw(
                 address(this), address(account), accountExposed.expose_abs(x)
-                );
+            );
             modifyAccountMargin({amount: x});
             assert(
                 sUSD.balanceOf(address(this)) == accountExposed.expose_abs(x)
@@ -977,7 +976,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             feeInSUSD,
             sETHPERP,
             bytes32(uint256(IAccount.FeeReason.TRADE_FEE))
-            );
+        );
         account.execute(commands, inputs);
     }
 

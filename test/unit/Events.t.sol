@@ -113,7 +113,7 @@ contract EventsTest is Test, ConsolidatedEvents {
             IAccount.ConditionalOrderTypes.LIMIT,
             DESIRED_FILL_PRICE,
             true
-            );
+        );
         vm.prank(account);
         events.emitConditionalOrderPlaced({
             account: ACCOUNT,
@@ -152,7 +152,7 @@ contract EventsTest is Test, ConsolidatedEvents {
             IAccount
                 .ConditionalOrderCancelledReason
                 .CONDITIONAL_ORDER_CANCELLED_BY_USER
-            );
+        );
         vm.prank(account);
         events.emitConditionalOrderCancelled({
             account: ACCOUNT,

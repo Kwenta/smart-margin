@@ -14,7 +14,6 @@ import {
     IPerpsV2MarketConsolidated
 } from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
-import {IPerpsV2MarketSettings} from "@synthetix/IPerpsV2MarketSettings.sol";
 import {ISynth} from "@synthetix/ISynth.sol";
 import {ISystemStatus} from "@synthetix/ISystemStatus.sol";
 import {OpsReady, IOps} from "../../src/utils/OpsReady.sol";
@@ -301,7 +300,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             IAccount.ConditionalOrderTypes.LIMIT,
             DESIRED_FILL_PRICE,
             false
-            );
+        );
         placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
@@ -565,7 +564,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             IAccount
                 .ConditionalOrderCancelledReason
                 .CONDITIONAL_ORDER_CANCELLED_BY_USER
-            );
+        );
         cancelConditionalOrder(conditionalOrderId);
     }
 
@@ -1109,7 +1108,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                 IAccount
                     .ConditionalOrderCancelledReason
                     .CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
-                );
+            );
         } else if (fuzzedSizeDelta < 0) {
             if (fuzzedSizeDelta + position.size < 0) {
                 // expect fuzzedSizeDelta to be bound by zero to prevent flipping (long to short or vice versa)
@@ -1181,7 +1180,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                 IAccount
                     .ConditionalOrderCancelledReason
                     .CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
-                );
+            );
         } else if (fuzzedSizeDelta > 0) {
             if (fuzzedSizeDelta + position.size > 0) {
                 // expect fuzzedSizeDelta to be bound by zero to prevent flipping (long to short or vice versa)
