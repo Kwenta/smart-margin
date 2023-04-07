@@ -166,24 +166,27 @@ contract AccountTest is Test, ConsolidatedEvents {
 
     function test_Ownership_Transfer() public {
         // ensure factory and account state align
-        address currentOwner = factory.getAccountOwner(address(account));
+        address originalOwner = factory.getAccountOwner(address(account));
         assert(
-            currentOwner == address(this) && currentOwner == account.owner()
-                && currentOwner != KWENTA_TREASURY
+            originalOwner == address(this) && originalOwner == account.owner()
+                && originalOwner != KWENTA_TREASURY
         );
-        assert(factory.getAccountsOwnedBy(currentOwner)[0] == address(account));
+        assert(factory.getAccountsOwnedBy(originalOwner)[0] == address(account));
 
         // transfer ownership
         account.transferOwnership(KWENTA_TREASURY);
         assert(account.owner() == KWENTA_TREASURY);
 
         // ensure factory and account state align
-        currentOwner = factory.getAccountOwner(address(account));
+        address newOwner = factory.getAccountOwner(address(account));
         assert(
-            currentOwner == KWENTA_TREASURY && currentOwner == account.owner()
+            newOwner == KWENTA_TREASURY && newOwner == account.owner()
         );
         assert(
             factory.getAccountsOwnedBy(KWENTA_TREASURY)[0] == address(account)
+        );
+        assert(
+            factory.getAccountsOwnedBy(originalOwner).length == 0
         );
     }
 
