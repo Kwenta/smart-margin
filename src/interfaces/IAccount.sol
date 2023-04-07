@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
+import {IAddressResolver} from "@synthetix/interfaces/IAddressResolver.sol";
 import {IEvents} from "./IEvents.sol";
-import {IExchanger} from "@synthetix/IExchanger.sol";
+import {IExchanger} from "@synthetix/interfaces/IExchanger.sol";
 import {IFactory} from "./IFactory.sol";
-import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
+import {IFuturesMarketManager} from "@synthetix/interfaces/IFuturesMarketManager.sol";
 import {IPerpsV2MarketConsolidated} from
-    "@synthetix/IPerpsV2MarketConsolidated.sol";
+    "@synthetix/interfaces/IPerpsV2MarketConsolidated.sol";
 import {ISettings} from "./ISettings.sol";
-import {ISystemStatus} from "@synthetix/ISystemStatus.sol";
+import {ISystemStatus} from "@synthetix/interfaces/ISystemStatus.sol";
 
 /// @title Kwenta Smart Margin Account Implementation Interface
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
