@@ -1,4 +1,4 @@
-@synthetix/=src/interfaces/synthetix/
+@synthetix/=lib/synthetix/contracts/
 @solmate/=lib/solmate/src/
 @openzeppelin/=lib/openzeppelin-contracts/
 forge-std/=lib/forge-std/src
