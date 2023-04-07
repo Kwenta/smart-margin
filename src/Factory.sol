@@ -116,7 +116,7 @@ contract Factory is IFactory, Owned {
             }
 
             unchecked {
-                i++;
+                ++i;
             }
         }
     }
@@ -129,13 +129,13 @@ contract Factory is IFactory, Owned {
     function _shiftArrayLeftFrom(uint256 _index, address[] storage _array)
         internal
     {
-        uint256 length = _array.length;
+        uint256 endIndex = _array.length - 1;
 
-        for (uint256 i = _index; i < length - 1;) {
+        for (uint256 i = _index; i < endIndex;) {
             _array[i] = _array[i + 1];
 
             unchecked {
-                i++;
+                ++i;
             }
         }
 

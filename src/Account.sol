@@ -231,7 +231,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         for (uint256 commandIndex = 0; commandIndex < numCommands;) {
             _dispatch(_commands[commandIndex], _inputs[commandIndex]);
             unchecked {
-                commandIndex++;
+                ++commandIndex;
             }
         }
     }
@@ -720,7 +720,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
             reduceOnly: _reduceOnly
         });
 
-        conditionalOrderId++;
+        ++conditionalOrderId;
     }
 
     /// @notice create a new Gelato task for a conditional order
