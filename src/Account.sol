@@ -5,11 +5,12 @@ import {Auth} from "./utils/Auth.sol";
 import {
     IAccount,
     IAddressResolver,
+    IEvents,
     IFactory,
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated,
     ISettings,
-    IEvents
+    ISystemStatus
 } from "./interfaces/IAccount.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Initializable} from
@@ -32,6 +33,9 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
 
     /// @notice name for futures market manager
     bytes32 private constant FUTURES_MARKET_MANAGER = "FuturesMarketManager";
+
+    /// @notice name for system status
+    bytes32 private constant SYSTEM_STATUS = "SystemStatus";
 
     /// @notice constant for sUSD currency key
     bytes32 private constant SUSD = "sUSD";
@@ -56,6 +60,9 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
 
     //// @inheritdoc IAccount
     IFuturesMarketManager public futuresMarketManager;
+
+    /// @inheritdoc IAccount
+    ISystemStatus public systemStatus;
 
     /// @inheritdoc IAccount
     ISettings public settings;
@@ -132,6 +139,13 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
             ADDRESS_RESOLVER.requireAndGetAddress(
                 FUTURES_MARKET_MANAGER,
                 "Account: Could not get Futures Market Manager"
+            )
+        );
+
+        // get address for system status
+        systemStatus = ISystemStatus(
+            ADDRESS_RESOLVER.requireAndGetAddress(
+                SYSTEM_STATUS, "Account: Could not get System Status"
             )
         );
     }
@@ -895,8 +909,11 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         ConditionalOrder memory conditionalOrder =
             getConditionalOrder(_conditionalOrderId);
 
-        // return false is market is paused
-        /// @custom:todo check if market is paused
+        // return false if market is paused
+        try systemStatus.requireFuturesMarketActive(conditionalOrder.marketKey)
+        {} catch {
+            return false;
+        }
 
         /// @dev if marketKey is invalid, this will revert
         uint256 price = _sUSDRate(_getPerpsV2Market(conditionalOrder.marketKey));

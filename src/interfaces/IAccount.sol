@@ -9,6 +9,7 @@ import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
 import {IPerpsV2MarketConsolidated} from
     "@synthetix/IPerpsV2MarketConsolidated.sol";
 import {ISettings} from "./ISettings.sol";
+import {ISystemStatus} from "@synthetix/ISystemStatus.sol";
 
 /// @title Kwenta Smart Margin Account Implementation Interface
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
@@ -131,6 +132,9 @@ interface IAccount {
         external
         view
         returns (IFuturesMarketManager);
+
+    /// @return returns the address of the synthetix system status
+    function systemStatus() external view returns (ISystemStatus);
 
     /// @return returns the address of the native settings for account
     function settings() external view returns (ISettings);
