@@ -17,7 +17,7 @@ contract ConsolidatedEvents {
     event AccountImplementationUpgraded(address implementation);
 
     event SettingsUpgraded(address settings);
-    
+
     event EventsUpgraded(address events);
 
     /*//////////////////////////////////////////////////////////////

@@ -30,86 +30,6 @@ contract AccountExposed is Account {
         )
     {}
 
-    /*//////////////////////////////////////////////////////////////
-                            EXPOSED COMMANDS
-    //////////////////////////////////////////////////////////////*/
-
-    function expose_modifyAccountMargin(int256 amount) external {
-        _modifyAccountMargin({_amount: amount});
-    }
-
-    function expose_withdrawEth(uint256 amount) external {
-        _withdrawEth({_amount: amount});
-    }
-
-    function expose_perpsV2ModifyMargin(address market, int256 amount)
-        external
-    {
-        _perpsV2ModifyMargin({_market: market, _amount: amount});
-    }
-
-    function expose_perpsV2WithdrawAllMargin(address market) external {
-        _perpsV2WithdrawAllMargin({_market: market});
-    }
-
-    function expose_perpsV2SubmitAtomicOrder(
-        address market,
-        int256 sizeDelta,
-        uint256 desiredFillPrice
-    ) external {
-        _perpsV2SubmitAtomicOrder({
-            _market: market,
-            _sizeDelta: sizeDelta,
-            _desiredFillPrice: desiredFillPrice
-        });
-    }
-
-    function expose_perpsV2SubmitDelayedOrder(
-        address market,
-        int256 sizeDelta,
-        uint256 desiredTimeDelta,
-        uint256 desiredFillPrice
-    ) external {
-        _perpsV2SubmitDelayedOrder({
-            _market: market,
-            _sizeDelta: sizeDelta,
-            _desiredTimeDelta: desiredTimeDelta,
-            _desiredFillPrice: desiredFillPrice
-        });
-    }
-
-    function expose_perpsV2SubmitOffchainDelayedOrder(
-        address market,
-        int256 sizeDelta,
-        uint256 desiredFillPrice
-    ) external {
-        _perpsV2SubmitOffchainDelayedOrder({
-            _market: market,
-            _sizeDelta: sizeDelta,
-            _desiredFillPrice: desiredFillPrice
-        });
-    }
-
-    function expose_perpsV2CancelDelayedOrder(address market) external {
-        _perpsV2CancelDelayedOrder({_market: market});
-    }
-
-    function expose_perpsV2CancelOffchainDelayedOrder(address market)
-        external
-    {
-        _perpsV2CancelOffchainDelayedOrder({_market: market});
-    }
-
-    function expose_PERPS_V2_CLOSE_POSITION(
-        address market,
-        uint256 desiredFillPrice
-    ) external {
-        _perpsV2ClosePosition({
-            _market: market,
-            _desiredFillPrice: desiredFillPrice
-        });
-    }
-
     function expose_placeConditionalOrder(
         bytes32 marketKey,
         int256 marginDelta,
@@ -130,10 +50,6 @@ contract AccountExposed is Account {
         });
     }
 
-    function expose_cancelConditionalOrder(uint256 orderId) external {
-        _cancelConditionalOrder({_conditionalOrderId: orderId});
-    }
-
     /*//////////////////////////////////////////////////////////////
                         EXPOSED GETTER UTILITIES
     //////////////////////////////////////////////////////////////*/
@@ -152,14 +68,6 @@ contract AccountExposed is Account {
         returns (uint256)
     {
         return _sUSDRate(_market);
-    }
-
-    function expose_validConditionalOrder(uint256 _conditionalOrderId)
-        external
-        view
-        returns (bool)
-    {
-        return (_validConditionalOrder(_conditionalOrderId));
     }
 
     /*//////////////////////////////////////////////////////////////
