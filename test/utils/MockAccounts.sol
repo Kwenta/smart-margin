@@ -4,5 +4,5 @@ pragma solidity 0.8.18;
 contract MockAccount1 {}
 
 contract MockAccount2 {
-    function initialize(address a, address b, address c, address d) external {}
+    function initialize(address a, address b) external {}
 }

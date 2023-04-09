@@ -13,15 +13,12 @@ import {
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated
 } from "../../src/interfaces/IAccount.sol";
-import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
-import {ISynth} from "@synthetix/ISynth.sol";
+import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
+import {ISynth} from "../utils/interfaces/ISynth.sol";
 import {OpsReady, IOps} from "../../src/utils/OpsReady.sol";
-import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 import "../utils/Constants.sol";
 
-// functions tagged with @HELPER are helper functions and not tests
-// tests tagged with @AUDITOR are flags for desired increased scrutiny by the auditors
 contract MarginBehaviorTest is Test, ConsolidatedEvents {
     receive() external payable {}
 
@@ -29,11 +26,10 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    Settings private settings;
-    Events private events;
     Factory private factory;
-    ERC20 private sUSD;
+    Events private events;
     Account private account;
+    ERC20 private sUSD;
     AccountExposed private accountExposed;
 
     /*//////////////////////////////////////////////////////////////
@@ -43,34 +39,26 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
 
-        sUSD =
-            ERC20((IAddressResolver(ADDRESS_RESOLVER)).getAddress("ProxysUSD"));
-
         Setup setup = new Setup();
-        factory = setup.deploySmartMarginFactory({
-            useDeployer: false,
-            owner: address(this),
-            treasury: KWENTA_TREASURY,
-            tradeFee: TRADE_FEE,
-            limitOrderFee: LIMIT_ORDER_FEE,
-            stopOrderFee: STOP_ORDER_FEE,
-            addressResolver: ADDRESS_RESOLVER,
-            marginAsset: MARGIN_ASSET,
-            gelato: GELATO,
-            ops: OPS
+
+        (factory, events,) = setup.deploySystem({
+            _owner: address(this),
+            _addressResolver: ADDRESS_RESOLVER,
+            _gelato: GELATO,
+            _ops: OPS
         });
 
-        settings = Settings(factory.settings());
-        events = Events(factory.events());
+        sUSD =
+            ERC20((IAddressResolver(ADDRESS_RESOLVER)).getAddress("ProxysUSD"));
+        address futuresMarketManager = IAddressResolver(ADDRESS_RESOLVER)
+            .getAddress({name: bytes32("FuturesMarketManager")});
+        address systemStatus = IAddressResolver(ADDRESS_RESOLVER).getAddress({
+            name: bytes32("SystemStatus")
+        });
 
+        accountExposed =
+        new AccountExposed(address(events), address(sUSD), futuresMarketManager, systemStatus, GELATO, OPS);
         account = Account(payable(factory.newAccount()));
-
-        accountExposed = new AccountExposed();
-        accountExposed.setFuturesMarketManager(
-            IFuturesMarketManager(account.futuresMarketManager())
-        );
-        accountExposed.setSettings(settings);
-        accountExposed.setEvents(events);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -119,7 +107,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         assert(!s);
     }
 
-    // @AUDITOR increased scrutiny requested for invalid inputs
     function test_Dispatch_ValidCommand_InvalidInput() public {
         fundAccount(AMOUNT);
 
@@ -376,34 +363,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         assert(position.size != 0);
     }
 
-    function test_Commands_SubmitAtomicOrder_TradeFeeImposed() public {
-        fundAccount(AMOUNT);
-
-        address market = getMarketAddressFromKey(sETHPERP);
-        int256 marginDelta = int256(AMOUNT) / 10;
-        int256 sizeDelta = 1 ether;
-        (uint256 desiredFillPrice,) =
-            IPerpsV2MarketConsolidated(market).assetPrice();
-
-        IAccount.Command[] memory commands = new IAccount.Command[](2);
-        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
-        bytes[] memory inputs = new bytes[](2);
-        inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
-
-        uint256 balanceBefore = sUSD.balanceOf(settings.treasury());
-        account.execute(commands, inputs);
-        uint256 balanceAfter = sUSD.balanceOf(settings.treasury());
-
-        assertEq(
-            balanceAfter - balanceBefore,
-            accountExposed.expose_calculateFee(
-                sizeDelta, IPerpsV2MarketConsolidated(market), 0
-            )
-        );
-    }
-
     /*
         PERPS_V2_SUBMIT_DELAYED_ORDER
     */
@@ -440,36 +399,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         assert(order.trackingCode == TRACKING_CODE);
     }
 
-    function test_Commands_SubmitDelayedOrder_TradeFeeImposed() public {
-        fundAccount(AMOUNT);
-
-        address market = getMarketAddressFromKey(sETHPERP);
-        int256 marginDelta = int256(AMOUNT) / 10;
-        int256 sizeDelta = 1 ether;
-        uint256 desiredTimeDelta = 0;
-        (uint256 desiredFillPrice,) =
-            IPerpsV2MarketConsolidated(market).assetPrice();
-
-        IAccount.Command[] memory commands = new IAccount.Command[](2);
-        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_DELAYED_ORDER;
-        bytes[] memory inputs = new bytes[](2);
-        inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] =
-            abi.encode(market, sizeDelta, desiredTimeDelta, desiredFillPrice);
-
-        uint256 balanceBefore = sUSD.balanceOf(settings.treasury());
-        account.execute(commands, inputs);
-        uint256 balanceAfter = sUSD.balanceOf(settings.treasury());
-
-        assertEq(
-            balanceAfter - balanceBefore,
-            accountExposed.expose_calculateFee(
-                sizeDelta, IPerpsV2MarketConsolidated(market), 0
-            )
-        );
-    }
-
     /*
         PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
     */
@@ -502,36 +431,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         assert(order.executableAtTime == 0); // only used for delayed (on-chain)
         assert(order.intentionTime != 0);
         assert(order.trackingCode == TRACKING_CODE);
-    }
-
-    function test_Commands_SubmitOffchainDelayedOrder_TradeFeeImposed()
-        public
-    {
-        fundAccount(AMOUNT);
-
-        address market = getMarketAddressFromKey(sETHPERP);
-        int256 marginDelta = int256(AMOUNT) / 10;
-        int256 sizeDelta = 1 ether;
-        (uint256 desiredFillPrice,) =
-            IPerpsV2MarketConsolidated(market).assetPrice();
-
-        IAccount.Command[] memory commands = new IAccount.Command[](2);
-        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER;
-        bytes[] memory inputs = new bytes[](2);
-        inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
-
-        uint256 balanceBefore = sUSD.balanceOf(settings.treasury());
-        account.execute(commands, inputs);
-        uint256 balanceAfter = sUSD.balanceOf(settings.treasury());
-
-        assertEq(
-            balanceAfter - balanceBefore,
-            accountExposed.expose_calculateFee(
-                sizeDelta, IPerpsV2MarketConsolidated(market), 0
-            )
-        );
     }
 
     /*
@@ -713,45 +612,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         assert(position.margin != 0);
     }
 
-    function test_Commands_ClosePosition_TradeFeeImposed() public {
-        fundAccount(AMOUNT);
-
-        address market = getMarketAddressFromKey(sETHPERP);
-        int256 marginDelta = int256(AMOUNT) / 10;
-        int256 sizeDelta = 1 ether;
-        (uint256 desiredFillPrice,) =
-            IPerpsV2MarketConsolidated(market).assetPrice();
-
-        // define atomic order to open position
-        IAccount.Command[] memory commands = new IAccount.Command[](2);
-        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
-        bytes[] memory inputs = new bytes[](2);
-        inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
-
-        // open position
-        account.execute(commands, inputs);
-
-        // define close position order
-        commands = new IAccount.Command[](1);
-        commands[0] = IAccount.Command.PERPS_V2_CLOSE_POSITION;
-        inputs = new bytes[](1);
-        desiredFillPrice -= 1 ether;
-        inputs[0] = abi.encode(market, desiredFillPrice);
-
-        uint256 balanceBefore = sUSD.balanceOf(settings.treasury());
-        account.execute(commands, inputs);
-        uint256 balanceAfter = sUSD.balanceOf(settings.treasury());
-
-        assertEq(
-            balanceAfter - balanceBefore,
-            accountExposed.expose_calculateFee(
-                sizeDelta, IPerpsV2MarketConsolidated(market), 0
-            )
-        );
-    }
-
     /*
         PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER
     */
@@ -802,45 +662,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             account.getDelayedOrder(sETHPERP);
         assert(order.isOffchain == false);
         assert(order.sizeDelta == -sizeDelta);
-    }
-
-    function test_Commands_SubmitCloseDelayedOrder_TradeFeeImposed() public {
-        fundAccount(AMOUNT);
-
-        address market = getMarketAddressFromKey(sETHPERP);
-        int256 marginDelta = int256(AMOUNT) / 10;
-        int256 sizeDelta = 1 ether;
-        (uint256 desiredFillPrice,) =
-            IPerpsV2MarketConsolidated(market).assetPrice();
-
-        // define atomic order to open position
-        IAccount.Command[] memory commands = new IAccount.Command[](2);
-        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
-        bytes[] memory inputs = new bytes[](2);
-        inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
-
-        // open position
-        account.execute(commands, inputs);
-
-        // define close position order
-        commands = new IAccount.Command[](1);
-        inputs = new bytes[](1);
-        commands[0] = IAccount.Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER;
-        inputs[0] =
-            abi.encode(getMarketAddressFromKey(sETHPERP), 0, desiredFillPrice);
-
-        uint256 balanceBefore = sUSD.balanceOf(settings.treasury());
-        account.execute(commands, inputs);
-        uint256 balanceAfter = sUSD.balanceOf(settings.treasury());
-
-        assertEq(
-            balanceAfter - balanceBefore,
-            accountExposed.expose_calculateFee(
-                sizeDelta, IPerpsV2MarketConsolidated(market), 0
-            )
-        );
     }
 
     /*
@@ -897,107 +718,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             account.getDelayedOrder(sETHPERP);
         assert(order.isOffchain == true);
         assert(order.sizeDelta == -sizeDelta);
-    }
-
-    function test_Commands_SubmitCloseOffchainDelayedOrde_TradeFeeImposed()
-        public
-    {
-        fundAccount(AMOUNT);
-
-        address market = getMarketAddressFromKey(sETHPERP);
-        int256 marginDelta = int256(AMOUNT) / 10;
-        int256 sizeDelta = 1 ether;
-        (uint256 desiredFillPrice,) =
-            IPerpsV2MarketConsolidated(market).assetPrice();
-
-        // define atomic order to open position
-        IAccount.Command[] memory commands = new IAccount.Command[](2);
-        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
-        bytes[] memory inputs = new bytes[](2);
-        inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
-
-        // open position
-        account.execute(commands, inputs);
-
-        // define close position order
-        commands = new IAccount.Command[](1);
-        inputs = new bytes[](1);
-        commands[0] =
-            IAccount.Command.PERPS_V2_SUBMIT_CLOSE_OFFCHAIN_DELAYED_ORDER;
-        inputs[0] =
-            abi.encode(getMarketAddressFromKey(sETHPERP), desiredFillPrice);
-
-        uint256 balanceBefore = sUSD.balanceOf(settings.treasury());
-        account.execute(commands, inputs);
-        uint256 balanceAfter = sUSD.balanceOf(settings.treasury());
-
-        assertEq(
-            balanceAfter - balanceBefore,
-            accountExposed.expose_calculateFee(
-                sizeDelta, IPerpsV2MarketConsolidated(market), 0
-            )
-        );
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                              TRADING FEES
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice test trading fee is imposed when size delta is non-zero
-    function test_TradeFee_SizeDeltaNonZero() public {
-        fundAccount(AMOUNT);
-
-        IPerpsV2MarketConsolidated market =
-            IPerpsV2MarketConsolidated(getMarketAddressFromKey(sETHPERP));
-        int256 marginDelta = int256(AMOUNT) / 10;
-        int256 sizeDelta = 1 ether;
-        (uint256 desiredFillPrice,) =
-            IPerpsV2MarketConsolidated(market).assetPrice();
-
-        IAccount.Command[] memory commands = new IAccount.Command[](2);
-        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
-        bytes[] memory inputs = new bytes[](2);
-        inputs[0] = abi.encode(address(market), marginDelta);
-        inputs[1] = abi.encode(address(market), sizeDelta, desiredFillPrice);
-
-        uint256 percentToTake = settings.tradeFee();
-        uint256 fee =
-            (accountExposed.expose_abs(sizeDelta) * percentToTake) / MAX_BPS;
-        (uint256 price, bool invalid) = market.assetPrice();
-        assert(!invalid);
-        uint256 feeInSUSD = (price * fee) / 1e18;
-
-        vm.expectEmit(true, true, true, true);
-        emit FeeImposed(
-            address(account),
-            feeInSUSD,
-            sETHPERP,
-            bytes32(uint256(IAccount.FeeReason.TRADE_FEE))
-        );
-        account.execute(commands, inputs);
-    }
-
-    /// @notice test CannotPayFee error is emitted when fee exceeds free margin
-    function test_TradeFee_ExceedFreeMargin() public {
-        fundAccount(AMOUNT);
-
-        address market = getMarketAddressFromKey(sETHPERP);
-        int256 marginDelta = int256(AMOUNT);
-        int256 sizeDelta = 1 ether;
-        (uint256 desiredFillPrice,) =
-            IPerpsV2MarketConsolidated(market).assetPrice();
-
-        IAccount.Command[] memory commands = new IAccount.Command[](2);
-        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
-        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
-        bytes[] memory inputs = new bytes[](2);
-        inputs[0] = abi.encode(market, marginDelta);
-        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
-        vm.expectRevert(abi.encodeWithSelector(IAccount.CannotPayFee.selector));
-        account.execute(commands, inputs);
     }
 
     /*//////////////////////////////////////////////////////////////

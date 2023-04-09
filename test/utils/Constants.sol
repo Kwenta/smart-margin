@@ -10,6 +10,9 @@ pragma solidity 0.8.18;
 // used to create a consistent and realistic test environment exposing Synthetix PerpsV2
 uint256 constant BLOCK_NUMBER = 7_642_959;
 
+// test deployer address with ETH
+address constant DEPLOYER = 0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4;
+
 // test user address
 address constant USER = 0x35eFbD8Ab6F7258C13D3ecDfc56c2c0DD094678F;
 

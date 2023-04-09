@@ -13,11 +13,10 @@ import {
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated
 } from "../../src/interfaces/IAccount.sol";
-import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
-import {ISynth} from "@synthetix/ISynth.sol";
-import {ISystemStatus} from "@synthetix/ISystemStatus.sol";
+import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
+import {ISynth} from "../utils/interfaces/ISynth.sol";
+import {ISystemStatus} from "../utils/interfaces/ISystemStatus.sol";
 import {OpsReady, IOps} from "../../src/utils/OpsReady.sol";
-import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 import "../utils/Constants.sol";
 
@@ -30,13 +29,13 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    Settings private settings;
-    Events private events;
     Factory private factory;
+    Events private events;
     Account private account;
     ERC20 private sUSD;
     AccountExposed private accountExposed;
     uint256 private currentEthPriceInUSD;
+    ISystemStatus systemStatus;
 
     /*//////////////////////////////////////////////////////////////
                                  SETUP
@@ -44,35 +43,29 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
-
-        sUSD = ERC20(IAddressResolver(ADDRESS_RESOLVER).getAddress("ProxysUSD"));
-
         Setup setup = new Setup();
-        factory = setup.deploySmartMarginFactory({
-            useDeployer: false,
-            owner: address(this),
-            treasury: KWENTA_TREASURY,
-            tradeFee: 0,
-            limitOrderFee: 0,
-            stopOrderFee: 0,
-            addressResolver: ADDRESS_RESOLVER,
-            marginAsset: MARGIN_ASSET,
-            gelato: GELATO,
-            ops: OPS
+        (factory, events,) = setup.deploySystem({
+            _owner: address(this),
+            _addressResolver: ADDRESS_RESOLVER,
+            _gelato: GELATO,
+            _ops: OPS
         });
 
-        settings = Settings(factory.settings());
-        events = Events(factory.events());
+        sUSD =
+            ERC20((IAddressResolver(ADDRESS_RESOLVER)).getAddress("ProxysUSD"));
+        address futuresMarketManager = IAddressResolver(ADDRESS_RESOLVER)
+            .getAddress({name: bytes32("FuturesMarketManager")});
+        systemStatus = ISystemStatus(
+            IAddressResolver(ADDRESS_RESOLVER).getAddress({
+                name: bytes32("SystemStatus")
+            })
+        );
+
+        accountExposed =
+        new AccountExposed(address(events), address(sUSD), futuresMarketManager, address(systemStatus), GELATO, OPS);
 
         account = Account(payable(factory.newAccount()));
         fundAccount(AMOUNT);
-
-        accountExposed = new AccountExposed();
-        accountExposed.setFuturesMarketManager(
-            IFuturesMarketManager(address(account.futuresMarketManager()))
-        );
-        accountExposed.setSettings(settings);
-        accountExposed.setEvents(events);
 
         currentEthPriceInUSD = accountExposed.expose_sUSDRate(
             IPerpsV2MarketConsolidated(
@@ -109,11 +102,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     }
 
     function test_PlaceConditionalOrder_Invalid_ZeroSizeDelta() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccount.ValueCannotBeZero.selector, bytes32("_sizeDelta")
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(IAccount.ZeroSizeDelta.selector));
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.GELATO_PLACE_CONDITIONAL_ORDER;
         bytes[] memory inputs = new bytes[](1);
@@ -589,9 +578,6 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             desiredFillPrice: 0,
             reduceOnly: false
         });
-
-        // define SystemStatus contract
-        ISystemStatus systemStatus = ISystemStatus(account.systemStatus());
 
         // fetch owner address of SystemStatus contract
         (bool success, bytes memory response) =
@@ -1117,8 +1103,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     account: address(account),
                     conditionalOrderId: conditionalOrderId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE,
-                    kwentaFee: 0
+                    keeperFee: GELATO_FEE
                 });
             } else if (fuzzedSizeDelta + position.size >= 0) {
                 // expect conditional order to be filled with specified fuzzedSizeDelta
@@ -1127,8 +1112,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     account: address(account),
                     conditionalOrderId: conditionalOrderId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE,
-                    kwentaFee: 0
+                    keeperFee: GELATO_FEE
                 });
             } else {
                 revert("Uncaught case");
@@ -1189,8 +1173,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     account: address(account),
                     conditionalOrderId: conditionalOrderId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE,
-                    kwentaFee: 0
+                    keeperFee: GELATO_FEE
                 });
             } else if (fuzzedSizeDelta + position.size <= 0) {
                 // expect conditional order to be filled with specified fuzzedSizeDelta
@@ -1199,8 +1182,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     account: address(account),
                     conditionalOrderId: conditionalOrderId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE,
-                    kwentaFee: 0
+                    keeperFee: GELATO_FEE
                 });
             } else {
                 revert("Uncaught case");
