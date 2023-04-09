@@ -5,7 +5,6 @@ import {
     Account,
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated,
-    ISettings,
     IEvents,
     IOps
 } from "../../src/Account.sol";
@@ -13,45 +12,23 @@ import "./Constants.sol";
 
 /// @dev This contract exposes the internal functions of Account.sol for testing purposes
 contract AccountExposed is Account {
-    constructor() Account(ADDRESS_RESOLVER, MARGIN_ASSET, GELATO, OPS) {}
-
-    /*//////////////////////////////////////////////////////////////
-                      SETTERS FOR EXPOSED ACCOUNT
-    //////////////////////////////////////////////////////////////*/
-
-    function setFuturesMarketManager(
-        IFuturesMarketManager _futuresMarketManager
-    ) external {
-        futuresMarketManager = _futuresMarketManager;
-    }
-
-    function setSettings(ISettings _settings) public {
-        settings = _settings;
-    }
-
-    function setEvents(IEvents _events) public {
-        events = _events;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                         EXPOSED FEE UTILITIES
-    //////////////////////////////////////////////////////////////*/
-
-    function expose_calculateFee(
-        int256 _sizeDelta,
-        IPerpsV2MarketConsolidated _market,
-        uint256 _conditionalOrderFee
-    ) public view returns (uint256 fee) {
-        return _calculateFee(_sizeDelta, _market, _conditionalOrderFee);
-    }
-
-    function expose_imposeFee(
-        uint256 _fee,
-        bytes32 _marketKey,
-        FeeReason _reason
-    ) public {
-        _imposeFee(_fee, _marketKey, _reason);
-    }
+    constructor(
+        address _events,
+        address _marginAsset,
+        address _futuresMarketManager,
+        address _systemStatus,
+        address _gelato,
+        address _ops
+    )
+        Account(
+            _events,
+            _marginAsset,
+            _futuresMarketManager,
+            _systemStatus,
+            _gelato,
+            _ops
+        )
+    {}
 
     /*//////////////////////////////////////////////////////////////
                             EXPOSED COMMANDS

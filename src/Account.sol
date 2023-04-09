@@ -4,12 +4,10 @@ pragma solidity 0.8.18;
 import {Auth} from "./utils/Auth.sol";
 import {
     IAccount,
-    IAddressResolver,
     IEvents,
     IFactory,
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated,
-    ISettings,
     ISystemStatus
 } from "./interfaces/IAccount.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -31,44 +29,32 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @notice tracking code used when modifying positions
     bytes32 private constant TRACKING_CODE = "KWENTA";
 
-    /// @notice name for futures market manager
-    bytes32 private constant FUTURES_MARKET_MANAGER = "FuturesMarketManager";
-
-    /// @notice name for system status
-    bytes32 private constant SYSTEM_STATUS = "SystemStatus";
-
-    /// @notice constant for sUSD currency key
-    bytes32 private constant SUSD = "sUSD";
-
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice address of the Synthetix ReadProxyAddressResolver
-    IAddressResolver private immutable ADDRESS_RESOLVER;
+    /// @notice address of the contract used by all accounts for emitting events
+    /// @dev can be immutable due to the fact the events contract is
+    /// upgraded alongside the account implementation
+    IEvents private immutable EVENTS;
 
-    /// @notice address of the Synthetix ProxyERC20sUSD
-    /// address used as the margin asset
+    /// @notice address of the Synthetix ProxyERC20sUSD contract used as the margin asset
+    /// @dev can be immutable due to the fact the sUSD contract is a proxy address
     IERC20 private immutable MARGIN_ASSET;
+
+    /// @notice address of the Synthetix FuturesMarketManager
+    /// @dev the manager keeps track of which markets exist, and is the main window between
+    /// perpsV2 markets and the rest of the synthetix system. It accumulates the total debt
+    /// over all markets, and issues and burns sUSD on each market's behalf
+    IFuturesMarketManager private immutable FUTURES_MARKET_MANAGER;
+
+    /// @notice address of the Synthetix SystemStatus
+    /// @dev the system status contract is used to check if the system is operational
+    ISystemStatus private immutable SYSTEM_STATUS;
 
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
-
-    /// @inheritdoc IAccount
-    IFactory public factory;
-
-    //// @inheritdoc IAccount
-    IFuturesMarketManager public futuresMarketManager;
-
-    /// @inheritdoc IAccount
-    ISystemStatus public systemStatus;
-
-    /// @inheritdoc IAccount
-    ISettings public settings;
-
-    /// @inheritdoc IAccount
-    IEvents public events;
 
     /// @inheritdoc IAccount
     uint256 public committedMargin;
@@ -79,17 +65,8 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @notice track conditional orders by id
     mapping(uint256 id => ConditionalOrder order) private conditionalOrders;
 
-    /*//////////////////////////////////////////////////////////////
-                               MODIFIERS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice helpful modifier to check non-zero values
-    /// @param value: value to check if zero
-    modifier notZero(uint256 value, bytes32 valueName) {
-        if (value == 0) revert ValueCannotBeZero(valueName);
-
-        _;
-    }
+    /// @notice address of the Smart Margin Account Factory
+    IFactory private factory;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -97,57 +74,40 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
 
     /// @notice disable initializers on initial contract deployment
     /// @dev set owner of implementation to zero address
-    /// @param addressResolver: address of Synthetix ReadProxyAddressResolver
-    /// @param marginAsset: address of Synthetix ProxyERC20sUSD
-    /// @param gelato: address of Gelato
-    /// @param ops: address of Ops
+    /// @param _events: address of the contract used by all accounts for emitting events
+    /// @param _marginAsset: address of the Synthetix ProxyERC20sUSD contract used as the margin asset
+    /// @param _futuresMarketManager: address of the Synthetix FuturesMarketManager
+    /// @param _gelato: address of Gelato
+    /// @param _ops: address of Ops
     constructor(
-        address addressResolver,
-        address marginAsset,
-        address gelato,
-        address ops
-    ) Auth(address(0)) OpsReady(gelato, ops) {
+        address _events,
+        address _marginAsset,
+        address _futuresMarketManager,
+        address _systemStatus,
+        address _gelato,
+        address _ops
+    ) Auth(address(0)) OpsReady(_gelato, _ops) {
         // recommended to use this to lock implementation contracts
         // that are designed to be called through proxies
         _disableInitializers();
 
-        ADDRESS_RESOLVER = IAddressResolver(addressResolver);
-        MARGIN_ASSET = IERC20(marginAsset);
+        EVENTS = IEvents(_events);
+        MARGIN_ASSET = IERC20(_marginAsset);
+        FUTURES_MARKET_MANAGER = IFuturesMarketManager(_futuresMarketManager);
+        SYSTEM_STATUS = ISystemStatus(_systemStatus);
     }
 
-    /// @notice initialize contract (only once) and transfer ownership to specified address
-    /// @dev ensure resolver and sUSD addresses are set to their proxies and not implementations
+    /// @notice initialize contract (only once), transfer ownership to specified address,
+    /// and set the address of the Smart Margin Account Factory
     /// @param _owner: account owner
-    /// @param _settings: contract address for account settings
-    /// @param _events: address of events contract for accounts
-    /// @param _factory: contract address for account factory
-    function initialize(
-        address _owner,
-        address _settings,
-        address _events,
-        address _factory
-    ) external initializer {
+    /// @param _factory: address of the Smart Margin Account Factory
+    function initialize(address _owner, address _factory)
+        external
+        initializer
+    {
         owner = _owner;
-        emit OwnershipTransferred(address(0), _owner);
-
-        settings = ISettings(_settings);
-        events = IEvents(_events);
         factory = IFactory(_factory);
-
-        // get address for futures market manager
-        futuresMarketManager = IFuturesMarketManager(
-            ADDRESS_RESOLVER.requireAndGetAddress(
-                FUTURES_MARKET_MANAGER,
-                "Account: Could not get Futures Market Manager"
-            )
-        );
-
-        // get address for system status
-        systemStatus = ISystemStatus(
-            ADDRESS_RESOLVER.requireAndGetAddress(
-                SYSTEM_STATUS, "Account: Could not get System Status"
-            )
-        );
+        emit OwnershipTransferred(address(0), _owner);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -389,19 +349,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                 marketKey = marketKey == bytes32(0)
                     ? IPerpsV2MarketConsolidated(market).marketKey()
                     : marketKey;
-
-                // the above commands are all subject to a trade fee if delta size is non-zero
-                if (sizeDelta != 0) {
-                    _imposeFee({
-                        _fee: _calculateFee({
-                            _sizeDelta: sizeDelta,
-                            _market: IPerpsV2MarketConsolidated(market),
-                            _conditionalOrderFee: 0
-                        }),
-                        _marketKey: marketKey,
-                        _reason: FeeReason.TRADE_FEE
-                    });
-                }
             } else {
                 // commandIndex >= 10
                 if (_command == Command.PERPS_V2_CANCEL_DELAYED_ORDER) {
@@ -475,7 +422,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
             (bool success,) = payable(owner).call{value: _amount}("");
             if (!success) revert EthWithdrawalFailed();
 
-            events.emitEthWithdraw({
+            EVENTS.emitEthWithdraw({
                 user: msg.sender,
                 account: address(this),
                 amount: _amount
@@ -491,7 +438,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
             /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
             MARGIN_ASSET.transferFrom(owner, address(this), _abs(_amount));
 
-            events.emitDeposit({
+            EVENTS.emitDeposit({
                 user: msg.sender,
                 account: address(this),
                 amount: _abs(_amount)
@@ -505,7 +452,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                 /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
                 MARGIN_ASSET.transfer(owner, _abs(_amount));
 
-                events.emitWithdraw({
+                EVENTS.emitWithdraw({
                     user: msg.sender,
                     account: address(this),
                     amount: _abs(_amount)
@@ -544,7 +491,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice submit an atomic order to a Synthetix PerpsV2 Market
-    /// @dev trade fee may be imposed on smart margin account
     /// @param _market: address of market
     /// @param _sizeDelta: size delta of order
     /// @param _desiredFillPrice: desired fill price of order
@@ -561,7 +507,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     }
 
     /// @notice close Synthetix PerpsV2 Market position via an atomic order
-    /// @dev trade fee may be imposed on smart margin account
     /// @param _market: address of market
     /// @param _desiredFillPrice: desired fill price of order
     function _perpsV2ClosePosition(address _market, uint256 _desiredFillPrice)
@@ -580,7 +525,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice submit a delayed order to a Synthetix PerpsV2 Market
-    /// @dev trade fee may be imposed on smart margin account
     /// @param _market: address of market
     /// @param _sizeDelta: size delta of order
     /// @param _desiredTimeDelta: desired time delta of order
@@ -606,7 +550,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     }
 
     /// @notice close Synthetix PerpsV2 Market position via a delayed order
-    /// @dev trade fee may be imposed on smart margin account
     /// @param _market: address of market
     /// @param _desiredTimeDelta: desired time delta of order
     /// @param _desiredFillPrice: desired fill price of order
@@ -629,7 +572,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice submit an off-chain delayed order to a Synthetix PerpsV2 Market
-    /// @dev trade fee may be imposed on smart margin account
     /// @param _market: address of market
     /// @param _sizeDelta: size delta of order
     /// @param _desiredFillPrice: desired fill price of order
@@ -655,7 +597,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     }
 
     /// @notice close Synthetix PerpsV2 Market position via an offchain delayed order
-    /// @dev trade fee may be imposed on smart margin account
     /// @param _market: address of market
     /// @param _desiredFillPrice: desired fill price of order
     function _perpsV2SubmitCloseOffchainDelayedOrder(
@@ -692,7 +633,9 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         ConditionalOrderTypes _conditionalOrderType,
         uint256 _desiredFillPrice,
         bool _reduceOnly
-    ) internal notZero(_abs(_sizeDelta), "_sizeDelta") {
+    ) internal {
+        if (_sizeDelta == 0) revert ZeroSizeDelta();
+
         // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
             // ensure margin doesn't exceed max
@@ -719,7 +662,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
             reduceOnly: _reduceOnly
         });
 
-        events.emitConditionalOrderPlaced({
+        EVENTS.emitConditionalOrderPlaced({
             account: address(this),
             conditionalOrderId: conditionalOrderId,
             marketKey: _marketKey,
@@ -785,7 +728,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         // delete order from conditional orders
         delete conditionalOrders[_conditionalOrderId];
 
-        events.emitConditionalOrderCancelled({
+        EVENTS.emitConditionalOrderCancelled({
             account: address(this),
             conditionalOrderId: _conditionalOrderId,
             reason: ConditionalOrderCancelledReason
@@ -831,7 +774,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                 currentSize == 0
                     || _isSameSign(currentSize, conditionalOrder.sizeDelta)
             ) {
-                events.emitConditionalOrderCancelled({
+                EVENTS.emitConditionalOrderCancelled({
                     account: address(this),
                     conditionalOrderId: _conditionalOrderId,
                     reason: ConditionalOrderCancelledReason
@@ -855,12 +798,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
             committedMargin -= _abs(conditionalOrder.marginDelta);
         }
 
-        // calculate conditional order fee imposed by Kwenta
-        uint256 conditionalOrderFee = conditionalOrder.conditionalOrderType
-            == ConditionalOrderTypes.LIMIT
-            ? settings.limitOrderFee()
-            : settings.stopOrderFee();
-
         // execute trade
         _perpsV2ModifyMargin({
             _market: market,
@@ -876,24 +813,11 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
         _transfer({_amount: fee, _paymentToken: feeToken});
 
-        // pay Kwenta imposed fee for both the trade and the conditional order execution
-        uint256 kwentaImposedFee = _calculateFee({
-            _sizeDelta: conditionalOrder.sizeDelta,
-            _market: IPerpsV2MarketConsolidated(market),
-            _conditionalOrderFee: conditionalOrderFee
-        });
-        _imposeFee({
-            _fee: kwentaImposedFee,
-            _marketKey: conditionalOrder.marketKey,
-            _reason: FeeReason.TRADE_AND_CONDITIONAL_ORDER_FEE
-        });
-
-        events.emitConditionalOrderFilled({
+        EVENTS.emitConditionalOrderFilled({
             account: address(this),
             conditionalOrderId: _conditionalOrderId,
             fillPrice: fillPrice,
-            keeperFee: fee,
-            kwentaFee: kwentaImposedFee
+            keeperFee: fee
         });
     }
 
@@ -910,7 +834,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
             getConditionalOrder(_conditionalOrderId);
 
         // return false if market is paused
-        try systemStatus.requireFuturesMarketActive(conditionalOrder.marketKey)
+        try SYSTEM_STATUS.requireFuturesMarketActive(conditionalOrder.marketKey)
         {} catch {
             return false;
         }
@@ -974,53 +898,6 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     }
 
     /*//////////////////////////////////////////////////////////////
-                             FEE UTILITIES
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice calculate fee based on both size and given market
-    /// @param _sizeDelta: size delta of given trade
-    /// @param _market: Synthetix PerpsV2 Market
-    /// @param _conditionalOrderFee: additional fee charged for conditional orders
-    /// @return fee to be imposed based on size delta
-    function _calculateFee(
-        int256 _sizeDelta,
-        IPerpsV2MarketConsolidated _market,
-        uint256 _conditionalOrderFee
-    ) internal view returns (uint256 fee) {
-        fee = (_abs(_sizeDelta) * (settings.tradeFee() + _conditionalOrderFee))
-            / settings.MAX_BPS();
-
-        /// @notice fee is currently measured in the underlying base asset of the market
-        /// @dev fee will be measured in sUSD, thus exchange rate is needed
-        fee = (_sUSDRate(_market) * fee) / 1e18;
-    }
-
-    /// @notice impose fee on account
-    /// @param _fee: fee to impose
-    /// @param _marketKey: key for Synthetix PerpsV2 market
-    /// @param _reason: reason for fee
-    function _imposeFee(uint256 _fee, bytes32 _marketKey, FeeReason _reason)
-        internal
-    {
-        /// @dev send fee to Kwenta's treasury
-        if (_fee > freeMargin()) {
-            // fee canot be greater than available margin
-            revert CannotPayFee();
-        } else {
-            // attempt to transfer margin asset from user to Kwenta's treasury
-            /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
-            MARGIN_ASSET.transfer(settings.treasury(), _fee);
-
-            events.emitFeeImposed({
-                account: address(this),
-                amount: _fee,
-                marketKey: _marketKey,
-                reason: bytes32(uint256(_reason))
-            });
-        }
-    }
-
-    /*//////////////////////////////////////////////////////////////
                             GETTER UTILITIES
     //////////////////////////////////////////////////////////////*/
 
@@ -1033,7 +910,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         returns (IPerpsV2MarketConsolidated)
     {
         return IPerpsV2MarketConsolidated(
-            futuresMarketManager.marketForKey(_marketKey)
+            FUTURES_MARKET_MANAGER.marketForKey(_marketKey)
         );
     }
 

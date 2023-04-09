@@ -13,8 +13,7 @@ import {
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated
 } from "../../src/interfaces/IAccount.sol";
-import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
-import {Settings} from "../../src/Settings.sol";
+import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 import "../utils/Constants.sol";
 
@@ -23,9 +22,8 @@ contract AccountTest is Test, ConsolidatedEvents {
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    Settings private settings;
-    Events private events;
     Factory private factory;
+    Events private events;
     Account private account;
     AccountExposed private accountExposed;
 
@@ -39,30 +37,25 @@ contract AccountTest is Test, ConsolidatedEvents {
         vm.rollFork(BLOCK_NUMBER);
 
         Setup setup = new Setup();
-        factory = setup.deploySmartMarginFactory({
-            useDeployer: false,
-            owner: address(this),
-            treasury: KWENTA_TREASURY,
-            tradeFee: TRADE_FEE,
-            limitOrderFee: LIMIT_ORDER_FEE,
-            stopOrderFee: STOP_ORDER_FEE,
-            addressResolver: ADDRESS_RESOLVER,
-            marginAsset: MARGIN_ASSET,
-            gelato: GELATO,
-            ops: OPS
+
+        (factory, events,) = setup.deploySystem({
+            _owner: address(this),
+            _addressResolver: ADDRESS_RESOLVER,
+            _gelato: GELATO,
+            _ops: OPS
         });
 
-        settings = Settings(factory.settings());
-        events = Events(factory.events());
+        address sUSD =
+            (IAddressResolver(ADDRESS_RESOLVER)).getAddress("ProxysUSD");
+        address futuresMarketManager = IAddressResolver(ADDRESS_RESOLVER)
+            .getAddress({name: bytes32("FuturesMarketManager")});
+        address systemStatus = IAddressResolver(ADDRESS_RESOLVER).getAddress({
+            name: bytes32("SystemStatus")
+        });
 
+        accountExposed =
+        new AccountExposed(address(events), sUSD, futuresMarketManager, systemStatus, GELATO, OPS);
         account = Account(payable(factory.newAccount()));
-
-        accountExposed = new AccountExposed();
-        accountExposed.setFuturesMarketManager(
-            IFuturesMarketManager(account.futuresMarketManager())
-        );
-        accountExposed.setSettings(settings);
-        accountExposed.setEvents(events);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -75,22 +68,6 @@ contract AccountTest is Test, ConsolidatedEvents {
 
     function test_GetVerison() public view {
         assert(account.VERSION() == "2.0.0");
-    }
-
-    function test_GetFactory() public view {
-        assert(account.factory() == factory);
-    }
-
-    function test_GetFuturesMarketManager() public view {
-        assert(address(account.futuresMarketManager()) != address(0));
-    }
-
-    function test_GetSettings() public view {
-        assert(account.settings() == settings);
-    }
-
-    function test_GetEvents() public view {
-        assert(account.events() == events);
     }
 
     function test_GetCommittedMargin() public view {
@@ -219,39 +196,6 @@ contract AccountTest is Test, ConsolidatedEvents {
         account.transferOwnership(KWENTA_TREASURY);
         vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         withdrawEth(1 ether);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                             FEE UTILITIES
-    //////////////////////////////////////////////////////////////*/
-
-    function test_CalculateFee_EthMarket(int128 fuzzedSizeDelta) public {
-        uint256 conditionalOrderFee = MAX_BPS / 99;
-        IPerpsV2MarketConsolidated market =
-            IPerpsV2MarketConsolidated(getMarketAddressFromKey(sETHPERP));
-        uint256 percentToTake = settings.tradeFee() + conditionalOrderFee;
-        uint256 fee = (
-            accountExposed.expose_abs(int256(fuzzedSizeDelta)) * percentToTake
-        ) / MAX_BPS;
-        (uint256 price, bool invalid) = market.assetPrice();
-        assert(!invalid);
-        uint256 feeInSUSD = (price * fee) / 1e18;
-        uint256 actualFee = accountExposed.expose_calculateFee({
-            _sizeDelta: fuzzedSizeDelta,
-            _market: market,
-            _conditionalOrderFee: conditionalOrderFee
-        });
-        assertEq(actualFee, feeInSUSD);
-    }
-
-    function test_CalculateFee_InvalidMarket() public {
-        int256 sizeDelta = -1 ether;
-        vm.expectRevert();
-        accountExposed.expose_calculateFee({
-            _sizeDelta: sizeDelta,
-            _market: IPerpsV2MarketConsolidated(address(0)),
-            _conditionalOrderFee: LIMIT_ORDER_FEE
-        });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -590,12 +534,8 @@ contract AccountTest is Test, ConsolidatedEvents {
 
         vm.prank(DELEGATE);
 
-        /// @notice delegate CAN execute the following COMMAND
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccount.ValueCannotBeZero.selector, bytes32("_sizeDelta")
-            )
-        );
+        /// @notice delegate CANNOT execute the following COMMAND
+        vm.expectRevert(abi.encodeWithSelector(IAccount.ZeroSizeDelta.selector));
         account.execute(commands, inputs);
     }
 
