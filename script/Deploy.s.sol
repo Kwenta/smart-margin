@@ -14,13 +14,15 @@ interface IAddressResolver {
 /// @author JaredBorders (jaredborders@pm.me)
 contract Setup {
     function deploySystem(
+        address _deployer,
         address _owner,
         address _addressResolver,
         address _gelato,
         address _ops
     ) public returns (Factory factory, Events events, Account implementation) {
-        // deploy the factory, setting owner as the deployer's address
-        factory = deploySmartMarginFactory({_owner: address(this)});
+        // deploy the factory
+        address temporaryOwner = _deployer == address(0) ? address(this) : _deployer;
+        factory = deploySmartMarginFactory({_owner: temporaryOwner});
 
         // deploy the events contract and set the factory
         events = deployEvents({_factory: address(factory)});
@@ -104,6 +106,7 @@ contract DeployOptimism is Script, Setup {
         vm.startBroadcast(deployerPrivateKey);
 
         Setup.deploySystem({
+            _deployer: address(0), /// @custom:todo change to deployer addresses
             _owner: KWENTA_ADMIN_DAO_MULTI_SIG,
             _addressResolver: SYNTHETIX_ADDRESS_RESOLVER,
             _gelato: GELATO,
@@ -131,6 +134,7 @@ contract DeployOptimismGoerli is Script, Setup {
         vm.startBroadcast(deployerPrivateKey);
 
         Setup.deploySystem({
+            _deployer: address(0), /// @custom:todo change to deployer addresses
             _owner: KWENTA_ADMIN_DAO_MULTI_SIG,
             _addressResolver: SYNTHETIX_ADDRESS_RESOLVER,
             _gelato: GELATO,

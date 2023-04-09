@@ -39,6 +39,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         Setup setup = new Setup();
 
         (factory, events,) = setup.deploySystem({
+            _deployer: address(0),
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
             _gelato: GELATO,

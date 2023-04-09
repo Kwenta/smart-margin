@@ -28,6 +28,7 @@ contract FactoryBehaviorTest is Test, ConsolidatedEvents {
         vm.rollFork(BLOCK_NUMBER);
         Setup setup = new Setup();
         (factory, events, implementation) = setup.deploySystem({
+            _deployer: address(0),
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
             _gelato: GELATO,
