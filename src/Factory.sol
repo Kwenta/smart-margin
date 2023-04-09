@@ -7,8 +7,8 @@ import {Owned} from "@solmate/auth/Owned.sol";
 
 /// @title Kwenta Account Factory
 /// @author JaredBorders (jaredborders@pm.me)
-/// @notice Mutable factory for creating smart margin accounts
-/// @dev This contract acts as a Beacon for the {AccountProxy.sol} contract
+/// @notice factory for creating smart margin accounts
+/// @dev the factory acts as a beacon for the proxy {AccountProxy.sol} contract(s)
 contract Factory is IFactory, Owned {
     /*//////////////////////////////////////////////////////////////
                                  STATE
@@ -16,12 +16,6 @@ contract Factory is IFactory, Owned {
 
     /// @inheritdoc IFactory
     bool public canUpgrade = true;
-
-    /// @inheritdoc IFactory
-    address public settings;
-
-    /// @inheritdoc IFactory
-    address public events;
 
     /// @inheritdoc IFactory
     address public implementation;
@@ -36,21 +30,9 @@ contract Factory is IFactory, Owned {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice constructor for factory
+    /// @notice constructor for factory that sets owner
     /// @param _owner: owner of factory
-    /// @param _settings: address of settings contract for accounts
-    /// @param _events: address of events contract for accounts
-    /// @param _implementation: address of account implementation
-    constructor(
-        address _owner,
-        address _settings,
-        address _events,
-        address _implementation
-    ) Owned(_owner) {
-        settings = _settings;
-        events = _events;
-        implementation = _implementation;
-    }
+    constructor(address _owner) Owned(_owner) {}
 
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
@@ -164,10 +146,8 @@ contract Factory is IFactory, Owned {
         // initialize new account
         (bool success, bytes memory data) = accountAddress.call(
             abi.encodeWithSignature(
-                "initialize(address,address,address,address)",
+                "initialize(address,address)",
                 msg.sender, // caller will be set as owner
-                settings,
-                events,
                 address(this)
             )
         );
@@ -198,20 +178,6 @@ contract Factory is IFactory, Owned {
         if (!canUpgrade) revert CannotUpgrade();
         implementation = _implementation;
         emit AccountImplementationUpgraded({implementation: _implementation});
-    }
-
-    /// @inheritdoc IFactory
-    function upgradeSettings(address _settings) external override onlyOwner {
-        if (!canUpgrade) revert CannotUpgrade();
-        settings = _settings;
-        emit SettingsUpgraded({settings: _settings});
-    }
-
-    /// @inheritdoc IFactory
-    function upgradeEvents(address _events) external override onlyOwner {
-        if (!canUpgrade) revert CannotUpgrade();
-        events = _events;
-        emit EventsUpgraded({events: _events});
     }
 
     /// @inheritdoc IFactory

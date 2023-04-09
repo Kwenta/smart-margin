@@ -19,14 +19,6 @@ interface IFactory {
     /// @param implementation: address of new implementation
     event AccountImplementationUpgraded(address implementation);
 
-    /// @notice emitted when settings contract is upgraded
-    /// @param settings: address of new settings contract
-    event SettingsUpgraded(address settings);
-
-    /// @notice emitted when events contract is upgraded
-    /// @param events: address of new events contract
-    event EventsUpgraded(address events);
-
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -57,12 +49,6 @@ interface IFactory {
 
     /// @return logic: account logic address
     function implementation() external view returns (address);
-
-    /// @return settings: address of settings contract for accounts
-    function settings() external view returns (address);
-
-    /// @return events: address of events contract for accounts
-    function events() external view returns (address);
 
     /// @param _account: address of account
     /// @return whether or not account exists
@@ -117,16 +103,6 @@ interface IFactory {
     /// thus, a bad upgrade could result in severe consequences.
     /// @param _implementation: address of new implementation
     function upgradeAccountImplementation(address _implementation) external;
-
-    /// @dev upgrade settings contract for all future accounts; existing accounts will not be affected
-    /// and will point to settings address they were initially deployed with
-    /// @param _settings: address of new settings contract
-    function upgradeSettings(address _settings) external;
-
-    /// @dev upgrade events contract for all future accounts; existing accounts will not be affected
-    /// and will point to events address they were initially deployed with
-    /// @param _events: address of new events contract
-    function upgradeEvents(address _events) external;
 
     /// @notice remove upgradability from factory
     /// @dev cannot be undone

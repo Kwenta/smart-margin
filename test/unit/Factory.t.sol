@@ -8,7 +8,6 @@ import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
 import {IFactory} from "../../src/interfaces/IFactory.sol";
 import {MockAccount1, MockAccount2} from "../utils/MockAccounts.sol";
-import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 import {UpgradedAccount} from "../utils/UpgradedAccount.sol";
 import "../utils/Constants.sol";
@@ -18,8 +17,6 @@ contract FactoryTest is Test, ConsolidatedEvents {
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    Settings private settings;
-    Events private events;
     Factory private factory;
     Account private implementation;
 
@@ -29,22 +26,15 @@ contract FactoryTest is Test, ConsolidatedEvents {
 
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
+
         Setup setup = new Setup();
-        factory = setup.deploySmartMarginFactory({
-            useDeployer: false,
-            owner: address(this),
-            treasury: KWENTA_TREASURY,
-            tradeFee: TRADE_FEE,
-            limitOrderFee: LIMIT_ORDER_FEE,
-            stopOrderFee: STOP_ORDER_FEE,
-            addressResolver: ADDRESS_RESOLVER,
-            marginAsset: MARGIN_ASSET,
-            gelato: GELATO,
-            ops: OPS
+
+        (factory,, implementation) = setup.deploySystem({
+            _owner: address(this),
+            _addressResolver: ADDRESS_RESOLVER,
+            _gelato: GELATO,
+            _ops: OPS
         });
-        settings = Settings(factory.settings());
-        events = Events(factory.events());
-        implementation = Account(payable(factory.implementation()));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -57,14 +47,6 @@ contract FactoryTest is Test, ConsolidatedEvents {
 
     function test_Constructor_Owner() public {
         assertEq(factory.owner(), address(this));
-    }
-
-    function test_Constructor_Settings() public {
-        assertEq(address(factory.settings()), address(settings));
-    }
-
-    function test_Constructor_Events() public {
-        assertEq(address(factory.events()), address(events));
     }
 
     function test_Constructor_Implementation() public {
@@ -204,20 +186,9 @@ contract FactoryTest is Test, ConsolidatedEvents {
         );
     }
 
-    /// @dev this error does not catch 100% of scenarios.
-    /// it is possible for an implementation to lack an
-    /// initialize() function but contain a fallback()
-    /// function and AccountFailedToInitialize error
-    /// would *NOT* be triggered.
-    ///
-    /// Given this, it is up to the factory owner to take
-    /// extra care when creating the implementation to be used
     function test_NewAccount_CannotBeInitialized() public {
         MockAccount1 mockAccount = new MockAccount1();
-        factory = new Factory({
-            _owner: address(this),
-            _settings: address(settings),
-            _events: address(events),
+        factory.upgradeAccountImplementation({
             _implementation: address(mockAccount)
         });
         vm.expectRevert(
@@ -228,20 +199,9 @@ contract FactoryTest is Test, ConsolidatedEvents {
         factory.newAccount();
     }
 
-    /// @dev this error does not catch 100% of scenarios.
-    /// it is possible for an implementation to lack a
-    /// VERSION() function but contain a fallback()
-    /// function and AccountFailedToFetchVersion error
-    /// would *NOT* be triggered.
-    ///
-    /// Given this, it is up to the factory owner to take
-    /// extra care when creating the implementation to be used
     function test_NewAccount_CannotFetchVersion() public {
         MockAccount2 mockAccount = new MockAccount2();
-        factory = new Factory({
-            _owner: address(this),
-            _settings: address(settings),
-            _events: address(events),
+        factory.upgradeAccountImplementation({
             _implementation: address(mockAccount)
         });
         vm.expectRevert(
@@ -309,85 +269,5 @@ contract FactoryTest is Test, ConsolidatedEvents {
         factory.removeUpgradability();
         vm.expectRevert(abi.encodeWithSelector(IFactory.CannotUpgrade.selector));
         factory.upgradeAccountImplementation({_implementation: address(0)});
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                SETTINGS
-    //////////////////////////////////////////////////////////////*/
-
-    function test_Upgrade_Settings_OnlyOwner() public {
-        vm.expectRevert("UNAUTHORIZED");
-        vm.prank(KWENTA_TREASURY);
-        factory.upgradeSettings({_settings: address(0)});
-    }
-
-    function test_Upgrade_Settings() public {
-        address payable accountAddress = factory.newAccount();
-        address newSettings = address(
-            new Settings({
-                _owner: ACCOUNT, // this upgrade changes owner
-                _treasury: KWENTA_TREASURY,
-                _tradeFee: TRADE_FEE,
-                _limitOrderFee: LIMIT_ORDER_FEE,
-                _stopOrderFee: STOP_ORDER_FEE
-            })
-        );
-        factory.upgradeSettings({_settings: newSettings});
-        // check settings owner did *NOT* change
-        assertEq(
-            Settings(address(Account(accountAddress).settings())).owner(),
-            address(this)
-        );
-        // check new account uses new settings
-        address payable accountAddress2 = factory.newAccount();
-        // check new accounts settings owner did change
-        assertEq(
-            Settings(address(Account(accountAddress2).settings())).owner(),
-            ACCOUNT
-        );
-    }
-
-    function test_Upgrade_Settings_Event() public {
-        vm.expectEmit(true, true, true, true);
-        emit SettingsUpgraded(address(0));
-        factory.upgradeSettings({_settings: address(0)});
-    }
-
-    function test_Upgrade_Settings_UpgradabilityRemoved() public {
-        factory.removeUpgradability();
-        vm.expectRevert(abi.encodeWithSelector(IFactory.CannotUpgrade.selector));
-        factory.upgradeSettings({_settings: address(0)});
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    function test_Upgrade_Events_OnlyOwner() public {
-        vm.expectRevert("UNAUTHORIZED");
-        vm.prank(KWENTA_TREASURY);
-        factory.upgradeEvents({_events: address(0)});
-    }
-
-    function test_Upgrade_Events() public {
-        address payable accountAddress = factory.newAccount();
-        factory.upgradeEvents({_events: address(0)});
-        // check upgrade did not impact previously deployed account
-        assert(address(Account(accountAddress).events()) != address(0));
-        // check new account uses new events
-        address payable accountAddress2 = factory.newAccount();
-        assert(address(Account(accountAddress2).events()) == address(0));
-    }
-
-    function test_Upgrade_Events_Event() public {
-        vm.expectEmit(true, true, true, true);
-        emit EventsUpgraded(address(0));
-        factory.upgradeEvents({_events: address(0)});
-    }
-
-    function test_Upgrade_Events_UpgradabilityRemoved() public {
-        factory.removeUpgradability();
-        vm.expectRevert(abi.encodeWithSelector(IFactory.CannotUpgrade.selector));
-        factory.upgradeEvents({_events: address(0)});
     }
 }
