@@ -59,11 +59,6 @@ bytes32 constant TRACKING_CODE = "KWENTA";
 // address used for testing the AccountProxy Beacon
 address constant BEACON = address(0xA);
 
-// settings fee values
-uint256 constant TRADE_FEE = 1;
-uint256 constant LIMIT_ORDER_FEE = 2;
-uint256 constant STOP_ORDER_FEE = 3;
-
 /*//////////////////////////////////////////////////////////////
                                SYNTHETIX
 //////////////////////////////////////////////////////////////*/
