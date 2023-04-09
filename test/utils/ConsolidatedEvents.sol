@@ -7,15 +7,31 @@ import {IAccount} from "../../src/interfaces/IAccount.sol";
 
 contract ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
+                                IFACTORY
+    //////////////////////////////////////////////////////////////*/
+
+    event NewAccount(
+        address indexed creator, address indexed account, bytes32 version
+    );
+
+    event AccountImplementationUpgraded(address implementation);
+
+    event SettingsUpgraded(address settings);
+    
+    event EventsUpgraded(address events);
+
+    /*//////////////////////////////////////////////////////////////
                                  IAUTH
     //////////////////////////////////////////////////////////////*/
 
     event OwnershipTransferred(
         address indexed caller, address indexed newOwner
     );
+
     event DelegatedAccountAdded(
         address indexed caller, address indexed delegate
     );
+
     event DelegatedAccountRemoved(
         address indexed caller, address indexed delegate
     );
@@ -27,12 +43,15 @@ contract ConsolidatedEvents {
     event Deposit(
         address indexed user, address indexed account, uint256 amount
     );
+
     event Withdraw(
         address indexed user, address indexed account, uint256 amount
     );
+
     event EthWithdraw(
         address indexed user, address indexed account, uint256 amount
     );
+
     event ConditionalOrderPlaced(
         address indexed account,
         uint256 conditionalOrderId,
@@ -44,36 +63,17 @@ contract ConsolidatedEvents {
         uint256 desiredFillPrice,
         bool reduceOnly
     );
+
     event ConditionalOrderCancelled(
         address indexed account,
         uint256 conditionalOrderId,
         IAccount.ConditionalOrderCancelledReason reason
     );
+
     event ConditionalOrderFilled(
         address indexed account,
         uint256 conditionalOrderId,
         uint256 fillPrice,
         uint256 keeperFee
     );
-
-    /*//////////////////////////////////////////////////////////////
-                                IFACTORY
-    //////////////////////////////////////////////////////////////*/
-
-    event NewAccount(
-        address indexed creator, address indexed account, bytes32 version
-    );
-    event AccountImplementationUpgraded(address implementation);
-    event SettingsUpgraded(address settings);
-    event EventsUpgraded(address events);
-
-    /*//////////////////////////////////////////////////////////////
-                               ISETTINGS
-    //////////////////////////////////////////////////////////////*/
-
-    event TreasuryAddressChanged(address treasury);
-    event TradeFeeChanged(uint256 fee);
-    event LimitOrderFeeChanged(uint256 fee);
-    event StopOrderFeeChanged(uint256 fee);
-    event DelegateFeeProportionChanged(uint256 feeProportion);
 }
