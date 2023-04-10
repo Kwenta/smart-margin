@@ -24,7 +24,7 @@ contract Factory is IFactory, Owned {
     mapping(address accounts => bool exist) public accounts;
 
     /// @notice mapping of owner to accounts owned by owner
-    mapping(address owner => address[] accounts) private ownerAccounts;
+    mapping(address owner => address[] accounts) internal ownerAccounts;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR

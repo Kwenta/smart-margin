@@ -27,7 +27,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     bytes32 public constant VERSION = "2.0.0";
 
     /// @notice tracking code used when modifying positions
-    bytes32 private constant TRACKING_CODE = "KWENTA";
+    bytes32 internal constant TRACKING_CODE = "KWENTA";
 
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
@@ -36,21 +36,21 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @notice address of the contract used by all accounts for emitting events
     /// @dev can be immutable due to the fact the events contract is
     /// upgraded alongside the account implementation
-    IEvents private immutable EVENTS;
+    IEvents internal immutable EVENTS;
 
     /// @notice address of the Synthetix ProxyERC20sUSD contract used as the margin asset
     /// @dev can be immutable due to the fact the sUSD contract is a proxy address
-    IERC20 private immutable MARGIN_ASSET;
+    IERC20 internal immutable MARGIN_ASSET;
 
     /// @notice address of the Synthetix FuturesMarketManager
     /// @dev the manager keeps track of which markets exist, and is the main window between
     /// perpsV2 markets and the rest of the synthetix system. It accumulates the total debt
     /// over all markets, and issues and burns sUSD on each market's behalf
-    IFuturesMarketManager private immutable FUTURES_MARKET_MANAGER;
+    IFuturesMarketManager internal immutable FUTURES_MARKET_MANAGER;
 
     /// @notice address of the Synthetix SystemStatus
     /// @dev the system status contract is used to check if the system is operational
-    ISystemStatus private immutable SYSTEM_STATUS;
+    ISystemStatus internal immutable SYSTEM_STATUS;
 
     /*//////////////////////////////////////////////////////////////
                                  STATE
@@ -63,10 +63,10 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     uint256 public conditionalOrderId;
 
     /// @notice track conditional orders by id
-    mapping(uint256 id => ConditionalOrder order) private conditionalOrders;
+    mapping(uint256 id => ConditionalOrder order) internal conditionalOrders;
 
     /// @notice address of the Smart Margin Account Factory
-    IFactory private factory;
+    IFactory internal factory;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
