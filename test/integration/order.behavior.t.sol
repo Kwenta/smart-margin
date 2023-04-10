@@ -596,24 +596,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             reduceOnly: false
         });
 
-        // fetch owner address of SystemStatus contract
-        (bool success, bytes memory response) =
-            address(systemStatus).call(abi.encodeWithSignature("owner()"));
-        address systemStatusOwner =
-            success ? abi.decode(response, (address)) : address(0);
-
-        // add owner to access control list so they can suspend perpsv2 market
-        vm.startPrank(systemStatusOwner);
-        systemStatus.updateAccessControl({
-            section: bytes32("Futures"),
-            account: systemStatusOwner,
-            canSuspend: true,
-            canResume: true
-        });
-
-        // suspend sAUDPERP market
-        systemStatus.suspendFuturesMarket({marketKey: sAUDPERP, reason: 69});
-        vm.stopPrank();
+        // pause sAUDPERP market
+        suspendPerpsV2Market(sAUDPERP);
 
         // assert conditional order cannot be executed due to paused market
         (bool canExecute,) = account.checker(conditionalOrderId);
@@ -755,6 +739,94 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             useTaskTreasuryFunds: false,
             revertOnFailure: true
         });
+    }
+
+    function test_ExecuteConditionalOrder_Valid_TaskCancelled() public {
+        // place conditional order
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD * 2,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            desiredFillPrice: DESIRED_FILL_PRICE,
+            reduceOnly: false
+        });
+
+        // check task id registered in gelato
+        bytes32 taskId =
+            account.getConditionalOrder(conditionalOrderId).gelatoTaskId;
+        bytes32[] memory outstandingTasks =
+            IOps(OPS).getTaskIdsByUser(address(account));
+        assertEq(outstandingTasks.length, 1);
+        assertEq(taskId, outstandingTasks[0]);
+
+        // define module data within test that matches the module data submitted to gelato
+        (bytes memory executionData, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
+
+        // prank gelato and execute task
+        vm.prank(GELATO);
+        IOps(OPS).exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: executionData,
+            moduleData: moduleData,
+            txFee: GELATO_FEE,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        });
+
+        // ensure task is cancelled (i.e. gelato task is removed)
+        outstandingTasks = IOps(OPS).getTaskIdsByUser(address(account));
+        assertEq(outstandingTasks.length, 0);
+    }
+
+    function test_ExecuteConditionalOrder_InvalidAtExecutionTime() public {
+        // place conditional order
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD * 2,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            desiredFillPrice: DESIRED_FILL_PRICE,
+            reduceOnly: false
+        });
+
+        // define task id
+        bytes32 taskId =
+            account.getConditionalOrder(conditionalOrderId).gelatoTaskId;
+
+        // define module data within test that matches the module data submitted to gelato
+        (bytes memory executionData, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
+
+        // suspend market so execution will fail (not this will never happen due to the checker
+        // catching this before gelato executes the task). This is done
+        // here just to replicate the execution failing, regardless of the reason
+        suspendPerpsV2Market(sETHPERP);
+
+        // prank gelato and execute task (note this will fail)
+        vm.prank(GELATO);
+        try IOps(OPS).exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: executionData,
+            moduleData: moduleData,
+            txFee: GELATO_FEE,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        }) {} catch {
+            // ensure task still exists
+            // ensure task is cancelled (i.e. gelato task is removed)
+            bytes32[] memory outstandingTasks =
+                IOps(OPS).getTaskIdsByUser(address(account));
+            assertEq(outstandingTasks.length, 1);
+            assertEq(taskId, outstandingTasks[0]);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1325,6 +1397,27 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             address(account),
             abi.encodeCall(account.checker, conditionalOrderId)
         );
+    }
+
+    function suspendPerpsV2Market(bytes32 market) internal {
+        // fetch owner address of SystemStatus contract
+        (bool success, bytes memory response) =
+            address(systemStatus).call(abi.encodeWithSignature("owner()"));
+        address systemStatusOwner =
+            success ? abi.decode(response, (address)) : address(0);
+
+        // add owner to access control list so they can suspend perpsv2 market
+        vm.startPrank(systemStatusOwner);
+        systemStatus.updateAccessControl({
+            section: bytes32("Futures"),
+            account: systemStatusOwner,
+            canSuspend: true,
+            canResume: true
+        });
+
+        // suspend market
+        systemStatus.suspendFuturesMarket({marketKey: market, reason: 69});
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
