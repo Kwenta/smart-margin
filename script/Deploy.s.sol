@@ -32,15 +32,12 @@ contract Setup {
 
         // resolve necessary addresses via the Synthetix Address Resolver
         IAddressResolver addressResolver = IAddressResolver(_addressResolver);
-        address marginAsset = addressResolver.getAddress({
-            name: bytes32("ProxysUSD")
-        });
-        address futuresMarketManager = addressResolver.getAddress({
-            name: bytes32("FuturesMarketManager")
-        });
-        address systemStatus = addressResolver.getAddress({
-            name: bytes32("SystemStatus")
-        });
+        address marginAsset =
+            addressResolver.getAddress({name: bytes32("ProxysUSD")});
+        address futuresMarketManager =
+            addressResolver.getAddress({name: bytes32("FuturesMarketManager")});
+        address systemStatus =
+            addressResolver.getAddress({name: bytes32("SystemStatus")});
 
         // deploy the account implementation
         implementation = deployAccountImplementation({

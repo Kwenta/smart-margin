@@ -196,9 +196,7 @@ contract FactoryTest is Test, ConsolidatedEvents {
             _implementation: address(mockAccount)
         });
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IFactory.FailedToSetAcountOwner.selector, ""
-            )
+            abi.encodeWithSelector(IFactory.FailedToSetAcountOwner.selector, "")
         );
         factory.newAccount();
     }
