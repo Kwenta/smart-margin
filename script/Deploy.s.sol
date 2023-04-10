@@ -40,6 +40,7 @@ contract Setup {
 
         // deploy the account implementation
         implementation = deployAccountImplementation({
+            _factory: address(factory),
             _events: address(events),
             _marginAsset: marginAsset,
             _futuresMarketManager: futuresMarketManager,
@@ -73,6 +74,7 @@ contract Setup {
     }
 
     function deployAccountImplementation(
+        address _factory,
         address _events,
         address _marginAsset,
         address _futuresMarketManager,
@@ -81,6 +83,7 @@ contract Setup {
         address _ops
     ) internal returns (Account implementation) {
         implementation = new Account({
+            _factory: _factory,
             _events: _events,
             _marginAsset: _marginAsset,
             _futuresMarketManager: _futuresMarketManager,
@@ -107,8 +110,7 @@ contract DeployOptimism is Script, Setup {
         vm.startBroadcast(deployerPrivateKey);
 
         Setup.deploySystem({
-            _deployer: address(0),
-            /// @custom:todo change to deployer addresses
+            _deployer: address(0), // @custom:todo change to deployer addresses
             _owner: KWENTA_ADMIN_DAO_MULTI_SIG,
             _addressResolver: SYNTHETIX_ADDRESS_RESOLVER,
             _gelato: GELATO,
@@ -136,8 +138,7 @@ contract DeployOptimismGoerli is Script, Setup {
         vm.startBroadcast(deployerPrivateKey);
 
         Setup.deploySystem({
-            _deployer: address(0),
-            /// @custom:todo change to deployer addresses
+            _deployer: address(0), // @custom:todo change to deployer addresses
             _owner: KWENTA_ADMIN_DAO_MULTI_SIG,
             _addressResolver: SYNTHETIX_ADDRESS_RESOLVER,
             _gelato: GELATO,
