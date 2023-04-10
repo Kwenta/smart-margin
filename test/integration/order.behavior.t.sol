@@ -38,7 +38,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     ERC20 private sUSD;
     AccountExposed private accountExposed;
     ISystemStatus private systemStatus;
-    
+
     // helper variables for testing
     uint256 private currentEthPriceInUSD;
 
