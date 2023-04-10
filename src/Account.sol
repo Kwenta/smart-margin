@@ -11,14 +11,12 @@ import {
     ISystemStatus
 } from "./interfaces/IAccount.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Initializable} from
-    "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {OpsReady, IOps} from "./utils/OpsReady.sol";
 
 /// @title Kwenta Smart Margin Account Implementation
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice flexible smart margin account enabling users to trade on-chain derivatives
-contract Account is IAccount, OpsReady, Auth, Initializable {
+contract Account is IAccount, Auth, OpsReady {
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -89,22 +87,11 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         address _gelato,
         address _ops
     ) Auth(address(0)) OpsReady(_gelato, _ops) {
-        // recommended to use this to lock implementation contracts
-        // that are designed to be called through proxies
-        _disableInitializers();
-
         FACTORY = IFactory(_factory);
         EVENTS = IEvents(_events);
         MARGIN_ASSET = IERC20(_marginAsset);
         FUTURES_MARKET_MANAGER = IFuturesMarketManager(_futuresMarketManager);
         SYSTEM_STATUS = ISystemStatus(_systemStatus);
-    }
-
-    /// @notice initialize contract (only once), transfer ownership to specified address
-    /// @param _owner: account owner
-    function initialize(address _owner) external initializer {
-        owner = _owner;
-        emit OwnershipTransferred(address(0), _owner);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -164,6 +151,13 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /*//////////////////////////////////////////////////////////////
                                OWNERSHIP
     //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IAccount
+    function setInitialOwnership(address _owner) external override {
+        if (msg.sender != address(FACTORY)) revert Unauthorized();
+        owner = _owner;
+        emit OwnershipTransferred(address(0), _owner);
+    }
 
     /// @notice transfer ownership of account to new address
     /// @dev update factory's record of account ownership

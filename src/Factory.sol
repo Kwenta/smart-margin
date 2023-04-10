@@ -143,14 +143,14 @@ contract Factory is IFactory, Owned {
         // add account to ownerAccounts mapping
         ownerAccounts[msg.sender].push(accountAddress);
 
-        // initialize new account
+        // set owner of account to caller
         (bool success, bytes memory data) = accountAddress.call(
             abi.encodeWithSignature(
-                "initialize(address)",
-                msg.sender // caller will be set as owner
+                "setInitialOwnership(address)",
+                msg.sender
             )
         );
-        if (!success) revert AccountFailedToInitialize(data);
+        if (!success) revert FailedToSetAcountOwner(data);
 
         // determine version for the following event
         (success, data) =

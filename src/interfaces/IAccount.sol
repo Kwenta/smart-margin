@@ -159,6 +159,11 @@ interface IAccount {
                                 MUTATIVE
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice sets the initial owner of the account
+    /// @dev only called once by the factory on account creation
+    /// @param _owner: address of the owner
+    function setInitialOwnership(address _owner) external;
+
     /// @notice executes commands along with provided inputs
     /// @param _commands: array of commands, each represented as an enum
     /// @param _inputs: array of byte strings containing abi encoded inputs for each command

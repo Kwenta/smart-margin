@@ -23,9 +23,9 @@ interface IFactory {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice thrown when Account creation fails at initialization step
+    /// @notice thrown when factory cannot set account owner to the msg.sender
     /// @param data: data returned from failed low-level call
-    error AccountFailedToInitialize(bytes data);
+    error FailedToSetAcountOwner(bytes data);
 
     /// @notice thrown when Account creation fails due to no version being set
     /// @param data: data returned from failed low-level call
