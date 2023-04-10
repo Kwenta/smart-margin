@@ -197,7 +197,7 @@ contract FactoryTest is Test, ConsolidatedEvents {
         });
         vm.expectRevert(
             abi.encodeWithSelector(
-                IFactory.AccountFailedToInitialize.selector, ""
+                IFactory.FailedToSetAcountOwner.selector, ""
             )
         );
         factory.newAccount();

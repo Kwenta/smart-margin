@@ -5,7 +5,7 @@ contract UpgradedAccount {
     bytes32 public constant VERSION = "6.9.0";
     address public owner = address(0);
 
-    function initialize(address _owner) external {
+    function setInitialOwnership(address _owner) external {
         owner = _owner;
     }
 }

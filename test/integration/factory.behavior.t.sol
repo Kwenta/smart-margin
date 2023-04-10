@@ -56,12 +56,7 @@ contract FactoryBehaviorTest is Test {
                        IMPLEMENTATION INTERACTION
     //////////////////////////////////////////////////////////////*/
 
-    function test_Implementation_Owner_ZeroAddress() public {
+    function test_Implementation_Owner() public {
         assertEq(implementation.owner(), address(0));
-    }
-
-    function test_CallInitialize_Implementation() public {
-        vm.expectRevert("Initializable: contract is already initialized");
-        implementation.initialize({_owner: address(0)});
     }
 }
