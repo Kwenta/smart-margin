@@ -146,9 +146,8 @@ contract Factory is IFactory, Owned {
         // initialize new account
         (bool success, bytes memory data) = accountAddress.call(
             abi.encodeWithSignature(
-                "initialize(address,address)",
-                msg.sender, // caller will be set as owner
-                address(this)
+                "initialize(address)",
+                msg.sender // caller will be set as owner
             )
         );
         if (!success) revert AccountFailedToInitialize(data);

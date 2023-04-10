@@ -33,6 +33,9 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
                                IMMUTABLES
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice address of the Smart Margin Account Factory
+    IFactory internal immutable FACTORY;
+
     /// @notice address of the contract used by all accounts for emitting events
     /// @dev can be immutable due to the fact the events contract is
     /// upgraded alongside the account implementation
@@ -65,21 +68,20 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @notice track conditional orders by id
     mapping(uint256 id => ConditionalOrder order) internal conditionalOrders;
 
-    /// @notice address of the Smart Margin Account Factory
-    IFactory internal factory;
-
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
     /// @notice disable initializers on initial contract deployment
     /// @dev set owner of implementation to zero address
+    /// @param _factory: address of the Smart Margin Account Factory
     /// @param _events: address of the contract used by all accounts for emitting events
     /// @param _marginAsset: address of the Synthetix ProxyERC20sUSD contract used as the margin asset
     /// @param _futuresMarketManager: address of the Synthetix FuturesMarketManager
     /// @param _gelato: address of Gelato
     /// @param _ops: address of Ops
     constructor(
+        address _factory,
         address _events,
         address _marginAsset,
         address _futuresMarketManager,
@@ -91,22 +93,17 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         // that are designed to be called through proxies
         _disableInitializers();
 
+        FACTORY = IFactory(_factory);
         EVENTS = IEvents(_events);
         MARGIN_ASSET = IERC20(_marginAsset);
         FUTURES_MARKET_MANAGER = IFuturesMarketManager(_futuresMarketManager);
         SYSTEM_STATUS = ISystemStatus(_systemStatus);
     }
 
-    /// @notice initialize contract (only once), transfer ownership to specified address,
-    /// and set the address of the Smart Margin Account Factory
+    /// @notice initialize contract (only once), transfer ownership to specified address
     /// @param _owner: account owner
-    /// @param _factory: address of the Smart Margin Account Factory
-    function initialize(address _owner, address _factory)
-        external
-        initializer
-    {
+    function initialize(address _owner) external initializer {
         owner = _owner;
-        factory = IFactory(_factory);
         emit OwnershipTransferred(address(0), _owner);
     }
 
@@ -176,7 +173,7 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         super.transferOwnership(_newOwner);
 
         // update the factory's record of owners and account addresses
-        factory.updateAccountOwnership({
+        FACTORY.updateAccountOwnership({
             _account: address(this),
             _newOwner: _newOwner,
             _oldOwner: msg.sender // verified to be old owner
