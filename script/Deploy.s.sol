@@ -21,7 +21,8 @@ contract Setup {
         address _ops
     ) public returns (Factory factory, Events events, Account implementation) {
         // deploy the factory
-        address temporaryOwner = _deployer == address(0) ? address(this) : _deployer;
+        address temporaryOwner =
+            _deployer == address(0) ? address(this) : _deployer;
         factory = deploySmartMarginFactory({_owner: temporaryOwner});
 
         // deploy the events contract and set the factory
@@ -106,7 +107,8 @@ contract DeployOptimism is Script, Setup {
         vm.startBroadcast(deployerPrivateKey);
 
         Setup.deploySystem({
-            _deployer: address(0), /// @custom:todo change to deployer addresses
+            _deployer: address(0),
+            /// @custom:todo change to deployer addresses
             _owner: KWENTA_ADMIN_DAO_MULTI_SIG,
             _addressResolver: SYNTHETIX_ADDRESS_RESOLVER,
             _gelato: GELATO,
@@ -134,7 +136,8 @@ contract DeployOptimismGoerli is Script, Setup {
         vm.startBroadcast(deployerPrivateKey);
 
         Setup.deploySystem({
-            _deployer: address(0), /// @custom:todo change to deployer addresses
+            _deployer: address(0),
+            /// @custom:todo change to deployer addresses
             _owner: KWENTA_ADMIN_DAO_MULTI_SIG,
             _addressResolver: SYNTHETIX_ADDRESS_RESOLVER,
             _gelato: GELATO,
