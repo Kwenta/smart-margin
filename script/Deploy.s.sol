@@ -20,21 +20,25 @@ contract Setup {
         address _gelato,
         address _ops
     ) public returns (Factory factory, Events events, Account implementation) {
-        // deploy the factory
+        // define *initial* factory owner
         address temporaryOwner =
             _deployer == address(0) ? address(this) : _deployer;
+
+        // deploy the factory
         factory = deploySmartMarginFactory({_owner: temporaryOwner});
 
         // deploy the events contract and set the factory
         events = deployEvents({_factory: address(factory)});
 
         // resolve necessary addresses via the Synthetix Address Resolver
-        address marginAsset = IAddressResolver(_addressResolver).getAddress({
+        IAddressResolver addressResolver = IAddressResolver(_addressResolver);
+        address marginAsset = addressResolver.getAddress({
             name: bytes32("ProxysUSD")
         });
-        address futuresMarketManager = IAddressResolver(_addressResolver)
-            .getAddress({name: bytes32("FuturesMarketManager")});
-        address systemStatus = IAddressResolver(_addressResolver).getAddress({
+        address futuresMarketManager = addressResolver.getAddress({
+            name: bytes32("FuturesMarketManager")
+        });
+        address systemStatus = addressResolver.getAddress({
             name: bytes32("SystemStatus")
         });
 
