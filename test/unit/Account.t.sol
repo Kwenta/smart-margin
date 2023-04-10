@@ -58,6 +58,7 @@ contract AccountTest is Test, ConsolidatedEvents {
 
         // deploy AccountExposed contract for exposing internal account functions
         accountExposed = new AccountExposed(
+            address(factory),
             address(events), 
             sUSD, 
             futuresMarketManager, 
@@ -81,6 +82,10 @@ contract AccountTest is Test, ConsolidatedEvents {
 
     function test_GetTrackingCode() public view {
         assert(accountExposed.expose_TRACKING_CODE() == "KWENTA");
+    }
+
+    function test_GetFactory() public view {
+        assert(accountExposed.expose_FACTORY() == address(factory));
     }
 
     function test_GetEvents() public view {

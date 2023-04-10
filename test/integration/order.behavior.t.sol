@@ -70,6 +70,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
         // deploy AccountExposed contract for exposing internal account functions
         accountExposed = new AccountExposed(
+            address(factory),
             address(events), 
             address(sUSD), 
             futuresMarketManager, 

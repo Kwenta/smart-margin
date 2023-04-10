@@ -62,6 +62,6 @@ contract FactoryBehaviorTest is Test {
 
     function test_CallInitialize_Implementation() public {
         vm.expectRevert("Initializable: contract is already initialized");
-        implementation.initialize({_owner: address(0), _factory: address(0)});
+        implementation.initialize({_owner: address(0)});
     }
 }
