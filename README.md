@@ -18,7 +18,7 @@ Contracts to manage account abstractions and features on top of [Synthetix Perps
 ### System Diagram
 
 <p align="center">
-  <img src="/diagrams/Abstract-System-Diagram.png" width="1000" height="600" alt="System-Diagram"/>
+  <img src="/diagrams/Abstract-System-Diagram.png" width="1000" height="400" alt="System-Diagram"/>
 </p>
 
 ## Contracts Overview
