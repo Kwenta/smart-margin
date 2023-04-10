@@ -2,6 +2,7 @@
 pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
+import "../utils/Constants.sol";
 import {Account} from "../../src/Account.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {Events} from "../../src/Events.sol";
@@ -9,15 +10,15 @@ import {Factory} from "../../src/Factory.sol";
 import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {IEvents} from "../../src/interfaces/IEvents.sol";
 import {Setup} from "../../script/Deploy.s.sol";
-import "../utils/Constants.sol";
 
 contract EventsTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    Events private events;
+    // main contracts
     Factory private factory;
+    Events private events;
     address private account;
 
     /*//////////////////////////////////////////////////////////////
@@ -27,8 +28,10 @@ contract EventsTest is Test, ConsolidatedEvents {
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
 
+        // define Setup contract used for deployments
         Setup setup = new Setup();
 
+        // deploy system contracts
         (factory, events,) = setup.deploySystem({
             _deployer: address(0),
             _owner: address(this),
@@ -37,6 +40,7 @@ contract EventsTest is Test, ConsolidatedEvents {
             _ops: OPS
         });
 
+        // deploy an Account contract
         account = factory.newAccount();
     }
 

@@ -2,21 +2,22 @@
 pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
+import "../utils/Constants.sol";
 import {Account} from "../../src/Account.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
 import {IFactory} from "../../src/interfaces/IFactory.sol";
-import {MockAccount1, MockAccount2} from "../utils/MockAccounts.sol";
+import {MockAccount1} from "../utils/MockAccounts.sol";
+import {MockAccount2} from "../utils/MockAccounts.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 import {UpgradedAccount} from "../utils/UpgradedAccount.sol";
-import "../utils/Constants.sol";
 
 contract FactoryTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
+    // main contracts
     Factory private factory;
     Account private implementation;
 
@@ -27,8 +28,10 @@ contract FactoryTest is Test, ConsolidatedEvents {
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
 
+        // define Setup contract used for deployments
         Setup setup = new Setup();
 
+        // deploy system contracts
         (factory,, implementation) = setup.deploySystem({
             _deployer: address(0),
             _owner: address(this),
@@ -50,12 +53,12 @@ contract FactoryTest is Test, ConsolidatedEvents {
         assertEq(factory.owner(), address(this));
     }
 
-    function test_Constructor_Implementation() public {
-        assertEq(factory.implementation(), address(implementation));
-    }
-
     function test_Constructor_CanUpgrade() public {
         assertEq(factory.canUpgrade(), true);
+    }
+
+    function test_Constructor_Implementation() public {
+        assertEq(factory.implementation(), address(implementation));
     }
 
     function test_Constructor_Accounts(address fuzzedAddress) public view {

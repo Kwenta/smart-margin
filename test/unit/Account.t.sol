@@ -2,42 +2,42 @@
 pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
-import {Account, Auth} from "../../src/Account.sol";
+import "../utils/Constants.sol";
+import {Account} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
+import {Auth} from "../../src/Account.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
-import {
-    IAccount,
-    IFuturesMarketManager,
-    IPerpsV2MarketConsolidated
-} from "../../src/interfaces/IAccount.sol";
+import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
+import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
+import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
 import {Setup} from "../../script/Deploy.s.sol";
-import "../utils/Constants.sol";
 
 contract AccountTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
+    // main contracts
     Factory private factory;
     Events private events;
     Account private account;
+
+    // helper contracts for testing
     AccountExposed private accountExposed;
 
     /*//////////////////////////////////////////////////////////////
                                  SETUP
     //////////////////////////////////////////////////////////////*/
-
-    receive() external payable {}
-
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
 
+        // define Setup contract used for deployments
         Setup setup = new Setup();
 
+        // deploy system contracts
         (factory, events,) = setup.deploySystem({
             _deployer: address(0),
             _owner: address(this),
@@ -46,17 +46,25 @@ contract AccountTest is Test, ConsolidatedEvents {
             _ops: OPS
         });
 
-        address sUSD =
-            (IAddressResolver(ADDRESS_RESOLVER)).getAddress("ProxysUSD");
-        address futuresMarketManager = IAddressResolver(ADDRESS_RESOLVER)
-            .getAddress({name: bytes32("FuturesMarketManager")});
-        address systemStatus = IAddressResolver(ADDRESS_RESOLVER).getAddress({
-            name: bytes32("SystemStatus")
-        });
-
-        accountExposed =
-        new AccountExposed(address(events), sUSD, futuresMarketManager, systemStatus, GELATO, OPS);
+        // deploy an Account contract
         account = Account(payable(factory.newAccount()));
+
+        // define helper contracts
+        IAddressResolver addressResolver = IAddressResolver(ADDRESS_RESOLVER);
+        address sUSD = addressResolver.getAddress(PROXY_SUSD);
+        address futuresMarketManager =
+            addressResolver.getAddress(FUTURES_MANAGER);
+        address systemStatus = addressResolver.getAddress(SYSTEM_STATUS);
+
+        // deploy AccountExposed contract for exposing internal account functions
+        accountExposed = new AccountExposed(
+            address(events), 
+            sUSD, 
+            futuresMarketManager, 
+            systemStatus, 
+            GELATO, 
+            OPS
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -69,6 +77,34 @@ contract AccountTest is Test, ConsolidatedEvents {
 
     function test_GetVerison() public view {
         assert(account.VERSION() == "2.0.0");
+    }
+
+    function test_GetTrackingCode() public view {
+        assert(accountExposed.expose_TRACKING_CODE() == "KWENTA");
+    }
+
+    function test_GetEvents() public view {
+        assert(accountExposed.expose_EVENTS() == address(events));
+    }
+
+    function test_GetMarginAsset() public view {
+        assert(accountExposed.expose_MARGIN_ASSET() != address(0));
+    }
+
+    function test_GetFuturesMarketManager() public view {
+        assert(accountExposed.expose_FUTURES_MARKET_MANAGER() != address(0));
+    }
+
+    function test_GetSystemStatus() public view {
+        assert(accountExposed.expose_SYSTEM_STATUS() != address(0));
+    }
+
+    function test_GetGelato() public view {
+        assert(accountExposed.expose_GELATO() == GELATO);
+    }
+
+    function test_GetOps() public view {
+        assert(accountExposed.expose_OPS() == OPS);
     }
 
     function test_GetCommittedMargin() public view {
@@ -142,6 +178,7 @@ contract AccountTest is Test, ConsolidatedEvents {
                                OWNERSHIP
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev this is an indirect test that the factory address is set correctly
     function test_Ownership_Transfer() public {
         // ensure factory and account state align
         address currentOwner = factory.getAccountOwner(address(account));

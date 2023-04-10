@@ -30,6 +30,34 @@ contract AccountExposed is Account {
         )
     {}
 
+    function expose_TRACKING_CODE() public pure returns (bytes32) {
+        return TRACKING_CODE;
+    }
+
+    function expose_EVENTS() public view returns (address) {
+        return address(EVENTS);
+    }
+
+    function expose_MARGIN_ASSET() public view returns (address) {
+        return address(MARGIN_ASSET);
+    }
+
+    function expose_FUTURES_MARKET_MANAGER() public view returns (address) {
+        return address(FUTURES_MARKET_MANAGER);
+    }
+
+    function expose_SYSTEM_STATUS() public view returns (address) {
+        return address(SYSTEM_STATUS);
+    }
+
+    function expose_GELATO() public view returns (address) {
+        return address(GELATO);
+    }
+
+    function expose_OPS() public view returns (address) {
+        return address(OPS);
+    }
+
     function expose_placeConditionalOrder(
         bytes32 marketKey,
         int256 marginDelta,
@@ -50,10 +78,6 @@ contract AccountExposed is Account {
         });
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        EXPOSED GETTER UTILITIES
-    //////////////////////////////////////////////////////////////*/
-
     function expose_getPerpsV2Market(bytes32 _marketKey)
         public
         view
@@ -69,10 +93,6 @@ contract AccountExposed is Account {
     {
         return _sUSDRate(_market);
     }
-
-    /*//////////////////////////////////////////////////////////////
-                         EXPOSED MATH UTILITIES
-    //////////////////////////////////////////////////////////////*/
 
     function expose_abs(int256 x) public pure returns (uint256) {
         return _abs(x);

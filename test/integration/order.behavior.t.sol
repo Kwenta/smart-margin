@@ -2,23 +2,23 @@
 pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
-import {Account, Auth} from "../../src/Account.sol";
+import "../utils/Constants.sol";
+import {Account} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
+import {Auth} from "../../src/Account.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
-import {
-    IAccount,
-    IFuturesMarketManager,
-    IPerpsV2MarketConsolidated
-} from "../../src/interfaces/IAccount.sol";
+import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
+import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
+import {IOps} from "../../src/utils/OpsReady.sol";
+import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
 import {ISynth} from "../utils/interfaces/ISynth.sol";
 import {ISystemStatus} from "../utils/interfaces/ISystemStatus.sol";
-import {OpsReady, IOps} from "../../src/utils/OpsReady.sol";
+import {OpsReady} from "../../src/utils/OpsReady.sol";
 import {Setup} from "../../script/Deploy.s.sol";
-import "../utils/Constants.sol";
 
 // functions tagged with @HELPER are helper functions and not tests
 // tests tagged with @AUDITOR are flags for desired increased scrutiny by the auditors
@@ -29,13 +29,18 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
+    // main contracts
     Factory private factory;
     Events private events;
     Account private account;
+
+    // helper contracts for testing
     ERC20 private sUSD;
     AccountExposed private accountExposed;
+    ISystemStatus private systemStatus;
+    
+    // helper variables for testing
     uint256 private currentEthPriceInUSD;
-    ISystemStatus systemStatus;
 
     /*//////////////////////////////////////////////////////////////
                                  SETUP
@@ -43,7 +48,11 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
+
+        // define Setup contract used for deployments
         Setup setup = new Setup();
+
+        // deploy system contracts
         (factory, events,) = setup.deploySystem({
             _deployer: address(0),
             _owner: address(this),
@@ -52,22 +61,28 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             _ops: OPS
         });
 
-        sUSD =
-            ERC20((IAddressResolver(ADDRESS_RESOLVER)).getAddress("ProxysUSD"));
-        address futuresMarketManager = IAddressResolver(ADDRESS_RESOLVER)
-            .getAddress({name: bytes32("FuturesMarketManager")});
-        systemStatus = ISystemStatus(
-            IAddressResolver(ADDRESS_RESOLVER).getAddress({
-                name: bytes32("SystemStatus")
-            })
+        // define helper contracts
+        IAddressResolver addressResolver = IAddressResolver(ADDRESS_RESOLVER);
+        sUSD = ERC20(addressResolver.getAddress(PROXY_SUSD));
+        address futuresMarketManager =
+            addressResolver.getAddress(FUTURES_MANAGER);
+        systemStatus = ISystemStatus(addressResolver.getAddress(SYSTEM_STATUS));
+
+        // deploy AccountExposed contract for exposing internal account functions
+        accountExposed = new AccountExposed(
+            address(events), 
+            address(sUSD), 
+            futuresMarketManager, 
+            address(systemStatus), 
+            GELATO, 
+            OPS
         );
 
-        accountExposed =
-        new AccountExposed(address(events), address(sUSD), futuresMarketManager, address(systemStatus), GELATO, OPS);
-
+        // deploy an Account contract and fund it
         account = Account(payable(factory.newAccount()));
         fundAccount(AMOUNT);
 
+        // get current ETH price in USD
         currentEthPriceInUSD = accountExposed.expose_sUSDRate(
             IPerpsV2MarketConsolidated(
                 accountExposed.expose_getPerpsV2Market(sETHPERP)

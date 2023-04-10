@@ -2,22 +2,19 @@
 pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
+import "../utils/Constants.sol";
 import {Account} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
-import {
-    IAccount,
-    IFuturesMarketManager,
-    IPerpsV2MarketConsolidated
-} from "../../src/interfaces/IAccount.sol";
+import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
+import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
+import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
 import {ISynth} from "../utils/interfaces/ISynth.sol";
-import {OpsReady, IOps} from "../../src/utils/OpsReady.sol";
 import {Setup} from "../../script/Deploy.s.sol";
-import "../utils/Constants.sol";
 
 contract MarginBehaviorTest is Test, ConsolidatedEvents {
     receive() external payable {}
@@ -26,9 +23,12 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
+    // main contracts
     Factory private factory;
     Events private events;
     Account private account;
+
+    // helper contracts for testing
     ERC20 private sUSD;
     AccountExposed private accountExposed;
 
@@ -39,8 +39,10 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
 
+        // define Setup contract used for deployments
         Setup setup = new Setup();
 
+        // deploy system contracts
         (factory, events,) = setup.deploySystem({
             _deployer: address(0),
             _owner: address(this),
@@ -49,17 +51,25 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             _ops: OPS
         });
 
-        sUSD =
-            ERC20((IAddressResolver(ADDRESS_RESOLVER)).getAddress("ProxysUSD"));
-        address futuresMarketManager = IAddressResolver(ADDRESS_RESOLVER)
-            .getAddress({name: bytes32("FuturesMarketManager")});
-        address systemStatus = IAddressResolver(ADDRESS_RESOLVER).getAddress({
-            name: bytes32("SystemStatus")
-        });
-
-        accountExposed =
-        new AccountExposed(address(events), address(sUSD), futuresMarketManager, systemStatus, GELATO, OPS);
+        // deploy an Account contract
         account = Account(payable(factory.newAccount()));
+
+        // define helper contracts
+        IAddressResolver addressResolver = IAddressResolver(ADDRESS_RESOLVER);
+        sUSD = ERC20(addressResolver.getAddress(PROXY_SUSD));
+        address futuresMarketManager =
+            addressResolver.getAddress(FUTURES_MANAGER);
+        address systemStatus = addressResolver.getAddress(SYSTEM_STATUS);
+
+        // deploy AccountExposed contract for exposing internal account functions
+        accountExposed = new AccountExposed(
+            address(events), 
+            address(sUSD), 
+            futuresMarketManager, 
+            systemStatus, 
+            GELATO, 
+            OPS
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
