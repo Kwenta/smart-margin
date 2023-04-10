@@ -13,6 +13,7 @@ import "./Constants.sol";
 /// @dev This contract exposes the internal functions of Account.sol for testing purposes
 contract AccountExposed is Account {
     constructor(
+        address _factory,
         address _events,
         address _marginAsset,
         address _futuresMarketManager,
@@ -21,6 +22,7 @@ contract AccountExposed is Account {
         address _ops
     )
         Account(
+            _factory,
             _events,
             _marginAsset,
             _futuresMarketManager,
@@ -32,6 +34,10 @@ contract AccountExposed is Account {
 
     function expose_TRACKING_CODE() public pure returns (bytes32) {
         return TRACKING_CODE;
+    }
+
+    function expose_FACTORY() public view returns (address) {
+        return address(FACTORY);
     }
 
     function expose_EVENTS() public view returns (address) {
