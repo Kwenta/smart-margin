@@ -9,7 +9,8 @@
     "coverage:generate-lcov": "forge coverage --fork-url $(grep ARCHIVE_NODE_URL_GOERLI_L2 .env | cut -d '=' -f2) --report lcov",
     "check:upgradeability": "slither-check-upgradeability . Account --proxy-name AccountProxy",
     "analysis:solsat": "solstat --path ./src",
-    "analysis:slither": "slither ."
+    "analysis:slither": "slither .",
+    "gas-snapshot": "forge snapshot --fork-url $(grep ARCHIVE_NODE_URL_GOERLI_L2 .env | cut -d '=' -f2)"
   },
   "repository": {
     "type": "git",
