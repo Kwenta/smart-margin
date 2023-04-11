@@ -210,3 +210,14 @@ npm run format
 ```
 npm run coverage
 ```
+
+### Gas Snapshot
+> Snapshots should be updated after every contract change
+
+1. Project uses Foundry's gas snapshot tool:
+
+```
+npm run gas-snapshot
+```
+
+2. To view the gas snapshot, navigate to `./gas-snapshot`
