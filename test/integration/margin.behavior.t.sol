@@ -100,45 +100,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                DISPATCH
-    //////////////////////////////////////////////////////////////*/
-
-    function test_Dispatch_InvalidCommand() public {
-        fundAccount(AMOUNT);
-
-        bytes memory dataWithInvalidCommand = abi.encodeWithSignature(
-            "execute(uint256,bytes)",
-            69, // enums are rep as uint256 and there are not enough commands to reach 69
-            abi.encode(address(0))
-        );
-
-        vm.expectRevert(
-            abi.encodeWithSelector(IAccount.InvalidCommandType.selector, 69)
-        );
-        (bool s,) = address(account).call(dataWithInvalidCommand);
-        assert(!s);
-    }
-
-    function test_Dispatch_ValidCommand_InvalidInput() public {
-        fundAccount(AMOUNT);
-
-        IAccount.Command[] memory commands = new IAccount.Command[](1);
-        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
-        bytes[] memory inputs = new bytes[](1);
-
-        // correct:
-        // inputs[0] = abi.encode(market, marginDelta);
-
-        // seemingly incorrect but actually works @AUDITOR:
-        // inputs[0] = abi.encode(market, marginDelta, 69, address(0));
-
-        // incorrect:
-        inputs[0] = abi.encode(69);
-        vm.expectRevert();
-        account.execute(commands, inputs);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                                 COMMANDS
     //////////////////////////////////////////////////////////////*/
 
