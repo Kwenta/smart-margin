@@ -51,7 +51,7 @@ contract Factory is IFactory, Owned {
         // fetch owner from account
         (bool success, bytes memory data) =
             _account.staticcall(abi.encodeWithSignature("owner()"));
-        assert(success); // should never fail (account is a contract
+        assert(success); // should never fail (account is a contract)
 
         return abi.decode(data, (address));
     }
@@ -82,14 +82,14 @@ contract Factory is IFactory, Owned {
         // ensure function caller is the account
         if (msg.sender != _account) revert OnlyAccount();
 
+        // store length of ownerAccounts array in memory
         uint256 length = ownerAccounts[_oldOwner].length;
+
         for (uint256 i = 0; i < length;) {
             if (ownerAccounts[_oldOwner][i] == _account) {
                 // remove account from ownerAccounts mapping for old owner
-                _shiftArrayLeftFrom({
-                    _index: i,
-                    _array: ownerAccounts[_oldOwner]
-                });
+                ownerAccounts[_oldOwner][i] = ownerAccounts[_oldOwner][length - 1];      
+                ownerAccounts[_oldOwner].pop();
 
                 // add account to ownerAccounts mapping for new owner
                 ownerAccounts[_newOwner].push(_account);
@@ -98,30 +98,9 @@ contract Factory is IFactory, Owned {
             }
 
             unchecked {
-                i++;
+                ++i;
             }
         }
-    }
-
-    /// @notice shifts every element in the array left from the specified index
-    /// @dev index will *NEVER* be out of bounds
-    /// @param _index: index to start shifting from
-    /// @param _array: array to shift
-    /// @custom:example _shiftArrayLeftFrom(1, [1, 2, 3, 4, 5]) => [1, 3, 4, 5]
-    function _shiftArrayLeftFrom(uint256 _index, address[] storage _array)
-        internal
-    {
-        uint256 length = _array.length;
-
-        for (uint256 i = _index; i < length - 1;) {
-            _array[i] = _array[i + 1];
-
-            unchecked {
-                i++;
-            }
-        }
-
-        _array.pop();
     }
 
     /*//////////////////////////////////////////////////////////////
