@@ -16,8 +16,6 @@ contract ConsolidatedEvents {
 
     event AccountImplementationUpgraded(address implementation);
 
-    event EventsUpgraded(address events);
-
     /*//////////////////////////////////////////////////////////////
                                  IAUTH
     //////////////////////////////////////////////////////////////*/
