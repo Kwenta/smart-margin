@@ -5,10 +5,10 @@ pragma solidity 0.8.18;
                               TEST VALUES
 //////////////////////////////////////////////////////////////*/
 
-// BLOCK_NUMBER corresponds to Optimism Goerli network state @ Mar-24-2023 06:48:48 PM +UTC
+// BLOCK_NUMBER corresponds to Optimism Goerli network state @ Apr-05-2023 07:46:26 PM +UTC
 // hard coded addresses are only guaranteed for this block
 // used to create a consistent and realistic test environment exposing Synthetix PerpsV2
-uint256 constant BLOCK_NUMBER = 7_559_742;
+uint256 constant BLOCK_NUMBER = 7_642_959;
 
 // test user address
 address constant USER = 0x35eFbD8Ab6F7258C13D3ecDfc56c2c0DD094678F;
@@ -74,6 +74,7 @@ address constant MARGIN_ASSET = 0xeBaEAAD9236615542844adC5c149F86C36aD1136;
 // Synthetix PerpsV2 market key(s)
 bytes32 constant sETHPERP = "sETHPERP";
 bytes32 constant sBTCPERP = "sBTCPERP";
+bytes32 constant sAUDPERP = "sAUDPERP";
 
 /*//////////////////////////////////////////////////////////////
                                  GELATO

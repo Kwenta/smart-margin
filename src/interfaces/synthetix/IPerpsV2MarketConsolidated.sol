@@ -286,7 +286,9 @@ interface IPerpsV2MarketConsolidated {
         address liquidator,
         int256 size,
         uint256 price,
-        uint256 fee
+        uint256 flaggerFee,
+        uint256 liquidatorFee,
+        uint256 stakersFee
     );
 
     event FundingRecomputed(

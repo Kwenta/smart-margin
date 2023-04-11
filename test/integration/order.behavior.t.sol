@@ -14,8 +14,8 @@ import {
     IPerpsV2MarketConsolidated
 } from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
-import {IPerpsV2MarketSettings} from "@synthetix/IPerpsV2MarketSettings.sol";
 import {ISynth} from "@synthetix/ISynth.sol";
+import {ISystemStatus} from "@synthetix/ISystemStatus.sol";
 import {OpsReady, IOps} from "../../src/utils/OpsReady.sol";
 import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
@@ -300,7 +300,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             IAccount.ConditionalOrderTypes.LIMIT,
             DESIRED_FILL_PRICE,
             false
-            );
+        );
         placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
@@ -564,7 +564,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             IAccount
                 .ConditionalOrderCancelledReason
                 .CONDITIONAL_ORDER_CANCELLED_BY_USER
-            );
+        );
         cancelConditionalOrder(conditionalOrderId);
     }
 
@@ -576,6 +576,45 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         vm.prank(USER);
         vm.expectRevert(abi.encodeWithSelector(OpsReady.OnlyOps.selector));
         account.executeConditionalOrder({_conditionalOrderId: 0});
+    }
+
+    function test_ExecuteConditionalOrder_MarketIsPaused() public {
+        // place conditional order for sAUDPERP market
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sAUDPERP,
+            marginDelta: int256(AMOUNT),
+            sizeDelta: int256(AMOUNT),
+            targetPrice: 0,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            desiredFillPrice: 0,
+            reduceOnly: false
+        });
+
+        // define SystemStatus contract
+        ISystemStatus systemStatus = ISystemStatus(account.systemStatus());
+
+        // fetch owner address of SystemStatus contract
+        (bool success, bytes memory response) =
+            address(systemStatus).call(abi.encodeWithSignature("owner()"));
+        address systemStatusOwner =
+            success ? abi.decode(response, (address)) : address(0);
+
+        // add owner to access control list so they can suspend perpsv2 market
+        vm.startPrank(systemStatusOwner);
+        systemStatus.updateAccessControl({
+            section: bytes32("Futures"),
+            account: systemStatusOwner,
+            canSuspend: true,
+            canResume: true
+        });
+
+        // suspend sAUDPERP market
+        systemStatus.suspendFuturesMarket({marketKey: sAUDPERP, reason: 69});
+        vm.stopPrank();
+
+        // assert conditional order cannot be executed due to paused market
+        (bool canExecute,) = account.checker(conditionalOrderId);
+        assert(!canExecute);
     }
 
     // assert successful execution frees committed margin
@@ -1069,7 +1108,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                 IAccount
                     .ConditionalOrderCancelledReason
                     .CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
-                );
+            );
         } else if (fuzzedSizeDelta < 0) {
             if (fuzzedSizeDelta + position.size < 0) {
                 // expect fuzzedSizeDelta to be bound by zero to prevent flipping (long to short or vice versa)
@@ -1141,7 +1180,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                 IAccount
                     .ConditionalOrderCancelledReason
                     .CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
-                );
+            );
         } else if (fuzzedSizeDelta > 0) {
             if (fuzzedSizeDelta + position.size > 0) {
                 // expect fuzzedSizeDelta to be bound by zero to prevent flipping (long to short or vice versa)
@@ -1277,18 +1316,16 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             abi.encodeCall(account.executeConditionalOrder, conditionalOrderId);
 
         moduleData = IOps.ModuleData({
-            modules: new IOps.Module[](2),
-            args: new bytes[](2)
+            modules: new IOps.Module[](1),
+            args: new bytes[](1)
         });
 
         moduleData.modules[0] = IOps.Module.RESOLVER;
-        moduleData.modules[1] = IOps.Module.SINGLE_EXEC;
 
         moduleData.args[0] = abi.encode(
             address(account),
             abi.encodeCall(account.checker, conditionalOrderId)
         );
-        // moduleData.args[1] is empty for single exec thus no need to encode
     }
 
     /*//////////////////////////////////////////////////////////////

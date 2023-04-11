@@ -5,11 +5,12 @@ import {Auth} from "./utils/Auth.sol";
 import {
     IAccount,
     IAddressResolver,
+    IEvents,
     IFactory,
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated,
     ISettings,
-    IEvents
+    ISystemStatus
 } from "./interfaces/IAccount.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Initializable} from
@@ -33,11 +34,11 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     /// @notice name for futures market manager
     bytes32 private constant FUTURES_MARKET_MANAGER = "FuturesMarketManager";
 
+    /// @notice name for system status
+    bytes32 private constant SYSTEM_STATUS = "SystemStatus";
+
     /// @notice constant for sUSD currency key
     bytes32 private constant SUSD = "sUSD";
-
-    /// @notice minimum ETH balance required to place a conditional order
-    uint256 private constant MIN_ETH = 1 ether / 100;
 
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
@@ -59,6 +60,9 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
 
     //// @inheritdoc IAccount
     IFuturesMarketManager public futuresMarketManager;
+
+    /// @inheritdoc IAccount
+    ISystemStatus public systemStatus;
 
     /// @inheritdoc IAccount
     ISettings public settings;
@@ -135,6 +139,13 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
             ADDRESS_RESOLVER.requireAndGetAddress(
                 FUTURES_MARKET_MANAGER,
                 "Account: Could not get Futures Market Manager"
+            )
+        );
+
+        // get address for system status
+        systemStatus = ISystemStatus(
+            ADDRESS_RESOLVER.requireAndGetAddress(
+                SYSTEM_STATUS, "Account: Could not get System Status"
             )
         );
     }
@@ -746,17 +757,14 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         returns (IOps.ModuleData memory moduleData)
     {
         moduleData = IOps.ModuleData({
-            modules: new IOps.Module[](2),
-            args: new bytes[](2)
+            modules: new IOps.Module[](1),
+            args: new bytes[](1)
         });
 
         moduleData.modules[0] = IOps.Module.RESOLVER;
         moduleData.args[0] = abi.encode(
             address(this), abi.encodeCall(this.checker, conditionalOrderId)
         );
-
-        moduleData.modules[1] = IOps.Module.SINGLE_EXEC;
-        // moduleData.args[1] is empty for single exec thus no need to encode
     }
 
     /// @notice cancel a gelato queued conditional order
@@ -798,8 +806,12 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
         ConditionalOrder memory conditionalOrder =
             getConditionalOrder(_conditionalOrderId);
 
-        // delete conditional order from conditional orders
+        // remove conditional order from internal accounting
         delete conditionalOrders[_conditionalOrderId];
+
+        // remove gelato task from their accounting
+        /// @dev will revert if task id does not exist {Automate.cancelTask: Task not found}
+        IOps(OPS).cancelTask({taskId: conditionalOrder.gelatoTaskId});
 
         /// @dev conditional order is valid given checker() returns true; define fill price
         uint256 fillPrice =
@@ -896,6 +908,12 @@ contract Account is IAccount, OpsReady, Auth, Initializable {
     {
         ConditionalOrder memory conditionalOrder =
             getConditionalOrder(_conditionalOrderId);
+
+        // return false if market is paused
+        try systemStatus.requireFuturesMarketActive(conditionalOrder.marketKey)
+        {} catch {
+            return false;
+        }
 
         /// @dev if marketKey is invalid, this will revert
         uint256 price = _sUSDRate(_getPerpsV2Market(conditionalOrder.marketKey));
