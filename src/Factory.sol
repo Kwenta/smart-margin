@@ -88,7 +88,8 @@ contract Factory is IFactory, Owned {
         for (uint256 i = 0; i < length;) {
             if (ownerAccounts[_oldOwner][i] == _account) {
                 // remove account from ownerAccounts mapping for old owner
-                ownerAccounts[_oldOwner][i] = ownerAccounts[_oldOwner][length - 1];      
+                ownerAccounts[_oldOwner][i] =
+                    ownerAccounts[_oldOwner][length - 1];
                 ownerAccounts[_oldOwner].pop();
 
                 // add account to ownerAccounts mapping for new owner
