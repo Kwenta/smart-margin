@@ -212,6 +212,11 @@ contract AccountTest is Test, ConsolidatedEvents {
         account.transferOwnership(KWENTA_TREASURY);
     }
 
+    function test_Ownership_setInitialOwnership_OnlyFactory() public {
+        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
+        account.setInitialOwnership(KWENTA_TREASURY);
+    }
+
     /*//////////////////////////////////////////////////////////////
                        ACCOUNT DEPOSITS/WITHDRAWS
     //////////////////////////////////////////////////////////////*/
