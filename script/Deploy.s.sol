@@ -111,7 +111,7 @@ contract DeployOptimism is Script, Setup {
         vm.startBroadcast(deployerPrivateKey);
 
         Setup.deploySystem({
-            _deployer: address(0), // @custom:todo change to deployer addresses
+            _deployer: 0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4,
             _owner: KWENTA_ADMIN_DAO_MULTI_SIG,
             _addressResolver: SYNTHETIX_ADDRESS_RESOLVER,
             _gelato: GELATO,
@@ -139,7 +139,7 @@ contract DeployOptimismGoerli is Script, Setup {
         vm.startBroadcast(deployerPrivateKey);
 
         Setup.deploySystem({
-            _deployer: address(0), // @custom:todo change to deployer addresses
+            _deployer: 0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4,
             _owner: KWENTA_ADMIN_DAO_MULTI_SIG,
             _addressResolver: SYNTHETIX_ADDRESS_RESOLVER,
             _gelato: GELATO,
