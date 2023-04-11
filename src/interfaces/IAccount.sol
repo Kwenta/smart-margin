@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
 import {IEvents} from "./IEvents.sol";
 import {IFactory} from "./IFactory.sol";
 import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
 import {IPerpsV2MarketConsolidated} from
     "@synthetix/IPerpsV2MarketConsolidated.sol";
-import {ISettings} from "./ISettings.sol";
 import {ISystemStatus} from "@synthetix/ISystemStatus.sol";
 
 /// @title Kwenta Smart Margin Account Implementation Interface
@@ -50,14 +48,6 @@ interface IAccount {
         CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
     }
 
-    /// @notice denotes imposed fee reasons for code clarity
-    /// @dev under the hood TRADE_FEE = 0, TRADE_AND_CONDITIONAL_ORDER_FEE = 1
-    /// @dev expect to see further fee reasons in the future (i.e. delagates, etc)
-    enum FeeReason {
-        TRADE_FEE,
-        TRADE_AND_CONDITIONAL_ORDER_FEE
-    }
-
     /// marketKey: Synthetix PerpsV2 Market id/key
     /// marginDelta: amount of margin to deposit or withdraw; positive indicates deposit, negative withdraw
     /// sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of Synthetix PerpsV2 position
@@ -93,9 +83,8 @@ interface IAccount {
     /// @notice thrown when Command given is not valid
     error InvalidCommandType(uint256 commandType);
 
-    /// @notice given value cannot be zero
-    /// @param valueName: name of the variable that cannot be zero
-    error ValueCannotBeZero(bytes32 valueName);
+    /// @notice thrown when conditional order type given is not valid due to zero sizeDelta
+    error ZeroSizeDelta();
 
     /// @notice exceeds useable margin
     /// @param available: amount of useable margin asset
@@ -113,33 +102,12 @@ interface IAccount {
     ///     4. Price is zero
     error InvalidPrice();
 
-    /// @notice Insufficient margin to pay fee
-    error CannotPayFee();
-
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice returns the version of the Account
     function VERSION() external view returns (bytes32);
-
-    /// @return returns the address of the factory
-    function factory() external view returns (IFactory);
-
-    /// @return returns the address of the futures market manager
-    function futuresMarketManager()
-        external
-        view
-        returns (IFuturesMarketManager);
-
-    /// @return returns the address of the synthetix system status
-    function systemStatus() external view returns (ISystemStatus);
-
-    /// @return returns the address of the native settings for account
-    function settings() external view returns (ISettings);
-
-    /// @return returns the address of events contract for accounts
-    function events() external view returns (IEvents);
 
     /// @return returns the amount of margin locked for future events (i.e. conditional orders)
     function committedMargin() external view returns (uint256);
@@ -190,6 +158,11 @@ interface IAccount {
     /*//////////////////////////////////////////////////////////////
                                 MUTATIVE
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice sets the initial owner of the account
+    /// @dev only called once by the factory on account creation
+    /// @param _owner: address of the owner
+    function setInitialOwnership(address _owner) external;
 
     /// @notice executes commands along with provided inputs
     /// @param _commands: array of commands, each represented as an enum

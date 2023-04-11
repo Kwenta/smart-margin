@@ -2,25 +2,23 @@
 pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
+import "../utils/Constants.sol";
 import {Account} from "../../src/Account.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
 import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {IEvents} from "../../src/interfaces/IEvents.sol";
-import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
-import "../utils/Constants.sol";
 
 contract EventsTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    Settings private settings;
-    Events private events;
+    // main contracts
     Factory private factory;
-    Account private implementation;
+    Events private events;
     address private account;
 
     /*//////////////////////////////////////////////////////////////
@@ -29,22 +27,20 @@ contract EventsTest is Test, ConsolidatedEvents {
 
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
+
+        // define Setup contract used for deployments
         Setup setup = new Setup();
-        factory = setup.deploySmartMarginFactory({
-            useDeployer: false,
-            owner: address(this),
-            treasury: KWENTA_TREASURY,
-            tradeFee: 0,
-            limitOrderFee: 0,
-            stopOrderFee: 0,
-            addressResolver: ADDRESS_RESOLVER,
-            marginAsset: MARGIN_ASSET,
-            gelato: GELATO,
-            ops: OPS
+
+        // deploy system contracts
+        (factory, events,) = setup.deploySystem({
+            _deployer: address(0),
+            _owner: address(this),
+            _addressResolver: ADDRESS_RESOLVER,
+            _gelato: GELATO,
+            _ops: OPS
         });
-        settings = Settings(factory.settings());
-        events = Events(factory.events());
-        implementation = Account(payable(factory.implementation()));
+
+        // deploy an Account contract
         account = factory.newAccount();
     }
 
@@ -176,14 +172,13 @@ contract EventsTest is Test, ConsolidatedEvents {
 
     function test_EmitConditionalOrderFilled_Event() public {
         vm.expectEmit(true, true, true, true);
-        emit ConditionalOrderFilled(ACCOUNT, 0, FILL_PRICE, GELATO_FEE, 0);
+        emit ConditionalOrderFilled(ACCOUNT, 0, FILL_PRICE, GELATO_FEE);
         vm.prank(account);
         events.emitConditionalOrderFilled({
             account: ACCOUNT,
             conditionalOrderId: 0,
             fillPrice: FILL_PRICE,
-            keeperFee: GELATO_FEE,
-            kwentaFee: 0
+            keeperFee: GELATO_FEE
         });
     }
 
@@ -193,30 +188,7 @@ contract EventsTest is Test, ConsolidatedEvents {
             account: ACCOUNT,
             conditionalOrderId: 0,
             fillPrice: FILL_PRICE,
-            keeperFee: GELATO_FEE,
-            kwentaFee: 0
-        });
-    }
-
-    function test_EmitFeeImposed_Event() public {
-        vm.expectEmit(true, true, true, true);
-        emit FeeImposed(ACCOUNT, AMOUNT, sETHPERP, bytes32("REASON"));
-        vm.prank(account);
-        events.emitFeeImposed({
-            account: ACCOUNT,
-            amount: AMOUNT,
-            marketKey: sETHPERP,
-            reason: bytes32("REASON")
-        });
-    }
-
-    function test_EmitFeeImposed_OnlyAccounts() public {
-        vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
-        events.emitFeeImposed({
-            account: ACCOUNT,
-            amount: AMOUNT,
-            marketKey: sETHPERP,
-            reason: bytes32("REASON")
+            keeperFee: GELATO_FEE
         });
     }
 }

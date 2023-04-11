@@ -2,67 +2,70 @@
 pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
-import {Account, Auth} from "../../src/Account.sol";
+import "../utils/Constants.sol";
+import {Account} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
+import {Auth} from "../../src/Account.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
-import {
-    IAccount,
-    IFuturesMarketManager,
-    IPerpsV2MarketConsolidated
-} from "../../src/interfaces/IAccount.sol";
-import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
-import {Settings} from "../../src/Settings.sol";
+import {IAccount} from "../../src/interfaces/IAccount.sol";
+import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
+import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
+import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
 import {Setup} from "../../script/Deploy.s.sol";
-import "../utils/Constants.sol";
 
 contract AccountTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    Settings private settings;
-    Events private events;
+    // main contracts
     Factory private factory;
+    Events private events;
     Account private account;
+
+    // helper contracts for testing
     AccountExposed private accountExposed;
 
     /*//////////////////////////////////////////////////////////////
                                  SETUP
     //////////////////////////////////////////////////////////////*/
-
-    receive() external payable {}
-
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
 
+        // define Setup contract used for deployments
         Setup setup = new Setup();
-        factory = setup.deploySmartMarginFactory({
-            useDeployer: false,
-            owner: address(this),
-            treasury: KWENTA_TREASURY,
-            tradeFee: TRADE_FEE,
-            limitOrderFee: LIMIT_ORDER_FEE,
-            stopOrderFee: STOP_ORDER_FEE,
-            addressResolver: ADDRESS_RESOLVER,
-            marginAsset: MARGIN_ASSET,
-            gelato: GELATO,
-            ops: OPS
+
+        // deploy system contracts
+        (factory, events,) = setup.deploySystem({
+            _deployer: address(0),
+            _owner: address(this),
+            _addressResolver: ADDRESS_RESOLVER,
+            _gelato: GELATO,
+            _ops: OPS
         });
 
-        settings = Settings(factory.settings());
-        events = Events(factory.events());
-
+        // deploy an Account contract
         account = Account(payable(factory.newAccount()));
 
-        accountExposed = new AccountExposed();
-        accountExposed.setFuturesMarketManager(
-            IFuturesMarketManager(account.futuresMarketManager())
+        // define helper contracts
+        IAddressResolver addressResolver = IAddressResolver(ADDRESS_RESOLVER);
+        address sUSD = addressResolver.getAddress(PROXY_SUSD);
+        address futuresMarketManager =
+            addressResolver.getAddress(FUTURES_MANAGER);
+        address systemStatus = addressResolver.getAddress(SYSTEM_STATUS);
+
+        // deploy AccountExposed contract for exposing internal account functions
+        accountExposed = new AccountExposed(
+            address(factory),
+            address(events), 
+            sUSD, 
+            futuresMarketManager, 
+            systemStatus, 
+            GELATO, 
+            OPS
         );
-        accountExposed.setSettings(settings);
-        accountExposed.setEvents(events);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -77,20 +80,36 @@ contract AccountTest is Test, ConsolidatedEvents {
         assert(account.VERSION() == "2.0.0");
     }
 
+    function test_GetTrackingCode() public view {
+        assert(accountExposed.expose_TRACKING_CODE() == "KWENTA");
+    }
+
     function test_GetFactory() public view {
-        assert(account.factory() == factory);
-    }
-
-    function test_GetFuturesMarketManager() public view {
-        assert(address(account.futuresMarketManager()) != address(0));
-    }
-
-    function test_GetSettings() public view {
-        assert(account.settings() == settings);
+        assert(accountExposed.expose_FACTORY() == address(factory));
     }
 
     function test_GetEvents() public view {
-        assert(account.events() == events);
+        assert(accountExposed.expose_EVENTS() == address(events));
+    }
+
+    function test_GetMarginAsset() public view {
+        assert(accountExposed.expose_MARGIN_ASSET() != address(0));
+    }
+
+    function test_GetFuturesMarketManager() public view {
+        assert(accountExposed.expose_FUTURES_MARKET_MANAGER() != address(0));
+    }
+
+    function test_GetSystemStatus() public view {
+        assert(accountExposed.expose_SYSTEM_STATUS() != address(0));
+    }
+
+    function test_GetGelato() public view {
+        assert(accountExposed.expose_GELATO() == GELATO);
+    }
+
+    function test_GetOps() public view {
+        assert(accountExposed.expose_OPS() == OPS);
     }
 
     function test_GetCommittedMargin() public view {
@@ -164,33 +183,38 @@ contract AccountTest is Test, ConsolidatedEvents {
                                OWNERSHIP
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev this is an indirect test that the factory address is set correctly
     function test_Ownership_Transfer() public {
         // ensure factory and account state align
-        address currentOwner = factory.getAccountOwner(address(account));
+        address originalOwner = factory.getAccountOwner(address(account));
         assert(
-            currentOwner == address(this) && currentOwner == account.owner()
-                && currentOwner != KWENTA_TREASURY
+            originalOwner == address(this) && originalOwner == account.owner()
+                && originalOwner != KWENTA_TREASURY
         );
-        assert(factory.getAccountsOwnedBy(currentOwner)[0] == address(account));
+        assert(factory.getAccountsOwnedBy(originalOwner)[0] == address(account));
 
         // transfer ownership
         account.transferOwnership(KWENTA_TREASURY);
         assert(account.owner() == KWENTA_TREASURY);
 
         // ensure factory and account state align
-        currentOwner = factory.getAccountOwner(address(account));
-        assert(
-            currentOwner == KWENTA_TREASURY && currentOwner == account.owner()
-        );
+        address newOwner = factory.getAccountOwner(address(account));
+        assert(newOwner == KWENTA_TREASURY && newOwner == account.owner());
         assert(
             factory.getAccountsOwnedBy(KWENTA_TREASURY)[0] == address(account)
         );
+        assert(factory.getAccountsOwnedBy(originalOwner).length == 0);
     }
 
     function test_Ownership_Transfer_Event() public {
         vm.expectEmit(true, true, true, true);
         emit OwnershipTransferred(address(this), KWENTA_TREASURY);
         account.transferOwnership(KWENTA_TREASURY);
+    }
+
+    function test_Ownership_setInitialOwnership_OnlyFactory() public {
+        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
+        account.setInitialOwnership(KWENTA_TREASURY);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -219,39 +243,6 @@ contract AccountTest is Test, ConsolidatedEvents {
         account.transferOwnership(KWENTA_TREASURY);
         vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         withdrawEth(1 ether);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                             FEE UTILITIES
-    //////////////////////////////////////////////////////////////*/
-
-    function test_CalculateFee_EthMarket(int128 fuzzedSizeDelta) public {
-        uint256 conditionalOrderFee = MAX_BPS / 99;
-        IPerpsV2MarketConsolidated market =
-            IPerpsV2MarketConsolidated(getMarketAddressFromKey(sETHPERP));
-        uint256 percentToTake = settings.tradeFee() + conditionalOrderFee;
-        uint256 fee = (
-            accountExposed.expose_abs(int256(fuzzedSizeDelta)) * percentToTake
-        ) / MAX_BPS;
-        (uint256 price, bool invalid) = market.assetPrice();
-        assert(!invalid);
-        uint256 feeInSUSD = (price * fee) / 1e18;
-        uint256 actualFee = accountExposed.expose_calculateFee({
-            _sizeDelta: fuzzedSizeDelta,
-            _market: market,
-            _conditionalOrderFee: conditionalOrderFee
-        });
-        assertEq(actualFee, feeInSUSD);
-    }
-
-    function test_CalculateFee_InvalidMarket() public {
-        int256 sizeDelta = -1 ether;
-        vm.expectRevert();
-        accountExposed.expose_calculateFee({
-            _sizeDelta: sizeDelta,
-            _market: IPerpsV2MarketConsolidated(address(0)),
-            _conditionalOrderFee: LIMIT_ORDER_FEE
-        });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -346,6 +337,33 @@ contract AccountTest is Test, ConsolidatedEvents {
         vm.prank(DELEGATE);
         vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         account.transferOwnership(DELEGATE);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                DISPATCH
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Dispatch_InvalidCommand() public {
+        bytes memory dataWithInvalidCommand = abi.encodeWithSignature(
+            "execute(uint256,bytes)",
+            69, // enums are rep as uint256 and there are not enough commands to reach 69
+            abi.encode(address(0))
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccount.InvalidCommandType.selector, 69)
+        );
+        (bool s,) = address(account).call(dataWithInvalidCommand);
+        assert(!s);
+    }
+
+    function test_Dispatch_ValidCommand_InvalidInput() public {
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(69);
+        vm.expectRevert();
+        account.execute(commands, inputs);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -590,12 +608,8 @@ contract AccountTest is Test, ConsolidatedEvents {
 
         vm.prank(DELEGATE);
 
-        /// @notice delegate CAN execute the following COMMAND
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccount.ValueCannotBeZero.selector, bytes32("_sizeDelta")
-            )
-        );
+        /// @notice delegate CANNOT execute the following COMMAND
+        vm.expectRevert(abi.encodeWithSelector(IAccount.ZeroSizeDelta.selector));
         account.execute(commands, inputs);
     }
 
