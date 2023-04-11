@@ -25,9 +25,6 @@ address constant DELEGATE = address(0xBEEFBAE);
 // test amount used throughout tests
 uint256 constant AMOUNT = 10_000 ether;
 
-// max BPS; used for decimals calculations
-uint256 constant MAX_BPS = 10_000;
-
 // test margin delta used throughout tests
 int256 constant MARGIN_DELTA = 1 ether;
 
