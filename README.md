@@ -18,7 +18,7 @@ Contracts to manage account abstractions and features on top of [Synthetix Perps
 ### System Diagram
 
 <p align="center">
-  <img src="/diagrams/Abstract-System-Diagram.png" width="1000" height="600" alt="System-Diagram"/>
+  <img src="/diagrams/Abstract-System-Diagram.png" width="1000" height="400" alt="System-Diagram"/>
 </p>
 
 ## Contracts Overview
@@ -106,17 +106,16 @@ src
 ├── AccountProxy.sol
 ├── Events.sol
 ├── Factory.sol
-├── Settings.sol
 ├── interfaces
-│   ├── IAccount.sol
-│   ├── IAccountProxy.sol
-│   ├── IEvents.sol
-│   ├── IFactory.sol
-│   ├── IOps.sol
-│   ├── ISettings.sol
-│   └── synthetix
-│       ├── IPerpsV2MarketConsolidated.sol
-│       ├── (...)
+│   ├── IAccount.sol
+│   ├── IAccountProxy.sol
+│   ├── IEvents.sol
+│   ├── IFactory.sol
+│   ├── IOps.sol
+│   └── synthetix
+│       ├── IFuturesMarketManager.sol
+│       ├── IPerpsV2MarketConsolidated.sol
+│       └── ISystemStatus.sol
 └── utils
     ├── Auth.sol
     └── OpsReady.sol
@@ -124,15 +123,14 @@ src
 
 ## Test Coverage
 
-| File                           | % Lines          | % Statements     | % Branches       | % Funcs         |
-|--------------------------------|------------------|------------------|------------------|-----------------|
-| src/Account.sol                | 98.31% (175/178) | 97.01% (195/201) | 85.00% (68/80)   | 100.00% (33/33) |
-| src/AccountProxy.sol           | 100.00% (10/10)  | 76.92% (10/13)   | 50.00% (3/6)     | 100.00% (6/6)   |
-| src/Events.sol                 | 100.00% (7/7)    | 100.00% (7/7)    | 100.00% (0/0)    | 100.00% (7/7)   |
-| src/Factory.sol                | 94.74% (36/38)   | 95.92% (47/49)   | 95.00% (19/20)   | 100.00% (9/9)   |
-| src/Settings.sol               | 100.00% (16/16)  | 100.00% (24/24)  | 100.00% (16/16)  | 100.00% (4/4)   |
-| src/utils/Auth.sol             | 100.00% (15/15)  | 100.00% (18/18)  | 100.00% (10/10)  | 60.00% (3/5)    |
-| src/utils/OpsReady.sol         | 60.00% (3/5)     | 66.67% (4/6)     | 100.00% (4/4)    | 50.00% (1/2)    |
+| File                           | % Lines          | % Statements     | % Branches      | % Funcs         |
+|--------------------------------|------------------|------------------|-----------------|-----------------|
+| src/Account.sol                | 98.49% (196/199) | 98.58% (208/211) | 87.18% (68/78)  | 100.00% (33/33) |
+| src/AccountProxy.sol           | 100.00% (10/10)  | 76.92% (10/13)   | 50.00% (3/6)    | 100.00% (6/6)   |
+| src/Events.sol                 | 100.00% (6/6)    | 100.00% (6/6)    | 100.00% (0/0)   | 100.00% (6/6)   |
+| src/Factory.sol                | 100.00% (28/28)  | 100.00% (36/36)  | 87.50% (14/16)  | 100.00% (6/6)   |
+| src/utils/Auth.sol             | 100.00% (15/15)  | 100.00% (18/18)  | 100.00% (10/10) | 60.00% (3/5)    |
+| src/utils/OpsReady.sol         | 100.00% (3/3)    | 100.00% (4/4)    | 75.00% (3/4)    | 100.00% (1/1)   |
 
 ## Usage
 
@@ -178,20 +176,8 @@ slither-check-upgradeability . Account --new-contract-name AccountV2 --proxy-nam
 ```
 
 3. Reference `./script` directory and Upgrade.s.sol
-
-#### Update Account Settings
-
-1. The `Factory` owner has permission to upgrade the `Settings` contract address via `Factory.upgradeSettings`.
-2. This "upgrade" does not suffer from the same dangers as the `Account` upgrade. State collisions are not possible nor are function signature collisions. However, it is still important to ensure that the new `Settings` contract is compatible with the `Account` contract and expected `getters` exist for the `Account` contract to function properly.
-3. Upgrades to the `Settings` contract will _NOT_ impact existing smart margin accounts. However, any new smart margin accounts will use the new `Settings` contract, and thus be affected.
-4. It is expected that the `Settings` contract will be upgraded simultaneously with the `Account` contract. However, this is not required.
-
-#### Update Account Events
-
-1. The `Factory` owner has permission to upgrade the `Events` contract address via `Factory.upgradeEvents`.
-2. This "upgrade" does not suffer from the same dangers as the `Account` upgrade. State collisions are not possible nor are function signature collisions. However, it is still important to ensure that the new `Events` contract is compatible with the `Account` contract and expected functions that emit events exist for the `Account` contract to function properly.
-3. Upgrades to the `Events` contract will _NOT_ impact existing smart margin accounts. However, any new smart margin accounts will use the new `Events` contract, and thus be affected.
-4. It is expected that the `Events` contract will be upgraded simultaneously with the `Account` contract. However, this is not required.
+4. Ensure that the `Events` contract address is set correctly in the `Factory` contract 
+5. Ensure that the `Events` contract is compatible with the new `Account` contract
 
 ## Project Tools
 
@@ -224,3 +210,14 @@ npm run format
 ```
 npm run coverage
 ```
+
+### Gas Snapshot
+> Snapshots should be updated after every contract change
+
+1. Project uses Foundry's gas snapshot tool:
+
+```
+npm run gas-snapshot
+```
+
+2. To view the gas snapshot, navigate to `./gas-snapshot`

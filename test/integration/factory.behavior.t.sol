@@ -2,24 +2,20 @@
 pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
+import "../utils/Constants.sol";
 import {Account} from "../../src/Account.sol";
-import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
-import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
-import "../utils/Constants.sol";
 
-// functions tagged with @HELPER are helper functions and not tests
-// tests tagged with @AUDITOR are flags for desired increased scrutiny by the auditors
-contract FactoryBehaviorTest is Test, ConsolidatedEvents {
+contract FactoryBehaviorTest is Test {
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    Settings private settings;
-    Events private events;
+    // main contracts
     Factory private factory;
+    Events private events;
     Account private implementation;
 
     /*//////////////////////////////////////////////////////////////
@@ -28,22 +24,18 @@ contract FactoryBehaviorTest is Test, ConsolidatedEvents {
 
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
+
+        // define Setup contract used for deployments
         Setup setup = new Setup();
-        factory = setup.deploySmartMarginFactory({
-            useDeployer: false,
-            owner: address(this),
-            treasury: KWENTA_TREASURY,
-            tradeFee: TRADE_FEE,
-            limitOrderFee: LIMIT_ORDER_FEE,
-            stopOrderFee: STOP_ORDER_FEE,
-            addressResolver: ADDRESS_RESOLVER,
-            marginAsset: MARGIN_ASSET,
-            gelato: GELATO,
-            ops: OPS
+
+        // deploy system contracts
+        (factory, events, implementation) = setup.deploySystem({
+            _deployer: address(0),
+            _owner: address(this),
+            _addressResolver: ADDRESS_RESOLVER,
+            _gelato: GELATO,
+            _ops: OPS
         });
-        settings = Settings(factory.settings());
-        events = Events(factory.events());
-        implementation = Account(payable(factory.implementation()));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -60,45 +52,11 @@ contract FactoryBehaviorTest is Test, ConsolidatedEvents {
         assertEq(account.owner(), address(this));
     }
 
-    function test_Account_SettingsSet() public {
-        address payable accountAddress = factory.newAccount();
-        Account account = Account(accountAddress);
-        assertEq(address(account.settings()), address(settings));
-    }
-
-    function test_Account_EventsSet() public {
-        address payable accountAddress = factory.newAccount();
-        Account account = Account(accountAddress);
-        assertEq(address(account.events()), address(events));
-    }
-
-    function test_Account_FactorySet() public {
-        address payable accountAddress = factory.newAccount();
-        Account account = Account(accountAddress);
-        assertEq(address(account.factory()), address(factory));
-    }
-
-    function test_Account_VersionSet() public {
-        address payable accountAddress = factory.newAccount();
-        Account account = Account(accountAddress);
-        assertEq(account.VERSION(), bytes32("2.0.0"));
-    }
-
     /*//////////////////////////////////////////////////////////////
                        IMPLEMENTATION INTERACTION
     //////////////////////////////////////////////////////////////*/
 
-    function test_Implementation_Owner_ZeroAddress() public {
+    function test_Implementation_Owner() public {
         assertEq(implementation.owner(), address(0));
-    }
-
-    function test_CallInitialize_Implementation() public {
-        vm.expectRevert("Initializable: contract is already initialized");
-        implementation.initialize({
-            _owner: address(this),
-            _settings: address(settings),
-            _events: address(events),
-            _factory: address(factory)
-        });
     }
 }

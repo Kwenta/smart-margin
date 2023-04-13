@@ -7,8 +7,8 @@ import {Owned} from "@solmate/auth/Owned.sol";
 
 /// @title Kwenta Account Factory
 /// @author JaredBorders (jaredborders@pm.me)
-/// @notice Mutable factory for creating smart margin accounts
-/// @dev This contract acts as a Beacon for the {AccountProxy.sol} contract
+/// @notice factory for creating smart margin accounts
+/// @dev the factory acts as a beacon for the proxy {AccountProxy.sol} contract(s)
 contract Factory is IFactory, Owned {
     /*//////////////////////////////////////////////////////////////
                                  STATE
@@ -18,39 +18,21 @@ contract Factory is IFactory, Owned {
     bool public canUpgrade = true;
 
     /// @inheritdoc IFactory
-    address public settings;
-
-    /// @inheritdoc IFactory
-    address public events;
-
-    /// @inheritdoc IFactory
     address public implementation;
 
     /// @inheritdoc IFactory
     mapping(address accounts => bool exist) public accounts;
 
     /// @notice mapping of owner to accounts owned by owner
-    mapping(address owner => address[] accounts) private ownerAccounts;
+    mapping(address owner => address[] accounts) internal ownerAccounts;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice constructor for factory
+    /// @notice constructor for factory that sets owner
     /// @param _owner: owner of factory
-    /// @param _settings: address of settings contract for accounts
-    /// @param _events: address of events contract for accounts
-    /// @param _implementation: address of account implementation
-    constructor(
-        address _owner,
-        address _settings,
-        address _events,
-        address _implementation
-    ) Owned(_owner) {
-        settings = _settings;
-        events = _events;
-        implementation = _implementation;
-    }
+    constructor(address _owner) Owned(_owner) {}
 
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
@@ -69,7 +51,7 @@ contract Factory is IFactory, Owned {
         // fetch owner from account
         (bool success, bytes memory data) =
             _account.staticcall(abi.encodeWithSignature("owner()"));
-        assert(success); // should never fail (account is a contract
+        assert(success); // should never fail (account is a contract)
 
         return abi.decode(data, (address));
     }
@@ -100,14 +82,15 @@ contract Factory is IFactory, Owned {
         // ensure function caller is the account
         if (msg.sender != _account) revert OnlyAccount();
 
+        // store length of ownerAccounts array in memory
         uint256 length = ownerAccounts[_oldOwner].length;
+
         for (uint256 i = 0; i < length;) {
             if (ownerAccounts[_oldOwner][i] == _account) {
                 // remove account from ownerAccounts mapping for old owner
-                _shiftArrayLeftFrom({
-                    _index: i,
-                    _array: ownerAccounts[_oldOwner]
-                });
+                ownerAccounts[_oldOwner][i] =
+                    ownerAccounts[_oldOwner][length - 1];
+                ownerAccounts[_oldOwner].pop();
 
                 // add account to ownerAccounts mapping for new owner
                 ownerAccounts[_newOwner].push(_account);
@@ -116,30 +99,9 @@ contract Factory is IFactory, Owned {
             }
 
             unchecked {
-                i++;
+                ++i;
             }
         }
-    }
-
-    /// @notice shifts every element in the array left from the specified index
-    /// @dev index will *NEVER* be out of bounds
-    /// @param _index: index to start shifting from
-    /// @param _array: array to shift
-    /// @custom:example _shiftArrayLeftFrom(1, [1, 2, 3, 4, 5]) => [1, 3, 4, 5]
-    function _shiftArrayLeftFrom(uint256 _index, address[] storage _array)
-        internal
-    {
-        uint256 length = _array.length;
-
-        for (uint256 i = _index; i < length - 1;) {
-            _array[i] = _array[i + 1];
-
-            unchecked {
-                i++;
-            }
-        }
-
-        _array.pop();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -161,17 +123,11 @@ contract Factory is IFactory, Owned {
         // add account to ownerAccounts mapping
         ownerAccounts[msg.sender].push(accountAddress);
 
-        // initialize new account
+        // set owner of account to caller
         (bool success, bytes memory data) = accountAddress.call(
-            abi.encodeWithSignature(
-                "initialize(address,address,address,address)",
-                msg.sender, // caller will be set as owner
-                settings,
-                events,
-                address(this)
-            )
+            abi.encodeWithSignature("setInitialOwnership(address)", msg.sender)
         );
-        if (!success) revert AccountFailedToInitialize(data);
+        if (!success) revert FailedToSetAcountOwner(data);
 
         // determine version for the following event
         (success, data) =
@@ -198,20 +154,6 @@ contract Factory is IFactory, Owned {
         if (!canUpgrade) revert CannotUpgrade();
         implementation = _implementation;
         emit AccountImplementationUpgraded({implementation: _implementation});
-    }
-
-    /// @inheritdoc IFactory
-    function upgradeSettings(address _settings) external override onlyOwner {
-        if (!canUpgrade) revert CannotUpgrade();
-        settings = _settings;
-        emit SettingsUpgraded({settings: _settings});
-    }
-
-    /// @inheritdoc IFactory
-    function upgradeEvents(address _events) external override onlyOwner {
-        if (!canUpgrade) revert CannotUpgrade();
-        events = _events;
-        emit EventsUpgraded({events: _events});
     }
 
     /// @inheritdoc IFactory

@@ -5,10 +5,13 @@ pragma solidity 0.8.18;
                               TEST VALUES
 //////////////////////////////////////////////////////////////*/
 
-// BLOCK_NUMBER corresponds to Optimism Goerli network state @ Mar-24-2023 06:48:48 PM +UTC
+// BLOCK_NUMBER corresponds to Optimism Goerli network state @ Apr-05-2023 07:46:26 PM +UTC
 // hard coded addresses are only guaranteed for this block
 // used to create a consistent and realistic test environment exposing Synthetix PerpsV2
-uint256 constant BLOCK_NUMBER = 7_559_742;
+uint256 constant BLOCK_NUMBER = 7_642_959;
+
+// test deployer address with ETH
+address constant DEPLOYER = 0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4;
 
 // test user address
 address constant USER = 0x35eFbD8Ab6F7258C13D3ecDfc56c2c0DD094678F;
@@ -21,9 +24,6 @@ address constant DELEGATE = address(0xBEEFBAE);
 
 // test amount used throughout tests
 uint256 constant AMOUNT = 10_000 ether;
-
-// max BPS; used for decimals calculations
-uint256 constant MAX_BPS = 10_000;
 
 // test margin delta used throughout tests
 int256 constant MARGIN_DELTA = 1 ether;
@@ -56,11 +56,6 @@ bytes32 constant TRACKING_CODE = "KWENTA";
 // address used for testing the AccountProxy Beacon
 address constant BEACON = address(0xA);
 
-// settings fee values
-uint256 constant TRADE_FEE = 1;
-uint256 constant LIMIT_ORDER_FEE = 2;
-uint256 constant STOP_ORDER_FEE = 3;
-
 /*//////////////////////////////////////////////////////////////
                                SYNTHETIX
 //////////////////////////////////////////////////////////////*/
@@ -71,9 +66,15 @@ address constant ADDRESS_RESOLVER = 0x9Fc84992dF5496797784374B810E04238728743d;
 // Synthetix (ProxyERC20sUSD)
 address constant MARGIN_ASSET = 0xeBaEAAD9236615542844adC5c149F86C36aD1136;
 
+// Synthetix contract names
+bytes32 constant PROXY_SUSD = "ProxysUSD";
+bytes32 constant FUTURES_MANAGER = "FuturesMarketManager";
+bytes32 constant SYSTEM_STATUS = "SystemStatus";
+
 // Synthetix PerpsV2 market key(s)
 bytes32 constant sETHPERP = "sETHPERP";
 bytes32 constant sBTCPERP = "sBTCPERP";
+bytes32 constant sAUDPERP = "sAUDPERP";
 
 /*//////////////////////////////////////////////////////////////
                                  GELATO

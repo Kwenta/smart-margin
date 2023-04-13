@@ -5,54 +5,93 @@ import "forge-std/Script.sol";
 import {Account} from "src/Account.sol";
 import {Events} from "src/Events.sol";
 import {Factory} from "src/Factory.sol";
-import {Settings} from "src/Settings.sol";
+
+interface IAddressResolver {
+    function getAddress(bytes32 name) external view returns (address);
+}
 
 /// @title Script to deploy Kwenta's Smart Margin Account Factory
 /// @author JaredBorders (jaredborders@pm.me)
 contract Setup {
-    function deploySmartMarginFactory(
-        bool useDeployer,
-        address owner,
-        address treasury,
-        uint256 tradeFee,
-        uint256 limitOrderFee,
-        uint256 stopOrderFee,
-        address addressResolver,
-        address marginAsset,
-        address gelato,
-        address ops
-    ) public returns (Factory factory) {
-        address mainnetDeployer = 0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4;
+    function deploySystem(
+        address _deployer,
+        address _owner,
+        address _addressResolver,
+        address _gelato,
+        address _ops
+    ) public returns (Factory factory, Events events, Account implementation) {
+        // define *initial* factory owner
+        address temporaryOwner =
+            _deployer == address(0) ? address(this) : _deployer;
 
-        Settings settings = new Settings({
-            _owner: owner,
-            _treasury: treasury,
-            _tradeFee: tradeFee,
-            _limitOrderFee: limitOrderFee,
-            _stopOrderFee: stopOrderFee
+        // deploy the factory
+        factory = deploySmartMarginFactory({_owner: temporaryOwner});
+
+        // deploy the events contract and set the factory
+        events = deployEvents({_factory: address(factory)});
+
+        // resolve necessary addresses via the Synthetix Address Resolver
+        IAddressResolver addressResolver = IAddressResolver(_addressResolver);
+        address marginAsset =
+            addressResolver.getAddress({name: bytes32("ProxysUSD")});
+        address futuresMarketManager =
+            addressResolver.getAddress({name: bytes32("FuturesMarketManager")});
+        address systemStatus =
+            addressResolver.getAddress({name: bytes32("SystemStatus")});
+
+        // deploy the account implementation
+        implementation = deployAccountImplementation({
+            _factory: address(factory),
+            _events: address(events),
+            _marginAsset: marginAsset,
+            _futuresMarketManager: futuresMarketManager,
+            _systemStatus: systemStatus,
+            _gelato: _gelato,
+            _ops: _ops
         });
 
-        Account implementation = new Account({
-            addressResolver: addressResolver, 
-            marginAsset: marginAsset,
-            gelato: gelato,
-            ops: ops
-        });
-
-        // deploy Factory
-        factory = new Factory({
-            _owner: useDeployer ? mainnetDeployer : address(this),
-            _settings: address(settings),
-            _events: address(0),
+        // update the factory with the new account implementation
+        factory.upgradeAccountImplementation({
             _implementation: address(implementation)
         });
 
-        // set events
-        Events events = new Events({_factory: address(factory)});
-        factory.upgradeEvents(address(events));
+        // transfer ownership of the factory to the owner
+        factory.transferOwnership({newOwner: _owner});
+    }
 
-        // set proper owner of factory
-        factory.transferOwnership(owner);
+    function deploySmartMarginFactory(address _owner)
+        internal
+        returns (Factory factory)
+    {
+        factory = new Factory({
+            _owner: _owner
+        });
+    }
+
+    function deployEvents(address _factory) internal returns (Events events) {
+        events = new Events({
+            _factory: _factory
+        });
+    }
+
+    function deployAccountImplementation(
+        address _factory,
+        address _events,
+        address _marginAsset,
+        address _futuresMarketManager,
+        address _systemStatus,
+        address _gelato,
+        address _ops
+    ) internal returns (Account implementation) {
+        implementation = new Account({
+            _factory: _factory,
+            _events: _events,
+            _marginAsset: _marginAsset,
+            _futuresMarketManager: _futuresMarketManager,
+            _systemStatus: _systemStatus,
+            _gelato: _gelato,
+            _ops: _ops
+        });
     }
 }
 
@@ -62,18 +101,8 @@ contract Setup {
 contract DeployOptimism is Script, Setup {
     address private constant KWENTA_ADMIN_DAO_MULTI_SIG =
         0xF510a2Ff7e9DD7e18629137adA4eb56B9c13E885;
-    address private constant KWENTA_TREASURY_MULTI_SIG =
-        0x82d2242257115351899894eF384f779b5ba8c695;
-
-    uint256 private constant SETTINGS_TRADE_FEE = 0;
-    uint256 private constant SETTINGS_LIMIT_ORDER_FEE = 2;
-    uint256 private constant SETTINGS_STOP_ORDER_FEE = 2;
-
-    address private constant ADDRESS_RESOLVER =
+    address private constant SYNTHETIX_ADDRESS_RESOLVER =
         0x1Cb059b7e74fD21665968C908806143E744D5F30;
-    address private constant MARGIN_ASSET =
-        0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9;
-
     address private constant GELATO = 0x01051113D81D7d6DA508462F2ad6d7fD96cF42Ef;
     address private constant OPS = 0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c;
 
@@ -81,17 +110,12 @@ contract DeployOptimism is Script, Setup {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
-        Setup.deploySmartMarginFactory({
-            useDeployer: true,
-            owner: KWENTA_ADMIN_DAO_MULTI_SIG,
-            treasury: KWENTA_TREASURY_MULTI_SIG,
-            tradeFee: SETTINGS_TRADE_FEE,
-            limitOrderFee: SETTINGS_LIMIT_ORDER_FEE,
-            stopOrderFee: SETTINGS_STOP_ORDER_FEE,
-            addressResolver: ADDRESS_RESOLVER,
-            marginAsset: MARGIN_ASSET,
-            gelato: GELATO,
-            ops: OPS
+        Setup.deploySystem({
+            _deployer: 0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4,
+            _owner: KWENTA_ADMIN_DAO_MULTI_SIG,
+            _addressResolver: SYNTHETIX_ADDRESS_RESOLVER,
+            _gelato: GELATO,
+            _ops: OPS
         });
 
         vm.stopBroadcast();
@@ -101,21 +125,12 @@ contract DeployOptimism is Script, Setup {
 /// @dev steps to deploy and verify on Optimism Goerli:
 /// (1) load the variables in the .env file via `source .env`
 /// (2) run `forge script script/Deploy.s.sol:DeployOptimismGoerli --rpc-url $ARCHIVE_NODE_URL_GOERLI_L2 --broadcast --verify -vvvv`
+/// @dev here the KWENTA_ADMIN_DAO_MULTI_SIG is the deployer address
 contract DeployOptimismGoerli is Script, Setup {
     address private constant KWENTA_ADMIN_DAO_MULTI_SIG =
-        0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4; // deployer address
-    address private constant KWENTA_TREASURY_MULTI_SIG =
-        0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4; // deployer address
-
-    uint256 private constant SETTINGS_TRADE_FEE = 0;
-    uint256 private constant SETTINGS_LIMIT_ORDER_FEE = 2;
-    uint256 private constant SETTINGS_STOP_ORDER_FEE = 2;
-
-    address private constant ADDRESS_RESOLVER =
+        0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4;
+    address private constant SYNTHETIX_ADDRESS_RESOLVER =
         0x9Fc84992dF5496797784374B810E04238728743d;
-    address private constant MARGIN_ASSET =
-        0xeBaEAAD9236615542844adC5c149F86C36aD1136;
-
     address private constant GELATO = 0xF82D64357D9120a760e1E4C75f646C0618eFc2F3;
     address private constant OPS = 0x255F82563b5973264e89526345EcEa766DB3baB2;
 
@@ -123,17 +138,12 @@ contract DeployOptimismGoerli is Script, Setup {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
-        Setup.deploySmartMarginFactory({
-            useDeployer: true,
-            owner: KWENTA_ADMIN_DAO_MULTI_SIG,
-            treasury: KWENTA_TREASURY_MULTI_SIG,
-            tradeFee: SETTINGS_TRADE_FEE,
-            limitOrderFee: SETTINGS_LIMIT_ORDER_FEE,
-            stopOrderFee: SETTINGS_STOP_ORDER_FEE,
-            addressResolver: ADDRESS_RESOLVER,
-            marginAsset: MARGIN_ASSET,
-            gelato: GELATO,
-            ops: OPS
+        Setup.deploySystem({
+            _deployer: 0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4,
+            _owner: KWENTA_ADMIN_DAO_MULTI_SIG,
+            _addressResolver: SYNTHETIX_ADDRESS_RESOLVER,
+            _gelato: GELATO,
+            _ops: OPS
         });
 
         vm.stopBroadcast();

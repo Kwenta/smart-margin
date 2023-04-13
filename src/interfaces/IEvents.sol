@@ -112,36 +112,17 @@ interface IEvents {
     /// @param conditionalOrderId: id of conditional order
     /// @param fillPrice: price the conditional order was executed at
     /// @param keeperFee: fees paid to the executor
-    /// @param kwentaFee: fees paid to Kwenta
     function emitConditionalOrderFilled(
         address account,
         uint256 conditionalOrderId,
         uint256 fillPrice,
-        uint256 keeperFee,
-        uint256 kwentaFee
+        uint256 keeperFee
     ) external;
 
     event ConditionalOrderFilled(
         address indexed account,
         uint256 conditionalOrderId,
         uint256 fillPrice,
-        uint256 keeperFee,
-        uint256 kwentaFee
-    );
-
-    /// @notice emitted after a fee has been transferred to Treasury
-    /// @param account: the address of the account the fee was imposed on
-    /// @param amount: fee amount sent to Treasury
-    /// @param marketKey: Synthetix PerpsV2 market key
-    /// @param reason: reason for fee
-    function emitFeeImposed(
-        address account,
-        uint256 amount,
-        bytes32 marketKey,
-        bytes32 reason
-    ) external;
-
-    event FeeImposed(
-        address account, uint256 amount, bytes32 marketKey, bytes32 reason
+        uint256 keeperFee
     );
 }

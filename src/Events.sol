@@ -112,30 +112,13 @@ contract Events is IEvents {
         address account,
         uint256 conditionalOrderId,
         uint256 fillPrice,
-        uint256 keeperFee,
-        uint256 kwentaFee
+        uint256 keeperFee
     ) external override onlyAccounts {
         emit ConditionalOrderFilled({
             account: account,
             conditionalOrderId: conditionalOrderId,
             fillPrice: fillPrice,
-            keeperFee: keeperFee,
-            kwentaFee: kwentaFee
-        });
-    }
-
-    /// @inheritdoc IEvents
-    function emitFeeImposed(
-        address account,
-        uint256 amount,
-        bytes32 marketKey,
-        bytes32 reason
-    ) external override onlyAccounts {
-        emit FeeImposed({
-            account: account,
-            amount: amount,
-            marketKey: marketKey,
-            reason: reason
+            keeperFee: keeperFee
         });
     }
 }

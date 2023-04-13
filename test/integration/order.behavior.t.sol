@@ -2,24 +2,23 @@
 pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
-import {Account, Auth} from "../../src/Account.sol";
+import "../utils/Constants.sol";
+import {Account} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
+import {Auth} from "../../src/Account.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
-import {
-    IAccount,
-    IFuturesMarketManager,
-    IPerpsV2MarketConsolidated
-} from "../../src/interfaces/IAccount.sol";
-import {IAddressResolver} from "@synthetix/IAddressResolver.sol";
-import {IPerpsV2MarketSettings} from "@synthetix/IPerpsV2MarketSettings.sol";
-import {ISynth} from "@synthetix/ISynth.sol";
-import {OpsReady, IOps} from "../../src/utils/OpsReady.sol";
-import {Settings} from "../../src/Settings.sol";
+import {IAccount} from "../../src/interfaces/IAccount.sol";
+import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
+import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
+import {IOps} from "../../src/utils/OpsReady.sol";
+import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
+import {ISynth} from "../utils/interfaces/ISynth.sol";
+import {ISystemStatus} from "../utils/interfaces/ISystemStatus.sol";
+import {OpsReady} from "../../src/utils/OpsReady.sol";
 import {Setup} from "../../script/Deploy.s.sol";
-import "../utils/Constants.sol";
 
 // functions tagged with @HELPER are helper functions and not tests
 // tests tagged with @AUDITOR are flags for desired increased scrutiny by the auditors
@@ -30,12 +29,17 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    Settings private settings;
-    Events private events;
+    // main contracts
     Factory private factory;
+    Events private events;
     Account private account;
+
+    // helper contracts for testing
     ERC20 private sUSD;
     AccountExposed private accountExposed;
+    ISystemStatus private systemStatus;
+
+    // helper variables for testing
     uint256 private currentEthPriceInUSD;
 
     /*//////////////////////////////////////////////////////////////
@@ -45,35 +49,41 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
 
-        sUSD = ERC20(IAddressResolver(ADDRESS_RESOLVER).getAddress("ProxysUSD"));
-
+        // define Setup contract used for deployments
         Setup setup = new Setup();
-        factory = setup.deploySmartMarginFactory({
-            useDeployer: false,
-            owner: address(this),
-            treasury: KWENTA_TREASURY,
-            tradeFee: 0,
-            limitOrderFee: 0,
-            stopOrderFee: 0,
-            addressResolver: ADDRESS_RESOLVER,
-            marginAsset: MARGIN_ASSET,
-            gelato: GELATO,
-            ops: OPS
+
+        // deploy system contracts
+        (factory, events,) = setup.deploySystem({
+            _deployer: address(0),
+            _owner: address(this),
+            _addressResolver: ADDRESS_RESOLVER,
+            _gelato: GELATO,
+            _ops: OPS
         });
 
-        settings = Settings(factory.settings());
-        events = Events(factory.events());
+        // define helper contracts
+        IAddressResolver addressResolver = IAddressResolver(ADDRESS_RESOLVER);
+        sUSD = ERC20(addressResolver.getAddress(PROXY_SUSD));
+        address futuresMarketManager =
+            addressResolver.getAddress(FUTURES_MANAGER);
+        systemStatus = ISystemStatus(addressResolver.getAddress(SYSTEM_STATUS));
 
+        // deploy AccountExposed contract for exposing internal account functions
+        accountExposed = new AccountExposed(
+            address(factory),
+            address(events), 
+            address(sUSD), 
+            futuresMarketManager, 
+            address(systemStatus), 
+            GELATO, 
+            OPS
+        );
+
+        // deploy an Account contract and fund it
         account = Account(payable(factory.newAccount()));
         fundAccount(AMOUNT);
 
-        accountExposed = new AccountExposed();
-        accountExposed.setFuturesMarketManager(
-            IFuturesMarketManager(address(account.futuresMarketManager()))
-        );
-        accountExposed.setSettings(settings);
-        accountExposed.setEvents(events);
-
+        // get current ETH price in USD
         currentEthPriceInUSD = accountExposed.expose_sUSDRate(
             IPerpsV2MarketConsolidated(
                 accountExposed.expose_getPerpsV2Market(sETHPERP)
@@ -109,11 +119,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     }
 
     function test_PlaceConditionalOrder_Invalid_ZeroSizeDelta() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccount.ValueCannotBeZero.selector, bytes32("_sizeDelta")
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(IAccount.ZeroSizeDelta.selector));
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.GELATO_PLACE_CONDITIONAL_ORDER;
         bytes[] memory inputs = new bytes[](1);
@@ -300,7 +306,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             IAccount.ConditionalOrderTypes.LIMIT,
             DESIRED_FILL_PRICE,
             false
-            );
+        );
         placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
@@ -564,7 +570,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             IAccount
                 .ConditionalOrderCancelledReason
                 .CONDITIONAL_ORDER_CANCELLED_BY_USER
-            );
+        );
         cancelConditionalOrder(conditionalOrderId);
     }
 
@@ -576,6 +582,26 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         vm.prank(USER);
         vm.expectRevert(abi.encodeWithSelector(OpsReady.OnlyOps.selector));
         account.executeConditionalOrder({_conditionalOrderId: 0});
+    }
+
+    function test_ExecuteConditionalOrder_MarketIsPaused() public {
+        // place conditional order for sAUDPERP market
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sAUDPERP,
+            marginDelta: int256(AMOUNT),
+            sizeDelta: int256(AMOUNT),
+            targetPrice: 0,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            desiredFillPrice: 0,
+            reduceOnly: false
+        });
+
+        // pause sAUDPERP market
+        suspendPerpsV2Market(sAUDPERP);
+
+        // assert conditional order cannot be executed due to paused market
+        (bool canExecute,) = account.checker(conditionalOrderId);
+        assert(!canExecute);
     }
 
     // assert successful execution frees committed margin
@@ -713,6 +739,94 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             useTaskTreasuryFunds: false,
             revertOnFailure: true
         });
+    }
+
+    function test_ExecuteConditionalOrder_Valid_TaskCancelled() public {
+        // place conditional order
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD * 2,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            desiredFillPrice: DESIRED_FILL_PRICE,
+            reduceOnly: false
+        });
+
+        // check task id registered in gelato
+        bytes32 taskId =
+            account.getConditionalOrder(conditionalOrderId).gelatoTaskId;
+        bytes32[] memory outstandingTasks =
+            IOps(OPS).getTaskIdsByUser(address(account));
+        assertEq(outstandingTasks.length, 1);
+        assertEq(taskId, outstandingTasks[0]);
+
+        // define module data within test that matches the module data submitted to gelato
+        (bytes memory executionData, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
+
+        // prank gelato and execute task
+        vm.prank(GELATO);
+        IOps(OPS).exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: executionData,
+            moduleData: moduleData,
+            txFee: GELATO_FEE,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        });
+
+        // ensure task is cancelled (i.e. gelato task is removed)
+        outstandingTasks = IOps(OPS).getTaskIdsByUser(address(account));
+        assertEq(outstandingTasks.length, 0);
+    }
+
+    function test_ExecuteConditionalOrder_InvalidAtExecutionTime() public {
+        // place conditional order
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD * 2,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            desiredFillPrice: DESIRED_FILL_PRICE,
+            reduceOnly: false
+        });
+
+        // define task id
+        bytes32 taskId =
+            account.getConditionalOrder(conditionalOrderId).gelatoTaskId;
+
+        // define module data within test that matches the module data submitted to gelato
+        (bytes memory executionData, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
+
+        // suspend market so execution will fail (not this will never happen due to the checker
+        // catching this before gelato executes the task). This is done
+        // here just to replicate the execution failing, regardless of the reason
+        suspendPerpsV2Market(sETHPERP);
+
+        // prank gelato and execute task (note this will fail)
+        vm.prank(GELATO);
+        try IOps(OPS).exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: executionData,
+            moduleData: moduleData,
+            txFee: GELATO_FEE,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        }) {} catch {
+            // ensure task still exists
+            // ensure task is cancelled (i.e. gelato task is removed)
+            bytes32[] memory outstandingTasks =
+                IOps(OPS).getTaskIdsByUser(address(account));
+            assertEq(outstandingTasks.length, 1);
+            assertEq(taskId, outstandingTasks[0]);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1069,7 +1183,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                 IAccount
                     .ConditionalOrderCancelledReason
                     .CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
-                );
+            );
         } else if (fuzzedSizeDelta < 0) {
             if (fuzzedSizeDelta + position.size < 0) {
                 // expect fuzzedSizeDelta to be bound by zero to prevent flipping (long to short or vice versa)
@@ -1078,8 +1192,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     account: address(account),
                     conditionalOrderId: conditionalOrderId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE,
-                    kwentaFee: 0
+                    keeperFee: GELATO_FEE
                 });
             } else if (fuzzedSizeDelta + position.size >= 0) {
                 // expect conditional order to be filled with specified fuzzedSizeDelta
@@ -1088,8 +1201,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     account: address(account),
                     conditionalOrderId: conditionalOrderId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE,
-                    kwentaFee: 0
+                    keeperFee: GELATO_FEE
                 });
             } else {
                 revert("Uncaught case");
@@ -1141,7 +1253,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                 IAccount
                     .ConditionalOrderCancelledReason
                     .CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
-                );
+            );
         } else if (fuzzedSizeDelta > 0) {
             if (fuzzedSizeDelta + position.size > 0) {
                 // expect fuzzedSizeDelta to be bound by zero to prevent flipping (long to short or vice versa)
@@ -1150,8 +1262,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     account: address(account),
                     conditionalOrderId: conditionalOrderId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE,
-                    kwentaFee: 0
+                    keeperFee: GELATO_FEE
                 });
             } else if (fuzzedSizeDelta + position.size <= 0) {
                 // expect conditional order to be filled with specified fuzzedSizeDelta
@@ -1160,8 +1271,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     account: address(account),
                     conditionalOrderId: conditionalOrderId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE,
-                    kwentaFee: 0
+                    keeperFee: GELATO_FEE
                 });
             } else {
                 revert("Uncaught case");
@@ -1277,18 +1387,37 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             abi.encodeCall(account.executeConditionalOrder, conditionalOrderId);
 
         moduleData = IOps.ModuleData({
-            modules: new IOps.Module[](2),
-            args: new bytes[](2)
+            modules: new IOps.Module[](1),
+            args: new bytes[](1)
         });
 
         moduleData.modules[0] = IOps.Module.RESOLVER;
-        moduleData.modules[1] = IOps.Module.SINGLE_EXEC;
 
         moduleData.args[0] = abi.encode(
             address(account),
             abi.encodeCall(account.checker, conditionalOrderId)
         );
-        // moduleData.args[1] is empty for single exec thus no need to encode
+    }
+
+    function suspendPerpsV2Market(bytes32 market) internal {
+        // fetch owner address of SystemStatus contract
+        (bool success, bytes memory response) =
+            address(systemStatus).call(abi.encodeWithSignature("owner()"));
+        address systemStatusOwner =
+            success ? abi.decode(response, (address)) : address(0);
+
+        // add owner to access control list so they can suspend perpsv2 market
+        vm.startPrank(systemStatusOwner);
+        systemStatus.updateAccessControl({
+            section: bytes32("Futures"),
+            account: systemStatusOwner,
+            canSuspend: true,
+            canResume: true
+        });
+
+        // suspend market
+        systemStatus.suspendFuturesMarket({marketKey: market, reason: 69});
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////

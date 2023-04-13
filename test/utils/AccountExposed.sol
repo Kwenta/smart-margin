@@ -5,7 +5,6 @@ import {
     Account,
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated,
-    ISettings,
     IEvents,
     IOps
 } from "../../src/Account.sol";
@@ -13,124 +12,56 @@ import "./Constants.sol";
 
 /// @dev This contract exposes the internal functions of Account.sol for testing purposes
 contract AccountExposed is Account {
-    constructor() Account(ADDRESS_RESOLVER, MARGIN_ASSET, GELATO, OPS) {}
+    constructor(
+        address _factory,
+        address _events,
+        address _marginAsset,
+        address _futuresMarketManager,
+        address _systemStatus,
+        address _gelato,
+        address _ops
+    )
+        Account(
+            _factory,
+            _events,
+            _marginAsset,
+            _futuresMarketManager,
+            _systemStatus,
+            _gelato,
+            _ops
+        )
+    {}
 
-    /*//////////////////////////////////////////////////////////////
-                      SETTERS FOR EXPOSED ACCOUNT
-    //////////////////////////////////////////////////////////////*/
-
-    function setFuturesMarketManager(
-        IFuturesMarketManager _futuresMarketManager
-    ) external {
-        futuresMarketManager = _futuresMarketManager;
+    function expose_TRACKING_CODE() public pure returns (bytes32) {
+        return TRACKING_CODE;
     }
 
-    function setSettings(ISettings _settings) public {
-        settings = _settings;
+    function expose_FACTORY() public view returns (address) {
+        return address(FACTORY);
     }
 
-    function setEvents(IEvents _events) public {
-        events = _events;
+    function expose_EVENTS() public view returns (address) {
+        return address(EVENTS);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                         EXPOSED FEE UTILITIES
-    //////////////////////////////////////////////////////////////*/
-
-    function expose_calculateFee(
-        int256 _sizeDelta,
-        IPerpsV2MarketConsolidated _market,
-        uint256 _conditionalOrderFee
-    ) public view returns (uint256 fee) {
-        return _calculateFee(_sizeDelta, _market, _conditionalOrderFee);
+    function expose_MARGIN_ASSET() public view returns (address) {
+        return address(MARGIN_ASSET);
     }
 
-    function expose_imposeFee(
-        uint256 _fee,
-        bytes32 _marketKey,
-        FeeReason _reason
-    ) public {
-        _imposeFee(_fee, _marketKey, _reason);
+    function expose_FUTURES_MARKET_MANAGER() public view returns (address) {
+        return address(FUTURES_MARKET_MANAGER);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                            EXPOSED COMMANDS
-    //////////////////////////////////////////////////////////////*/
-
-    function expose_modifyAccountMargin(int256 amount) external {
-        _modifyAccountMargin({_amount: amount});
+    function expose_SYSTEM_STATUS() public view returns (address) {
+        return address(SYSTEM_STATUS);
     }
 
-    function expose_withdrawEth(uint256 amount) external {
-        _withdrawEth({_amount: amount});
+    function expose_GELATO() public view returns (address) {
+        return address(GELATO);
     }
 
-    function expose_perpsV2ModifyMargin(address market, int256 amount)
-        external
-    {
-        _perpsV2ModifyMargin({_market: market, _amount: amount});
-    }
-
-    function expose_perpsV2WithdrawAllMargin(address market) external {
-        _perpsV2WithdrawAllMargin({_market: market});
-    }
-
-    function expose_perpsV2SubmitAtomicOrder(
-        address market,
-        int256 sizeDelta,
-        uint256 desiredFillPrice
-    ) external {
-        _perpsV2SubmitAtomicOrder({
-            _market: market,
-            _sizeDelta: sizeDelta,
-            _desiredFillPrice: desiredFillPrice
-        });
-    }
-
-    function expose_perpsV2SubmitDelayedOrder(
-        address market,
-        int256 sizeDelta,
-        uint256 desiredTimeDelta,
-        uint256 desiredFillPrice
-    ) external {
-        _perpsV2SubmitDelayedOrder({
-            _market: market,
-            _sizeDelta: sizeDelta,
-            _desiredTimeDelta: desiredTimeDelta,
-            _desiredFillPrice: desiredFillPrice
-        });
-    }
-
-    function expose_perpsV2SubmitOffchainDelayedOrder(
-        address market,
-        int256 sizeDelta,
-        uint256 desiredFillPrice
-    ) external {
-        _perpsV2SubmitOffchainDelayedOrder({
-            _market: market,
-            _sizeDelta: sizeDelta,
-            _desiredFillPrice: desiredFillPrice
-        });
-    }
-
-    function expose_perpsV2CancelDelayedOrder(address market) external {
-        _perpsV2CancelDelayedOrder({_market: market});
-    }
-
-    function expose_perpsV2CancelOffchainDelayedOrder(address market)
-        external
-    {
-        _perpsV2CancelOffchainDelayedOrder({_market: market});
-    }
-
-    function expose_PERPS_V2_CLOSE_POSITION(
-        address market,
-        uint256 desiredFillPrice
-    ) external {
-        _perpsV2ClosePosition({
-            _market: market,
-            _desiredFillPrice: desiredFillPrice
-        });
+    function expose_OPS() public view returns (address) {
+        return address(OPS);
     }
 
     function expose_placeConditionalOrder(
@@ -153,14 +84,6 @@ contract AccountExposed is Account {
         });
     }
 
-    function expose_cancelConditionalOrder(uint256 orderId) external {
-        _cancelConditionalOrder({_conditionalOrderId: orderId});
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        EXPOSED GETTER UTILITIES
-    //////////////////////////////////////////////////////////////*/
-
     function expose_getPerpsV2Market(bytes32 _marketKey)
         public
         view
@@ -176,18 +99,6 @@ contract AccountExposed is Account {
     {
         return _sUSDRate(_market);
     }
-
-    function expose_validConditionalOrder(uint256 _conditionalOrderId)
-        external
-        view
-        returns (bool)
-    {
-        return (_validConditionalOrder(_conditionalOrderId));
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                         EXPOSED MATH UTILITIES
-    //////////////////////////////////////////////////////////////*/
 
     function expose_abs(int256 x) public pure returns (uint256) {
         return _abs(x);
