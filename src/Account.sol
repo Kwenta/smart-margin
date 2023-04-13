@@ -880,8 +880,8 @@ contract Account is IAccount, Auth, OpsReady {
                             MARGIN UTILITIES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice check that margin attempted to be moved is within free margin bounds
-    /// @param _marginOut: amount of margin "leaving" the account
+    /// @notice check that margin attempted to be moved/locked is within free margin bounds
+    /// @param _marginOut: amount of margin to be moved/locked
     function _sufficientMargin(int256 _marginOut) internal view {
         if (_abs(_marginOut) > freeMargin()) {
             revert InsufficientFreeMargin(freeMargin(), _abs(_marginOut));
