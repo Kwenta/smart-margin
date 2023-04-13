@@ -456,7 +456,9 @@ contract Account is IAccount, Auth, OpsReady {
     /// @param _market: address of market
     /// @param _amount: amount of margin to deposit/withdraw
     function _perpsV2ModifyMargin(address _market, int256 _amount) internal {
-        _sufficientMargin({_marginOut: _amount});
+        if (_amount > 0) {
+            _sufficientMargin({_marginOut: _amount});
+        }
         IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
     }
 
