@@ -52,7 +52,7 @@ contract EventsTest is Test, ConsolidatedEvents {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    function test_Constructor_FactorySett() public {
+    function test_Constructor_FactorySet() public {
         assertEq(events.factory(), address(factory));
     }
 
@@ -62,45 +62,45 @@ contract EventsTest is Test, ConsolidatedEvents {
 
     function test_EmitDeposit_Event() public {
         vm.expectEmit(true, true, true, true);
-        emit Deposit(USER, ACCOUNT, AMOUNT);
+        emit Deposit(USER, address(account), AMOUNT);
         vm.prank(account);
-        events.emitDeposit({user: USER, account: ACCOUNT, amount: AMOUNT});
+        events.emitDeposit({user: USER, amount: AMOUNT});
     }
 
     function test_EmitDeposit_OnlyAccounts() public {
         vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
-        events.emitDeposit({user: USER, account: ACCOUNT, amount: AMOUNT});
+        events.emitDeposit({user: USER, amount: AMOUNT});
     }
 
     function test_EmitWithdraw_Event() public {
         vm.expectEmit(true, true, true, true);
-        emit Withdraw(USER, ACCOUNT, AMOUNT);
+        emit Withdraw(USER, address(account), AMOUNT);
         vm.prank(account);
-        events.emitWithdraw({user: USER, account: ACCOUNT, amount: AMOUNT});
+        events.emitWithdraw({user: USER, amount: AMOUNT});
     }
 
     function test_EmitWithdraw_OnlyAccounts() public {
         vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
-        events.emitWithdraw({user: USER, account: ACCOUNT, amount: AMOUNT});
+        events.emitWithdraw({user: USER, amount: AMOUNT});
     }
 
     function test_EmitEthWithdraw_Event() public {
         vm.expectEmit(true, true, true, true);
-        emit EthWithdraw(USER, ACCOUNT, AMOUNT);
+        emit EthWithdraw(USER, address(account), AMOUNT);
         vm.prank(account);
-        events.emitEthWithdraw({user: USER, account: ACCOUNT, amount: AMOUNT});
+        events.emitEthWithdraw({user: USER, amount: AMOUNT});
     }
 
     function test_EmitEthWithdraw_OnlyAccounts() public {
         vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
-        events.emitEthWithdraw({user: USER, account: ACCOUNT, amount: AMOUNT});
+        events.emitEthWithdraw({user: USER, amount: AMOUNT});
     }
 
     function test_EmitConditionalOrderPlaced_Event() public {
         uint256 id = 0;
         vm.expectEmit(true, true, true, true);
         emit ConditionalOrderPlaced(
-            ACCOUNT,
+            address(account),
             id,
             sETHPERP,
             MARGIN_DELTA,
@@ -112,7 +112,6 @@ contract EventsTest is Test, ConsolidatedEvents {
         );
         vm.prank(account);
         events.emitConditionalOrderPlaced({
-            account: ACCOUNT,
             conditionalOrderId: id,
             marketKey: sETHPERP,
             marginDelta: MARGIN_DELTA,
@@ -127,7 +126,6 @@ contract EventsTest is Test, ConsolidatedEvents {
     function test_EmitConditionalOrderPlaced_OnlyAccounts() public {
         vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
         events.emitConditionalOrderPlaced({
-            account: ACCOUNT,
             conditionalOrderId: 0,
             marketKey: sETHPERP,
             marginDelta: MARGIN_DELTA,
@@ -143,7 +141,7 @@ contract EventsTest is Test, ConsolidatedEvents {
         uint256 id = 0;
         vm.expectEmit(true, true, true, true);
         emit ConditionalOrderCancelled(
-            ACCOUNT,
+            address(account),
             id,
             IAccount
                 .ConditionalOrderCancelledReason
@@ -151,7 +149,6 @@ contract EventsTest is Test, ConsolidatedEvents {
         );
         vm.prank(account);
         events.emitConditionalOrderCancelled({
-            account: ACCOUNT,
             conditionalOrderId: id,
             reason: IAccount
                 .ConditionalOrderCancelledReason
@@ -162,7 +159,6 @@ contract EventsTest is Test, ConsolidatedEvents {
     function test_EmitConditionalOrderCancelled_OnlyAccounts() public {
         vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
         events.emitConditionalOrderCancelled({
-            account: ACCOUNT,
             conditionalOrderId: 0,
             reason: IAccount
                 .ConditionalOrderCancelledReason
@@ -172,10 +168,9 @@ contract EventsTest is Test, ConsolidatedEvents {
 
     function test_EmitConditionalOrderFilled_Event() public {
         vm.expectEmit(true, true, true, true);
-        emit ConditionalOrderFilled(ACCOUNT, 0, FILL_PRICE, GELATO_FEE);
+        emit ConditionalOrderFilled(address(account), 0, FILL_PRICE, GELATO_FEE);
         vm.prank(account);
         events.emitConditionalOrderFilled({
-            account: ACCOUNT,
             conditionalOrderId: 0,
             fillPrice: FILL_PRICE,
             keeperFee: GELATO_FEE
@@ -185,7 +180,6 @@ contract EventsTest is Test, ConsolidatedEvents {
     function test_EmitConditionalOrderFilled_OnlyAccounts() public {
         vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
         events.emitConditionalOrderFilled({
-            account: ACCOUNT,
             conditionalOrderId: 0,
             fillPrice: FILL_PRICE,
             keeperFee: GELATO_FEE
