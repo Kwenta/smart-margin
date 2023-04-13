@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 /// @notice Authorization mixin for Smart Margin Accounts
 /// @author JaredBorders (jaredborders@pm.me)
 /// @dev This contract is intended to be inherited by the Account contract
-abstract contract Auth {
+abstract contract UpgradedAuth {
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
@@ -15,8 +15,11 @@ abstract contract Auth {
     /// @notice mapping of delegate address
     mapping(address delegate => bool) public delegates;
 
-    /// @dev reserved storage space for future contract upgrades
-    uint256[19] private __gap;
+    /// @dev new storage slot to test for storage collisions
+    address public storageSlotTest;
+
+    // reduce storage size by 1 slot (19 -> 18)
+    uint256[18] private __gap;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
