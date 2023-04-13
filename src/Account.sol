@@ -209,12 +209,14 @@ contract Account is IAccount, Auth, OpsReady {
             if (!isOwner()) revert Unauthorized();
 
             if (_command == Command.ACCOUNT_MODIFY_MARGIN) {
+                // Command.ACCOUNT_MODIFY_MARGIN
                 int256 amount;
                 assembly {
                     amount := calldataload(_inputs.offset)
                 }
                 _modifyAccountMargin({_amount: amount});
             } else {
+                // Command.ACCOUNT_WITHDRAW_ETH
                 uint256 amount;
                 assembly {
                     amount := calldataload(_inputs.offset)
@@ -222,13 +224,13 @@ contract Account is IAccount, Auth, OpsReady {
                 _withdrawEth({_amount: amount});
             }
         } else {
-            /// @dev both owner and delegates can execute the following commands
+            /// @dev only owner and delegate(s) can execute the following commands
             if (!isAuth()) revert Unauthorized();
 
             if (commandIndex < 4) {
-                address market;
-
                 if (_command == Command.PERPS_V2_MODIFY_MARGIN) {
+                    // Command.PERPS_V2_MODIFY_MARGIN
+                    address market;
                     int256 amount;
                     assembly {
                         market := calldataload(_inputs.offset)
@@ -236,18 +238,19 @@ contract Account is IAccount, Auth, OpsReady {
                     }
                     _perpsV2ModifyMargin({_market: market, _amount: amount});
                 } else {
+                    // Command.PERPS_V2_WITHDRAW_ALL_MARGIN
+                    address market;
                     assembly {
                         market := calldataload(_inputs.offset)
                     }
                     _perpsV2WithdrawAllMargin({_market: market});
                 }
-            } else if (commandIndex < 10) {
-                address market;
-                int256 sizeDelta;
-                uint256 desiredFillPrice;
-                bytes32 marketKey;
-
+            } else if (commandIndex < 6) {
                 if (_command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
+                    // Command.PERPS_V2_SUBMIT_ATOMIC_ORDER
+                    address market;
+                    int256 sizeDelta;
+                    uint256 desiredFillPrice;
                     assembly {
                         market := calldataload(_inputs.offset)
                         sizeDelta := calldataload(add(_inputs.offset, 0x20))
@@ -259,8 +262,12 @@ contract Account is IAccount, Auth, OpsReady {
                         _sizeDelta: sizeDelta,
                         _desiredFillPrice: desiredFillPrice
                     });
-                } else if (_command == Command.PERPS_V2_SUBMIT_DELAYED_ORDER) {
+                } else {
+                    // Command.PERPS_V2_SUBMIT_DELAYED_ORDER
+                    address market;
+                    int256 sizeDelta;
                     uint256 desiredTimeDelta;
+                    uint256 desiredFillPrice;
                     assembly {
                         market := calldataload(_inputs.offset)
                         sizeDelta := calldataload(add(_inputs.offset, 0x20))
@@ -275,9 +282,14 @@ contract Account is IAccount, Auth, OpsReady {
                         _desiredTimeDelta: desiredTimeDelta,
                         _desiredFillPrice: desiredFillPrice
                     });
-                } else if (
-                    _command == Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
-                ) {
+                }
+            } else if (commandIndex < 8) {
+                if (_command == Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER)
+                {
+                    // Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
+                    address market;
+                    int256 sizeDelta;
+                    uint256 desiredFillPrice;
                     assembly {
                         market := calldataload(_inputs.offset)
                         sizeDelta := calldataload(add(_inputs.offset, 0x20))
@@ -289,23 +301,26 @@ contract Account is IAccount, Auth, OpsReady {
                         _sizeDelta: sizeDelta,
                         _desiredFillPrice: desiredFillPrice
                     });
-                } else if (_command == Command.PERPS_V2_CLOSE_POSITION) {
+                } else {
+                    // Command.PERPS_V2_CLOSE_POSITION
+                    address market;
+                    uint256 desiredFillPrice;
                     assembly {
                         market := calldataload(_inputs.offset)
                         desiredFillPrice :=
                             calldataload(add(_inputs.offset, 0x20))
                     }
-                    /// @dev define current position size before closing so fee can be imposed later
-                    marketKey = IPerpsV2MarketConsolidated(market).marketKey();
-                    sizeDelta = getPosition(marketKey).size;
                     _perpsV2ClosePosition({
                         _market: market,
                         _desiredFillPrice: desiredFillPrice
                     });
-                } else if (
-                    _command == Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER
-                ) {
+                }
+            } else if (commandIndex < 10) {
+                if (_command == Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER) {
+                    // Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER
+                    address market;
                     uint256 desiredTimeDelta;
+                    uint256 desiredFillPrice;
                     assembly {
                         market := calldataload(_inputs.offset)
                         desiredTimeDelta :=
@@ -313,50 +328,44 @@ contract Account is IAccount, Auth, OpsReady {
                         desiredFillPrice :=
                             calldataload(add(_inputs.offset, 0x40))
                     }
-                    /// @dev define current position size before closing so fee can be imposed later
-                    marketKey = IPerpsV2MarketConsolidated(market).marketKey();
-                    sizeDelta = getPosition(marketKey).size;
                     _perpsV2SubmitCloseDelayedOrder({
                         _market: market,
                         _desiredTimeDelta: desiredTimeDelta,
                         _desiredFillPrice: desiredFillPrice
                     });
                 } else {
+                    // Command.PERPS_V2_SUBMIT_CLOSE_OFFCHAIN_DELAYED_ORDER
+                    address market;
+                    uint256 desiredFillPrice;
                     assembly {
                         market := calldataload(_inputs.offset)
                         desiredFillPrice :=
                             calldataload(add(_inputs.offset, 0x20))
                     }
-                    /// @dev define current position size before closing so fee can be imposed later
-                    marketKey = IPerpsV2MarketConsolidated(market).marketKey();
-                    sizeDelta = getPosition(marketKey).size;
                     _perpsV2SubmitCloseOffchainDelayedOrder({
                         _market: market,
                         _desiredFillPrice: desiredFillPrice
                     });
                 }
-
-                /// @dev has marketKey already been defined? if so, no need to fetch it again
-                marketKey = marketKey == bytes32(0)
-                    ? IPerpsV2MarketConsolidated(market).marketKey()
-                    : marketKey;
-            } else {
-                // commandIndex >= 10
+            } else if (commandIndex < 12) {
                 if (_command == Command.PERPS_V2_CANCEL_DELAYED_ORDER) {
+                    // Command.PERPS_V2_CANCEL_DELAYED_ORDER
                     address market;
                     assembly {
                         market := calldataload(_inputs.offset)
                     }
                     _perpsV2CancelDelayedOrder({_market: market});
-                } else if (
-                    _command == Command.PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER
-                ) {
+                } else {
+                    // Command.PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER
                     address market;
                     assembly {
                         market := calldataload(_inputs.offset)
                     }
                     _perpsV2CancelOffchainDelayedOrder({_market: market});
-                } else if (_command == Command.GELATO_PLACE_CONDITIONAL_ORDER) {
+                }
+            } else if (commandIndex < 14) {
+                if (_command == Command.GELATO_PLACE_CONDITIONAL_ORDER) {
+                    // Command.GELATO_PLACE_CONDITIONAL_ORDER
                     bytes32 marketKey;
                     int256 marginDelta;
                     int256 sizeDelta;
@@ -384,16 +393,16 @@ contract Account is IAccount, Auth, OpsReady {
                         _desiredFillPrice: desiredFillPrice,
                         _reduceOnly: reduceOnly
                     });
-                } else if (_command == Command.GELATO_CANCEL_CONDITIONAL_ORDER)
-                {
+                } else {
+                    // Command.GELATO_CANCEL_CONDITIONAL_ORDER
                     uint256 orderId;
                     assembly {
                         orderId := calldataload(_inputs.offset)
                     }
                     _cancelConditionalOrder({_conditionalOrderId: orderId});
-                } else {
-                    revert InvalidCommandType(commandIndex);
                 }
+            } else {
+                revert InvalidCommandType(commandIndex);
             }
         }
     }
