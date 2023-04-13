@@ -15,6 +15,9 @@ abstract contract Auth {
     /// @notice mapping of delegate address
     mapping(address delegate => bool) public delegates;
 
+    /// @dev reserved storage space for future contract upgrades
+    uint256[20] private __gap;
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
