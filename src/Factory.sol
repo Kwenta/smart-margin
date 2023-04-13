@@ -72,28 +72,24 @@ contract Factory is IFactory, Owned {
 
     /// @inheritdoc IFactory
     function updateAccountOwnership(
-        address _account,
         address _newOwner,
         address _oldOwner
     ) external override {
         // ensure account is registered by factory
-        if (!accounts[_account]) revert AccountDoesNotExist();
-
-        // ensure function caller is the account
-        if (msg.sender != _account) revert OnlyAccount();
+        if (!accounts[msg.sender]) revert AccountDoesNotExist();
 
         // store length of ownerAccounts array in memory
         uint256 length = ownerAccounts[_oldOwner].length;
 
         for (uint256 i = 0; i < length;) {
-            if (ownerAccounts[_oldOwner][i] == _account) {
+            if (ownerAccounts[_oldOwner][i] == msg.sender) {
                 // remove account from ownerAccounts mapping for old owner
                 ownerAccounts[_oldOwner][i] =
                     ownerAccounts[_oldOwner][length - 1];
                 ownerAccounts[_oldOwner].pop();
 
                 // add account to ownerAccounts mapping for new owner
-                ownerAccounts[_newOwner].push(_account);
+                ownerAccounts[_newOwner].push(msg.sender);
 
                 return;
             }

@@ -168,7 +168,6 @@ contract Account is IAccount, Auth, OpsReady {
 
         // update the factory's record of owners and account addresses
         FACTORY.updateAccountOwnership({
-            _account: address(this),
             _newOwner: _newOwner,
             _oldOwner: msg.sender // verified to be old owner
         });
