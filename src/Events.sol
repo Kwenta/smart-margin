@@ -43,35 +43,34 @@ contract Events is IEvents {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IEvents
-    function emitDeposit(address user, address account, uint256 amount)
+    function emitDeposit(address user, uint256 amount)
         external
         override
         onlyAccounts
     {
-        emit Deposit({user: user, account: account, amount: amount});
+        emit Deposit({user: user, account: msg.sender, amount: amount});
     }
 
     /// @inheritdoc IEvents
-    function emitWithdraw(address user, address account, uint256 amount)
+    function emitWithdraw(address user, uint256 amount)
         external
         override
         onlyAccounts
     {
-        emit Withdraw({user: user, account: account, amount: amount});
+        emit Withdraw({user: user, account: msg.sender, amount: amount});
     }
 
     /// @inheritdoc IEvents
-    function emitEthWithdraw(address user, address account, uint256 amount)
+    function emitEthWithdraw(address user, uint256 amount)
         external
         override
         onlyAccounts
     {
-        emit EthWithdraw({user: user, account: account, amount: amount});
+        emit EthWithdraw({user: user, account: msg.sender, amount: amount});
     }
 
     /// @inheritdoc IEvents
     function emitConditionalOrderPlaced(
-        address account,
         uint256 conditionalOrderId,
         bytes32 marketKey,
         int256 marginDelta,
@@ -82,7 +81,7 @@ contract Events is IEvents {
         bool reduceOnly
     ) external override onlyAccounts {
         emit ConditionalOrderPlaced({
-            account: account,
+            account: msg.sender,
             conditionalOrderId: conditionalOrderId,
             marketKey: marketKey,
             marginDelta: marginDelta,
@@ -96,12 +95,11 @@ contract Events is IEvents {
 
     /// @inheritdoc IEvents
     function emitConditionalOrderCancelled(
-        address account,
         uint256 conditionalOrderId,
         IAccount.ConditionalOrderCancelledReason reason
     ) external override onlyAccounts {
         emit ConditionalOrderCancelled({
-            account: account,
+            account: msg.sender,
             conditionalOrderId: conditionalOrderId,
             reason: reason
         });
@@ -109,13 +107,12 @@ contract Events is IEvents {
 
     /// @inheritdoc IEvents
     function emitConditionalOrderFilled(
-        address account,
         uint256 conditionalOrderId,
         uint256 fillPrice,
         uint256 keeperFee
     ) external override onlyAccounts {
         emit ConditionalOrderFilled({
-            account: account,
+            account: msg.sender,
             conditionalOrderId: conditionalOrderId,
             fillPrice: fillPrice,
             keeperFee: keeperFee
