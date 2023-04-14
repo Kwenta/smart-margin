@@ -436,7 +436,7 @@ contract Account is IAccount, Auth, OpsReady {
             });
         } else if (_amount < 0) {
             // if amount is negative, withdraw
-            _sufficientMargin({_marginOut: _amount});
+            _sufficientMargin(_amount);
             /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
             MARGIN_ASSET.transfer(owner, _abs(_amount));
 
@@ -457,7 +457,7 @@ contract Account is IAccount, Auth, OpsReady {
     /// @param _amount: amount of margin to deposit/withdraw
     function _perpsV2ModifyMargin(address _market, int256 _amount) internal {
         if (_amount > 0) {
-            _sufficientMargin({_marginOut: _amount});
+            _sufficientMargin(_amount);
         }
         IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
     }
@@ -620,7 +620,7 @@ contract Account is IAccount, Auth, OpsReady {
 
         // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
-            _sufficientMargin({_marginOut: _marginDelta});
+            _sufficientMargin(_marginDelta);
             committedMargin += _abs(_marginDelta);
         }
 
