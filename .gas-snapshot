@@ -84,7 +84,7 @@ FactoryTest:test_UpdateAccountOwnership_NewOwner_MultipleAccount(uint256) (runs:
 FactoryTest:test_UpdateAccountOwnership_OldOwner_MultipleAccount(uint256) (runs: 256, μ: 800908, ~: 659306)
 FactoryTest:test_UpdateAccountOwnership_OldOwner_SingleAccount() (gas: 344186)
 FactoryTest:test_UpdateAccountOwnership_OnlyAccount() (gas: 326764)
-FactoryTest:test_Upgrade_Implementation() (gas: 766903)
+FactoryTest:test_Upgrade_Implementation() (gas: 1034743)
 FactoryTest:test_Upgrade_Implementation_Event() (gas: 13019)
 FactoryTest:test_Upgrade_Implementation_OnlyOwner() (gas: 10980)
 FactoryTest:test_Upgrade_Implementation_UpgradabilityRemoved() (gas: 14817)

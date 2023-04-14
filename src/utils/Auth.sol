@@ -15,6 +15,10 @@ abstract contract Auth {
     /// @notice mapping of delegate address
     mapping(address delegate => bool) public delegates;
 
+    /// @dev reserved storage space for future contract upgrades
+    /// @custom:caution reduce storage size when adding new storage variables
+    uint256[19] private __gap;
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
