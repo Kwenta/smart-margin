@@ -146,17 +146,12 @@ contract FactoryTest is Test, ConsolidatedEvents {
         assertEq(factory.getAccountsOwnedBy(address(this)).length, 0);
     }
 
-    function test_UpdateAccountOwnership_OnlyAccount() public {
-        address payable accountAddress = factory.newAccount();
-        vm.expectRevert(abi.encodeWithSelector(IFactory.OnlyAccount.selector));
-        factory.updateAccountOwnership(accountAddress, USER, address(this));
-    }
-
     function test_UpdateAccountOwnership_AccountDoesNotExist() public {
         vm.expectRevert(
             abi.encodeWithSelector(IFactory.AccountDoesNotExist.selector)
         );
-        factory.updateAccountOwnership(address(0xCAFEBAE), USER, address(this));
+        vm.prank(address(0xCAFEBAE));
+        factory.updateAccountOwnership(USER, address(this));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -244,16 +239,27 @@ contract FactoryTest is Test, ConsolidatedEvents {
     }
 
     function test_Upgrade_Implementation() public {
+        // create account with old implementation
         address payable accountAddress = factory.newAccount();
+
+        // transfer ownership to a specific address
+        Account(accountAddress).transferOwnership(KWENTA_TREASURY);
+
+        // deploy new implementation (that uses new Auth)
         UpgradedAccount newImplementation = new UpgradedAccount();
+
+        // upgrade implementation via factory (beacon)
         factory.upgradeAccountImplementation({
             _implementation: address(newImplementation)
         });
+
         // check version changed
         bytes32 newVersion = "6.9.0";
         assertEq(Account(accountAddress).VERSION(), newVersion);
+
         // check owner did not change
-        assertEq(Account(accountAddress).owner(), address(this));
+        assertEq(Account(accountAddress).owner(), KWENTA_TREASURY);
+
         // check new account uses new implementation
         vm.prank(ACCOUNT);
         address payable accountAddress2 = factory.newAccount();
