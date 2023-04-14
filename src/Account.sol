@@ -436,19 +436,15 @@ contract Account is IAccount, Auth, OpsReady {
             });
         } else if (_amount < 0) {
             // if amount is negative, withdraw
-            if (_abs(_amount) > freeMargin()) {
-                /// @dev make sure committed margin isn't withdrawn
-                revert InsufficientFreeMargin(freeMargin(), _abs(_amount));
-            } else {
-                /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
-                MARGIN_ASSET.transfer(owner, _abs(_amount));
+            _sufficientMargin(_amount);
+            /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
+            MARGIN_ASSET.transfer(owner, _abs(_amount));
 
-                EVENTS.emitWithdraw({
-                    user: msg.sender,
-                    account: address(this),
-                    amount: _abs(_amount)
-                });
-            }
+            EVENTS.emitWithdraw({
+                user: msg.sender,
+                account: address(this),
+                amount: _abs(_amount)
+            });
         }
     }
 
@@ -461,14 +457,9 @@ contract Account is IAccount, Auth, OpsReady {
     /// @param _amount: amount of margin to deposit/withdraw
     function _perpsV2ModifyMargin(address _market, int256 _amount) internal {
         if (_amount > 0) {
-            if (uint256(_amount) > freeMargin()) {
-                revert InsufficientFreeMargin(freeMargin(), uint256(_amount));
-            } else {
-                IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
-            }
-        } else {
-            IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
+            _sufficientMargin(_amount);
         }
+        IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
     }
 
     /// @notice withdraw margin from market back to this account
@@ -629,12 +620,7 @@ contract Account is IAccount, Auth, OpsReady {
 
         // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
-            // ensure margin doesn't exceed max
-            if (uint256(_marginDelta) > freeMargin()) {
-                revert InsufficientFreeMargin(
-                    freeMargin(), uint256(_marginDelta)
-                );
-            }
+            _sufficientMargin(_marginDelta);
             committedMargin += _abs(_marginDelta);
         }
 
@@ -884,6 +870,18 @@ contract Account is IAccount, Auth, OpsReady {
             // Short: decrease position size (sell) once *below* target price
             // ex: unwind long position once price is below target (prevent further loss)
             return _price <= _conditionalOrder.targetPrice;
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            MARGIN UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice check that margin attempted to be moved/locked is within free margin bounds
+    /// @param _marginOut: amount of margin to be moved/locked
+    function _sufficientMargin(int256 _marginOut) internal view {
+        if (_abs(_marginOut) > freeMargin()) {
+            revert InsufficientFreeMargin(freeMargin(), _abs(_marginOut));
         }
     }
 
