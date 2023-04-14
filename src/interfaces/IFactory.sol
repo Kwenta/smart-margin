@@ -37,9 +37,6 @@ interface IFactory {
     /// @notice thrown when account is unrecognized by factory
     error AccountDoesNotExist();
 
-    /// @notice thrown when caller is not a factory authenticated account
-    error OnlyAccount();
-
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
@@ -74,11 +71,9 @@ interface IFactory {
 
     /// @notice update owner to account(s) mapping
     /// @dev does *NOT* check new owner != old owner
-    /// @param _account: account whose owner is being updated
     /// @param _newOwner: new owner of account
     /// @param _oldOwner: old owner of account
     function updateAccountOwnership(
-        address _account,
         address _newOwner,
         address _oldOwner
     ) external;
