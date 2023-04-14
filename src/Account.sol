@@ -168,7 +168,6 @@ contract Account is IAccount, Auth, OpsReady {
 
         // update the factory's record of owners and account addresses
         FACTORY.updateAccountOwnership({
-            _account: address(this),
             _newOwner: _newOwner,
             _oldOwner: msg.sender // verified to be old owner
         });
@@ -437,15 +436,12 @@ contract Account is IAccount, Auth, OpsReady {
             EVENTS.emitDeposit({user: msg.sender, amount: _abs(_amount)});
         } else if (_amount < 0) {
             // if amount is negative, withdraw
-            if (_abs(_amount) > freeMargin()) {
-                /// @dev make sure committed margin isn't withdrawn
-                revert InsufficientFreeMargin(freeMargin(), _abs(_amount));
-            } else {
-                /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
-                MARGIN_ASSET.transfer(owner, _abs(_amount));
-
-                EVENTS.emitWithdraw({user: msg.sender, amount: _abs(_amount)});
-            }
+            _sufficientMargin(_amount);
+            
+            /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
+            MARGIN_ASSET.transfer(owner, _abs(_amount));
+            
+            EVENTS.emitWithdraw({user: msg.sender, amount: _abs(_amount)});
         }
     }
 
@@ -458,14 +454,9 @@ contract Account is IAccount, Auth, OpsReady {
     /// @param _amount: amount of margin to deposit/withdraw
     function _perpsV2ModifyMargin(address _market, int256 _amount) internal {
         if (_amount > 0) {
-            if (uint256(_amount) > freeMargin()) {
-                revert InsufficientFreeMargin(freeMargin(), uint256(_amount));
-            } else {
-                IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
-            }
-        } else {
-            IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
+            _sufficientMargin(_amount);
         }
+        IPerpsV2MarketConsolidated(_market).transferMargin(_amount);
     }
 
     /// @notice withdraw margin from market back to this account
@@ -626,12 +617,7 @@ contract Account is IAccount, Auth, OpsReady {
 
         // if more margin is desired on the position we must commit the margin
         if (_marginDelta > 0) {
-            // ensure margin doesn't exceed max
-            if (uint256(_marginDelta) > freeMargin()) {
-                revert InsufficientFreeMargin(
-                    freeMargin(), uint256(_marginDelta)
-                );
-            }
+            _sufficientMargin(_marginDelta);
             committedMargin += _abs(_marginDelta);
         }
 
@@ -742,17 +728,16 @@ contract Account is IAccount, Auth, OpsReady {
         /// @dev will revert if task id does not exist {Automate.cancelTask: Task not found}
         IOps(OPS).cancelTask({taskId: conditionalOrder.gelatoTaskId});
 
-        /// @dev conditional order is valid given checker() returns true; define fill price
-        uint256 fillPrice =
-            _sUSDRate(_getPerpsV2Market(conditionalOrder.marketKey));
+        // define Synthetix PerpsV2 market
+        IPerpsV2MarketConsolidated market =
+            _getPerpsV2Market(conditionalOrder.marketKey);
 
-        // define market address
-        address market = address(_getPerpsV2Market(conditionalOrder.marketKey));
+        /// @dev conditional order is valid given checker() returns true; define fill price
+        uint256 fillPrice = _sUSDRate(market);
 
         // if conditional order is reduce only, ensure position size is only reduced
         if (conditionalOrder.reduceOnly) {
-            int256 currentSize = _getPerpsV2Market(conditionalOrder.marketKey)
-                .positions({account: address(this)}).size;
+            int256 currentSize = market.positions({account: address(this)}).size;
 
             // ensure position exists and incoming size delta is NOT the same sign
             /// @dev if incoming size delta is the same sign, then the conditional order is not reduce only
@@ -785,11 +770,11 @@ contract Account is IAccount, Auth, OpsReady {
 
         // execute trade
         _perpsV2ModifyMargin({
-            _market: market,
+            _market: address(market),
             _amount: conditionalOrder.marginDelta
         });
         _perpsV2SubmitOffchainDelayedOrder({
-            _market: market,
+            _market: address(market),
             _sizeDelta: conditionalOrder.sizeDelta,
             _desiredFillPrice: conditionalOrder.desiredFillPrice
         });
@@ -878,6 +863,18 @@ contract Account is IAccount, Auth, OpsReady {
             // Short: decrease position size (sell) once *below* target price
             // ex: unwind long position once price is below target (prevent further loss)
             return _price <= _conditionalOrder.targetPrice;
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            MARGIN UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice check that margin attempted to be moved/locked is within free margin bounds
+    /// @param _marginOut: amount of margin to be moved/locked
+    function _sufficientMargin(int256 _marginOut) internal view {
+        if (_abs(_marginOut) > freeMargin()) {
+            revert InsufficientFreeMargin(freeMargin(), _abs(_marginOut));
         }
     }
 
