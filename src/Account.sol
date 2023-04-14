@@ -747,17 +747,16 @@ contract Account is IAccount, Auth, OpsReady {
         /// @dev will revert if task id does not exist {Automate.cancelTask: Task not found}
         IOps(OPS).cancelTask({taskId: conditionalOrder.gelatoTaskId});
 
-        /// @dev conditional order is valid given checker() returns true; define fill price
-        uint256 fillPrice =
-            _sUSDRate(_getPerpsV2Market(conditionalOrder.marketKey));
+        // define Synthetix PerpsV2 market
+        IPerpsV2MarketConsolidated market =
+            _getPerpsV2Market(conditionalOrder.marketKey);
 
-        // define market address
-        address market = address(_getPerpsV2Market(conditionalOrder.marketKey));
+        /// @dev conditional order is valid given checker() returns true; define fill price
+        uint256 fillPrice = _sUSDRate(market);
 
         // if conditional order is reduce only, ensure position size is only reduced
         if (conditionalOrder.reduceOnly) {
-            int256 currentSize = _getPerpsV2Market(conditionalOrder.marketKey)
-                .positions({account: address(this)}).size;
+            int256 currentSize = market.positions({account: address(this)}).size;
 
             // ensure position exists and incoming size delta is NOT the same sign
             /// @dev if incoming size delta is the same sign, then the conditional order is not reduce only
@@ -791,11 +790,11 @@ contract Account is IAccount, Auth, OpsReady {
 
         // execute trade
         _perpsV2ModifyMargin({
-            _market: market,
+            _market: address(market),
             _amount: conditionalOrder.marginDelta
         });
         _perpsV2SubmitOffchainDelayedOrder({
-            _market: market,
+            _market: address(market),
             _sizeDelta: conditionalOrder.sizeDelta,
             _desiredFillPrice: conditionalOrder.desiredFillPrice
         });
