@@ -125,10 +125,10 @@ src
 
 | File                           | % Lines          | % Statements     | % Branches      | % Funcs         |
 |--------------------------------|------------------|------------------|-----------------|-----------------|
-| src/Account.sol                | 98.49% (196/199) | 98.58% (208/211) | 87.18% (68/78)  | 100.00% (33/33) |
+| src/Account.sol                | 98.51% (199/202) | 98.60% (211/214) | 91.89% (68/74)  | 100.00% (34/34) |
 | src/AccountProxy.sol           | 100.00% (10/10)  | 76.92% (10/13)   | 50.00% (3/6)    | 100.00% (6/6)   |
 | src/Events.sol                 | 100.00% (6/6)    | 100.00% (6/6)    | 100.00% (0/0)   | 100.00% (6/6)   |
-| src/Factory.sol                | 100.00% (28/28)  | 100.00% (36/36)  | 87.50% (14/16)  | 100.00% (6/6)   |
+| src/Factory.sol                | 100.00% (27/27)  | 100.00% (34/34)  | 85.71% (12/14)  | 100.00% (6/6)   |
 | src/utils/Auth.sol             | 100.00% (15/15)  | 100.00% (18/18)  | 100.00% (10/10) | 60.00% (3/5)    |
 | src/utils/OpsReady.sol         | 100.00% (3/3)    | 100.00% (4/4)    | 75.00% (3/4)    | 100.00% (1/1)   |
 
@@ -175,7 +175,7 @@ npm run test
 slither-check-upgradeability . Account --new-contract-name AccountV2 --proxy-name AccountProxy
 ```
 
-3. Reference `./script` directory and Upgrade.s.sol
+3. Reference `./script` directory and `Upgrade.s.sol`
 4. Ensure that the `Events` contract address is set correctly in the `Factory` contract 
 5. Ensure that the `Events` contract is compatible with the new `Account` contract
 
