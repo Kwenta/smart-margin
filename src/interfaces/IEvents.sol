@@ -26,10 +26,8 @@ interface IEvents {
 
     /// @notice emitted after a successful withdrawal
     /// @param user: the address that withdrew from account
-    /// @param account: the account that was withdrawn from
     /// @param amount: amount of marginAsset to withdraw from account
-    function emitDeposit(address user, address account, uint256 amount)
-        external;
+    function emitDeposit(address user, uint256 amount) external;
 
     event Deposit(
         address indexed user, address indexed account, uint256 amount
@@ -37,10 +35,8 @@ interface IEvents {
 
     /// @notice emitted after a successful withdrawal
     /// @param user: the address that withdrew from account
-    /// @param account: the account that was withdrawn from
     /// @param amount: amount of marginAsset to withdraw from account
-    function emitWithdraw(address user, address account, uint256 amount)
-        external;
+    function emitWithdraw(address user, uint256 amount) external;
 
     event Withdraw(
         address indexed user, address indexed account, uint256 amount
@@ -48,17 +44,14 @@ interface IEvents {
 
     /// @notice emitted after a successful ETH withdrawal
     /// @param user: the address that withdrew from account
-    /// @param amount: the account that was withdrawn from
     /// @param amount: amount of ETH to withdraw from account
-    function emitEthWithdraw(address user, address account, uint256 amount)
-        external;
+    function emitEthWithdraw(address user, uint256 amount) external;
 
     event EthWithdraw(
         address indexed user, address indexed account, uint256 amount
     );
 
     /// @notice emitted when a conditional order is placed
-    /// @param account: account placing the conditional order
     /// @param conditionalOrderId: id of conditional order
     /// @param marketKey: Synthetix PerpsV2 market key
     /// @param marginDelta: margin change
@@ -68,7 +61,6 @@ interface IEvents {
     /// @param desiredFillPrice: desired price to fill Synthetix PerpsV2 order at execution time
     /// @param reduceOnly: if true, only allows position's absolute size to decrease
     function emitConditionalOrderPlaced(
-        address account,
         uint256 conditionalOrderId,
         bytes32 marketKey,
         int256 marginDelta,
@@ -92,11 +84,9 @@ interface IEvents {
     );
 
     /// @notice emitted when a conditional order is cancelled
-    /// @param account: account cancelling the conditional order
     /// @param conditionalOrderId: id of conditional order
     /// @param reason: reason for cancellation
     function emitConditionalOrderCancelled(
-        address account,
         uint256 conditionalOrderId,
         IAccount.ConditionalOrderCancelledReason reason
     ) external;
@@ -108,12 +98,10 @@ interface IEvents {
     );
 
     /// @notice emitted when a conditional order is filled
-    /// @param account: account that placed the conditional order
     /// @param conditionalOrderId: id of conditional order
     /// @param fillPrice: price the conditional order was executed at
     /// @param keeperFee: fees paid to the executor
     function emitConditionalOrderFilled(
-        address account,
         uint256 conditionalOrderId,
         uint256 fillPrice,
         uint256 keeperFee

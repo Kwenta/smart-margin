@@ -421,11 +421,7 @@ contract Account is IAccount, Auth, OpsReady {
             (bool success,) = payable(owner).call{value: _amount}("");
             if (!success) revert EthWithdrawalFailed();
 
-            EVENTS.emitEthWithdraw({
-                user: msg.sender,
-                account: address(this),
-                amount: _amount
-            });
+            EVENTS.emitEthWithdraw({user: msg.sender, amount: _amount});
         }
     }
 
@@ -437,22 +433,15 @@ contract Account is IAccount, Auth, OpsReady {
             /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
             MARGIN_ASSET.transferFrom(owner, address(this), _abs(_amount));
 
-            EVENTS.emitDeposit({
-                user: msg.sender,
-                account: address(this),
-                amount: _abs(_amount)
-            });
+            EVENTS.emitDeposit({user: msg.sender, amount: _abs(_amount)});
         } else if (_amount < 0) {
             // if amount is negative, withdraw
             _sufficientMargin(_amount);
+            
             /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
             MARGIN_ASSET.transfer(owner, _abs(_amount));
-
-            EVENTS.emitWithdraw({
-                user: msg.sender,
-                account: address(this),
-                amount: _abs(_amount)
-            });
+            
+            EVENTS.emitWithdraw({user: msg.sender, amount: _abs(_amount)});
         }
     }
 
@@ -648,7 +637,6 @@ contract Account is IAccount, Auth, OpsReady {
         });
 
         EVENTS.emitConditionalOrderPlaced({
-            account: address(this),
             conditionalOrderId: conditionalOrderId,
             marketKey: _marketKey,
             marginDelta: _marginDelta,
@@ -714,7 +702,6 @@ contract Account is IAccount, Auth, OpsReady {
         delete conditionalOrders[_conditionalOrderId];
 
         EVENTS.emitConditionalOrderCancelled({
-            account: address(this),
             conditionalOrderId: _conditionalOrderId,
             reason: ConditionalOrderCancelledReason
                 .CONDITIONAL_ORDER_CANCELLED_BY_USER
@@ -759,7 +746,6 @@ contract Account is IAccount, Auth, OpsReady {
                     || _isSameSign(currentSize, conditionalOrder.sizeDelta)
             ) {
                 EVENTS.emitConditionalOrderCancelled({
-                    account: address(this),
                     conditionalOrderId: _conditionalOrderId,
                     reason: ConditionalOrderCancelledReason
                         .CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
@@ -798,7 +784,6 @@ contract Account is IAccount, Auth, OpsReady {
         _transfer({_amount: fee, _paymentToken: feeToken});
 
         EVENTS.emitConditionalOrderFilled({
-            account: address(this),
             conditionalOrderId: _conditionalOrderId,
             fillPrice: fillPrice,
             keeperFee: fee
