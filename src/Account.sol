@@ -437,10 +437,10 @@ contract Account is IAccount, Auth, OpsReady {
         } else if (_amount < 0) {
             // if amount is negative, withdraw
             _sufficientMargin(_amount);
-            
+
             /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
             MARGIN_ASSET.transfer(owner, _abs(_amount));
-            
+
             EVENTS.emitWithdraw({user: msg.sender, amount: _abs(_amount)});
         }
     }

@@ -71,10 +71,10 @@ contract Factory is IFactory, Owned {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IFactory
-    function updateAccountOwnership(
-        address _newOwner,
-        address _oldOwner
-    ) external override {
+    function updateAccountOwnership(address _newOwner, address _oldOwner)
+        external
+        override
+    {
         // ensure account is registered by factory
         if (!accounts[msg.sender]) revert AccountDoesNotExist();
 
