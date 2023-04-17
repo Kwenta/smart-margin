@@ -44,7 +44,7 @@ jobs:
 
             - name: Update Gas Snapshot
               run: |
-                  forge snapshot --fork-url ${{ secrets.ARCHIVE_NODE_URL_GOERLI_L2 }}
+                  forge snapshot --fork-url ${{ secrets.ARCHIVE_NODE_URL_GOERLI_L2 }} --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }}
             - name: Commit and push changes
               uses: devops-infra/action-commit-push@master
               with:
