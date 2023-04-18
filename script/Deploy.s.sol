@@ -111,7 +111,7 @@ contract DeployOptimism is Script, Setup {
         vm.startBroadcast(deployerPrivateKey);
 
         Setup.deploySystem({
-            _deployer: 0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4,
+            _deployer: 0x39CFcA7b389529ac861CbB05aDD802e5B06E5101,
             _owner: KWENTA_ADMIN_DAO_MULTI_SIG,
             _addressResolver: SYNTHETIX_ADDRESS_RESOLVER,
             _gelato: GELATO,
