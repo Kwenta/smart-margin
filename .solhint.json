@@ -1,7 +1,22 @@
 {
-  "extends": "solhint:recommended",
-  "rules": {
-    "compiler-version": ["error", "^0.8.13"],
-    "func-visibility": ["warn", { "ignoreConstructors": true }]
-  }
+    "extends": "solhint:recommended",
+    "rules": {
+        "no-global-import": "off",
+        "no-inline-assembly": "off",
+        "func-name-mixedcase": "off",
+        "no-empty-blocks": "off",
+        "var-name-mixedcase": "off",
+        "avoid-low-level-calls": "off",
+        "const-name-snakecase": "off",
+        "compiler-version": [
+            "error",
+            "0.8.18"
+        ],
+        "func-visibility": [
+            "warn",
+            {
+                "ignoreConstructors": true
+            }
+        ]
+    }
 }

@@ -1,7 +1,20 @@
-[default]
-src = 'contracts'
-out = 'artifacts'
-test = 'test'
-libs = ['lib', 'node_modules']
+[profile.default]
+src = 'src'
+out = 'out'
+libs = ['lib']
+olc_version = "0.8.18"
+optimizer_runs = 1_000_000
 
-# See more config options https://github.com/gakonst/foundry/tree/master/config
+[fmt]
+line_length = 80
+number_underscore = "thousands"
+
+[rpc_endpoints]
+optimism = "${ARCHIVE_NODE_URL_L2}"
+optimismGoerli = "${ARCHIVE_NODE_URL_GOERLI_L2}"
+
+[etherscan]
+optimism = { key = "${ETHERSCAN_API_KEY}" }
+optimismGoerli = { key = "${ETHERSCAN_API_KEY}" }
+
+# See more config options https://github.com/foundry-rs/foundry/tree/master/config

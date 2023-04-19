@@ -1,0 +1,52 @@
+name: test
+
+on: [push]
+
+jobs:
+    check:
+        strategy:
+            fail-fast: true
+
+        name: Foundry project
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+              with:
+                  submodules: recursive
+
+            - name: Install Foundry
+              uses: foundry-rs/foundry-toolchain@v1
+              with:
+                  version: nightly
+
+            - name: Run forge build
+              run: |
+                  forge --version
+                  forge build
+              id: build
+
+            - name: Run forge test
+              run: |
+                  forge test --fork-url ${{ secrets.ARCHIVE_NODE_URL_GOERLI_L2 }} --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }} -vvv
+              id: test
+
+            - name: Run forge coverage
+              run: |
+                  forge coverage --fork-url ${{ secrets.ARCHIVE_NODE_URL_GOERLI_L2 }} --report lcov
+
+            - name: Upload Coverage Report
+              uses: codecov/codecov-action@v3
+              with:
+                  files: ./lcov.info
+                  name: codecov-unit
+                  fail_ci_if_error: true
+                  verbose: true
+
+            - name: Update Gas Snapshot
+              run: |
+                  forge snapshot --fork-url ${{ secrets.ARCHIVE_NODE_URL_GOERLI_L2 }} --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }}
+            - name: Commit and push changes
+              uses: devops-infra/action-commit-push@master
+              with:
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
+                  commit_message: 📸 Update Snapshot

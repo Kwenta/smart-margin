@@ -1,10 +1,16 @@
-node_modules
-.env
-coverage
-coverage.json
-typechain
-.DS_store
+# Compiler files
+cache/
+out/
 
-#Hardhat files
-cache
-artifacts
+# Ignores development broadcast logs
+!/broadcast
+/broadcast/*
+/broadcast/*/31337/
+
+# Dotenv file
+.env
+
+# Other
+.vscode
+.idea
+lcov.info
