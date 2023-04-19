@@ -41,12 +41,3 @@ jobs:
                   name: codecov-unit
                   fail_ci_if_error: true
                   verbose: true
-
-            - name: Update Gas Snapshot
-              run: |
-                  forge snapshot --fork-url ${{ secrets.ARCHIVE_NODE_URL_GOERLI_L2 }} --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }}
-            - name: Commit and push changes
-              uses: devops-infra/action-commit-push@master
-              with:
-                  github_token: ${{ secrets.GITHUB_TOKEN }}
-                  commit_message: 📸 Update Snapshot
