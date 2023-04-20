@@ -33,6 +33,7 @@ contract AccountTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
                                  SETUP
     //////////////////////////////////////////////////////////////*/
+
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
 
@@ -639,7 +640,27 @@ contract AccountTest is Test, ConsolidatedEvents {
                              EXECUTION LOCK
     //////////////////////////////////////////////////////////////*/
 
-    function test_Execute_Locked() public {}
+    function test_Execute_Locked() public {
+        // lock accounts as settings owner (which is this address)
+        settings.setAccountExecutionEnabled(false);
+
+        // expect revert when calling execute
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccount.AccountExecutionDisabled.selector)
+        );
+        account.execute(new IAccount.Command[](0), new bytes[](0));
+    }
+
+    function test_Execute_CanUnlock() public {
+        // lock accounts as settings owner (which is this address)
+        settings.setAccountExecutionEnabled(false);
+
+        // unlock accounts as settings owner (which is this address)
+        settings.setAccountExecutionEnabled(true);
+
+        // no-op that proves execute is not locked
+        account.execute(new IAccount.Command[](0), new bytes[](0));
+    }
 
     /*//////////////////////////////////////////////////////////////
                              MATH UTILITIES

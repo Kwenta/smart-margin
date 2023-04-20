@@ -72,4 +72,10 @@ contract ConsolidatedEvents {
         uint256 fillPrice,
         uint256 keeperFee
     );
+
+    /*//////////////////////////////////////////////////////////////
+                               ISETTINGS
+    //////////////////////////////////////////////////////////////*/
+
+    event AccountExecutionEnabledSet(bool enabled);
 }
