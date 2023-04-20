@@ -210,6 +210,16 @@ contract FactoryTest is Test, ConsolidatedEvents {
     }
 
     /*//////////////////////////////////////////////////////////////
+                             EXECUTION LOCK
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Lock_OnlyOwner() public {}
+    function test_Lock_AllAccounts() public {}
+    function test_Lock_AllAccounts_Event() public {}
+    function test_Lock_SingleAccount() public {}
+    function test_Lock_SingleAccount_Event() public {}
+
+    /*//////////////////////////////////////////////////////////////
                              UPGRADABILITY
     //////////////////////////////////////////////////////////////*/
 
