@@ -32,7 +32,7 @@ contract FactoryTest is Test, ConsolidatedEvents {
         Setup setup = new Setup();
 
         // deploy system contracts
-        (factory,, implementation) = setup.deploySystem({
+        (factory,,, implementation) = setup.deploySystem({
             _deployer: address(0),
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
@@ -208,16 +208,6 @@ contract FactoryTest is Test, ConsolidatedEvents {
         );
         factory.newAccount();
     }
-
-    /*//////////////////////////////////////////////////////////////
-                             EXECUTION LOCK
-    //////////////////////////////////////////////////////////////*/
-
-    function test_Lock_OnlyOwner() public {}
-    function test_Lock_AllAccounts() public {}
-    function test_Lock_AllAccounts_Event() public {}
-    function test_Lock_SingleAccount() public {}
-    function test_Lock_SingleAccount_Event() public {}
 
     /*//////////////////////////////////////////////////////////////
                              UPGRADABILITY

@@ -13,6 +13,7 @@ import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
 import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
 import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
+import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 
 contract AccountTest is Test, ConsolidatedEvents {
@@ -23,6 +24,7 @@ contract AccountTest is Test, ConsolidatedEvents {
     // main contracts
     Factory private factory;
     Events private events;
+    Settings private settings;
     Account private account;
 
     // helper contracts for testing
@@ -38,7 +40,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         Setup setup = new Setup();
 
         // deploy system contracts
-        (factory, events,) = setup.deploySystem({
+        (factory, events, settings,) = setup.deploySystem({
             _deployer: address(0),
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
@@ -64,7 +66,8 @@ contract AccountTest is Test, ConsolidatedEvents {
             futuresMarketManager, 
             systemStatus, 
             GELATO, 
-            OPS
+            OPS,
+            address(settings)
         );
     }
 

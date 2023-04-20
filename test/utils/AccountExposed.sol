@@ -19,7 +19,8 @@ contract AccountExposed is Account {
         address _futuresMarketManager,
         address _systemStatus,
         address _gelato,
-        address _ops
+        address _ops,
+        address _settings
     )
         Account(
             _factory,
@@ -28,7 +29,8 @@ contract AccountExposed is Account {
             _futuresMarketManager,
             _systemStatus,
             _gelato,
-            _ops
+            _ops,
+            _settings
         )
     {}
 

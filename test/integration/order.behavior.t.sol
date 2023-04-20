@@ -53,7 +53,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         Setup setup = new Setup();
 
         // deploy system contracts
-        (factory, events,) = setup.deploySystem({
+        (factory, events,,) = setup.deploySystem({
             _deployer: address(0),
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
@@ -76,7 +76,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             futuresMarketManager, 
             address(systemStatus), 
             GELATO, 
-            OPS
+            OPS,
+            address(0)
         );
 
         // deploy an Account contract and fund it

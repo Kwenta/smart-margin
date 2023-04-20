@@ -4,7 +4,6 @@ pragma solidity 0.8.18;
 import "forge-std/Test.sol";
 import "../utils/Constants.sol";
 import {Account} from "../../src/Account.sol";
-import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 
@@ -15,7 +14,6 @@ contract FactoryBehaviorTest is Test {
 
     // main contracts
     Factory private factory;
-    Events private events;
     Account private implementation;
 
     /*//////////////////////////////////////////////////////////////
@@ -29,7 +27,7 @@ contract FactoryBehaviorTest is Test {
         Setup setup = new Setup();
 
         // deploy system contracts
-        (factory, events, implementation) = setup.deploySystem({
+        (factory,,, implementation) = setup.deploySystem({
             _deployer: address(0),
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
