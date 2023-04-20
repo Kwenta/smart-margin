@@ -6,6 +6,7 @@ import {IFactory} from "./IFactory.sol";
 import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
 import {IPerpsV2MarketConsolidated} from
     "@synthetix/IPerpsV2MarketConsolidated.sol";
+import {ISettings} from "./ISettings.sol";
 import {ISystemStatus} from "@synthetix/ISystemStatus.sol";
 
 /// @title Kwenta Smart Margin Account Implementation Interface
@@ -101,6 +102,9 @@ interface IAccount {
     ///     3. if there is no valid stored rate, w.r.t. to previous 3 oracle rates
     ///     4. Price is zero
     error InvalidPrice();
+
+    /// @notice thrown when account execution has been disabled in the settings contract
+    error AccountExecutionDisabled();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
