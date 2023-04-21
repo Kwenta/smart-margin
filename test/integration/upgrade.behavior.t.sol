@@ -28,6 +28,7 @@ contract UpgradeBehaviorTest is Test {
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
+    Settings private settings;
     Account private implementation;
 
     /*//////////////////////////////////////////////////////////////
@@ -38,7 +39,7 @@ contract UpgradeBehaviorTest is Test {
         vm.rollFork(BLOCK_NUMBER);
 
         // deploy the settings contract
-        Settings settings = new Settings({
+        settings = new Settings({
             _owner: KWENTA_TREASURY
         });
 
@@ -126,6 +127,16 @@ contract UpgradeBehaviorTest is Test {
         assert(account.getConditionalOrder(0).targetPrice == 1000 ether);
         assert(account.freeMargin() == 0);
         assert(account.delegates(KWENTA_TREASURY));
+
+        // check execute() can be locked
+        vm.prank(KWENTA_TREASURY);
+        settings.setAccountExecutionEnabled(false);
+
+        // try to execute a command
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccount.AccountExecutionDisabled.selector)
+        );
+        account.execute(new IAccount.Command[](0), new bytes[](0));
     }
 
     /*//////////////////////////////////////////////////////////////
