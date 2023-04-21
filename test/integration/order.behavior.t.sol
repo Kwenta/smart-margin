@@ -607,7 +607,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         assert(!canExecute);
     }
 
-     function test_ExecuteConditionalOrder_AfterUnlock() public {
+    function test_ExecuteConditionalOrder_AfterUnlock() public {
         // lock accounts as settings owner (which is this address)
         settings.setAccountExecutionEnabled(false);
 
@@ -636,7 +636,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             useTaskTreasuryFunds: false,
             revertOnFailure: true
         });
-     }
+    }
 
     // assert successful execution frees committed margin
     function test_ExecuteConditionalOrder_Valid_GelatoFee() public {

@@ -5,10 +5,10 @@ pragma solidity 0.8.18;
                               TEST VALUES
 //////////////////////////////////////////////////////////////*/
 
-// BLOCK_NUMBER corresponds to Optimism Goerli network state @ Apr-05-2023 07:46:26 PM +UTC
+// BLOCK_NUMBER corresponds to Optimism Goerli network state @ Apr-21-2023 08:49:56 PM +UTC
 // hard coded addresses are only guaranteed for this block
 // used to create a consistent and realistic test environment exposing Synthetix PerpsV2
-uint256 constant BLOCK_NUMBER = 7_642_959;
+uint256 constant BLOCK_NUMBER = 8_341_064;
 
 // test deployer address with ETH
 address constant DEPLOYER = 0xc625F59d51ecDff57FEFE535C80d318CA42A0Ec4;
