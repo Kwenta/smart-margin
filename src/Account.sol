@@ -71,6 +71,22 @@ contract Account is IAccount, Auth, OpsReady {
     mapping(uint256 id => ConditionalOrder order) internal conditionalOrders;
 
     /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+    modifier isAccountExecutionEnabled() {
+        _isAccountExecutionEnabled();
+
+        _;
+    }
+
+    function _isAccountExecutionEnabled() internal view {
+        if (!SETTINGS.accountExecutionEnabled()) {
+            revert AccountExecutionDisabled();
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
@@ -189,11 +205,8 @@ contract Account is IAccount, Auth, OpsReady {
         external
         payable
         override
+        isAccountExecutionEnabled
     {
-        if (!SETTINGS.accountExecutionEnabled()) {
-            revert AccountExecutionDisabled();
-        }
-
         uint256 numCommands = _commands.length;
         if (_inputs.length != numCommands) {
             revert LengthMismatch();
@@ -727,6 +740,7 @@ contract Account is IAccount, Auth, OpsReady {
     function executeConditionalOrder(uint256 _conditionalOrderId)
         external
         override
+        isAccountExecutionEnabled
         onlyOps
     {
         ConditionalOrder memory conditionalOrder =
