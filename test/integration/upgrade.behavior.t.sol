@@ -14,7 +14,7 @@ import {Settings} from "../../src/Settings.sol";
 
 contract UpgradeBehaviorTest is Test {
     /*//////////////////////////////////////////////////////////////
-                           DEPLOYED CONTRACTS
+                       DEPLOYED CONTRACTS V2.0.0
     //////////////////////////////////////////////////////////////*/
 
     Factory private constant DEPLOYED_FACTORY =
