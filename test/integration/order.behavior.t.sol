@@ -18,6 +18,7 @@ import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
 import {ISynth} from "../utils/interfaces/ISynth.sol";
 import {ISystemStatus} from "../utils/interfaces/ISystemStatus.sol";
 import {OpsReady} from "../../src/utils/OpsReady.sol";
+import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 
 // functions tagged with @HELPER are helper functions and not tests
@@ -32,6 +33,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     // main contracts
     Factory private factory;
     Events private events;
+    Settings private settings;
     Account private account;
 
     // helper contracts for testing
@@ -53,7 +55,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         Setup setup = new Setup();
 
         // deploy system contracts
-        (factory, events,,) = setup.deploySystem({
+        (factory, events, settings,) = setup.deploySystem({
             _deployer: address(0),
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
@@ -604,6 +606,37 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         (bool canExecute,) = account.checker(conditionalOrderId);
         assert(!canExecute);
     }
+
+     function test_ExecuteConditionalOrder_AfterUnlock() public {
+        // lock accounts as settings owner (which is this address)
+        settings.setAccountExecutionEnabled(false);
+
+        // unlock accounts as settings owner (which is this address)
+        settings.setAccountExecutionEnabled(true);
+
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            desiredFillPrice: DESIRED_FILL_PRICE,
+            reduceOnly: false
+        });
+        (bytes memory executionData, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
+        vm.prank(GELATO);
+        IOps(OPS).exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: executionData,
+            moduleData: moduleData,
+            txFee: GELATO_FEE,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        });
+     }
 
     // assert successful execution frees committed margin
     function test_ExecuteConditionalOrder_Valid_GelatoFee() public {

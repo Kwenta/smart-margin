@@ -651,6 +651,18 @@ contract AccountTest is Test, ConsolidatedEvents {
         account.execute(new IAccount.Command[](0), new bytes[](0));
     }
 
+    function test_ExecuteConditionalOrder_Locked() public {
+        // lock accounts as settings owner (which is this address)
+        settings.setAccountExecutionEnabled(false);
+
+        // expect revert when calling execute
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccount.AccountExecutionDisabled.selector)
+        );
+        vm.prank(GELATO);
+        account.executeConditionalOrder(1);
+    }
+
     function test_Execute_CanUnlock() public {
         // lock accounts as settings owner (which is this address)
         settings.setAccountExecutionEnabled(false);
