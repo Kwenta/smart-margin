@@ -32,7 +32,7 @@ contract FactoryTest is Test, ConsolidatedEvents {
         Setup setup = new Setup();
 
         // deploy system contracts
-        (factory,, implementation) = setup.deploySystem({
+        (factory,,, implementation) = setup.deploySystem({
             _deployer: address(0),
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,

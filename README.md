@@ -18,7 +18,7 @@ Contracts to manage account abstractions and features on top of [Synthetix Perps
 ### System Diagram
 
 <p align="center">
-  <img src="/diagrams/Abstract-System-Diagram.png" width="1000" height="400" alt="System-Diagram"/>
+  <img src="/diagrams/Abstract-System-Diagram.png" width="1000" height="600" alt="System-Diagram"/>
 </p>
 
 ## Contracts Overview
@@ -106,16 +106,18 @@ src
 ├── AccountProxy.sol
 ├── Events.sol
 ├── Factory.sol
+├── Settings.sol
 ├── interfaces
-│   ├── IAccount.sol
-│   ├── IAccountProxy.sol
-│   ├── IEvents.sol
-│   ├── IFactory.sol
-│   ├── IOps.sol
-│   └── synthetix
-│       ├── IFuturesMarketManager.sol
-│       ├── IPerpsV2MarketConsolidated.sol
-│       └── ISystemStatus.sol
+│   ├── IAccount.sol
+│   ├── IAccountProxy.sol
+│   ├── IEvents.sol
+│   ├── IFactory.sol
+│   ├── IOps.sol
+│   ├── ISettings.sol
+│   └── synthetix
+│       ├── IFuturesMarketManager.sol
+│       ├── IPerpsV2MarketConsolidated.sol
+│       └── ISystemStatus.sol
 └── utils
     ├── Auth.sol
     └── OpsReady.sol
@@ -125,10 +127,11 @@ src
 
 | File                           | % Lines          | % Statements     | % Branches      | % Funcs         |
 |--------------------------------|------------------|------------------|-----------------|-----------------|
-| src/Account.sol                | 98.51% (199/202) | 98.60% (211/214) | 91.89% (68/74)  | 100.00% (34/34) |
+| src/Account.sol                | 98.53% (201/204) | 98.61% (213/216) | 92.11% (70/76)  | 100.00% (35/35) |
 | src/AccountProxy.sol           | 100.00% (10/10)  | 76.92% (10/13)   | 50.00% (3/6)    | 100.00% (6/6)   |
 | src/Events.sol                 | 100.00% (6/6)    | 100.00% (6/6)    | 100.00% (0/0)   | 100.00% (6/6)   |
 | src/Factory.sol                | 100.00% (27/27)  | 100.00% (34/34)  | 85.71% (12/14)  | 100.00% (6/6)   |
+| src/Settings.sol               | 100.00% (2/2)    | 100.00% (2/2)    | 100.00% (0/0)   | 100.00% (1/1)   |
 | src/utils/Auth.sol             | 100.00% (15/15)  | 100.00% (18/18)  | 100.00% (10/10) | 100.00% (5/5)   |
 | src/utils/OpsReady.sol         | 100.00% (3/3)    | 100.00% (4/4)    | 75.00% (3/4)    | 100.00% (1/1)   |
 

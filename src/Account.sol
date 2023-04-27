@@ -8,6 +8,7 @@ import {
     IFactory,
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated,
+    ISettings,
     ISystemStatus
 } from "./interfaces/IAccount.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -22,7 +23,7 @@ contract Account is IAccount, Auth, OpsReady {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
-    bytes32 public constant VERSION = "2.0.0";
+    bytes32 public constant VERSION = "2.0.1";
 
     /// @notice tracking code used when modifying positions
     bytes32 internal constant TRACKING_CODE = "KWENTA";
@@ -53,6 +54,9 @@ contract Account is IAccount, Auth, OpsReady {
     /// @dev the system status contract is used to check if the system is operational
     ISystemStatus internal immutable SYSTEM_STATUS;
 
+    /// @notice address of contract used to store global settings
+    ISettings internal immutable SETTINGS;
+
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
@@ -67,6 +71,22 @@ contract Account is IAccount, Auth, OpsReady {
     mapping(uint256 id => ConditionalOrder order) internal conditionalOrders;
 
     /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+    modifier isAccountExecutionEnabled() {
+        _isAccountExecutionEnabled();
+
+        _;
+    }
+
+    function _isAccountExecutionEnabled() internal view {
+        if (!SETTINGS.accountExecutionEnabled()) {
+            revert AccountExecutionDisabled();
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
@@ -78,6 +98,7 @@ contract Account is IAccount, Auth, OpsReady {
     /// @param _futuresMarketManager: address of the Synthetix FuturesMarketManager
     /// @param _gelato: address of Gelato
     /// @param _ops: address of Ops
+    /// @param _settings: address of contract used to store global settings
     constructor(
         address _factory,
         address _events,
@@ -85,13 +106,15 @@ contract Account is IAccount, Auth, OpsReady {
         address _futuresMarketManager,
         address _systemStatus,
         address _gelato,
-        address _ops
+        address _ops,
+        address _settings
     ) Auth(address(0)) OpsReady(_gelato, _ops) {
         FACTORY = IFactory(_factory);
         EVENTS = IEvents(_events);
         MARGIN_ASSET = IERC20(_marginAsset);
         FUTURES_MARKET_MANAGER = IFuturesMarketManager(_futuresMarketManager);
         SYSTEM_STATUS = ISystemStatus(_systemStatus);
+        SETTINGS = ISettings(_settings);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -182,6 +205,7 @@ contract Account is IAccount, Auth, OpsReady {
         external
         payable
         override
+        isAccountExecutionEnabled
     {
         uint256 numCommands = _commands.length;
         if (_inputs.length != numCommands) {
@@ -716,6 +740,7 @@ contract Account is IAccount, Auth, OpsReady {
     function executeConditionalOrder(uint256 _conditionalOrderId)
         external
         override
+        isAccountExecutionEnabled
         onlyOps
     {
         ConditionalOrder memory conditionalOrder =

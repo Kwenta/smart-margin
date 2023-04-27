@@ -13,6 +13,7 @@ import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
 import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
 import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
+import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 
 contract AccountTest is Test, ConsolidatedEvents {
@@ -23,6 +24,7 @@ contract AccountTest is Test, ConsolidatedEvents {
     // main contracts
     Factory private factory;
     Events private events;
+    Settings private settings;
     Account private account;
 
     // helper contracts for testing
@@ -31,6 +33,7 @@ contract AccountTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
                                  SETUP
     //////////////////////////////////////////////////////////////*/
+
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER);
 
@@ -38,7 +41,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         Setup setup = new Setup();
 
         // deploy system contracts
-        (factory, events,) = setup.deploySystem({
+        (factory, events, settings,) = setup.deploySystem({
             _deployer: address(0),
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
@@ -64,7 +67,8 @@ contract AccountTest is Test, ConsolidatedEvents {
             futuresMarketManager, 
             systemStatus, 
             GELATO, 
-            OPS
+            OPS,
+            address(settings)
         );
     }
 
@@ -77,7 +81,7 @@ contract AccountTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_GetVerison() public view {
-        assert(account.VERSION() == "2.0.0");
+        assert(account.VERSION() == "2.0.1");
     }
 
     function test_GetTrackingCode() public view {
@@ -630,6 +634,44 @@ contract AccountTest is Test, ConsolidatedEvents {
         /// @dev execute will fail for other reasons (e.g. no task exists with id 0)
         vm.expectRevert("Automate.cancelTask: Task not found");
         account.execute(commands, inputs);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             EXECUTION LOCK
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Execute_Locked() public {
+        // lock accounts as settings owner (which is this address)
+        settings.setAccountExecutionEnabled(false);
+
+        // expect revert when calling execute
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccount.AccountExecutionDisabled.selector)
+        );
+        account.execute(new IAccount.Command[](0), new bytes[](0));
+    }
+
+    function test_ExecuteConditionalOrder_Locked() public {
+        // lock accounts as settings owner (which is this address)
+        settings.setAccountExecutionEnabled(false);
+
+        // expect revert when calling execute
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccount.AccountExecutionDisabled.selector)
+        );
+        vm.prank(GELATO);
+        account.executeConditionalOrder(1);
+    }
+
+    function test_Execute_CanUnlock() public {
+        // lock accounts as settings owner (which is this address)
+        settings.setAccountExecutionEnabled(false);
+
+        // unlock accounts as settings owner (which is this address)
+        settings.setAccountExecutionEnabled(true);
+
+        // no-op that proves execute is not locked
+        account.execute(new IAccount.Command[](0), new bytes[](0));
     }
 
     /*//////////////////////////////////////////////////////////////
