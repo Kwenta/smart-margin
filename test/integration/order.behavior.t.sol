@@ -79,7 +79,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             address(systemStatus), 
             GELATO, 
             OPS,
-            address(0)
+            address(settings)
         );
 
         // deploy an Account contract and fund it
