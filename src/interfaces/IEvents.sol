@@ -73,7 +73,7 @@ interface IEvents {
 
     event ConditionalOrderPlaced(
         address indexed account,
-        uint256 conditionalOrderId,
+        uint256 indexed conditionalOrderId,
         bytes32 marketKey,
         int256 marginDelta,
         int256 sizeDelta,
@@ -93,7 +93,7 @@ interface IEvents {
 
     event ConditionalOrderCancelled(
         address indexed account,
-        uint256 conditionalOrderId,
+        uint256 indexed conditionalOrderId,
         IAccount.ConditionalOrderCancelledReason reason
     );
 
@@ -109,7 +109,7 @@ interface IEvents {
 
     event ConditionalOrderFilled(
         address indexed account,
-        uint256 conditionalOrderId,
+        uint256 indexed conditionalOrderId,
         uint256 fillPrice,
         uint256 keeperFee
     );
