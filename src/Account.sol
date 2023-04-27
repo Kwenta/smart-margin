@@ -662,6 +662,7 @@ contract Account is IAccount, Auth, OpsReady {
 
         EVENTS.emitConditionalOrderPlaced({
             conditionalOrderId: conditionalOrderId,
+            gelatoTaskId: taskId,
             marketKey: _marketKey,
             marginDelta: _marginDelta,
             sizeDelta: _sizeDelta,
@@ -727,6 +728,7 @@ contract Account is IAccount, Auth, OpsReady {
 
         EVENTS.emitConditionalOrderCancelled({
             conditionalOrderId: _conditionalOrderId,
+            gelatoTaskId: conditionalOrder.gelatoTaskId,
             reason: ConditionalOrderCancelledReason
                 .CONDITIONAL_ORDER_CANCELLED_BY_USER
         });
@@ -772,6 +774,7 @@ contract Account is IAccount, Auth, OpsReady {
             ) {
                 EVENTS.emitConditionalOrderCancelled({
                     conditionalOrderId: _conditionalOrderId,
+                    gelatoTaskId: conditionalOrder.gelatoTaskId,
                     reason: ConditionalOrderCancelledReason
                         .CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
                 });
@@ -810,6 +813,7 @@ contract Account is IAccount, Auth, OpsReady {
 
         EVENTS.emitConditionalOrderFilled({
             conditionalOrderId: _conditionalOrderId,
+            gelatoTaskId: conditionalOrder.gelatoTaskId,
             fillPrice: fillPrice,
             keeperFee: fee
         });

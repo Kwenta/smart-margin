@@ -53,6 +53,7 @@ interface IEvents {
 
     /// @notice emitted when a conditional order is placed
     /// @param conditionalOrderId: id of conditional order
+    /// @param gelatoTaskId: id of gelato task
     /// @param marketKey: Synthetix PerpsV2 market key
     /// @param marginDelta: margin change
     /// @param sizeDelta: size change
@@ -62,6 +63,7 @@ interface IEvents {
     /// @param reduceOnly: if true, only allows position's absolute size to decrease
     function emitConditionalOrderPlaced(
         uint256 conditionalOrderId,
+        bytes32 gelatoTaskId, 
         bytes32 marketKey,
         int256 marginDelta,
         int256 sizeDelta,
@@ -74,6 +76,7 @@ interface IEvents {
     event ConditionalOrderPlaced(
         address indexed account,
         uint256 conditionalOrderId,
+        bytes32 indexed gelatoTaskId,
         bytes32 marketKey,
         int256 marginDelta,
         int256 sizeDelta,
@@ -85,24 +88,29 @@ interface IEvents {
 
     /// @notice emitted when a conditional order is cancelled
     /// @param conditionalOrderId: id of conditional order
+    /// @param gelatoTaskId: id of gelato task
     /// @param reason: reason for cancellation
     function emitConditionalOrderCancelled(
         uint256 conditionalOrderId,
+        bytes32 gelatoTaskId,
         IAccount.ConditionalOrderCancelledReason reason
     ) external;
 
     event ConditionalOrderCancelled(
         address indexed account,
         uint256 conditionalOrderId,
+        bytes32 indexed gelatoTaskId,
         IAccount.ConditionalOrderCancelledReason reason
     );
 
     /// @notice emitted when a conditional order is filled
     /// @param conditionalOrderId: id of conditional order
+    /// @param gelatoTaskId: id of gelato task
     /// @param fillPrice: price the conditional order was executed at
     /// @param keeperFee: fees paid to the executor
     function emitConditionalOrderFilled(
         uint256 conditionalOrderId,
+        bytes32 gelatoTaskId,
         uint256 fillPrice,
         uint256 keeperFee
     ) external;
@@ -110,6 +118,7 @@ interface IEvents {
     event ConditionalOrderFilled(
         address indexed account,
         uint256 conditionalOrderId,
+        bytes32 indexed gelatoTaskId,
         uint256 fillPrice,
         uint256 keeperFee
     );
