@@ -11,6 +11,7 @@ interface IFactory {
     /// @notice emitted when new account is created
     /// @param creator: account creator (address that called newAccount())
     /// @param account: address of account that was created (will be address of proxy)
+    /// @param version: version of account created
     event NewAccount(
         address indexed creator, address indexed account, bytes32 version
     );
