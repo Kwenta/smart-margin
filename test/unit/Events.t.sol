@@ -97,11 +97,12 @@ contract EventsTest is Test, ConsolidatedEvents {
     }
 
     function test_EmitConditionalOrderPlaced_Event() public {
-        uint256 id = 0;
+        uint256 conditionalOrderId = 0;
         vm.expectEmit(true, true, true, true);
         emit ConditionalOrderPlaced(
             address(account),
-            id,
+            conditionalOrderId,
+            keccak256("gelatoTaskId"),
             sETHPERP,
             MARGIN_DELTA,
             SIZE_DELTA,
@@ -112,7 +113,8 @@ contract EventsTest is Test, ConsolidatedEvents {
         );
         vm.prank(account);
         events.emitConditionalOrderPlaced({
-            conditionalOrderId: id,
+            conditionalOrderId: conditionalOrderId,
+            gelatoTaskId: keccak256("gelatoTaskId"),
             marketKey: sETHPERP,
             marginDelta: MARGIN_DELTA,
             sizeDelta: SIZE_DELTA,
@@ -127,6 +129,7 @@ contract EventsTest is Test, ConsolidatedEvents {
         vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
         events.emitConditionalOrderPlaced({
             conditionalOrderId: 0,
+            gelatoTaskId: keccak256("gelatoTaskId"),
             marketKey: sETHPERP,
             marginDelta: MARGIN_DELTA,
             sizeDelta: SIZE_DELTA,
@@ -138,18 +141,20 @@ contract EventsTest is Test, ConsolidatedEvents {
     }
 
     function test_EmitConditionalOrderCancelled_Event() public {
-        uint256 id = 0;
+        uint256 conditionalOrderId = 0;
         vm.expectEmit(true, true, true, true);
         emit ConditionalOrderCancelled(
             address(account),
-            id,
+            conditionalOrderId,
+            keccak256("gelatoTaskId"),
             IAccount
                 .ConditionalOrderCancelledReason
                 .CONDITIONAL_ORDER_CANCELLED_BY_USER
         );
         vm.prank(account);
         events.emitConditionalOrderCancelled({
-            conditionalOrderId: id,
+            conditionalOrderId: conditionalOrderId,
+            gelatoTaskId: keccak256("gelatoTaskId"),
             reason: IAccount
                 .ConditionalOrderCancelledReason
                 .CONDITIONAL_ORDER_CANCELLED_BY_USER
@@ -160,6 +165,7 @@ contract EventsTest is Test, ConsolidatedEvents {
         vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
         events.emitConditionalOrderCancelled({
             conditionalOrderId: 0,
+            gelatoTaskId: keccak256("gelatoTaskId"),
             reason: IAccount
                 .ConditionalOrderCancelledReason
                 .CONDITIONAL_ORDER_CANCELLED_BY_USER
@@ -168,10 +174,17 @@ contract EventsTest is Test, ConsolidatedEvents {
 
     function test_EmitConditionalOrderFilled_Event() public {
         vm.expectEmit(true, true, true, true);
-        emit ConditionalOrderFilled(address(account), 0, FILL_PRICE, GELATO_FEE);
+        emit ConditionalOrderFilled(
+            address(account),
+            0,
+            keccak256("gelatoTaskId"),
+            FILL_PRICE,
+            GELATO_FEE
+        );
         vm.prank(account);
         events.emitConditionalOrderFilled({
             conditionalOrderId: 0,
+            gelatoTaskId: keccak256("gelatoTaskId"),
             fillPrice: FILL_PRICE,
             keeperFee: GELATO_FEE
         });
@@ -181,6 +194,7 @@ contract EventsTest is Test, ConsolidatedEvents {
         vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
         events.emitConditionalOrderFilled({
             conditionalOrderId: 0,
+            gelatoTaskId: keccak256("gelatoTaskId"),
             fillPrice: FILL_PRICE,
             keeperFee: GELATO_FEE
         });
