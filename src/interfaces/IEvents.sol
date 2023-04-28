@@ -63,7 +63,7 @@ interface IEvents {
     /// @param reduceOnly: if true, only allows position's absolute size to decrease
     function emitConditionalOrderPlaced(
         uint256 conditionalOrderId,
-        bytes32 gelatoTaskId, 
+        bytes32 gelatoTaskId,
         bytes32 marketKey,
         int256 marginDelta,
         int256 sizeDelta,
