@@ -50,7 +50,7 @@ contract ConsolidatedEvents {
 
     event ConditionalOrderPlaced(
         address indexed account,
-        uint256 conditionalOrderId,
+        uint256 indexed conditionalOrderId,
         bytes32 marketKey,
         int256 marginDelta,
         int256 sizeDelta,
@@ -62,13 +62,13 @@ contract ConsolidatedEvents {
 
     event ConditionalOrderCancelled(
         address indexed account,
-        uint256 conditionalOrderId,
+        uint256 indexed conditionalOrderId,
         IAccount.ConditionalOrderCancelledReason reason
     );
 
     event ConditionalOrderFilled(
         address indexed account,
-        uint256 conditionalOrderId,
+        uint256 indexed conditionalOrderId,
         uint256 fillPrice,
         uint256 keeperFee
     );
