@@ -161,6 +161,12 @@ npm run compile
 npm run test
 ```
 
+4. Run specific test
+
+```
+forge test --fork-url $(grep ARCHIVE_NODE_URL_GOERLI_L2 .env | cut -d '=' -f2) --match-test TEST_NAME -vvv
+```
+
 > tests will fail if you have not set up your .env (see .env.example)
 
 ### Upgradability

@@ -913,7 +913,7 @@ contract Account is IAccount, Auth, OpsReady {
 
     /// @notice fetch PerpsV2Market market defined by market key
     /// @param _marketKey: key for Synthetix PerpsV2 market
-    /// @return IPerpsV2Market contract interface
+    /// @return IPerpsV2MarketConsolidated contract interface
     function _getPerpsV2Market(bytes32 _marketKey)
         internal
         view
