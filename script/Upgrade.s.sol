@@ -2,7 +2,7 @@
 pragma solidity 0.8.18;
 
 import "forge-std/Script.sol";
-// import {AccountV69} from "src/AccountV69.sol"; // (this is an example of the new Account implementation)
+import {Account} from "src/Account.sol";
 
 /// @title Script to upgrade the Account implementation
 /// @author JaredBorders (jaredborders@pm.me)
@@ -17,7 +17,7 @@ contract UpgradeAccountOptimism is Script {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
-        // AccountV69 newImplementation = new AccountV69();
+        Account newImplementation = new Account();
 
         vm.stopBroadcast();
     }
@@ -33,7 +33,7 @@ contract UpgradeAccountOptimismGoerli is Script {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
-        // AccountV69 newImplementation = new AccountV69();
+        Account newImplementation = new Account();
 
         vm.stopBroadcast();
     }
