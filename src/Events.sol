@@ -72,6 +72,7 @@ contract Events is IEvents {
     /// @inheritdoc IEvents
     function emitConditionalOrderPlaced(
         uint256 conditionalOrderId,
+        bytes32 gelatoTaskId,
         bytes32 marketKey,
         int256 marginDelta,
         int256 sizeDelta,
@@ -83,6 +84,7 @@ contract Events is IEvents {
         emit ConditionalOrderPlaced({
             account: msg.sender,
             conditionalOrderId: conditionalOrderId,
+            gelatoTaskId: gelatoTaskId,
             marketKey: marketKey,
             marginDelta: marginDelta,
             sizeDelta: sizeDelta,
@@ -96,11 +98,13 @@ contract Events is IEvents {
     /// @inheritdoc IEvents
     function emitConditionalOrderCancelled(
         uint256 conditionalOrderId,
+        bytes32 gelatoTaskId,
         IAccount.ConditionalOrderCancelledReason reason
     ) external override onlyAccounts {
         emit ConditionalOrderCancelled({
             account: msg.sender,
             conditionalOrderId: conditionalOrderId,
+            gelatoTaskId: gelatoTaskId,
             reason: reason
         });
     }
@@ -108,12 +112,14 @@ contract Events is IEvents {
     /// @inheritdoc IEvents
     function emitConditionalOrderFilled(
         uint256 conditionalOrderId,
+        bytes32 gelatoTaskId,
         uint256 fillPrice,
         uint256 keeperFee
     ) external override onlyAccounts {
         emit ConditionalOrderFilled({
             account: msg.sender,
             conditionalOrderId: conditionalOrderId,
+            gelatoTaskId: gelatoTaskId,
             fillPrice: fillPrice,
             keeperFee: keeperFee
         });

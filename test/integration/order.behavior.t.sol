@@ -298,10 +298,23 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     ) public {
         vm.assume(fuzzedSizeDelta != 0);
         uint256 orderId = account.conditionalOrderId();
+
+        (, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(orderId);
+
+        bytes32 taskId = IOps(OPS).getTaskId({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execSelector: account.executeConditionalOrder.selector,
+            moduleData: moduleData,
+            feeToken: ETH
+        });
+
         vm.expectEmit(true, true, true, true);
         emit ConditionalOrderPlaced(
             address(account),
             orderId,
+            taskId,
             sETHPERP,
             int256(currentEthPriceInUSD),
             fuzzedSizeDelta,
@@ -566,14 +579,20 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
+
+        IAccount.ConditionalOrder memory conditionalOrder =
+            account.getConditionalOrder(conditionalOrderId);
+
         vm.expectEmit(true, true, true, true);
         emit ConditionalOrderCancelled(
             address(account),
             conditionalOrderId,
+            conditionalOrder.gelatoTaskId,
             IAccount
                 .ConditionalOrderCancelledReason
                 .CONDITIONAL_ORDER_CANCELLED_BY_USER
         );
+
         cancelConditionalOrder(conditionalOrderId);
     }
 
@@ -1194,9 +1213,12 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: 1 ether,
             desiredFillPrice: desiredFillPrice
         });
+
         IPerpsV2MarketConsolidated.Position memory position =
             account.getPosition(sETHPERP);
+
         assert(position.size == 1 ether); // sanity check :D
+
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: 0,
@@ -1206,25 +1228,33 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: true
         });
+
+        IAccount.ConditionalOrder memory conditionalOrder =
+            account.getConditionalOrder(conditionalOrderId);
+
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
             generateGelatoModuleData(conditionalOrderId);
+
         if (fuzzedSizeDelta > 0) {
             // same sign thus not reduce only
             vm.expectEmit(true, true, true, true);
             emit ConditionalOrderCancelled(
                 address(account),
                 conditionalOrderId,
+                conditionalOrder.gelatoTaskId,
                 IAccount
                     .ConditionalOrderCancelledReason
                     .CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
             );
         } else if (fuzzedSizeDelta < 0) {
             if (fuzzedSizeDelta + position.size < 0) {
-                // expect fuzzedSizeDelta to be bound by zero to prevent flipping (long to short or vice versa)
+                // expect fuzzedSizeDelta to be bound by zero to prevent
+                // flipping (long to short or vice versa)
                 vm.expectEmit(true, true, true, true);
                 emit ConditionalOrderFilled({
                     account: address(account),
                     conditionalOrderId: conditionalOrderId,
+                    gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
                     keeperFee: GELATO_FEE
                 });
@@ -1234,6 +1264,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                 emit ConditionalOrderFilled({
                     account: address(account),
                     conditionalOrderId: conditionalOrderId,
+                    gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
                     keeperFee: GELATO_FEE
                 });
@@ -1243,6 +1274,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         } else {
             revert("Uncaught case");
         }
+
         vm.prank(GELATO);
         IOps(OPS).exec({
             taskCreator: address(account),
@@ -1264,9 +1296,12 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: -1 ether,
             desiredFillPrice: 1 ether / 2
         });
+
         IPerpsV2MarketConsolidated.Position memory position =
             account.getPosition(sETHPERP);
+
         assert(position.size == -1 ether); // sanity check :D
+
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: 0,
@@ -1276,25 +1311,33 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: true
         });
+
+        IAccount.ConditionalOrder memory conditionalOrder =
+            account.getConditionalOrder(conditionalOrderId);
+
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
             generateGelatoModuleData(conditionalOrderId);
+
         if (fuzzedSizeDelta < 0) {
             // same sign thus not reduce only
             vm.expectEmit(true, true, true, true);
             emit ConditionalOrderCancelled(
                 address(account),
                 conditionalOrderId,
+                conditionalOrder.gelatoTaskId,
                 IAccount
                     .ConditionalOrderCancelledReason
                     .CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
             );
         } else if (fuzzedSizeDelta > 0) {
             if (fuzzedSizeDelta + position.size > 0) {
-                // expect fuzzedSizeDelta to be bound by zero to prevent flipping (long to short or vice versa)
+                // expect fuzzedSizeDelta to be bound by zero to prevent
+                // flipping (long to short or vice versa)
                 vm.expectEmit(true, true, true, true);
                 emit ConditionalOrderFilled({
                     account: address(account),
                     conditionalOrderId: conditionalOrderId,
+                    gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
                     keeperFee: GELATO_FEE
                 });
@@ -1304,6 +1347,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                 emit ConditionalOrderFilled({
                     account: address(account),
                     conditionalOrderId: conditionalOrderId,
+                    gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
                     keeperFee: GELATO_FEE
                 });
@@ -1313,6 +1357,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         } else {
             revert("Uncaught case");
         }
+
         vm.prank(GELATO);
         IOps(OPS).exec({
             taskCreator: address(account),
