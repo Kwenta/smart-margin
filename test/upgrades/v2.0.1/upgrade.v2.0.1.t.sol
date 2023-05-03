@@ -15,7 +15,7 @@ import {IAddressResolver} from "../../utils/interfaces/IAddressResolver.sol";
 import {ISynth} from "../../utils/interfaces/ISynth.sol";
 import {Settings} from "../../../src/Settings.sol";
 
-contract UpgradeBehaviorTest is Test {
+contract UpgradeTest is Test {
     /*//////////////////////////////////////////////////////////////
                          V2.0.0 IMPLEMENTATION
     //////////////////////////////////////////////////////////////*/
