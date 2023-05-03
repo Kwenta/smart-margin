@@ -186,12 +186,12 @@ forge test --fork-url $(grep ARCHIVE_NODE_URL_GOERLI_L2 .env | cut -d '=' -f2) -
 6. Test upgrade using new script (example: `./test/upgrades/v2.0.1/upgrade.v2.0.1.t.sol`)
 > If adding new contracts, make sure to test them in the `upgrade.vX.X.X.t.sol` file also
 7. Run script and deploy to Testnet
-8. Call `Factory.upgradeAccountImplementation` with new `Account` address
+8. Call `Factory.upgradeAccountImplementation` with new `Account` address (can be done on etherscan)
 > Only factory owner can do this
 9. Update `./deploy-addresses/optimism-goerli.json` with new `Account` address
 10. Ensure tesnet accounts are updated and functional (ensure state is correct)
 11. Run script and deploy to Mainnet
-12. Call `Factory.upgradeAccountImplementation` with new `Account` address
+12. Call `Factory.upgradeAccountImplementation` with new `Account` address (can be done on etherscan)
 > Only factory owner can do this (admin dao multisig or pDAO)
 13. Update `./deploy-addresses/optimism.json` with new `Account` address
 14. Ensure mainnet accounts are updated and functional (ensure state is correct)
