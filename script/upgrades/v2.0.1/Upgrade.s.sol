@@ -6,6 +6,7 @@ import "forge-std/console2.sol";
 import "../../utils/parameters/OptimismGoerliParameters.sol";
 import "../../utils/parameters/OptimismParameters.sol";
 import {Account} from "src/Account.sol";
+import {Events} from "src/Events.sol";
 import {IAddressResolver} from "../../utils/interfaces/IAddressResolver.sol";
 import {Settings} from "src/Settings.sol";
 
@@ -29,7 +30,7 @@ contract UpgradeAccountOptimism is Script {
 
     function upgrade()
         public
-        returns (address implementation, address settings)
+        returns (address implementation, address settings, address events)
     {
         // resolve necessary addresses via the Synthetix Address Resolver
         IAddressResolver addressResolver =
@@ -60,17 +61,22 @@ contract UpgradeAccountOptimism is Script {
 
         console2.log("Settings Deployed:", settings);
 
+        // deploy events
+        events = address(new Events({_factory: OPTIMISM_FACTORY}));
+
+        console2.log("Events Deployed:", events);
+
         // deploy v2.0.1
         implementation = address(
             new Account({
                 _factory: OPTIMISM_FACTORY,
-                _events: OPTIMISM_EVENTS,
+                _events: events,
                 _marginAsset: marginAsset,
                 _futuresMarketManager: futuresMarketManager,
                 _systemStatus: systemStatus,
                 _gelato: OPTIMISM_GELATO,
                 _ops: OPTIMISM_OPS,
-                _settings: address(settings)
+                _settings: settings
             })
         );
 
@@ -95,7 +101,7 @@ contract UpgradeAccountOptimismGoerli is Script {
 
     function upgrade()
         public
-        returns (address implementation, address settings)
+        returns (address implementation, address settings, address events)
     {
         // resolve necessary addresses via the Synthetix Address Resolver
         IAddressResolver addressResolver =
@@ -126,11 +132,16 @@ contract UpgradeAccountOptimismGoerli is Script {
 
         console2.log("Settings Deployed:", settings);
 
+        // deploy events
+        events = address(new Events({_factory: OPTIMISM_GOERLI_FACTORY}));
+
+        console2.log("Events Deployed:", events);
+
         // deploy v2.0.1
         implementation = address(
             new Account({
                 _factory: OPTIMISM_GOERLI_FACTORY,
-                _events: OPTIMISM_GOERLI_EVENTS,
+                _events: events,
                 _marginAsset: marginAsset,
                 _futuresMarketManager: futuresMarketManager,
                 _systemStatus: systemStatus,
