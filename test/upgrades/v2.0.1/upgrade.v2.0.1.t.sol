@@ -28,6 +28,7 @@ contract UpgradeTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     Settings private settings;
+    Events private events;
     Account private implementation;
 
     /*//////////////////////////////////////////////////////////////
@@ -42,10 +43,11 @@ contract UpgradeTest is Test {
             new UpgradeAccountOptimismGoerli();
 
         // upgrade implementation and deploy the new settings contract
-        (address implementationAddr, address settingsAddr) =
+        (address implementationAddr, address settingsAddr, address eventsAddr) =
             upgradeAccountOptimismGoerli.upgrade();
         implementation = Account(payable(implementationAddr));
         settings = Settings(settingsAddr);
+        events = Events(eventsAddr);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -56,7 +58,7 @@ contract UpgradeTest is Test {
         assert(DEPLOYED_ACCOUNT.VERSION() == "2.0.0");
     }
 
-    function test_Upgrade_Implementation() public {
+    function test_Upgrade_Implementation_AccountExecutionEnabled() public {
         // create smart margin account (v2.0.0)
         /// @dev DEPLOYED_FACTORY.newAccount() creates a v2.0.0 account
         /// but we use the new implementation Account type (i.e. v2.0.1).
@@ -78,7 +80,7 @@ contract UpgradeTest is Test {
         inputs[0] = abi.encode(AMOUNT);
         account.execute(commands, inputs);
 
-        // submit condition order
+        // submit conditional order
         commands[0] = IAccount.Command.GELATO_PLACE_CONDITIONAL_ORDER;
         inputs[0] = abi.encode(
             sETHPERP,
@@ -124,6 +126,94 @@ contract UpgradeTest is Test {
             abi.encodeWithSelector(IAccount.AccountExecutionDisabled.selector)
         );
         account.execute(new IAccount.Command[](0), new bytes[](0));
+    }
+
+    function test_Upgrade_Implementation_Execute() public {
+        // create smart margin account (v2.0.0)
+        /// @dev DEPLOYED_FACTORY.newAccount() creates a v2.0.0 account
+        /// but we use the new implementation Account type (i.e. v2.0.1).
+        /// This is fine because the Account type is just a "wrapper" in this
+        /// case and if a function is called which does not exist
+        /// in the v2.0.0 account the call will revert.
+        Account account = Account(Factory(OPTIMISM_GOERLI_FACTORY).newAccount());
+
+        // mint sUSD to this address
+        mintSUSD(address(this), AMOUNT);
+
+        // approve account to spend sUSD
+        ERC20(MARGIN_ASSET).approve(address(account), AMOUNT);
+
+        // deposit *some* sUSD into account
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.ACCOUNT_MODIFY_MARGIN;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(AMOUNT / 2);
+        account.execute(commands, inputs);
+
+        // upgrade account implementation
+        vm.prank(OPTIMISM_GOERLI_KWENTA_ADMIN_DAO_MULTI_SIG);
+        Factory(OPTIMISM_GOERLI_FACTORY).upgradeAccountImplementation(
+            address(implementation)
+        );
+
+        // check account was updated to 2.0.1
+        assert(account.VERSION() == "2.0.1");
+
+        // check state of account after upgrade did not change
+        assert(account.freeMargin() == AMOUNT / 2);
+
+        // deposit sUSD into account
+        commands[0] = IAccount.Command.ACCOUNT_MODIFY_MARGIN;
+        inputs[0] = abi.encode(AMOUNT / 2);
+        account.execute(commands, inputs);
+
+        // check state change
+        assert(account.freeMargin() == AMOUNT);
+    }
+
+    function test_Upgrade_Implementation_Execute_2() public {
+        // create smart margin account (v2.0.0)
+        /// @dev DEPLOYED_FACTORY.newAccount() creates a v2.0.0 account
+        /// but we use the new implementation Account type (i.e. v2.0.1).
+        /// This is fine because the Account type is just a "wrapper" in this
+        /// case and if a function is called which does not exist
+        /// in the v2.0.0 account the call will revert.
+        Account account = Account(Factory(OPTIMISM_GOERLI_FACTORY).newAccount());
+
+        // mint sUSD to this address
+        mintSUSD(address(this), AMOUNT);
+
+        // approve account to spend sUSD
+        ERC20(MARGIN_ASSET).approve(address(account), AMOUNT);
+
+        // deposit sUSD into account
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.ACCOUNT_MODIFY_MARGIN;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(AMOUNT);
+        account.execute(commands, inputs);
+
+        // upgrade account implementation
+        vm.prank(OPTIMISM_GOERLI_KWENTA_ADMIN_DAO_MULTI_SIG);
+        Factory(OPTIMISM_GOERLI_FACTORY).upgradeAccountImplementation(
+            address(implementation)
+        );
+
+        // check account was updated to 2.0.1
+        assert(account.VERSION() == "2.0.1");
+
+        // submit conditional order
+        commands[0] = IAccount.Command.GELATO_PLACE_CONDITIONAL_ORDER;
+        inputs[0] = abi.encode(
+            sETHPERP,
+            int256(AMOUNT),
+            int256(AMOUNT),
+            1000 ether,
+            IAccount.ConditionalOrderTypes.STOP,
+            1000 ether,
+            true
+        );
+        account.execute(commands, inputs);
     }
 
     /*//////////////////////////////////////////////////////////////
