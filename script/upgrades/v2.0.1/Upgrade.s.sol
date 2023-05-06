@@ -15,7 +15,7 @@ import {Settings} from "src/Settings.sol";
 
 /// @dev steps to deploy and verify on Optimism:
 /// (1) load the variables in the .env file via `source .env`
-/// (2) run `forge script script/upgrades/v2.0.1/Upgrade.s.sol:UpgradeAccountOptimism --rpc-url $ARCHIVE_NODE_URL_L2 --broadcast -vvvv`
+/// (2) run `forge script script/upgrades/v2.0.1/Upgrade.s.sol:UpgradeAccountOptimism --rpc-url $ARCHIVE_NODE_URL_L2 --broadcast --verify -vvvv`
 /// (3) Smart Margin Account Factory owner (i.e. Kwenta multisig) will need to call `upgradeAccountImplementation` on the Factory
 ///     with the address of the new Account implementation
 contract UpgradeAccountOptimism is Script {
@@ -86,7 +86,7 @@ contract UpgradeAccountOptimism is Script {
 
 /// @dev steps to deploy and verify on Optimism Goerli:
 /// (1) load the variables in the .env file via `source .env`
-/// (2) run `forge script script/Upgrade.s.sol:UpgradeAccountOptimismGoerli --rpc-url $ARCHIVE_NODE_URL_GOERLI_L2 --broadcast -vvvv`
+/// (2) run `forge script script/upgrades/v2.0.1/Upgrade.s.sol:UpgradeAccountOptimismGoerli --rpc-url $ARCHIVE_NODE_URL_GOERLI_L2 --broadcast --verify -vvvv`
 /// (3) Smart Margin Account Factory owner (i.e. Kwenta multisig) will need to call `upgradeAccountImplementation` on the Factory
 ///     with the address of the new Account implementation
 contract UpgradeAccountOptimismGoerli is Script {
