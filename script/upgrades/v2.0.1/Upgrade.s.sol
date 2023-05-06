@@ -84,7 +84,7 @@ contract UpgradeAccountOptimism is Script {
     }
 }
 
-/// @dev steps to deploy and verify on Optimism:
+/// @dev steps to deploy and verify on Optimism Goerli:
 /// (1) load the variables in the .env file via `source .env`
 /// (2) run `forge script script/Upgrade.s.sol:UpgradeAccountOptimismGoerli --rpc-url $ARCHIVE_NODE_URL_GOERLI_L2 --broadcast -vvvv`
 /// (3) Smart Margin Account Factory owner (i.e. Kwenta multisig) will need to call `upgradeAccountImplementation` on the Factory
