@@ -7,6 +7,7 @@ import {
     IEvents,
     IFactory,
     IFuturesMarketManager,
+    IPerpsV2ExchangeRate,
     IPerpsV2MarketConsolidated,
     ISettings,
     ISystemStatus
@@ -43,6 +44,12 @@ contract Account is IAccount, Auth, OpsReady {
     /// @notice address of the Synthetix ProxyERC20sUSD contract used as the margin asset
     /// @dev can be immutable due to the fact the sUSD contract is a proxy address
     IERC20 internal immutable MARGIN_ASSET;
+
+    /// @notice address of the Synthetix FuturesMarketManager
+    /// @dev the manager keeps track of which markets exist, and is the main window between
+    /// perpsV2 markets and the rest of the synthetix system. It accumulates the total debt
+    /// over all markets, and issues and burns sUSD on each market's behalf
+    IPerpsV2ExchangeRate internal immutable PERPS_V2_EXCHANGE_RATE;
 
     /// @notice address of the Synthetix FuturesMarketManager
     /// @dev the manager keeps track of which markets exist, and is the main window between
@@ -103,6 +110,7 @@ contract Account is IAccount, Auth, OpsReady {
         address _factory,
         address _events,
         address _marginAsset,
+        address _perpsV2ExchangeRate,
         address _futuresMarketManager,
         address _systemStatus,
         address _gelato,
@@ -112,6 +120,7 @@ contract Account is IAccount, Auth, OpsReady {
         FACTORY = IFactory(_factory);
         EVENTS = IEvents(_events);
         MARGIN_ASSET = IERC20(_marginAsset);
+        PERPS_V2_EXCHANGE_RATE = IPerpsV2ExchangeRate(_perpsV2ExchangeRate);
         FUTURES_MARKET_MANAGER = IFuturesMarketManager(_futuresMarketManager);
         SYSTEM_STATUS = ISystemStatus(_systemStatus);
         SETTINGS = ISettings(_settings);
@@ -932,10 +941,8 @@ contract Account is IAccount, Auth, OpsReady {
         view
         returns (uint256)
     {
-        (uint256 price, bool invalid) = _market.assetPrice();
-        if (invalid) {
-            revert InvalidPrice();
-        }
+        bytes32 assetId = _market.baseAsset();
+        (uint256 price, ) = PERPS_V2_EXCHANGE_RATE.resolveAndGetLatestPrice(assetId);
         return price;
     }
 

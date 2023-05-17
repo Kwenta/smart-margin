@@ -4,6 +4,8 @@ pragma solidity 0.8.18;
 import {IEvents} from "./IEvents.sol";
 import {IFactory} from "./IFactory.sol";
 import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
+import {IPerpsV2ExchangeRate} from
+    "@synthetix/IPerpsV2ExchangeRate.sol";
 import {IPerpsV2MarketConsolidated} from
     "@synthetix/IPerpsV2MarketConsolidated.sol";
 import {ISettings} from "./ISettings.sol";

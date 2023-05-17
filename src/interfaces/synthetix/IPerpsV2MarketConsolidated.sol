@@ -34,6 +34,8 @@ interface IPerpsV2MarketConsolidated {
         view
         returns (DelayedOrder memory);
 
+    function baseAsset() external view returns (bytes32 key);
+
     function assetPrice() external view returns (uint256 price, bool invalid);
 
     function transferMargin(int256 marginDelta) external;
