@@ -713,6 +713,87 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         });
     }
 
+    // assert fee transfer to gelato is called when for a reduce only order that
+    // is not filled due to it being an invalid reduce only order
+    function test_ExecuteConditionalOrder_Valid_InvalidReduceOnly_InactiveMarket_FeeTransfer() public {
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            desiredFillPrice: DESIRED_FILL_PRICE,
+            reduceOnly: true
+        });
+        (bytes memory executionData, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
+        // expect a call w/ empty calldata to gelato (payment through callvalue)
+        vm.expectCall(GELATO, "");
+        vm.prank(GELATO);
+
+        // market does not have an active position and the conditional order is reduce only
+        // but a fee should still be paid to gelato for execution
+        IOps(OPS).exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: executionData,
+            moduleData: moduleData,
+            txFee: GELATO_FEE,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        });
+    }
+
+    // assert fee transfer to gelato is called when for a reduce only order that
+    // is not filled due to it being an invalid reduce only order
+    function test_ExecuteConditionalOrder_Valid_InvalidReduceOnly_SameSign_FeeTransfer() public {
+        // create a long position in the ETH market
+        address market = getMarketAddressFromKey(sETHPERP);
+        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 sizeDelta = 1 ether;
+        (uint256 desiredFillPrice,) =
+            IPerpsV2MarketConsolidated(market).assetPrice();
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(market, marginDelta);
+        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
+        account.execute(commands, inputs);
+
+        // create and place a conditional order that is reduce only
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether, // this is the same sign as the pre-existing position
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            desiredFillPrice: DESIRED_FILL_PRICE,
+            reduceOnly: true
+        });
+        (bytes memory executionData, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
+        
+        // expect a call w/ empty calldata to gelato (payment through callvalue)
+        vm.expectCall(GELATO, "");
+        vm.prank(GELATO);
+
+        // the incoming conditional order size delta is the same sign, 
+        // thus the conditional order is not reduce only;
+        // a fee should still be paid to gelato for execution
+        IOps(OPS).exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: executionData,
+            moduleData: moduleData,
+            txFee: GELATO_FEE,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        });
+    }
+
     function test_ExecuteConditionalOrder_Valid_InsufficientEth() public {
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
