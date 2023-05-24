@@ -754,6 +754,7 @@ contract Account is IAccount, Auth, OpsReady {
         isAccountExecutionEnabled
         onlyOps
     {
+        // store conditional order in memory
         ConditionalOrder memory conditionalOrder =
             getConditionalOrder(_conditionalOrderId);
 
@@ -763,6 +764,10 @@ contract Account is IAccount, Auth, OpsReady {
         // remove gelato task from their accounting
         /// @dev will revert if task id does not exist {Automate.cancelTask: Task not found}
         IOps(OPS).cancelTask({taskId: conditionalOrder.gelatoTaskId});
+
+        // pay Gelato imposed fee for conditional order execution
+        (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
+        _transfer({_amount: fee, _paymentToken: feeToken});
 
         // define Synthetix PerpsV2 market
         IPerpsV2MarketConsolidated market =
@@ -815,10 +820,6 @@ contract Account is IAccount, Auth, OpsReady {
             _sizeDelta: conditionalOrder.sizeDelta,
             _desiredFillPrice: conditionalOrder.desiredFillPrice
         });
-
-        // pay Gelato imposed fee for conditional order execution
-        (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
-        _transfer({_amount: fee, _paymentToken: feeToken});
 
         EVENTS.emitConditionalOrderFilled({
             conditionalOrderId: _conditionalOrderId,
