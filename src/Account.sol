@@ -45,10 +45,8 @@ contract Account is IAccount, Auth, OpsReady {
     /// @dev can be immutable due to the fact the sUSD contract is a proxy address
     IERC20 internal immutable MARGIN_ASSET;
 
-    /// @notice address of the Synthetix FuturesMarketManager
-    /// @dev the manager keeps track of which markets exist, and is the main window between
-    /// perpsV2 markets and the rest of the synthetix system. It accumulates the total debt
-    /// over all markets, and issues and burns sUSD on each market's behalf
+    /// @notice address of the Synthetix PerpsV2ExchangeRate
+    /// @dev used internally by Synthetix Perps V2 contracts to retrieve asset exchange rates
     IPerpsV2ExchangeRate internal immutable PERPS_V2_EXCHANGE_RATE;
 
     /// @notice address of the Synthetix FuturesMarketManager
@@ -102,6 +100,7 @@ contract Account is IAccount, Auth, OpsReady {
     /// @param _factory: address of the Smart Margin Account Factory
     /// @param _events: address of the contract used by all accounts for emitting events
     /// @param _marginAsset: address of the Synthetix ProxyERC20sUSD contract used as the margin asset
+    /// @param _perpsV2ExchangeRate: address of the Synthetix PerpsV2ExchangeRate
     /// @param _futuresMarketManager: address of the Synthetix FuturesMarketManager
     /// @param _gelato: address of Gelato
     /// @param _ops: address of Ops
@@ -944,9 +943,7 @@ contract Account is IAccount, Auth, OpsReady {
     {
         bytes32 assetId = _market.baseAsset();
 
-        /// @dev can revert if:
-        /// (1) assetId is invalid
-        /// (2) if there's no price for the given asset
+        /// @dev can revert if assetId is invalid OR there's no price for the given asset
         (uint256 price, ) = PERPS_V2_EXCHANGE_RATE.resolveAndGetLatestPrice(assetId);
 
         return price;
