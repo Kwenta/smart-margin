@@ -20,20 +20,17 @@ address constant OPTIMISM_GOERLI_OPS =
     0x255F82563b5973264e89526345EcEa766DB3baB2;
 
 // v2.0.1
-/// @custom:todo update address
 address constant OPTIMISM_GOERLI_IMPLEMENTATION =
-    0x3d1Df9e9C43ba96bF5104008B17BC3E9C8f58682;
+    0x76210dbA7b06bC40ec4E152D2Dcfd6bFa8102a8a;
 
 // released with v2.0.1 implementation
-/// @custom:todo update address
 address constant OPTIMISM_GOERLI_EVENTS =
-    0x6C20d844ce6ADbBF9EC48e4CC5eae620aFc113Cc;
+    0x91276Ad073Db556a84DA84aCFB960d3A2Fa7195a;
 
 // updated with v2.0.1 implementation
 address constant OPTIMISM_GOERLI_FACTORY =
     0x30582eeE34719fe22b1B6c3b607636A3ab94522E;
 
 // released with v2.0.1 implementation
-/// @custom:todo update address
 address constant OPTIMISM_GOERLI_SETTINGS =
-    0xdF73A816De7450F27B10E58020fF5415670B9a4e;
+    0xd2f3c4D549EF6AB572dB6512AB0e33f709E7caE1;
