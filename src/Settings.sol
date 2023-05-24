@@ -10,7 +10,7 @@ contract Settings is ISettings, Owned {
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
-    
+
     /// @inheritdoc ISettings
     bool public accountExecutionEnabled = true;
 
