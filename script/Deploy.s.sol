@@ -2,7 +2,8 @@
 pragma solidity 0.8.18;
 
 import "forge-std/Script.sol";
-import "./utils/deploy-parameters.sol";
+import "./utils/parameters/OptimismGoerliParameters.sol";
+import "./utils/parameters/OptimismParameters.sol";
 import {Account} from "src/Account.sol";
 import {Events} from "src/Events.sol";
 import {Factory} from "src/Factory.sol";

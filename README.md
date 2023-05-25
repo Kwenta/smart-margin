@@ -78,7 +78,7 @@ Developer documentation to give a detailed explanation of the inputs for every c
 #### Diagram
 
 <p align="center">
-  <img src="/diagrams/Execution-Flow.png" width="1000" height="600" alt="Execution-Flow"/>
+  <img src="/diagrams/Execution-Flow.png" alt="Execution-Flow"/>
 </p>
 
 #### Reference
@@ -177,16 +177,24 @@ forge test --fork-url $(grep ARCHIVE_NODE_URL_GOERLI_L2 .env | cut -d '=' -f2) -
 
 > note that updates to `Account` are reflected in all smart margin accounts, regardless of whether they were created before or after the `Account` upgrade.
 
-1. Create new version of `Account.sol` (ex: `AccountV2.sol`)
-2. Run slither analysis to ensure no storage collisions with previous version
-
-```
-slither-check-upgradeability . Account --new-contract-name AccountV2 --proxy-name AccountProxy
-```
-
-3. Reference `./script` directory and `Upgrade.s.sol`
-4. Ensure that the `Events` contract address is set correctly in the `Factory` contract 
-5. Ensure that the `Events` contract is compatible with the new `Account` contract
+1. Update `Account.sol` contract
+> Make sure to update version number in `Account.sol` contract
+2. Add new directory to `./script/upgrades/` with the version number as the directory name (i.e. v2.6.9)
+3. Create new `Upgrade.s.sol` for the new version in that directory
+4. Add new directory to `./test/upgrades/` with the version number as the directory name (i.e. v2.6.9)
+5. Create new `upgrade.vX.X.X.t.sol` for the new version (where vX.X.X is the version number) in that directory
+6. Test upgrade using new script (example: `./test/upgrades/v2.0.1/upgrade.v2.0.1.t.sol`)
+> If adding new contracts, make sure to test them in the `upgrade.vX.X.X.t.sol` file also
+7. Run script and deploy to Testnet
+8. Call `Factory.upgradeAccountImplementation` with new `Account` address (can be done on etherscan)
+> Only factory owner can do this
+9. Update `./deploy-addresses/optimism-goerli.json` with new `Account` address
+10. Ensure tesnet accounts are updated and functional (ensure state is correct)
+11. Run script and deploy to Mainnet
+12. Call `Factory.upgradeAccountImplementation` with new `Account` address (can be done on etherscan)
+> Only factory owner can do this (admin dao multisig or pDAO)
+13. Update `./deploy-addresses/optimism.json` with new `Account` address
+14. Ensure mainnet accounts are updated and functional (ensure state is correct)
 
 ## Project Tools
 
