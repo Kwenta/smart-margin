@@ -34,3 +34,8 @@ address constant OPTIMISM_GOERLI_FACTORY =
 // released with v2.0.1 implementation
 address constant OPTIMISM_GOERLI_SETTINGS =
     0xd2f3c4D549EF6AB572dB6512AB0e33f709E7caE1;
+
+// key(s) used by Synthetix address resolver
+bytes32 constant PROXY_SUSD = bytes32("ProxysUSD");
+bytes32 constant FUTURES_MARKET_MANAGER = bytes32("FuturesMarketManager");
+bytes32 constant SYSTEM_STATUS = bytes32("SystemStatus");

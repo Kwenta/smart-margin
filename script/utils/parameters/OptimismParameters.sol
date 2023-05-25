@@ -32,3 +32,8 @@ address constant OPTIMISM_FACTORY = 0x8234F990b149Ae59416dc260305E565e5DAfEb54;
 // released with v2.0.1 implementation
 /// @custom:todo update address
 address constant OPTIMISM_SETTINGS = address(0xBEEF);
+
+// key(s) used by Synthetix address resolver
+bytes32 constant PROXY_SUSD = bytes32("ProxysUSD");
+bytes32 constant FUTURES_MARKET_MANAGER = bytes32("FuturesMarketManager");
+bytes32 constant SYSTEM_STATUS = bytes32("SystemStatus");
