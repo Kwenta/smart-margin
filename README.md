@@ -78,7 +78,7 @@ Developer documentation to give a detailed explanation of the inputs for every c
 #### Diagram
 
 <p align="center">
-  <img src="/diagrams/Execution-Flow.png" width="1000" height="600" alt="Execution-Flow"/>
+  <img src="/diagrams/Execution-Flow.png" alt="Execution-Flow"/>
 </p>
 
 #### Reference
