@@ -19,5 +19,8 @@ interface IPerpsV2ExchangeRate {
     /// safer / easier to use either `getPrice` or `getPriceNoOlderThan`.
     /// @return price - please read the documentation of PythStructs.Price to understand how to use this safely.
     /// @return publishTime - unix timestamp describing when the price was published.
-    function resolveAndGetLatestPrice(bytes32 assetId) external view returns (uint price, uint publishTime);
+    function resolveAndGetLatestPrice(bytes32 assetId)
+        external
+        view
+        returns (uint256 price, uint256 publishTime);
 }

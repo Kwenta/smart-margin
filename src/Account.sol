@@ -944,7 +944,8 @@ contract Account is IAccount, Auth, OpsReady {
         bytes32 assetId = _market.baseAsset();
 
         /// @dev can revert if assetId is invalid OR there's no price for the given asset
-        (uint256 price, ) = PERPS_V2_EXCHANGE_RATE.resolveAndGetLatestPrice(assetId);
+        (uint256 price,) =
+            PERPS_V2_EXCHANGE_RATE.resolveAndGetLatestPrice(assetId);
 
         return price;
     }
