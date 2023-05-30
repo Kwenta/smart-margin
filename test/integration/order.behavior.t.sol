@@ -67,14 +67,17 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         IAddressResolver addressResolver = IAddressResolver(ADDRESS_RESOLVER);
         sUSD = ERC20(addressResolver.getAddress(PROXY_SUSD));
         address futuresMarketManager =
-            addressResolver.getAddress(FUTURES_MANAGER);
+            addressResolver.getAddress(FUTURES_MARKET_MANAGER);
         systemStatus = ISystemStatus(addressResolver.getAddress(SYSTEM_STATUS));
+        address perpsV2ExchangeRate =
+            addressResolver.getAddress(PERPS_V2_EXCHANGE_RATE);
 
         // deploy AccountExposed contract for exposing internal account functions
         accountExposed = new AccountExposed(
             address(factory),
             address(events), 
             address(sUSD), 
+            perpsV2ExchangeRate,
             futuresMarketManager, 
             address(systemStatus), 
             GELATO, 
@@ -715,7 +718,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     // assert fee transfer to gelato is called when for a reduce only order that
     // is not filled due to it being an invalid reduce only order
-    function test_ExecuteConditionalOrder_Valid_InvalidReduceOnly_InactiveMarket_FeeTransfer() public {
+    function test_ExecuteConditionalOrder_Valid_InvalidReduceOnly_InactiveMarket_FeeTransfer(
+    ) public {
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
@@ -747,7 +751,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
     // assert fee transfer to gelato is called when for a reduce only order that
     // is not filled due to it being an invalid reduce only order
-    function test_ExecuteConditionalOrder_Valid_InvalidReduceOnly_SameSign_FeeTransfer() public {
+    function test_ExecuteConditionalOrder_Valid_InvalidReduceOnly_SameSign_FeeTransfer(
+    ) public {
         // create a long position in the ETH market
         address market = getMarketAddressFromKey(sETHPERP);
         int256 marginDelta = int256(AMOUNT) / 10;
@@ -774,12 +779,12 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         });
         (bytes memory executionData, IOps.ModuleData memory moduleData) =
             generateGelatoModuleData(conditionalOrderId);
-        
+
         // expect a call w/ empty calldata to gelato (payment through callvalue)
         vm.expectCall(GELATO, "");
         vm.prank(GELATO);
 
-        // the incoming conditional order size delta is the same sign, 
+        // the incoming conditional order size delta is the same sign,
         // thus the conditional order is not reduce only;
         // a fee should still be paid to gelato for execution
         IOps(OPS).exec({

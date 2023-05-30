@@ -56,14 +56,17 @@ contract AccountTest is Test, ConsolidatedEvents {
         IAddressResolver addressResolver = IAddressResolver(ADDRESS_RESOLVER);
         address sUSD = addressResolver.getAddress(PROXY_SUSD);
         address futuresMarketManager =
-            addressResolver.getAddress(FUTURES_MANAGER);
+            addressResolver.getAddress(FUTURES_MARKET_MANAGER);
         address systemStatus = addressResolver.getAddress(SYSTEM_STATUS);
+        address perpsV2ExchangeRate =
+            addressResolver.getAddress(PERPS_V2_EXCHANGE_RATE);
 
         // deploy AccountExposed contract for exposing internal account functions
         accountExposed = new AccountExposed(
             address(factory),
             address(events), 
             sUSD, 
+            perpsV2ExchangeRate,
             futuresMarketManager, 
             systemStatus, 
             GELATO, 
