@@ -34,3 +34,4 @@ address constant OPTIMISM_SETTINGS = 0xD02813baF080d06FC6F706cF93F5DaA96D6edB17;
 bytes32 constant PROXY_SUSD = bytes32("ProxysUSD");
 bytes32 constant FUTURES_MARKET_MANAGER = bytes32("FuturesMarketManager");
 bytes32 constant SYSTEM_STATUS = bytes32("SystemStatus");
+bytes32 constant PERPS_V2_EXCHANGE_RATE = bytes32("PerpsV2ExchangeRate");
