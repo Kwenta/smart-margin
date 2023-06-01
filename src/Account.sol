@@ -29,6 +29,10 @@ contract Account is IAccount, Auth, OpsReady {
     /// @notice tracking code used when modifying positions
     bytes32 internal constant TRACKING_CODE = "KWENTA";
 
+    /// @notice used to ensure the pyth provided price is sufficiently recent
+    /// @dev price cannot be older than MAX_PRICE_LATENCY seconds
+    uint256 internal constant MAX_PRICE_LATENCY = 120;
+
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
     //////////////////////////////////////////////////////////////*/
@@ -945,8 +949,14 @@ contract Account is IAccount, Auth, OpsReady {
         bytes32 assetId = _market.baseAsset();
 
         /// @dev can revert if assetId is invalid OR there's no price for the given asset
-        (uint256 price,) =
+        (uint256 price, uint256 publishTime) =
             PERPS_V2_EXCHANGE_RATE.resolveAndGetLatestPrice(assetId);
+
+        // if the price is stale, get the latest price from the market
+        // (i.e. Chainlink provided price)
+        if (publishTime < block.timestamp - MAX_PRICE_LATENCY) {
+            (price,) = _market.assetPrice();
+        }
 
         /// @dev see IPerpsV2ExchangeRates to understand risks associated with this price
         return price;
