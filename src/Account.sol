@@ -24,7 +24,7 @@ contract Account is IAccount, Auth, OpsReady {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
-    bytes32 public constant VERSION = "2.0.1";
+    bytes32 public constant VERSION = "2.0.2";
 
     /// @notice tracking code used when modifying positions
     bytes32 internal constant TRACKING_CODE = "KWENTA";
@@ -502,6 +502,7 @@ contract Account is IAccount, Auth, OpsReady {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice submit an atomic order to a Synthetix PerpsV2 Market
+    /// @dev atomic orders are executed immediately and incur a *significant* fee
     /// @param _market: address of market
     /// @param _sizeDelta: size delta of order
     /// @param _desiredFillPrice: desired fill price of order
@@ -947,6 +948,7 @@ contract Account is IAccount, Auth, OpsReady {
         (uint256 price,) =
             PERPS_V2_EXCHANGE_RATE.resolveAndGetLatestPrice(assetId);
 
+        /// @dev see IPerpsV2ExchangeRates to understand risks associated with this price
         return price;
     }
 

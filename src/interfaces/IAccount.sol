@@ -179,6 +179,8 @@ interface IAccount {
     /// @notice execute a gelato queued conditional order
     /// @notice only keepers can trigger this function
     /// @dev currently only supports conditional order submission via PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER COMMAND
+    /// @custom:audit a compromised Gelato Ops cannot drain accounts due to several interactions with Synthetix PerpsV2
+    /// requiring a valid market which could not be initialized with an invalid conditional order id
     /// @param _conditionalOrderId: key for an active conditional order
     function executeConditionalOrder(uint256 _conditionalOrderId) external;
 }
