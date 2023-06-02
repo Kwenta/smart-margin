@@ -6,6 +6,7 @@ import "forge-std/console2.sol";
 import "../../utils/parameters/OptimismGoerliParameters.sol";
 import "../../utils/parameters/OptimismParameters.sol";
 import {Account} from "src/Account.sol";
+import {Events} from "src/Events.sol";
 import {IAddressResolver} from "../../utils/interfaces/IAddressResolver.sol";
 
 /// @title Script to upgrade the Account implementation v2.0.1 -> v2.0.1
@@ -30,7 +31,7 @@ contract UpgradeAccountOptimism is Script {
             IAddressResolver(OPTIMISM_SYNTHETIX_ADDRESS_RESOLVER);
 
         // deploy events
-        events = address(new Events({_factory: OPTIMISM_FACTORY}));
+        address events = address(new Events({_factory: OPTIMISM_FACTORY}));
 
         console2.log("Events Deployed:", events);
 
@@ -70,8 +71,9 @@ contract UpgradeAccountOptimismGoerli is Script {
         IAddressResolver addressResolver =
             IAddressResolver(OPTIMISM_GOERLI_SYNTHETIX_ADDRESS_RESOLVER);
 
-         // deploy events
-        events = address(new Events({_factory: OPTIMISM_GOERLI_FACTORY}));
+        // deploy events
+        address events =
+            address(new Events({_factory: OPTIMISM_GOERLI_FACTORY}));
 
         console2.log("Events Deployed:", events);
 
