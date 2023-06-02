@@ -103,7 +103,7 @@ contract AccountExposed is Account {
     function expose_sUSDRate(IPerpsV2MarketConsolidated _market)
         public
         view
-        returns (uint256)
+        returns (uint256, PriceOracleUsed)
     {
         return _sUSDRate(_market);
     }

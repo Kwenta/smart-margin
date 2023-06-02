@@ -90,7 +90,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         fundAccount(AMOUNT);
 
         // get current ETH price in USD
-        currentEthPriceInUSD = accountExposed.expose_sUSDRate(
+        (currentEthPriceInUSD,) = accountExposed.expose_sUSDRate(
             IPerpsV2MarketConsolidated(
                 accountExposed.expose_getPerpsV2Market(sETHPERP)
             )
@@ -1342,7 +1342,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     conditionalOrderId: conditionalOrderId,
                     gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE
+                    keeperFee: GELATO_FEE,
+                    priceOracle: IAccount.PriceOracleUsed.CHAINLINK
                 });
             } else if (fuzzedSizeDelta + position.size >= 0) {
                 // expect conditional order to be filled with specified fuzzedSizeDelta
@@ -1352,7 +1353,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     conditionalOrderId: conditionalOrderId,
                     gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE
+                    keeperFee: GELATO_FEE,
+                    priceOracle: IAccount.PriceOracleUsed.CHAINLINK
                 });
             } else {
                 revert("Uncaught case");
@@ -1425,7 +1427,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     conditionalOrderId: conditionalOrderId,
                     gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE
+                    keeperFee: GELATO_FEE,
+                    priceOracle: IAccount.PriceOracleUsed.CHAINLINK
                 });
             } else if (fuzzedSizeDelta + position.size <= 0) {
                 // expect conditional order to be filled with specified fuzzedSizeDelta
@@ -1435,7 +1438,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     conditionalOrderId: conditionalOrderId,
                     gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE
+                    keeperFee: GELATO_FEE,
+                    priceOracle: IAccount.PriceOracleUsed.CHAINLINK
                 });
             } else {
                 revert("Uncaught case");

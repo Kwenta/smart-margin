@@ -179,14 +179,16 @@ contract EventsTest is Test, ConsolidatedEvents {
             0,
             keccak256("gelatoTaskId"),
             FILL_PRICE,
-            GELATO_FEE
+            GELATO_FEE,
+            IAccount.PriceOracleUsed.PYTH
         );
         vm.prank(account);
         events.emitConditionalOrderFilled({
             conditionalOrderId: 0,
             gelatoTaskId: keccak256("gelatoTaskId"),
             fillPrice: FILL_PRICE,
-            keeperFee: GELATO_FEE
+            keeperFee: GELATO_FEE,
+            priceOracle: IAccount.PriceOracleUsed.PYTH
         });
     }
 
@@ -196,7 +198,8 @@ contract EventsTest is Test, ConsolidatedEvents {
             conditionalOrderId: 0,
             gelatoTaskId: keccak256("gelatoTaskId"),
             fillPrice: FILL_PRICE,
-            keeperFee: GELATO_FEE
+            keeperFee: GELATO_FEE,
+            priceOracle: IAccount.PriceOracleUsed.PYTH
         });
     }
 }
