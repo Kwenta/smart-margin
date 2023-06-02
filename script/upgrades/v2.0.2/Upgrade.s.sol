@@ -29,10 +29,15 @@ contract UpgradeAccountOptimism is Script {
         IAddressResolver addressResolver =
             IAddressResolver(OPTIMISM_SYNTHETIX_ADDRESS_RESOLVER);
 
+        // deploy events
+        events = address(new Events({_factory: OPTIMISM_FACTORY}));
+
+        console2.log("Events Deployed:", events);
+
         implementation = address(
             new Account({
                 _factory: OPTIMISM_FACTORY,
-                _events: OPTIMISM_EVENTS,
+                _events: events,
                 _marginAsset: addressResolver.getAddress({name: PROXY_SUSD}),
                 _perpsV2ExchangeRate: addressResolver.getAddress({name: PERPS_V2_EXCHANGE_RATE}),
                 _futuresMarketManager: addressResolver.getAddress({name: FUTURES_MARKET_MANAGER}),
@@ -64,6 +69,11 @@ contract UpgradeAccountOptimismGoerli is Script {
     function upgrade() public returns (address implementation) {
         IAddressResolver addressResolver =
             IAddressResolver(OPTIMISM_GOERLI_SYNTHETIX_ADDRESS_RESOLVER);
+
+         // deploy events
+        events = address(new Events({_factory: OPTIMISM_GOERLI_FACTORY}));
+
+        console2.log("Events Deployed:", events);
 
         implementation = address(
             new Account({
