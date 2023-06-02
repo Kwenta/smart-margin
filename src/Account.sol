@@ -778,7 +778,7 @@ contract Account is IAccount, Auth, OpsReady {
             _getPerpsV2Market(conditionalOrder.marketKey);
 
         /// @dev conditional order is valid given checker() returns true; define fill price
-        uint256 fillPrice = _sUSDRate(market);
+        (uint256 fillPrice, PriceOracleUsed priceOracle) = _sUSDRate(market);
 
         // if conditional order is reduce only, ensure position size is only reduced
         if (conditionalOrder.reduceOnly) {
@@ -829,7 +829,8 @@ contract Account is IAccount, Auth, OpsReady {
             conditionalOrderId: _conditionalOrderId,
             gelatoTaskId: conditionalOrder.gelatoTaskId,
             fillPrice: fillPrice,
-            keeperFee: fee
+            keeperFee: fee,
+            priceOracle: priceOracle
         });
     }
 
@@ -852,7 +853,8 @@ contract Account is IAccount, Auth, OpsReady {
         }
 
         /// @dev if marketKey is invalid, this will revert
-        uint256 price = _sUSDRate(_getPerpsV2Market(conditionalOrder.marketKey));
+        (uint256 price,) =
+            _sUSDRate(_getPerpsV2Market(conditionalOrder.marketKey));
 
         // check if markets satisfy specific order type
         if (
@@ -944,7 +946,7 @@ contract Account is IAccount, Auth, OpsReady {
     function _sUSDRate(IPerpsV2MarketConsolidated _market)
         internal
         view
-        returns (uint256)
+        returns (uint256, PriceOracleUsed)
     {
         bytes32 assetId = _market.baseAsset();
 
@@ -952,14 +954,18 @@ contract Account is IAccount, Auth, OpsReady {
         (uint256 price, uint256 publishTime) =
             PERPS_V2_EXCHANGE_RATE.resolveAndGetLatestPrice(assetId);
 
+        // resolveAndGetLatestPrice is provide by pyth
+        PriceOracleUsed priceOracle = PriceOracleUsed.PYTH;
+
         // if the price is stale, get the latest price from the market
         // (i.e. Chainlink provided price)
         if (publishTime < block.timestamp - MAX_PRICE_LATENCY) {
+            priceOracle = PriceOracleUsed.CHAINLINK;
             (price,) = _market.assetPrice();
         }
 
         /// @dev see IPerpsV2ExchangeRates to understand risks associated with this price
-        return price;
+        return (price, priceOracle);
     }
 
     /*//////////////////////////////////////////////////////////////

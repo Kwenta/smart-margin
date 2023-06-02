@@ -114,14 +114,16 @@ contract Events is IEvents {
         uint256 conditionalOrderId,
         bytes32 gelatoTaskId,
         uint256 fillPrice,
-        uint256 keeperFee
+        uint256 keeperFee,
+        IAccount.PriceOracleUsed priceOracle
     ) external override onlyAccounts {
         emit ConditionalOrderFilled({
             account: msg.sender,
             conditionalOrderId: conditionalOrderId,
             gelatoTaskId: gelatoTaskId,
             fillPrice: fillPrice,
-            keeperFee: keeperFee
+            keeperFee: keeperFee,
+            priceOracle: priceOracle
         });
     }
 }

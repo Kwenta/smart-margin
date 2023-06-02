@@ -50,6 +50,13 @@ interface IAccount {
         CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
     }
 
+    /// @notice denotes what oracle is used for price when executing conditional orders
+    /// @dev under the hood PYTH = 0, CHAINLINK = 1
+    enum PriceOracleUsed {
+        PYTH,
+        CHAINLINK
+    }
+
     /// marketKey: Synthetix PerpsV2 Market id/key
     /// marginDelta: amount of margin to deposit or withdraw; positive indicates deposit, negative withdraw
     /// sizeDelta: denoted in market currency (i.e. ETH, BTC, etc), size of Synthetix PerpsV2 position
