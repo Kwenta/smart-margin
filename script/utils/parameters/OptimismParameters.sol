@@ -31,7 +31,7 @@ address constant OPTIMISM_FACTORY = 0x8234F990b149Ae59416dc260305E565e5DAfEb54;
 address constant OPTIMISM_SETTINGS = 0xD02813baF080d06FC6F706cF93F5DaA96D6edB17;
 
 // key(s) used by Synthetix address resolver
-bytes32 constant PROXY_SUSD = bytes32("ProxysUSD");
-bytes32 constant FUTURES_MARKET_MANAGER = bytes32("FuturesMarketManager");
-bytes32 constant SYSTEM_STATUS = bytes32("SystemStatus");
-bytes32 constant PERPS_V2_EXCHANGE_RATE = bytes32("PerpsV2ExchangeRate");
+bytes32 constant PROXY_SUSD = "ProxysUSD";
+bytes32 constant FUTURES_MARKET_MANAGER = "FuturesMarketManager";
+bytes32 constant SYSTEM_STATUS = "SystemStatus";
+bytes32 constant PERPS_V2_EXCHANGE_RATE = "PerpsV2ExchangeRate";
