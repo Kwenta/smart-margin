@@ -678,6 +678,30 @@ contract AccountTest is Test, ConsolidatedEvents {
     }
 
     /*//////////////////////////////////////////////////////////////
+                            GETTER UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    function test_getPerpsV2Market_Valid_Key() public {}
+
+    function test_getPerpsV2Market_Invalid_Key() public {}
+
+    function test_sUSDRate_Valid_Market() public {}
+
+    function test_sUSDRate_Invalid_Market() public {}
+
+    function test_sUSDRate_Pyth_Price() public {}
+
+    function test_sUSDRate_Chainlink_Price() public {
+        // price is fetched from chainlink when pyth price is stale
+    }
+    
+    function test_sUSDRate_Invalid_Chainlink_Price() public {
+        // price is fetched from chainlink when pyth price is stale
+        // if chainlink price is also invalid, then expect revert
+    }
+
+
+    /*//////////////////////////////////////////////////////////////
                              MATH UTILITIES
     //////////////////////////////////////////////////////////////*/
 
