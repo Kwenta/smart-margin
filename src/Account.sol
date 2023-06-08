@@ -960,8 +960,13 @@ contract Account is IAccount, Auth, OpsReady {
         // if the price is stale, get the latest price from the market
         // (i.e. Chainlink provided price)
         if (publishTime < block.timestamp - MAX_PRICE_LATENCY) {
+            // set price oracle used to Chainlink
             priceOracle = PriceOracleUsed.CHAINLINK;
-            (price,) = _market.assetPrice();
+
+            // fetch asset price and ensure it is valid
+            bool invalid;
+            (price, invalid) = _market.assetPrice();
+            if (invalid) revert InvalidPrice();
         }
 
         /// @dev see IPerpsV2ExchangeRates to understand risks associated with this price
