@@ -3,6 +3,7 @@ pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
 import "../utils/Constants.sol";
+import "forge-std/console2.sol";
 import {Account} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
 import {Auth} from "../../src/Account.sol";
@@ -12,6 +13,7 @@ import {Factory} from "../../src/Factory.sol";
 import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
 import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
+import {IPerpsV2ExchangeRate} from "../../src/interfaces/IAccount.sol";
 import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
 import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
@@ -681,13 +683,31 @@ contract AccountTest is Test, ConsolidatedEvents {
                             GETTER UTILITIES
     //////////////////////////////////////////////////////////////*/
 
-    function test_getPerpsV2Market_Valid_Key() public {
+    // sanity test that testnet return a value even if it is stale
+    function test_PerpsV2ExchangeRate() public view {
+        IPerpsV2MarketConsolidated market =
+            accountExposed.expose_getPerpsV2Market(sETHPERP);
+        IPerpsV2ExchangeRate perpsV2ExchangeRate = IPerpsV2ExchangeRate(
+            IAddressResolver(ADDRESS_RESOLVER).getAddress({
+                name: PERPS_V2_EXCHANGE_RATE
+            })
+        );
+        (uint256 price, uint256 publishTime) =
+            perpsV2ExchangeRate.resolveAndGetLatestPrice(market.baseAsset());
+
+        /// @custom:audit on testnet the publish time lags behind the current block time by
+        /// 65952 seconds (i.e. ~ 18 hours) at this block
+        assert(price != 0);
+        assert(publishTime != 0);
+    }
+
+    function test_getPerpsV2Market_Valid_Key() public view {
         address market =
             address(accountExposed.expose_getPerpsV2Market(sETHPERP));
         assert(market != address(0));
     }
 
-    function test_getPerpsV2Market_Invalid_Key() public {
+    function test_getPerpsV2Market_Invalid_Key() public view {
         address market =
             address(accountExposed.expose_getPerpsV2Market("unknown"));
         assert(market == address(0));
@@ -747,8 +767,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         assert(price == 1);
     }
 
-    function test_sUSDRate_Chainlink_Price() public {
-        // price is fetched from chainlink when pyth price is stale
+    function test_sUSDRate_Chainlink_Price() public view {
         IPerpsV2MarketConsolidated market =
             accountExposed.expose_getPerpsV2Market(sETHPERP);
 
@@ -763,8 +782,6 @@ contract AccountTest is Test, ConsolidatedEvents {
     }
 
     function test_sUSDRate_Invalid_Chainlink_Price() public {
-        // price is fetched from chainlink when pyth price is stale
-        // if chainlink price is also invalid, then expect revert
         IPerpsV2MarketConsolidated market =
             accountExposed.expose_getPerpsV2Market(sETHPERP);
 
@@ -776,8 +793,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         );
 
         vm.expectRevert(abi.encodeWithSelector(IAccount.InvalidPrice.selector));
-        (, IAccount.PriceOracleUsed oracle) =
-            accountExposed.expose_sUSDRate(market);
+        accountExposed.expose_sUSDRate(market);
     }
 
     /*//////////////////////////////////////////////////////////////
