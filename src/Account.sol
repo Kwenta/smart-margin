@@ -948,6 +948,7 @@ contract Account is IAccount, Auth, OpsReady {
         view
         returns (uint256, PriceOracleUsed)
     {
+        /// @dev will revert if market is invalid
         bytes32 assetId = _market.baseAsset();
 
         /// @dev can revert if assetId is invalid OR there's no price for the given asset
