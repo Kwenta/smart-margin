@@ -681,25 +681,104 @@ contract AccountTest is Test, ConsolidatedEvents {
                             GETTER UTILITIES
     //////////////////////////////////////////////////////////////*/
 
-    function test_getPerpsV2Market_Valid_Key() public {}
+    function test_getPerpsV2Market_Valid_Key() public {
+        address market =
+            address(accountExposed.expose_getPerpsV2Market(sETHPERP));
+        assert(market != address(0));
+    }
 
-    function test_getPerpsV2Market_Invalid_Key() public {}
+    function test_getPerpsV2Market_Invalid_Key() public {
+        address market =
+            address(accountExposed.expose_getPerpsV2Market("unknown"));
+        assert(market == address(0));
+    }
 
-    function test_sUSDRate_Valid_Market() public {}
+    function test_sUSDRate_Valid_Market() public {
+        IPerpsV2MarketConsolidated market =
+            accountExposed.expose_getPerpsV2Market(sETHPERP);
 
-    function test_sUSDRate_Invalid_Market() public {}
+        // mock call to perpsV2ExchangeRate contract due to
+        // current pyth price there being too stale at this block
+        // (i.e. price used is providied by chainlink)
+        address perpsV2ExchangeRate = IAddressResolver(ADDRESS_RESOLVER)
+            .getAddress({name: PERPS_V2_EXCHANGE_RATE});
+        vm.mockCall(
+            perpsV2ExchangeRate,
+            abi.encodeWithSignature(
+                "resolveAndGetLatestPrice(bytes32)", market.baseAsset()
+            ),
+            abi.encode(1, block.timestamp)
+        );
 
-    function test_sUSDRate_Pyth_Price() public {}
+        (, IAccount.PriceOracleUsed oracle) =
+            accountExposed.expose_sUSDRate(market);
+
+        // assert oracle used is pyth
+        assert(oracle == IAccount.PriceOracleUsed.PYTH);
+    }
+
+    function test_sUSDRate_Invalid_Market() public {
+        vm.expectRevert();
+        accountExposed.expose_sUSDRate(
+            IPerpsV2MarketConsolidated(address(0xBEEFED))
+        );
+    }
+
+    function test_sUSDRate_Pyth_Price() public {
+        IPerpsV2MarketConsolidated market =
+            accountExposed.expose_getPerpsV2Market(sETHPERP);
+
+        // mock call to perpsV2ExchangeRate contract due to
+        // current pyth price there being too stale at this block
+        // (i.e. price used is providied by chainlink)
+        address perpsV2ExchangeRate = IAddressResolver(ADDRESS_RESOLVER)
+            .getAddress({name: PERPS_V2_EXCHANGE_RATE});
+        vm.mockCall(
+            perpsV2ExchangeRate,
+            abi.encodeWithSignature(
+                "resolveAndGetLatestPrice(bytes32)", market.baseAsset()
+            ),
+            abi.encode(1, block.timestamp)
+        );
+
+        (uint256 price,) = accountExposed.expose_sUSDRate(market);
+
+        // assert price returned is mocked value from pyth
+        assert(price == 1);
+    }
 
     function test_sUSDRate_Chainlink_Price() public {
         // price is fetched from chainlink when pyth price is stale
+        IPerpsV2MarketConsolidated market =
+            accountExposed.expose_getPerpsV2Market(sETHPERP);
+
+        (uint256 price, IAccount.PriceOracleUsed oracle) =
+            accountExposed.expose_sUSDRate(market);
+
+        // assert oracle used is chainlink since pyth price is stale
+        assert(oracle == IAccount.PriceOracleUsed.CHAINLINK);
+
+        // assert price is not 0
+        assert(price != 0);
     }
-    
+
     function test_sUSDRate_Invalid_Chainlink_Price() public {
         // price is fetched from chainlink when pyth price is stale
         // if chainlink price is also invalid, then expect revert
-    }
+        IPerpsV2MarketConsolidated market =
+            accountExposed.expose_getPerpsV2Market(sETHPERP);
 
+        // mock call to _market.assetPrice() to return an invalid price
+        vm.mockCall(
+            address(market),
+            abi.encodeWithSignature("assetPrice()"),
+            abi.encode(2, true)
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(IAccount.InvalidPrice.selector));
+        (, IAccount.PriceOracleUsed oracle) =
+            accountExposed.expose_sUSDRate(market);
+    }
 
     /*//////////////////////////////////////////////////////////////
                              MATH UTILITIES
