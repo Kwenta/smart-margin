@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
+import "lib/forge-std/src/Test.sol";
 import "../utils/Constants.sol";
 import {Account} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
 import {Auth} from "../../src/Account.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
+import {IERC20} from "../../src/interfaces/IERC20.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
 import {IAccount} from "../../src/interfaces/IAccount.sol";
@@ -37,7 +37,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     Account private account;
 
     // helper contracts for testing
-    ERC20 private sUSD;
+    IERC20 private sUSD;
     AccountExposed private accountExposed;
     ISystemStatus private systemStatus;
 
@@ -65,7 +65,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
         // define helper contracts
         IAddressResolver addressResolver = IAddressResolver(ADDRESS_RESOLVER);
-        sUSD = ERC20(addressResolver.getAddress(PROXY_SUSD));
+        sUSD = IERC20(addressResolver.getAddress(PROXY_SUSD));
         address futuresMarketManager =
             addressResolver.getAddress(FUTURES_MARKET_MANAGER);
         systemStatus = ISystemStatus(addressResolver.getAddress(SYSTEM_STATUS));

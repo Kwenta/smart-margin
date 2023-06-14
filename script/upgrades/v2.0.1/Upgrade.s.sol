@@ -4,8 +4,8 @@ pragma solidity 0.8.18;
 /**
  * FOR REFERENCE ONLY
  *
- * import "forge-std/Script.sol";
- * import "forge-std/console2.sol";
+ * import "lib/forge-std/src/Script.sol";
+ * import "lib/forge-std/src/console2.sol";
  * import "../../utils/parameters/OptimismGoerliParameters.sol";
  * import "../../utils/parameters/OptimismParameters.sol";
  * import {Account} from "src/Account.sol";

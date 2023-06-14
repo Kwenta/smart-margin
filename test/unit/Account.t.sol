@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
+import "lib/forge-std/src/Test.sol";
 import "../utils/Constants.sol";
-import "forge-std/console2.sol";
 import {Account} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
 import {Auth} from "../../src/Account.sol";

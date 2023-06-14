@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 /**
  * FOR REFERENCE ONLY
  *
- * import "forge-std/Test.sol";
+ * import "lib/forge-std/src/Test.sol";
  * import "../../utils/Constants.sol";
  * import "../../../script/utils/parameters/OptimismGoerliParameters.sol";
  * import {UpgradeAccountOptimismGoerli} from
