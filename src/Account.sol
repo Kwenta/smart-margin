@@ -108,7 +108,7 @@ contract Account is IAccount, Auth, OpsReady {
 
     function _nonReentrant() internal {
         if (locked == 2) revert Reentrancy();
-        locked = 2;    
+        locked = 2;
     }
 
     /*//////////////////////////////////////////////////////////////
