@@ -12,7 +12,7 @@ import {
     ISettings,
     ISystemStatus
 } from "./interfaces/IAccount.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from "./interfaces/IERC20.sol";
 import {OpsReady, IOps} from "./utils/OpsReady.sol";
 
 /// @title Kwenta Smart Margin Account Implementation
@@ -79,6 +79,9 @@ contract Account is IAccount, Auth, OpsReady {
     /// @notice track conditional orders by id
     mapping(uint256 id => ConditionalOrder order) internal conditionalOrders;
 
+    /// @notice value used for reentrancy protection
+    uint256 internal locked = 1;
+
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
@@ -93,6 +96,19 @@ contract Account is IAccount, Auth, OpsReady {
         if (!SETTINGS.accountExecutionEnabled()) {
             revert AccountExecutionDisabled();
         }
+    }
+
+    modifier nonReentrant() {
+        _nonReentrant();
+
+        _;
+
+        locked = 1;
+    }
+
+    function _nonReentrant() internal {
+        if (locked == 2) revert Reentrancy();
+        locked = 2;    
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -236,7 +252,10 @@ contract Account is IAccount, Auth, OpsReady {
     /// @notice Decodes and executes the given command with the given inputs
     /// @param _command: The command type to execute
     /// @param _inputs: The inputs to execute the command with
-    function _dispatch(Command _command, bytes calldata _inputs) internal {
+    function _dispatch(Command _command, bytes calldata _inputs)
+        internal
+        nonReentrant
+    {
         uint256 commandIndex = uint256(_command);
 
         if (commandIndex < 2) {
