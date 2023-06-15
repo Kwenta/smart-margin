@@ -88,3 +88,10 @@ address constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
 // test fee Gelato will charge for filling conditional orders
 uint256 constant GELATO_FEE = 69;
+
+/*//////////////////////////////////////////////////////////////
+                                UNISWAP
+//////////////////////////////////////////////////////////////*/
+
+address constant UNISWAP_V3_SWAP_ROUTER =
+    0xE592427A0AEce92De3Edee1F18E0157C05861564;

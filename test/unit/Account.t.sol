@@ -47,7 +47,8 @@ contract AccountTest is Test, ConsolidatedEvents {
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
             _gelato: GELATO,
-            _ops: OPS
+            _ops: OPS,
+            _uniswapV3SwapRouter: UNISWAP_V3_SWAP_ROUTER
         });
 
         // deploy an Account contract
@@ -72,7 +73,8 @@ contract AccountTest is Test, ConsolidatedEvents {
             systemStatus, 
             GELATO, 
             OPS,
-            address(settings)
+            address(settings),
+            UNISWAP_V3_SWAP_ROUTER
         );
     }
 

@@ -32,7 +32,8 @@ contract FactoryBehaviorTest is Test {
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
             _gelato: GELATO,
-            _ops: OPS
+            _ops: OPS,
+            _uniswapV3SwapRouter: UNISWAP_V3_SWAP_ROUTER
         });
     }
 
