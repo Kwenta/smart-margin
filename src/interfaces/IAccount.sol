@@ -121,6 +121,9 @@ interface IAccount {
     /// @notice thrown when a call attempts to reenter the protected function
     error Reentrancy();
 
+    /// @notice thrown when token swap attempted with invalid token (i.e. token that is not whitelisted)
+    error TokenSwapNotAllowed();
+
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
     //////////////////////////////////////////////////////////////*/

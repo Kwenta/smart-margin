@@ -941,12 +941,38 @@ contract Account is IAccount, Auth, OpsReady {
                                 UNISWAP
     //////////////////////////////////////////////////////////////*/
 
-    function _uniswapV3SwapExactIn() internal {
-        // TODO
-    }
+    /// @param _direction: true if tokenIn is sUSD (sUSD -> tokenOut), false otherwise (tokenIn -> sUSD)
+    function _uniswapV3SwapExact(
+        ISwapRouter.ExactInputSingleParams calldata _params,
+        bool _direction
+    ) internal {
+        // define non-sUSD token
+        address token = _direction ? _params.tokenOut : _params.tokenIn;
 
-    function _uniswapV3SwapExactOut() internal {
-        // TODO
+        // check if token is whitelisted
+        if (!SETTINGS.whitelistedTokens(token)) revert TokenSwapNotAllowed();
+
+        /// @notice directional based logic (i.e. sUSD moving into/out of account)
+        if (_direction) {
+            // if moving sUSD out of account, ensure margin is unlocked and available to move
+            _sufficientMargin(int256(_params.amountIn));
+
+            // approve sUSD to be used by Uniswap
+            MARGIN_ASSET.approve(
+                address(UNISWAP_V3_SWAP_ROUTER), _params.amountIn
+            );
+        } else {
+            // transfer sUSD into account
+            /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
+            MARGIN_ASSET.transferFrom(owner, address(this), _params.amountIn);
+
+            // approve token to be used by Uniswap
+            MARGIN_ASSET.approve(token, _params.amountIn);
+        }
+
+        /// @dev will revert if unsuccessful
+        /// @custom:todo (test invalid params)
+        uint256 amountOut = UNISWAP_V3_SWAP_ROUTER.exactInputSingle(_params);
     }
 
     /*//////////////////////////////////////////////////////////////
