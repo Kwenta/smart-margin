@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.18;
 
-import "lib/forge-std/src/Test.sol";
-import "../utils/Constants.sol";
+import {Test} from "lib/forge-std/src/Test.sol";
 import {Account} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
 import {Auth} from "../../src/Account.sol";
@@ -16,6 +15,7 @@ import {IPerpsV2ExchangeRate} from "../../src/interfaces/IAccount.sol";
 import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
 import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
+import "../utils/Constants.sol";
 
 contract AccountTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import "lib/forge-std/src/Test.sol";
-import "../utils/Constants.sol";
+import {Test} from "lib/forge-std/src/Test.sol";
 import {Account} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
@@ -15,6 +14,7 @@ import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
 import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
 import {ISynth} from "../utils/interfaces/ISynth.sol";
 import {Setup} from "../../script/Deploy.s.sol";
+import "../utils/Constants.sol";
 
 contract MarginBehaviorTest is Test, ConsolidatedEvents {
     receive() external payable {}

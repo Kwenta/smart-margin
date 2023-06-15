@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import "lib/forge-std/src/Test.sol";
-import "../utils/Constants.sol";
+import {Test} from "lib/forge-std/src/Test.sol";
 import {AuthExposed} from "../utils/AuthExposed.sol";
+import "../utils/Constants.sol";
 
 contract AuthTest is Test {
     /*//////////////////////////////////////////////////////////////

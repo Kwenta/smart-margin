@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import "lib/forge-std/src/Test.sol";
-import "../utils/Constants.sol";
+import {Test} from "lib/forge-std/src/Test.sol";
 import {Account} from "../../src/Account.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {Events} from "../../src/Events.sol";
@@ -10,6 +9,7 @@ import {Factory} from "../../src/Factory.sol";
 import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {IEvents} from "../../src/interfaces/IEvents.sol";
 import {Setup} from "../../script/Deploy.s.sol";
+import "../utils/Constants.sol";
 
 contract EventsTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
