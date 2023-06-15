@@ -35,7 +35,9 @@ interface IAccount {
         PERPS_V2_CANCEL_DELAYED_ORDER, // 10
         PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER,
         GELATO_PLACE_CONDITIONAL_ORDER,
-        GELATO_CANCEL_CONDITIONAL_ORDER
+        GELATO_CANCEL_CONDITIONAL_ORDER,
+        UNISWAP_V3_SWAP_EXACT_IN,
+        UNISWAP_V3_SWAP_EXACT_OUT // 15
     }
 
     /// @notice denotes conditional order types for code clarity
