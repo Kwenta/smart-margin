@@ -13,6 +13,7 @@ import {
     ISystemStatus
 } from "./interfaces/IAccount.sol";
 import {IERC20} from "./interfaces/IERC20.sol";
+import {ISwapRouter} from "./interfaces/uniswap/ISwapRouter.sol";
 import {OpsReady, IOps} from "./utils/OpsReady.sol";
 
 /// @title Kwenta Smart Margin Account Implementation
@@ -65,6 +66,9 @@ contract Account is IAccount, Auth, OpsReady {
 
     /// @notice address of contract used to store global settings
     ISettings internal immutable SETTINGS;
+
+    /// @notice address of the Uniswap V3 Swap Router
+    ISwapRouter internal immutable UNISWAP_V3_SWAP_ROUTER;
 
     /*//////////////////////////////////////////////////////////////
                                  STATE
@@ -125,6 +129,7 @@ contract Account is IAccount, Auth, OpsReady {
     /// @param _gelato: address of Gelato
     /// @param _ops: address of Ops
     /// @param _settings: address of contract used to store global settings
+    /// @param _uniswapV3SwapRouter: address of the Uniswap V3 Swap Router
     constructor(
         address _factory,
         address _events,
@@ -134,7 +139,8 @@ contract Account is IAccount, Auth, OpsReady {
         address _systemStatus,
         address _gelato,
         address _ops,
-        address _settings
+        address _settings,
+        address _uniswapV3SwapRouter
     ) Auth(address(0)) OpsReady(_gelato, _ops) {
         FACTORY = IFactory(_factory);
         EVENTS = IEvents(_events);
@@ -143,6 +149,7 @@ contract Account is IAccount, Auth, OpsReady {
         FUTURES_MARKET_MANAGER = IFuturesMarketManager(_futuresMarketManager);
         SYSTEM_STATUS = ISystemStatus(_systemStatus);
         SETTINGS = ISettings(_settings);
+        UNISWAP_V3_SWAP_ROUTER = ISwapRouter(_uniswapV3SwapRouter);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -928,6 +935,18 @@ contract Account is IAccount, Auth, OpsReady {
             // ex: unwind long position once price is below target (prevent further loss)
             return _price <= _conditionalOrder.targetPrice;
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                UNISWAP
+    //////////////////////////////////////////////////////////////*/
+
+    function _uniswapV3SwapExactIn() internal {
+        // TODO
+    }
+
+    function _uniswapV3SwapExactOut() internal {
+        // TODO
     }
 
     /*//////////////////////////////////////////////////////////////
