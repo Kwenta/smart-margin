@@ -59,7 +59,8 @@ contract Setup {
             _systemStatus: addressResolver.getAddress({name: SYSTEM_STATUS}),
             _gelato: _gelato,
             _ops: _ops,
-            _settings: address(settings)
+            _settings: address(settings),
+            _uniswapV3SwapRouter: UNISWAP_V3_SWAP_ROUTER
         });
 
         // update the factory with the new account implementation

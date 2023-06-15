@@ -35,3 +35,7 @@ bytes32 constant PROXY_SUSD = "ProxysUSD";
 bytes32 constant FUTURES_MARKET_MANAGER = "FuturesMarketManager";
 bytes32 constant SYSTEM_STATUS = "SystemStatus";
 bytes32 constant PERPS_V2_EXCHANGE_RATE = "PerpsV2ExchangeRate";
+
+// uniswap v3
+address constant UNISWAP_V3_SWAP_ROUTER =
+    0xE592427A0AEce92De3Edee1F18E0157C05861564;
