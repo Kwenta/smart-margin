@@ -18,7 +18,8 @@ contract Setup {
         address _owner,
         address _addressResolver,
         address _gelato,
-        address _ops
+        address _ops,
+        address _uniswapV3SwapRouter
     )
         public
         returns (
@@ -60,7 +61,7 @@ contract Setup {
             _gelato: _gelato,
             _ops: _ops,
             _settings: address(settings),
-            _uniswapV3SwapRouter: UNISWAP_V3_SWAP_ROUTER
+            _uniswapV3SwapRouter: _uniswapV3SwapRouter
         });
 
         // update the factory with the new account implementation
@@ -86,7 +87,8 @@ contract DeployOptimism is Script, Setup {
             _owner: OPTIMISM_KWENTA_ADMIN_DAO_MULTI_SIG,
             _addressResolver: OPTIMISM_SYNTHETIX_ADDRESS_RESOLVER,
             _gelato: OPTIMISM_GELATO,
-            _ops: OPTIMISM_OPS
+            _ops: OPTIMISM_OPS,
+            _uniswapV3SwapRouter: OPTIMISM_UNISWAP_V3_SWAP_ROUTER
         });
 
         vm.stopBroadcast();
@@ -106,7 +108,8 @@ contract DeployOptimismGoerli is Script, Setup {
             _owner: OPTIMISM_GOERLI_KWENTA_ADMIN_DAO_MULTI_SIG,
             _addressResolver: OPTIMISM_GOERLI_SYNTHETIX_ADDRESS_RESOLVER,
             _gelato: OPTIMISM_GOERLI_GELATO,
-            _ops: OPTIMISM_GOERLI_OPS
+            _ops: OPTIMISM_GOERLI_OPS,
+            _uniswapV3SwapRouter: OPTIMISM_GOERLI_UNISWAP_V3_SWAP_ROUTER
         });
 
         vm.stopBroadcast();
