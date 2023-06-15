@@ -14,6 +14,9 @@ contract Settings is ISettings, Owned {
     /// @inheritdoc ISettings
     bool public accountExecutionEnabled = true;
 
+    /// @notice mapping of whitelisted tokens available for swapping via uniswap commands
+    mapping(address => bool) internal _whitelistedTokens;
+
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -23,12 +26,42 @@ contract Settings is ISettings, Owned {
     constructor(address _owner) Owned(_owner) {}
 
     /*//////////////////////////////////////////////////////////////
+                                 VIEWS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISettings
+    function whitelistedTokens(address _token)
+        external
+        view
+        override
+        returns (bool)
+    {
+        return _whitelistedTokens[_token];
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISettings
-    function setAccountExecutionEnabled(bool _enabled) external onlyOwner {
+    function setAccountExecutionEnabled(bool _enabled)
+        external
+        override
+        onlyOwner
+    {
         accountExecutionEnabled = _enabled;
+
         emit AccountExecutionEnabledSet(_enabled);
+    }
+
+    /// @inheritdoc ISettings
+    function setTokenWhitelistStatus(address _token, bool _isWhitelisted)
+        external
+        override
+        onlyOwner
+    {
+        _whitelistedTokens[_token] = _isWhitelisted;
+
+        emit TokenWhitelistStatusUpdated(_token);
     }
 }
