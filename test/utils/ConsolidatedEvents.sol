@@ -82,4 +82,6 @@ contract ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     event AccountExecutionEnabledSet(bool enabled);
+
+    event TokenWhitelistStatusUpdated(address token);
 }
