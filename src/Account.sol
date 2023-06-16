@@ -265,30 +265,75 @@ contract Account is IAccount, Auth, OpsReady {
     {
         uint256 commandIndex = uint256(_command);
 
-        if (commandIndex < 2) {
+        if (commandIndex < 4) {
             /// @dev only owner can execute the following commands
             if (!isOwner()) revert Unauthorized();
 
-            if (_command == Command.ACCOUNT_MODIFY_MARGIN) {
-                // Command.ACCOUNT_MODIFY_MARGIN
-                int256 amount;
-                assembly {
-                    amount := calldataload(_inputs.offset)
+            if (commandIndex < 2) {
+                if (_command == Command.ACCOUNT_MODIFY_MARGIN) {
+                    // Command.ACCOUNT_MODIFY_MARGIN
+                    int256 amount;
+                    assembly {
+                        amount := calldataload(_inputs.offset)
+                    }
+                    _modifyAccountMargin({_amount: amount});
+                } else {
+                    // Command.ACCOUNT_WITHDRAW_ETH
+                    uint256 amount;
+                    assembly {
+                        amount := calldataload(_inputs.offset)
+                    }
+                    _withdrawEth({_amount: amount});
                 }
-                _modifyAccountMargin({_amount: amount});
             } else {
-                // Command.ACCOUNT_WITHDRAW_ETH
-                uint256 amount;
+                address tokenIn;
+                address tokenOut;
+                uint24 fee;
+                address recipient;
+                uint256 deadline;
+                uint256 amountIn;
+                uint256 amountOutMinimum;
+                uint160 sqrtPriceLimitX96;
+                bool direction;
+
                 assembly {
-                    amount := calldataload(_inputs.offset)
+                    tokenIn := calldataload(_inputs.offset)
+                    tokenOut := calldataload(add(_inputs.offset, 0x20))
+                    fee := calldataload(add(_inputs.offset, 0x40))
+                    recipient := calldataload(add(_inputs.offset, 0x60))
+                    deadline := calldataload(add(_inputs.offset, 0x80))
+                    amountIn := calldataload(add(_inputs.offset, 0xa0))
+                    amountOutMinimum := calldataload(add(_inputs.offset, 0xc0))
+                    sqrtPriceLimitX96 := calldataload(add(_inputs.offset, 0xe0))
                 }
-                _withdrawEth({_amount: amount});
+
+                if (_command == Command.UNISWAP_V3_SWAP_EXACT_IN) {
+                    // Command.UNISWAP_V3_SWAP_EXACT_IN
+                    assert(tokenOut == address(MARGIN_ASSET));
+                    /// @dev direction doesn't need to be set since it defaults to false
+                } else {
+                    // Command.UNISWAP_V3_SWAP_EXACT_OUT
+                    assert(tokenIn == address(MARGIN_ASSET));
+                    direction = true;
+                }
+
+                _uniswapV3SwapExact({
+                    _tokenIn: tokenIn,
+                    _tokenOut: tokenOut,
+                    _fee: fee,
+                    _recipient: recipient,
+                    _deadline: deadline,
+                    _amountIn: amountIn,
+                    _amountOutMinimum: amountOutMinimum,
+                    _sqrtPriceLimitX96: sqrtPriceLimitX96,
+                    _direction: direction
+                });
             }
         } else {
             /// @dev only owner and delegate(s) can execute the following commands
             if (!isAuth()) revert Unauthorized();
 
-            if (commandIndex < 4) {
+            if (commandIndex < 6) {
                 if (_command == Command.PERPS_V2_MODIFY_MARGIN) {
                     // Command.PERPS_V2_MODIFY_MARGIN
                     address market;
@@ -306,7 +351,7 @@ contract Account is IAccount, Auth, OpsReady {
                     }
                     _perpsV2WithdrawAllMargin({_market: market});
                 }
-            } else if (commandIndex < 6) {
+            } else if (commandIndex < 8) {
                 if (_command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
                     // Command.PERPS_V2_SUBMIT_ATOMIC_ORDER
                     address market;
@@ -344,7 +389,7 @@ contract Account is IAccount, Auth, OpsReady {
                         _desiredFillPrice: desiredFillPrice
                     });
                 }
-            } else if (commandIndex < 8) {
+            } else if (commandIndex < 10) {
                 if (_command == Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER)
                 {
                     // Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
@@ -376,7 +421,7 @@ contract Account is IAccount, Auth, OpsReady {
                         _desiredFillPrice: desiredFillPrice
                     });
                 }
-            } else if (commandIndex < 10) {
+            } else if (commandIndex < 12) {
                 if (_command == Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER) {
                     // Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER
                     address market;
@@ -408,7 +453,7 @@ contract Account is IAccount, Auth, OpsReady {
                         _desiredFillPrice: desiredFillPrice
                     });
                 }
-            } else if (commandIndex < 12) {
+            } else if (commandIndex < 14) {
                 if (_command == Command.PERPS_V2_CANCEL_DELAYED_ORDER) {
                     // Command.PERPS_V2_CANCEL_DELAYED_ORDER
                     address market;
@@ -424,7 +469,7 @@ contract Account is IAccount, Auth, OpsReady {
                     }
                     _perpsV2CancelOffchainDelayedOrder({_market: market});
                 }
-            } else if (commandIndex < 14) {
+            } else if (commandIndex < 16) {
                 if (_command == Command.GELATO_PLACE_CONDITIONAL_ORDER) {
                     // Command.GELATO_PLACE_CONDITIONAL_ORDER
                     bytes32 marketKey;
@@ -943,11 +988,18 @@ contract Account is IAccount, Auth, OpsReady {
 
     /// @param _direction: true if tokenIn is sUSD (sUSD -> tokenOut), false otherwise (tokenIn -> sUSD)
     function _uniswapV3SwapExact(
-        ISwapRouter.ExactInputSingleParams calldata _params,
+        address _tokenIn,
+        address _tokenOut,
+        uint24 _fee,
+        address _recipient,
+        uint256 _deadline,
+        uint256 _amountIn,
+        uint256 _amountOutMinimum,
+        uint160 _sqrtPriceLimitX96,
         bool _direction
     ) internal {
         // define non-sUSD token
-        address token = _direction ? _params.tokenOut : _params.tokenIn;
+        address token = _direction ? _tokenOut : _tokenIn;
 
         // check if token is whitelisted
         if (!SETTINGS.whitelistedTokens(token)) revert TokenSwapNotAllowed();
@@ -955,24 +1007,33 @@ contract Account is IAccount, Auth, OpsReady {
         /// @notice directional based logic (i.e. sUSD moving into/out of account)
         if (_direction) {
             // if moving sUSD out of account, ensure margin is unlocked and available to move
-            _sufficientMargin(int256(_params.amountIn));
+            _sufficientMargin(int256(_amountIn));
 
             // approve sUSD to be used by Uniswap
-            MARGIN_ASSET.approve(
-                address(UNISWAP_V3_SWAP_ROUTER), _params.amountIn
-            );
+            MARGIN_ASSET.approve(address(UNISWAP_V3_SWAP_ROUTER), _amountIn);
         } else {
             // transfer sUSD into account
             /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
-            MARGIN_ASSET.transferFrom(owner, address(this), _params.amountIn);
+            MARGIN_ASSET.transferFrom(owner, address(this), _amountIn);
 
             // approve token to be used by Uniswap
-            MARGIN_ASSET.approve(token, _params.amountIn);
+            MARGIN_ASSET.approve(token, _amountIn);
         }
 
         /// @dev will revert if unsuccessful
         /// @custom:todo (test invalid params)
-        uint256 amountOut = UNISWAP_V3_SWAP_ROUTER.exactInputSingle(_params);
+        uint256 amountOut = UNISWAP_V3_SWAP_ROUTER.exactInputSingle({
+            params: ISwapRouter.ExactInputSingleParams({
+                tokenIn: _tokenIn,
+                tokenOut: _tokenOut,
+                fee: _fee,
+                recipient: _recipient,
+                deadline: _deadline,
+                amountIn: _amountIn,
+                amountOutMinimum: _amountOutMinimum,
+                sqrtPriceLimitX96: _sqrtPriceLimitX96
+            })
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
