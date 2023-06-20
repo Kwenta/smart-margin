@@ -91,28 +91,20 @@ contract Account is IAccount, Auth, OpsReady {
     //////////////////////////////////////////////////////////////*/
 
     modifier isAccountExecutionEnabled() {
-        _isAccountExecutionEnabled();
+        if (!SETTINGS.accountExecutionEnabled()) {
+            revert AccountExecutionDisabled();
+        }
 
         _;
     }
 
-    function _isAccountExecutionEnabled() internal view {
-        if (!SETTINGS.accountExecutionEnabled()) {
-            revert AccountExecutionDisabled();
-        }
-    }
-
     modifier nonReentrant() {
-        _nonReentrant();
+        if (locked == 2) revert Reentrancy();
+        locked = 2;
 
         _;
 
         locked = 1;
-    }
-
-    function _nonReentrant() internal {
-        if (locked == 2) revert Reentrancy();
-        locked = 2;
     }
 
     /*//////////////////////////////////////////////////////////////
