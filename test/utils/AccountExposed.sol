@@ -117,4 +117,12 @@ contract AccountExposed is Account {
     function expose_isSameSign(int256 x, int256 y) public pure returns (bool) {
         return _isSameSign(x, y);
     }
+
+    function expose_nonReentrant() public nonReentrant returns (bool) {
+        expose_nonReentrant();
+    }
+
+    function expose_locked() public view returns (uint256) {
+        return locked;
+    }
 }
