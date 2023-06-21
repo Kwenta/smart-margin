@@ -5,6 +5,8 @@ pragma solidity 0.8.18;
                               TEST VALUES
 //////////////////////////////////////////////////////////////*/
 
+/// @custom:todo migrate to mainnet fork
+
 // BLOCK_NUMBER corresponds to Optimism Goerli network state @ Apr-21-2023 08:49:56 PM +UTC
 // hard coded addresses are only guaranteed for this block
 // used to create a consistent and realistic test environment exposing Synthetix PerpsV2
@@ -95,3 +97,15 @@ uint256 constant GELATO_FEE = 69;
 
 address constant UNISWAP_V3_SWAP_ROUTER =
     0xE592427A0AEce92De3Edee1F18E0157C05861564;
+
+/*//////////////////////////////////////////////////////////////
+                                  DAI
+//////////////////////////////////////////////////////////////*/
+
+address constant DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
+
+/*//////////////////////////////////////////////////////////////
+                                  WETH
+//////////////////////////////////////////////////////////////*/
+
+address constant WETH = 0x4200000000000000000000000000000000000006;

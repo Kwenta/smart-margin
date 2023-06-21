@@ -203,4 +203,12 @@ contract EventsTest is Test, ConsolidatedEvents {
             priceOracle: IAccount.PriceOracleUsed.PYTH
         });
     }
+
+    function test_EmitUniswapV3Swap_Event() public {
+        /// @custom:todo implement test
+    }
+
+    function test_EmitUniswapV3Swap_OnlyAccounts() public {
+        /// @custom:todo implement test
+    }
 }

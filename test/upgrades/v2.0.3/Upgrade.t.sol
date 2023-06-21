@@ -3,4 +3,6 @@ pragma solidity 0.8.18;
 
 import {Test} from "lib/forge-std/src/Test.sol";
 
-contract UpgradeTest is Test {}
+contract UpgradeTest is Test {
+    /// @custom:todo test upgrade
+}

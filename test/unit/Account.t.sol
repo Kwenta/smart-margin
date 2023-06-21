@@ -418,6 +418,36 @@ contract AccountTest is Test, ConsolidatedEvents {
         withdrawEth(AMOUNT);
     }
 
+    function test_DelegatedTrader_Execute_UNISWAP_V3_SWAP_INTO_SUSD() public {
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP_INTO_SUSD;
+
+        account.addDelegate({_delegate: DELEGATE});
+        vm.prank(DELEGATE);
+
+        /// @notice delegate CANNOT execute the following COMMAND
+        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
+        account.execute(commands, inputs);
+    }
+
+    function test_DelegatedTrader_Execute_UNISWAP_V3_SWAP_OUT_OF_SUSD()
+        public
+    {
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP_OUT_OF_SUSD;
+
+        account.addDelegate({_delegate: DELEGATE});
+        vm.prank(DELEGATE);
+
+        /// @notice delegate CANNOT execute the following COMMAND
+        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
+        account.execute(commands, inputs);
+    }
+
     /**
      * @notice The following commands *ARE* allowed to be executed by a Delegate
      * @dev All commands can be executed by the owner and this behavior is tested in
