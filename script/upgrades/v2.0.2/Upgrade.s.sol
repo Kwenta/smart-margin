@@ -13,7 +13,7 @@ pragma solidity 0.8.18;
 // import {Events} from "src/Events.sol";
 // import {IAddressResolver} from "../../utils/interfaces/IAddressResolver.sol";
 
-// /// @title Script to upgrade the Account implementation v2.0.1 -> v2.0.1
+// /// @title Script to upgrade the Account implementation v2.0.1 -> v2.0.2
 // /// @author JaredBorders (jaredborders@pm.me)
 
 // /// @dev steps to deploy and verify on Optimism:
