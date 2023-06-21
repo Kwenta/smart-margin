@@ -278,48 +278,59 @@ contract Account is IAccount, Auth, OpsReady {
                     _withdrawEth({_amount: amount});
                 }
             } else {
-                address tokenIn;
-                address tokenOut;
-                uint24 fee;
-                address recipient;
-                uint256 deadline;
-                uint256 amountIn;
-                uint256 amountOutMinimum;
-                uint160 sqrtPriceLimitX96;
-                bool direction;
-
-                assembly {
-                    tokenIn := calldataload(_inputs.offset)
-                    tokenOut := calldataload(add(_inputs.offset, 0x20))
-                    fee := calldataload(add(_inputs.offset, 0x40))
-                    recipient := calldataload(add(_inputs.offset, 0x60))
-                    deadline := calldataload(add(_inputs.offset, 0x80))
-                    amountIn := calldataload(add(_inputs.offset, 0xa0))
-                    amountOutMinimum := calldataload(add(_inputs.offset, 0xc0))
-                    sqrtPriceLimitX96 := calldataload(add(_inputs.offset, 0xe0))
-                }
-
-                if (_command == Command.UNISWAP_V3_SWAP_EXACT_IN) {
-                    // Command.UNISWAP_V3_SWAP_EXACT_IN
-                    assert(tokenOut == address(MARGIN_ASSET));
-                    /// @dev direction doesn't need to be set since it defaults to false
+                if (_command == Command.UNISWAP_V3_SWAP_INTO_SUSD) {
+                    // Command.UNISWAP_V3_SWAP_INTO_SUSD
+                    address tokenIn;
+                    uint24 fee;
+                    uint256 deadline;
+                    uint256 amountIn;
+                    uint256 amountOutMinimum;
+                    uint160 sqrtPriceLimitX96;
+                    assembly {
+                        tokenIn := calldataload(_inputs.offset)
+                        fee := calldataload(add(_inputs.offset, 0x20))
+                        deadline := calldataload(add(_inputs.offset, 0x40))
+                        amountIn := calldataload(add(_inputs.offset, 0x60))
+                        amountOutMinimum :=
+                            calldataload(add(_inputs.offset, 0x80))
+                        sqrtPriceLimitX96 :=
+                            calldataload(add(_inputs.offset, 0xa0))
+                    }
+                    _uniswapV3SwapIntoSUSD({
+                        _tokenIn: tokenIn,
+                        _fee: fee,
+                        _deadline: deadline,
+                        _amountIn: amountIn,
+                        _amountOutMinimum: amountOutMinimum,
+                        _sqrtPriceLimitX96: sqrtPriceLimitX96
+                    });
                 } else {
-                    // Command.UNISWAP_V3_SWAP_EXACT_OUT
-                    assert(tokenIn == address(MARGIN_ASSET));
-                    direction = true;
+                    // Command.UNISWAP_V3_SWAP_OUT_OF_SUSD
+                    address tokenOut;
+                    uint24 fee;
+                    uint256 deadline;
+                    uint256 amountIn;
+                    uint256 amountOutMinimum;
+                    uint160 sqrtPriceLimitX96;
+                    assembly {
+                        tokenOut := calldataload(_inputs.offset)
+                        fee := calldataload(add(_inputs.offset, 0x20))
+                        deadline := calldataload(add(_inputs.offset, 0x40))
+                        amountIn := calldataload(add(_inputs.offset, 0x60))
+                        amountOutMinimum :=
+                            calldataload(add(_inputs.offset, 0x80))
+                        sqrtPriceLimitX96 :=
+                            calldataload(add(_inputs.offset, 0xa0))
+                    }
+                    _uniswapV3SwapOutOfSUSD({
+                        _tokenOut: tokenOut,
+                        _fee: fee,
+                        _deadline: deadline,
+                        _amountIn: amountIn,
+                        _amountOutMinimum: amountOutMinimum,
+                        _sqrtPriceLimitX96: sqrtPriceLimitX96
+                    });
                 }
-
-                _uniswapV3SwapExact({
-                    _tokenIn: tokenIn,
-                    _tokenOut: tokenOut,
-                    _fee: fee,
-                    _recipient: recipient,
-                    _deadline: deadline,
-                    _amountIn: amountIn,
-                    _amountOutMinimum: amountOutMinimum,
-                    _sqrtPriceLimitX96: sqrtPriceLimitX96,
-                    _direction: direction
-                });
             }
         } else {
             /// @dev only owner and delegate(s) can execute the following commands
@@ -978,53 +989,103 @@ contract Account is IAccount, Auth, OpsReady {
                                 UNISWAP
     //////////////////////////////////////////////////////////////*/
 
-    /// @param _direction: true if tokenIn is sUSD (sUSD -> tokenOut), false otherwise (tokenIn -> sUSD)
-    function _uniswapV3SwapExact(
+    /// @notice swap tokens into sUSD
+    /// @dev inbound token is transferred from the owner of this smart margin account
+    /// @param _tokenIn: contract address of the inbound token
+    /// @param _fee: fee tier of the pool (determine pool in which to execute the swap)
+    /// @param _deadline: unix time after which a swap will fail
+    /// @param _amountIn: amount of inbound token to swap
+    /// @param _amountOutMinimum: minimum amount of sUSD to receive
+    /// @param _sqrtPriceLimitX96:  used to set the limit for the price the swap will push the pool to
+    function _uniswapV3SwapIntoSUSD(
         address _tokenIn,
-        address _tokenOut,
         uint24 _fee,
-        address _recipient,
         uint256 _deadline,
         uint256 _amountIn,
         uint256 _amountOutMinimum,
-        uint160 _sqrtPriceLimitX96,
-        bool _direction
+        uint160 _sqrtPriceLimitX96
     ) internal {
-        // define non-sUSD token
-        address token = _direction ? _tokenOut : _tokenIn;
-
-        // check if token is whitelisted
-        if (!SETTINGS.whitelistedTokens(token)) revert TokenSwapNotAllowed();
-
-        /// @notice directional based logic (i.e. sUSD moving into/out of account)
-        if (_direction) {
-            // if moving sUSD out of account, ensure margin is unlocked and available to move
-            _sufficientMargin(int256(_amountIn));
-
-            // approve sUSD to be used by Uniswap
-            MARGIN_ASSET.approve(address(UNISWAP_V3_SWAP_ROUTER), _amountIn);
-        } else {
-            // transfer sUSD into account
-            /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
-            MARGIN_ASSET.transferFrom(owner, address(this), _amountIn);
-
-            // approve token to be used by Uniswap
-            MARGIN_ASSET.approve(token, _amountIn);
+        if (!SETTINGS.whitelistedTokens(_tokenIn)) {
+            revert TokenSwapNotAllowed();
         }
 
-        /// @dev will revert if unsuccessful
-        /// @custom:todo (test invalid params)
+        IERC20(_tokenIn).transferFrom(owner, address(this), _amountIn);
+
+        IERC20(_tokenIn).approve(address(UNISWAP_V3_SWAP_ROUTER), _amountIn);
+
         uint256 amountOut = UNISWAP_V3_SWAP_ROUTER.exactInputSingle({
             params: ISwapRouter.ExactInputSingleParams({
                 tokenIn: _tokenIn,
-                tokenOut: _tokenOut,
+                tokenOut: address(MARGIN_ASSET),
                 fee: _fee,
-                recipient: _recipient,
+                recipient: address(this),
                 deadline: _deadline,
                 amountIn: _amountIn,
                 amountOutMinimum: _amountOutMinimum,
                 sqrtPriceLimitX96: _sqrtPriceLimitX96
             })
+        });
+
+        EVENTS.emitUniswapV3Swap({
+            tokenIn: _tokenIn,
+            tokenOut: address(MARGIN_ASSET),
+            fee: _fee,
+            recipient: address(this),
+            deadline: _deadline,
+            amountIn: _amountIn,
+            amountOutMinimum: _amountOutMinimum,
+            sqrtPriceLimitX96: _sqrtPriceLimitX96,
+            amountOut: amountOut
+        });
+    }
+
+    /// @notice swap sUSD into tokens
+    /// @dev outbound token is sent to the owner of this smart margin account
+    /// @param _tokenOut: contract address of the outbound token
+    /// @param _fee: fee tier of the pool (determine pool in which to execute the swap)
+    /// @param _deadline: unix time after which a swap will fail
+    /// @param _amountIn: amount of sUSD to swap
+    /// @param _amountOutMinimum: minimum amount of outbound token to receive
+    /// @param _sqrtPriceLimitX96:  used to set the limit for the price the swap will push the pool to
+    function _uniswapV3SwapOutOfSUSD(
+        address _tokenOut,
+        uint24 _fee,
+        uint256 _deadline,
+        uint256 _amountIn,
+        uint256 _amountOutMinimum,
+        uint160 _sqrtPriceLimitX96
+    ) internal {
+        if (!SETTINGS.whitelistedTokens(_tokenOut)) {
+            revert TokenSwapNotAllowed();
+        }
+
+        _sufficientMargin(int256(_amountIn));
+
+        MARGIN_ASSET.approve(address(UNISWAP_V3_SWAP_ROUTER), _amountIn);
+
+        uint256 amountOut = UNISWAP_V3_SWAP_ROUTER.exactInputSingle({
+            params: ISwapRouter.ExactInputSingleParams({
+                tokenIn: address(MARGIN_ASSET),
+                tokenOut: _tokenOut,
+                fee: _fee,
+                recipient: owner,
+                deadline: _deadline,
+                amountIn: _amountIn,
+                amountOutMinimum: _amountOutMinimum,
+                sqrtPriceLimitX96: _sqrtPriceLimitX96
+            })
+        });
+
+        EVENTS.emitUniswapV3Swap({
+            tokenIn: address(MARGIN_ASSET),
+            tokenOut: _tokenOut,
+            fee: _fee,
+            recipient: owner,
+            deadline: _deadline,
+            amountIn: _amountIn,
+            amountOutMinimum: _amountOutMinimum,
+            sqrtPriceLimitX96: _sqrtPriceLimitX96,
+            amountOut: amountOut
         });
     }
 
