@@ -70,6 +70,31 @@ contract Events is IEvents {
     }
 
     /// @inheritdoc IEvents
+    function emitUniswapV3Swap(
+        address tokenIn,
+        address tokenOut,
+        uint24 fee,
+        address recipient,
+        uint256 deadline,
+        uint256 amountIn,
+        uint256 amountOutMinimum,
+        uint160 sqrtPriceLimitX96,
+        uint256 amountOut
+    ) external override onlyAccounts {
+        emit UniswapV3Swap({
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            fee: fee,
+            recipient: recipient,
+            deadline: deadline,
+            amountIn: amountIn,
+            amountOutMinimum: amountOutMinimum,
+            sqrtPriceLimitX96: sqrtPriceLimitX96,
+            amountOut: amountOut
+        });
+    }
+
+    /// @inheritdoc IEvents
     function emitConditionalOrderPlaced(
         uint256 conditionalOrderId,
         bytes32 gelatoTaskId,

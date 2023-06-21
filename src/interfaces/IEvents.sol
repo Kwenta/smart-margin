@@ -51,6 +51,40 @@ interface IEvents {
         address indexed user, address indexed account, uint256 amount
     );
 
+    /// @notice emitted after a successful token swap
+    /// @param tokenIn: contract address of the inbound token
+    /// @param tokenOut: contract address of the outbound token
+    /// @param fee: fee tier of the pool (determine pool in which to execute the swap)
+    /// @param recipient: address to receive the outbound token
+    /// @param deadline: unix time after which a swap will fail
+    /// @param amountIn: amount of inbound token to swap
+    /// @param amountOutMinimum: minimum amount of outbound token to receive
+    /// @param sqrtPriceLimitX96:  used to set the limit for the price the swap will push the pool to
+    /// @param amountOut: amount of outbound token received
+    function emitUniswapV3Swap(
+        address tokenIn,
+        address tokenOut,
+        uint24 fee,
+        address recipient,
+        uint256 deadline,
+        uint256 amountIn,
+        uint256 amountOutMinimum,
+        uint160 sqrtPriceLimitX96,
+        uint256 amountOut
+    ) external;
+
+    event UniswapV3Swap(
+        address tokenIn,
+        address tokenOut,
+        uint24 fee,
+        address recipient,
+        uint256 deadline,
+        uint256 amountIn,
+        uint256 amountOutMinimum,
+        uint160 sqrtPriceLimitX96,
+        uint256 amountOut
+    );
+
     /// @notice emitted when a conditional order is placed
     /// @param conditionalOrderId: id of conditional order
     /// @param gelatoTaskId: id of gelato task
