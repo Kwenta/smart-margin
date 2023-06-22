@@ -23,7 +23,8 @@ import {
     OPS,
     MARGIN_ASSET,
     DAI,
-    AMOUNT
+    AMOUNT,
+    EOA_WITH_DAI
 } from "../utils/Constants.sol";
 
 contract SwapBehaviorTest is Test, ConsolidatedEvents {
@@ -175,28 +176,36 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_Command_UNISWAP_V3_SWAP_INTO_SUSD() public {
-        /// @custom:todo implement test
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP_INTO_SUSD;
 
-        // mintDAI(address(this), AMOUNT);
+        // Naively set amountOutMinimum to 0. In production, use an oracle or
+        // other data source to choose a safer value for amountOutMinimum.
+        // We also set the sqrtPriceLimitx96 to be 0 to ensure we swap
+        // our exact input amount.
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            DAI, // tokenIn
+            3000, // fee: for this example, we will set the pool fee to 0.3%
+            block.timestamp, // deadline
+            AMOUNT, // amountIn
+            0, // amountOutMinimum
+            0 // sqrtPriceLimitX96
+        );
 
-        // IAccount.Command[] memory commands = new IAccount.Command[](1);
-        // commands[0] = IAccount.Command.UNISWAP_V3_SWAP_INTO_SUSD;
+        account.transferOwnership(EOA_WITH_DAI);
 
-        // // Naively set amountOutMinimum to 0. In production, use an oracle or
-        // // other data source to choose a safer value for amountOutMinimum.
-        // // We also set the sqrtPriceLimitx96 to be 0 to ensure we swap
-        // // our exact input amount.
-        // bytes[] memory inputs = new bytes[](1);
-        // inputs[0] = abi.encode(
-        //     DAI, // tokenIn
-        //     3000, // fee: for this example, we will set the pool fee to 0.3%
-        //     block.timestamp, // deadline
-        //     AMOUNT, // amountIn
-        //     0, // amountOutMinimum
-        //     0 // sqrtPriceLimitX96
-        // );
+        vm.startPrank(EOA_WITH_DAI);
 
-        // account.execute(commands, inputs);
+        dai.approve(address(account), AMOUNT);
+
+        uint256 preSwapBalance = sUSD.balanceOf(address(account));
+        account.execute(commands, inputs);
+        uint256 postSwapBalance = sUSD.balanceOf(address(account));
+
+        vm.stopPrank();
+
+        assert(postSwapBalance > preSwapBalance);
     }
 
     function test_Command_UNISWAP_V3_SWAP_OUT_OF_SUSD() public {
@@ -262,6 +271,4 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         sUSD.approve(address(account), amount);
         modifyAccountMargin({amount: int256(amount)});
     }
-
-    function mintDAI(address to, uint256 amount) private {}
 }
