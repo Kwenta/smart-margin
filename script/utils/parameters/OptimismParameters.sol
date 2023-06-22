@@ -17,14 +17,14 @@ address constant OPTIMISM_GELATO = 0x01051113D81D7d6DA508462F2ad6d7fD96cF42Ef;
 
 address constant OPTIMISM_OPS = 0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c;
 
-// v2.0.1
+// v2.0.2
 address constant OPTIMISM_IMPLEMENTATION =
-    0x640Cf0c438d5c7C39479935856329F6Bc5D2D52a;
+    0x3BC8D34314E77c2E36948Fd8F4B353f1baDc3F6C;
 
-// released with v2.0.1 implementation
-address constant OPTIMISM_EVENTS = 0xABD4171d1be4ec3970992bC0e697342EA0BD913d;
+// released with v2.0.2 implementation
+address constant OPTIMISM_EVENTS = 0x11193470df30B37Af9fc5Ec696c240D878bdfb42;
 
-// updated with v2.0.1 implementation
+// updated with v2.0.2 implementation
 address constant OPTIMISM_FACTORY = 0x8234F990b149Ae59416dc260305E565e5DAfEb54;
 
 // released with v2.0.1 implementation
