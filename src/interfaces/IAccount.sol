@@ -3,12 +3,14 @@ pragma solidity 0.8.18;
 
 import {IEvents} from "./IEvents.sol";
 import {IFactory} from "./IFactory.sol";
-import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
-import {IPerpsV2ExchangeRate} from "@synthetix/IPerpsV2ExchangeRate.sol";
+import {IFuturesMarketManager} from
+    "src/interfaces/synthetix/IFuturesMarketManager.sol";
+import {IPerpsV2ExchangeRate} from
+    "src/interfaces/synthetix//IPerpsV2ExchangeRate.sol";
 import {IPerpsV2MarketConsolidated} from
-    "@synthetix/IPerpsV2MarketConsolidated.sol";
+    "src/interfaces/synthetix/IPerpsV2MarketConsolidated.sol";
 import {ISettings} from "./ISettings.sol";
-import {ISystemStatus} from "@synthetix/ISystemStatus.sol";
+import {ISystemStatus} from "src/interfaces/synthetix/ISystemStatus.sol";
 
 /// @title Kwenta Smart Margin Account Implementation Interface
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)

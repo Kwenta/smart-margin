@@ -1,10 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import "forge-std/Script.sol";
-import "forge-std/console2.sol";
-import "../../utils/parameters/OptimismGoerliParameters.sol";
-import "../../utils/parameters/OptimismParameters.sol";
+import {Script} from "lib/forge-std/src/Script.sol";
+import {console2} from "lib/forge-std/src/console2.sol";
+import {
+    OPTIMISM_GOERLI_SYNTHETIX_ADDRESS_RESOLVER,
+    OPTIMISM_GOERLI_FACTORY,
+    OPTIMISM_GOERLI_GELATO,
+    OPTIMISM_GOERLI_OPS,
+    OPTIMISM_GOERLI_SETTINGS
+} from "../../utils/parameters/OptimismGoerliParameters.sol";
+import {
+    OPTIMISM_SYNTHETIX_ADDRESS_RESOLVER,
+    OPTIMISM_FACTORY,
+    PROXY_SUSD,
+    PERPS_V2_EXCHANGE_RATE,
+    FUTURES_MARKET_MANAGER,
+    SYSTEM_STATUS,
+    OPTIMISM_GELATO,
+    OPTIMISM_OPS,
+    OPTIMISM_SETTINGS
+} from "../../utils/parameters/OptimismParameters.sol";
 import {Account} from "src/Account.sol";
 import {Events} from "src/Events.sol";
 import {IAddressResolver} from "../../utils/interfaces/IAddressResolver.sol";
