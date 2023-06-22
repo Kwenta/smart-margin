@@ -99,7 +99,6 @@ contract Account is IAccount, Auth, OpsReady {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice disable initializers on initial contract deployment
     /// @dev set owner of implementation to zero address
     /// @param _factory: address of the Smart Margin Account Factory
     /// @param _events: address of the contract used by all accounts for emitting events
