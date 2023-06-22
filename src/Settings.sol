@@ -2,7 +2,7 @@
 pragma solidity 0.8.18;
 
 import {ISettings} from "./interfaces/ISettings.sol";
-import {Owned} from "@solmate/auth/Owned.sol";
+import {Owned} from "./utils/Owned.sol";
 
 /// @title Kwenta Smart Margin Account Settings
 /// @author JaredBorders (jaredborders@pm.me)
