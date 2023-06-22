@@ -37,7 +37,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     Account private account;
 
     // helper contracts for testing
-    ERC20 private sUSD;
+    IERC20 private sUSD;
     AccountExposed private accountExposed;
     ISystemStatus private systemStatus;
 
@@ -65,7 +65,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
         // define helper contracts
         IAddressResolver addressResolver = IAddressResolver(ADDRESS_RESOLVER);
-        sUSD = ERC20(addressResolver.getAddress(PROXY_SUSD));
+        sUSD = IERC20(addressResolver.getAddress(PROXY_SUSD));
         address futuresMarketManager =
             addressResolver.getAddress(FUTURES_MARKET_MANAGER);
         systemStatus = ISystemStatus(addressResolver.getAddress(SYSTEM_STATUS));
