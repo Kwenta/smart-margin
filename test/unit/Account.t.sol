@@ -762,9 +762,6 @@ contract AccountTest is Test, ConsolidatedEvents {
         IPerpsV2MarketConsolidated market =
             accountExposed.expose_getPerpsV2Market(sETHPERP);
 
-        // mock call to perpsV2ExchangeRate contract due to
-        // current pyth price there being too stale at this block
-        // (i.e. price used is providied by chainlink)
         address perpsV2ExchangeRate = IAddressResolver(ADDRESS_RESOLVER)
             .getAddress({name: PERPS_V2_EXCHANGE_RATE});
         vm.mockCall(
@@ -793,9 +790,6 @@ contract AccountTest is Test, ConsolidatedEvents {
         IPerpsV2MarketConsolidated market =
             accountExposed.expose_getPerpsV2Market(sETHPERP);
 
-        // mock call to perpsV2ExchangeRate contract due to
-        // current pyth price there being too stale at this block
-        // (i.e. price used is providied by chainlink)
         address perpsV2ExchangeRate = IAddressResolver(ADDRESS_RESOLVER)
             .getAddress({name: PERPS_V2_EXCHANGE_RATE});
         vm.mockCall(
@@ -812,9 +806,20 @@ contract AccountTest is Test, ConsolidatedEvents {
         assert(price == 1);
     }
 
-    function test_sUSDRate_Chainlink_Price() public view {
+    function test_sUSDRate_Chainlink_Price() public {
         IPerpsV2MarketConsolidated market =
             accountExposed.expose_getPerpsV2Market(sETHPERP);
+
+        // mock call to ensure pyth price is stale
+        address perpsV2ExchangeRate = IAddressResolver(ADDRESS_RESOLVER)
+            .getAddress({name: PERPS_V2_EXCHANGE_RATE});
+        vm.mockCall(
+            perpsV2ExchangeRate,
+            abi.encodeWithSignature(
+                "resolveAndGetLatestPrice(bytes32)", market.baseAsset()
+            ),
+            abi.encode(1, block.timestamp - 1 days)
+        );
 
         (uint256 price, IAccount.PriceOracleUsed oracle) =
             accountExposed.expose_sUSDRate(market);
@@ -829,6 +834,17 @@ contract AccountTest is Test, ConsolidatedEvents {
     function test_sUSDRate_Invalid_Chainlink_Price() public {
         IPerpsV2MarketConsolidated market =
             accountExposed.expose_getPerpsV2Market(sETHPERP);
+
+        // mock call to ensure pyth price is stale
+        address perpsV2ExchangeRate = IAddressResolver(ADDRESS_RESOLVER)
+            .getAddress({name: PERPS_V2_EXCHANGE_RATE});
+        vm.mockCall(
+            perpsV2ExchangeRate,
+            abi.encodeWithSignature(
+                "resolveAndGetLatestPrice(bytes32)", market.baseAsset()
+            ),
+            abi.encode(1, block.timestamp - 1 days)
+        );
 
         // mock call to _market.assetPrice() to return an invalid price
         vm.mockCall(

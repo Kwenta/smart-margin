@@ -1291,15 +1291,11 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     function test_ReduceOnlyOrder_Valid_Long(int256 fuzzedSizeDelta) public {
         vm.assume(fuzzedSizeDelta != 0);
 
-        (uint256 desiredFillPrice,) = IPerpsV2MarketConsolidated(
-            getMarketAddressFromKey(sETHPERP)
-        ).assetPrice();
-
         submitAtomicOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
             sizeDelta: 1 ether,
-            desiredFillPrice: desiredFillPrice
+            desiredFillPrice: currentEthPriceInUSD
         });
 
         IPerpsV2MarketConsolidated.Position memory position =
@@ -1313,7 +1309,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: fuzzedSizeDelta,
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            desiredFillPrice: DESIRED_FILL_PRICE,
+            desiredFillPrice: currentEthPriceInUSD,
             reduceOnly: true
         });
 
@@ -1345,7 +1341,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
                     keeperFee: GELATO_FEE,
-                    priceOracle: IAccount.PriceOracleUsed.CHAINLINK
+                    priceOracle: IAccount.PriceOracleUsed.PYTH
                 });
             } else if (fuzzedSizeDelta + position.size >= 0) {
                 // expect conditional order to be filled with specified fuzzedSizeDelta
@@ -1356,7 +1352,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
                     keeperFee: GELATO_FEE,
-                    priceOracle: IAccount.PriceOracleUsed.CHAINLINK
+                    priceOracle: IAccount.PriceOracleUsed.PYTH
                 });
             } else {
                 revert("Uncaught case");
@@ -1430,7 +1426,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
                     keeperFee: GELATO_FEE,
-                    priceOracle: IAccount.PriceOracleUsed.CHAINLINK
+                    priceOracle: IAccount.PriceOracleUsed.PYTH
                 });
             } else if (fuzzedSizeDelta + position.size <= 0) {
                 // expect conditional order to be filled with specified fuzzedSizeDelta
@@ -1441,7 +1437,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
                     keeperFee: GELATO_FEE,
-                    priceOracle: IAccount.PriceOracleUsed.CHAINLINK
+                    priceOracle: IAccount.PriceOracleUsed.PYTH
                 });
             } else {
                 revert("Uncaught case");

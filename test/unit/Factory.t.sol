@@ -220,7 +220,7 @@ contract FactoryTest is Test, ConsolidatedEvents {
 
     function test_Upgrade_Remove_OnlyOwner() public {
         vm.expectRevert("UNAUTHORIZED");
-        vm.prank(ACCOUNT);
+        vm.prank(address(0xBAE));
         factory.removeUpgradability();
     }
 
@@ -235,7 +235,7 @@ contract FactoryTest is Test, ConsolidatedEvents {
 
     function test_Upgrade_Implementation_OnlyOwner() public {
         vm.expectRevert("UNAUTHORIZED");
-        vm.prank(ACCOUNT);
+        vm.prank(address(0xA));
         factory.upgradeAccountImplementation({_implementation: address(0)});
     }
 
@@ -262,10 +262,10 @@ contract FactoryTest is Test, ConsolidatedEvents {
         assertEq(Account(accountAddress).owner(), KWENTA_TREASURY);
 
         // check new account uses new implementation
-        vm.prank(ACCOUNT);
+        vm.prank(address(0xA));
         address payable accountAddress2 = factory.newAccount();
         assertEq(Account(accountAddress2).VERSION(), newVersion);
-        assertEq(Account(accountAddress2).owner(), ACCOUNT);
+        assertEq(Account(accountAddress2).owner(), address(0xA));
     }
 
     function test_Upgrade_Implementation_Event() public {

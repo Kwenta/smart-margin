@@ -559,7 +559,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         fundAccount(AMOUNT);
 
         address market = getMarketAddressFromKey(sETHPERP);
-        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 marginDelta = int256(AMOUNT) / 2;
         int256 sizeDelta = 1 ether;
         (uint256 desiredFillPrice,) =
             IPerpsV2MarketConsolidated(market).assetPrice();
@@ -610,7 +610,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         fundAccount(AMOUNT);
 
         address market = getMarketAddressFromKey(sETHPERP);
-        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 marginDelta = int256(AMOUNT) / 2;
         int256 sizeDelta = 1 ether;
         (uint256 desiredFillPrice,) =
             IPerpsV2MarketConsolidated(market).assetPrice();
