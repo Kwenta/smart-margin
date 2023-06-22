@@ -2,7 +2,6 @@
 pragma solidity 0.8.18;
 
 import {Script} from "lib/forge-std/src/Script.sol";
-import {console2} from "lib/forge-std/src/console2.sol";
 import {
     OPTIMISM_GOERLI_SYNTHETIX_ADDRESS_RESOLVER,
     OPTIMISM_GOERLI_FACTORY,
@@ -49,23 +48,26 @@ contract UpgradeAccountOptimism is Script {
         // deploy events
         address events = address(new Events({_factory: OPTIMISM_FACTORY}));
 
-        console2.log("Events Deployed:", events);
+        address marginAsset = addressResolver.getAddress({name: PROXY_SUSD});
+        address perpsV2ExchangeRate =
+            addressResolver.getAddress({name: PERPS_V2_EXCHANGE_RATE});
+        address futuresMarketManager =
+            addressResolver.getAddress({name: FUTURES_MARKET_MANAGER});
+        address systemStatus = addressResolver.getAddress({name: SYSTEM_STATUS});
 
         implementation = address(
             new Account({
                 _factory: OPTIMISM_FACTORY,
                 _events: events,
-                _marginAsset: addressResolver.getAddress({name: PROXY_SUSD}),
-                _perpsV2ExchangeRate: addressResolver.getAddress({name: PERPS_V2_EXCHANGE_RATE}),
-                _futuresMarketManager: addressResolver.getAddress({name: FUTURES_MARKET_MANAGER}),
-                _systemStatus: addressResolver.getAddress({name: SYSTEM_STATUS}),
+                _marginAsset: marginAsset,
+                _perpsV2ExchangeRate: perpsV2ExchangeRate,
+                _futuresMarketManager: futuresMarketManager,
+                _systemStatus: systemStatus,
                 _gelato: OPTIMISM_GELATO,
                 _ops: OPTIMISM_OPS,
                 _settings: OPTIMISM_SETTINGS
             })
         );
-
-        console2.log("Account Implementation v2.0.2 Deployed:", implementation);
     }
 }
 
@@ -91,22 +93,25 @@ contract UpgradeAccountOptimismGoerli is Script {
         address events =
             address(new Events({_factory: OPTIMISM_GOERLI_FACTORY}));
 
-        console2.log("Events Deployed:", events);
+        address marginAsset = addressResolver.getAddress({name: PROXY_SUSD});
+        address perpsV2ExchangeRate =
+            addressResolver.getAddress({name: PERPS_V2_EXCHANGE_RATE});
+        address futuresMarketManager =
+            addressResolver.getAddress({name: FUTURES_MARKET_MANAGER});
+        address systemStatus = addressResolver.getAddress({name: SYSTEM_STATUS});
 
         implementation = address(
             new Account({
                 _factory: OPTIMISM_GOERLI_FACTORY,
                 _events: events,
-                _marginAsset: addressResolver.getAddress({name: PROXY_SUSD}),
-                _perpsV2ExchangeRate: addressResolver.getAddress({name: PERPS_V2_EXCHANGE_RATE}),
-                _futuresMarketManager: addressResolver.getAddress({name: FUTURES_MARKET_MANAGER}),
-                _systemStatus: addressResolver.getAddress({name: SYSTEM_STATUS}),
+                _marginAsset: marginAsset,
+                _perpsV2ExchangeRate: perpsV2ExchangeRate,
+                _futuresMarketManager: futuresMarketManager,
+                _systemStatus: systemStatus,
                 _gelato: OPTIMISM_GOERLI_GELATO,
                 _ops: OPTIMISM_GOERLI_OPS,
                 _settings: OPTIMISM_GOERLI_SETTINGS
             })
         );
-
-        console2.log("Account Implementation v2.0.2 Deployed:", implementation);
     }
 }
