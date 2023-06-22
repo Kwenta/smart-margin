@@ -6,7 +6,7 @@ import {IFactory} from "./IFactory.sol";
 import {IFuturesMarketManager} from
     "src/interfaces/synthetix/IFuturesMarketManager.sol";
 import {IPerpsV2ExchangeRate} from
-    "src/interfaces/synthetix//IPerpsV2ExchangeRate.sol";
+    "src/interfaces/synthetix/IPerpsV2ExchangeRate.sol";
 import {IPerpsV2MarketConsolidated} from
     "src/interfaces/synthetix/IPerpsV2MarketConsolidated.sol";
 import {ISettings} from "./ISettings.sol";
