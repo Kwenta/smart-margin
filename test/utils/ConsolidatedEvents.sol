@@ -51,13 +51,9 @@ contract ConsolidatedEvents {
     event UniswapV3Swap(
         address tokenIn,
         address tokenOut,
-        uint24 fee,
         address recipient,
-        uint256 deadline,
         uint256 amountIn,
-        uint256 amountOutMinimum,
-        uint160 sqrtPriceLimitX96,
-        uint256 amountOut
+        uint256 amountOutMinimum
     );
 
     event ConditionalOrderPlaced(

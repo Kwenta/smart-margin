@@ -12,14 +12,18 @@ import {
     ISettings,
     ISystemStatus
 } from "./interfaces/IAccount.sol";
+import {BytesLib} from "./utils/uniswap/BytesLib.sol";
 import {IERC20} from "./interfaces/IERC20.sol";
-import {ISwapRouter} from "./interfaces/uniswap/ISwapRouter.sol";
+import {IUniversalRouter} from "./interfaces/uniswap/IUniversalRouter.sol";
 import {OpsReady, IOps} from "./utils/OpsReady.sol";
+import {IPermit2} from "./interfaces/uniswap/IPERMIT2.sol";
 
 /// @title Kwenta Smart Margin Account Implementation
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice flexible smart margin account enabling users to trade on-chain derivatives
 contract Account is IAccount, Auth, OpsReady {
+    using BytesLib for bytes;
+
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -33,6 +37,10 @@ contract Account is IAccount, Auth, OpsReady {
     /// @notice used to ensure the pyth provided price is sufficiently recent
     /// @dev price cannot be older than MAX_PRICE_LATENCY seconds
     uint256 internal constant MAX_PRICE_LATENCY = 120;
+
+    /// @notice Uniswap's Universal Router command for swapping tokens
+    /// @dev specifically for swapping exact tokens in for a non-exact amount of tokens out
+    uint256 constant V3_SWAP_EXACT_IN = 0x00;
 
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
@@ -67,8 +75,11 @@ contract Account is IAccount, Auth, OpsReady {
     /// @notice address of contract used to store global settings
     ISettings internal immutable SETTINGS;
 
-    /// @notice address of the Uniswap V3 Swap Router
-    ISwapRouter internal immutable UNISWAP_V3_SWAP_ROUTER;
+    /// @notice address of Uniswap's Universal Router
+    IUniversalRouter internal immutable UNISWAP_UNIVERSAL_ROUTER;
+
+    /// @notice address of Uniswap's Permit2
+    IPermit2 public immutable PERMIT2;
 
     /*//////////////////////////////////////////////////////////////
                                  STATE
@@ -121,7 +132,8 @@ contract Account is IAccount, Auth, OpsReady {
     /// @param _gelato: address of Gelato
     /// @param _ops: address of Ops
     /// @param _settings: address of contract used to store global settings
-    /// @param _uniswapV3SwapRouter: address of the Uniswap V3 Swap Router
+    /// @param _universalRouter: address of Uniswap's Universal Router
+    /// @param _permit2: address of Uniswap's Permit2
     constructor(
         address _factory,
         address _events,
@@ -132,7 +144,8 @@ contract Account is IAccount, Auth, OpsReady {
         address _gelato,
         address _ops,
         address _settings,
-        address _uniswapV3SwapRouter
+        address _universalRouter,
+        address _permit2
     ) Auth(address(0)) OpsReady(_gelato, _ops) {
         FACTORY = IFactory(_factory);
         EVENTS = IEvents(_events);
@@ -141,7 +154,8 @@ contract Account is IAccount, Auth, OpsReady {
         FUTURES_MARKET_MANAGER = IFuturesMarketManager(_futuresMarketManager);
         SYSTEM_STATUS = ISystemStatus(_systemStatus);
         SETTINGS = ISettings(_settings);
-        UNISWAP_V3_SWAP_ROUTER = ISwapRouter(_uniswapV3SwapRouter);
+        UNISWAP_UNIVERSAL_ROUTER = IUniversalRouter(_universalRouter);
+        PERMIT2 = IPermit2(_permit2);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -257,86 +271,32 @@ contract Account is IAccount, Auth, OpsReady {
     {
         uint256 commandIndex = uint256(_command);
 
-        if (commandIndex < 4) {
+        if (commandIndex < 3) {
             /// @dev only owner can execute the following commands
             if (!isOwner()) revert Unauthorized();
 
-            if (commandIndex < 2) {
-                if (_command == Command.ACCOUNT_MODIFY_MARGIN) {
-                    // Command.ACCOUNT_MODIFY_MARGIN
-                    int256 amount;
-                    assembly {
-                        amount := calldataload(_inputs.offset)
-                    }
-                    _modifyAccountMargin({_amount: amount});
-                } else {
-                    // Command.ACCOUNT_WITHDRAW_ETH
-                    uint256 amount;
-                    assembly {
-                        amount := calldataload(_inputs.offset)
-                    }
-                    _withdrawEth({_amount: amount});
+            if (_command == Command.ACCOUNT_MODIFY_MARGIN) {
+                // Command.ACCOUNT_MODIFY_MARGIN
+                int256 amount;
+                assembly {
+                    amount := calldataload(_inputs.offset)
                 }
+                _modifyAccountMargin({_amount: amount});
+            } else if (_command == Command.ACCOUNT_WITHDRAW_ETH) {
+                uint256 amount;
+                assembly {
+                    amount := calldataload(_inputs.offset)
+                }
+                _withdrawEth({_amount: amount});
             } else {
-                if (_command == Command.UNISWAP_V3_SWAP_INTO_SUSD) {
-                    // Command.UNISWAP_V3_SWAP_INTO_SUSD
-                    address tokenIn;
-                    uint24 fee;
-                    uint256 deadline;
-                    uint256 amountIn;
-                    uint256 amountOutMinimum;
-                    uint160 sqrtPriceLimitX96;
-                    assembly {
-                        tokenIn := calldataload(_inputs.offset)
-                        fee := calldataload(add(_inputs.offset, 0x20))
-                        deadline := calldataload(add(_inputs.offset, 0x40))
-                        amountIn := calldataload(add(_inputs.offset, 0x60))
-                        amountOutMinimum :=
-                            calldataload(add(_inputs.offset, 0x80))
-                        sqrtPriceLimitX96 :=
-                            calldataload(add(_inputs.offset, 0xa0))
-                    }
-                    _uniswapV3SwapIntoSUSD({
-                        _tokenIn: tokenIn,
-                        _fee: fee,
-                        _deadline: deadline,
-                        _amountIn: amountIn,
-                        _amountOutMinimum: amountOutMinimum,
-                        _sqrtPriceLimitX96: sqrtPriceLimitX96
-                    });
-                } else {
-                    // Command.UNISWAP_V3_SWAP_OUT_OF_SUSD
-                    address tokenOut;
-                    uint24 fee;
-                    uint256 deadline;
-                    uint256 amountIn;
-                    uint256 amountOutMinimum;
-                    uint160 sqrtPriceLimitX96;
-                    assembly {
-                        tokenOut := calldataload(_inputs.offset)
-                        fee := calldataload(add(_inputs.offset, 0x20))
-                        deadline := calldataload(add(_inputs.offset, 0x40))
-                        amountIn := calldataload(add(_inputs.offset, 0x60))
-                        amountOutMinimum :=
-                            calldataload(add(_inputs.offset, 0x80))
-                        sqrtPriceLimitX96 :=
-                            calldataload(add(_inputs.offset, 0xa0))
-                    }
-                    _uniswapV3SwapOutOfSUSD({
-                        _tokenOut: tokenOut,
-                        _fee: fee,
-                        _deadline: deadline,
-                        _amountIn: amountIn,
-                        _amountOutMinimum: amountOutMinimum,
-                        _sqrtPriceLimitX96: sqrtPriceLimitX96
-                    });
-                }
+                // Command.UNISWAP_V3_SWAP
+                _uniswapV3Swap(_inputs);
             }
         } else {
             /// @dev only owner and delegate(s) can execute the following commands
             if (!isAuth()) revert Unauthorized();
 
-            if (commandIndex < 6) {
+            if (commandIndex < 5) {
                 if (_command == Command.PERPS_V2_MODIFY_MARGIN) {
                     // Command.PERPS_V2_MODIFY_MARGIN
                     address market;
@@ -354,7 +314,7 @@ contract Account is IAccount, Auth, OpsReady {
                     }
                     _perpsV2WithdrawAllMargin({_market: market});
                 }
-            } else if (commandIndex < 8) {
+            } else if (commandIndex < 7) {
                 if (_command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
                     // Command.PERPS_V2_SUBMIT_ATOMIC_ORDER
                     address market;
@@ -392,7 +352,7 @@ contract Account is IAccount, Auth, OpsReady {
                         _desiredFillPrice: desiredFillPrice
                     });
                 }
-            } else if (commandIndex < 10) {
+            } else if (commandIndex < 9) {
                 if (_command == Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER)
                 {
                     // Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
@@ -424,7 +384,7 @@ contract Account is IAccount, Auth, OpsReady {
                         _desiredFillPrice: desiredFillPrice
                     });
                 }
-            } else if (commandIndex < 12) {
+            } else if (commandIndex < 11) {
                 if (_command == Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER) {
                     // Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER
                     address market;
@@ -456,7 +416,7 @@ contract Account is IAccount, Auth, OpsReady {
                         _desiredFillPrice: desiredFillPrice
                     });
                 }
-            } else if (commandIndex < 14) {
+            } else if (commandIndex < 13) {
                 if (_command == Command.PERPS_V2_CANCEL_DELAYED_ORDER) {
                     // Command.PERPS_V2_CANCEL_DELAYED_ORDER
                     address market;
@@ -472,7 +432,7 @@ contract Account is IAccount, Auth, OpsReady {
                     }
                     _perpsV2CancelOffchainDelayedOrder({_market: market});
                 }
-            } else if (commandIndex < 16) {
+            } else if (commandIndex < 15) {
                 if (_command == Command.GELATO_PLACE_CONDITIONAL_ORDER) {
                     // Command.GELATO_PLACE_CONDITIONAL_ORDER
                     bytes32 marketKey;
@@ -989,103 +949,62 @@ contract Account is IAccount, Auth, OpsReady {
                                 UNISWAP
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice swap tokens into sUSD
-    /// @dev inbound token is transferred from the owner of this smart margin account
-    /// @param _tokenIn: contract address of the inbound token
-    /// @param _fee: fee tier of the pool (determine pool in which to execute the swap)
-    /// @param _deadline: unix time after which a swap will fail
-    /// @param _amountIn: amount of inbound token to swap
-    /// @param _amountOutMinimum: minimum amount of sUSD to receive
-    /// @param _sqrtPriceLimitX96:  used to set the limit for the price the swap will push the pool to
-    function _uniswapV3SwapIntoSUSD(
-        address _tokenIn,
-        uint24 _fee,
-        uint256 _deadline,
-        uint256 _amountIn,
-        uint256 _amountOutMinimum,
-        uint160 _sqrtPriceLimitX96
-    ) internal {
-        if (!SETTINGS.whitelistedTokens(_tokenIn)) {
-            revert TokenSwapNotAllowed();
+    function _uniswapV3Swap(bytes calldata _inputs) internal {
+        // define tokens to swap
+        bytes calldata path = _inputs.toBytes(3);
+        (address tokenIn, address tokenOut) = path.toSwap();
+
+        // establish direction
+        /// @custom:todo add logic check here
+
+        // define signature
+        bytes calldata signature = _inputs.toBytes(6);
+
+        // decode inputs to verify and use for tranfer/swap
+        address recipient;
+        uint256 amountIn;
+        uint256 amountOutMin;
+        bool payerIsUser;
+        uint256 nonce;
+        assembly {
+            recipient := calldataload(_inputs.offset)
+            amountIn := calldataload(add(_inputs.offset, 0x20))
+            amountOutMin := calldataload(add(_inputs.offset, 0x40))
+            // 0x60 offset is the path; was decoded above
+            payerIsUser := calldataload(add(_inputs.offset, 0x80))
+            nonce := calldataload(add(_inputs.offset, 0xa0))
+            // 0xc0 offset is the signature; was decoded above
         }
 
-        IERC20(_tokenIn).transferFrom(owner, address(this), _amountIn);
+        PERMIT2.permitTransferFrom({
+            permit: IPermit2.PermitTransferFrom({
+                permitted: IPermit2.TokenPermissions({token: tokenIn, amount: amountIn}),
+                nonce: nonce,
+                deadline: block.timestamp
+            }),
+            transferDetails: IPermit2.SignatureTransferDetails({
+                to: address(this),
+                requestedAmount: amountIn
+            }),
+            owner: owner,
+            signature: signature
+        });
 
-        IERC20(_tokenIn).approve(address(UNISWAP_V3_SWAP_ROUTER), _amountIn);
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = _inputs;
 
-        uint256 amountOut = UNISWAP_V3_SWAP_ROUTER.exactInputSingle({
-            params: ISwapRouter.ExactInputSingleParams({
-                tokenIn: _tokenIn,
-                tokenOut: address(MARGIN_ASSET),
-                fee: _fee,
-                recipient: address(this),
-                deadline: _deadline,
-                amountIn: _amountIn,
-                amountOutMinimum: _amountOutMinimum,
-                sqrtPriceLimitX96: _sqrtPriceLimitX96
-            })
+        UNISWAP_UNIVERSAL_ROUTER.execute({
+            commands: abi.encodePacked(V3_SWAP_EXACT_IN),
+            inputs: inputs,
+            deadline: block.timestamp
         });
 
         EVENTS.emitUniswapV3Swap({
-            tokenIn: _tokenIn,
-            tokenOut: address(MARGIN_ASSET),
-            fee: _fee,
-            recipient: address(this),
-            deadline: _deadline,
-            amountIn: _amountIn,
-            amountOutMinimum: _amountOutMinimum,
-            sqrtPriceLimitX96: _sqrtPriceLimitX96,
-            amountOut: amountOut
-        });
-    }
-
-    /// @notice swap sUSD into tokens
-    /// @dev outbound token is sent to the owner of this smart margin account
-    /// @param _tokenOut: contract address of the outbound token
-    /// @param _fee: fee tier of the pool (determine pool in which to execute the swap)
-    /// @param _deadline: unix time after which a swap will fail
-    /// @param _amountIn: amount of sUSD to swap
-    /// @param _amountOutMinimum: minimum amount of outbound token to receive
-    /// @param _sqrtPriceLimitX96:  used to set the limit for the price the swap will push the pool to
-    function _uniswapV3SwapOutOfSUSD(
-        address _tokenOut,
-        uint24 _fee,
-        uint256 _deadline,
-        uint256 _amountIn,
-        uint256 _amountOutMinimum,
-        uint160 _sqrtPriceLimitX96
-    ) internal {
-        if (!SETTINGS.whitelistedTokens(_tokenOut)) {
-            revert TokenSwapNotAllowed();
-        }
-
-        _sufficientMargin(int256(_amountIn));
-
-        MARGIN_ASSET.approve(address(UNISWAP_V3_SWAP_ROUTER), _amountIn);
-
-        uint256 amountOut = UNISWAP_V3_SWAP_ROUTER.exactInputSingle({
-            params: ISwapRouter.ExactInputSingleParams({
-                tokenIn: address(MARGIN_ASSET),
-                tokenOut: _tokenOut,
-                fee: _fee,
-                recipient: owner,
-                deadline: _deadline,
-                amountIn: _amountIn,
-                amountOutMinimum: _amountOutMinimum,
-                sqrtPriceLimitX96: _sqrtPriceLimitX96
-            })
-        });
-
-        EVENTS.emitUniswapV3Swap({
-            tokenIn: address(MARGIN_ASSET),
-            tokenOut: _tokenOut,
-            fee: _fee,
-            recipient: owner,
-            deadline: _deadline,
-            amountIn: _amountIn,
-            amountOutMinimum: _amountOutMinimum,
-            sqrtPriceLimitX96: _sqrtPriceLimitX96,
-            amountOut: amountOut
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            recipient: recipient,
+            amountIn: amountIn,
+            amountOutMinimum: amountOutMin
         });
     }
 

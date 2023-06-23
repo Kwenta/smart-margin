@@ -24,6 +24,9 @@ address constant DELEGATE = address(0xDE1A6A7E);
 // test amount used throughout tests
 uint256 constant AMOUNT = 10_000 ether;
 
+// test amount used for swaps
+uint256 constant SWAP_AMOUNT = 100 ether;
+
 // test margin delta used throughout tests
 int256 constant MARGIN_DELTA = 1 ether;
 
@@ -89,8 +92,8 @@ uint256 constant GELATO_FEE = 69;
                                 UNISWAP
     //////////////////////////////////////////////////////////////*/
 
-address constant UNISWAP_V3_SWAP_ROUTER =
-    0xE592427A0AEce92De3Edee1F18E0157C05861564;
+address constant UNISWAP_UNIVERSAL_ROUTER =
+    0xb555edF5dcF85f42cEeF1f3630a52A108E55A654;
 
 /*//////////////////////////////////////////////////////////////
                                   DAI
