@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-import "../utils/Constants.sol";
+import {Test} from "lib/forge-std/src/Test.sol";
 import {Account} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
 import {Auth} from "../../src/Account.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {ERC20} from "@solmate/tokens/ERC20.sol";
+import {IERC20} from "../../src/interfaces/IERC20.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
 import {IAccount} from "../../src/interfaces/IAccount.sol";
@@ -20,6 +19,7 @@ import {ISystemStatus} from "../utils/interfaces/ISystemStatus.sol";
 import {OpsReady} from "../../src/utils/OpsReady.sol";
 import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
+import "../utils/Constants.sol";
 
 // functions tagged with @HELPER are helper functions and not tests
 // tests tagged with @AUDITOR are flags for desired increased scrutiny by the auditors
@@ -37,7 +37,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     Account private account;
 
     // helper contracts for testing
-    ERC20 private sUSD;
+    IERC20 private sUSD;
     AccountExposed private accountExposed;
     ISystemStatus private systemStatus;
 
@@ -65,16 +65,19 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
         // define helper contracts
         IAddressResolver addressResolver = IAddressResolver(ADDRESS_RESOLVER);
-        sUSD = ERC20(addressResolver.getAddress(PROXY_SUSD));
+        sUSD = IERC20(addressResolver.getAddress(PROXY_SUSD));
         address futuresMarketManager =
-            addressResolver.getAddress(FUTURES_MANAGER);
+            addressResolver.getAddress(FUTURES_MARKET_MANAGER);
         systemStatus = ISystemStatus(addressResolver.getAddress(SYSTEM_STATUS));
+        address perpsV2ExchangeRate =
+            addressResolver.getAddress(PERPS_V2_EXCHANGE_RATE);
 
         // deploy AccountExposed contract for exposing internal account functions
         accountExposed = new AccountExposed(
             address(factory),
             address(events), 
             address(sUSD), 
+            perpsV2ExchangeRate,
             futuresMarketManager, 
             address(systemStatus), 
             GELATO, 
@@ -87,7 +90,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         fundAccount(AMOUNT);
 
         // get current ETH price in USD
-        currentEthPriceInUSD = accountExposed.expose_sUSDRate(
+        (currentEthPriceInUSD,) = accountExposed.expose_sUSDRate(
             IPerpsV2MarketConsolidated(
                 accountExposed.expose_getPerpsV2Market(sETHPERP)
             )
@@ -713,6 +716,89 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
         });
     }
 
+    // assert fee transfer to gelato is called when for a reduce only order that
+    // is not filled due to it being an invalid reduce only order
+    function test_ExecuteConditionalOrder_Valid_InvalidReduceOnly_InactiveMarket_FeeTransfer(
+    ) public {
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            desiredFillPrice: DESIRED_FILL_PRICE,
+            reduceOnly: true
+        });
+        (bytes memory executionData, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
+        // expect a call w/ empty calldata to gelato (payment through callvalue)
+        vm.expectCall(GELATO, "");
+        vm.prank(GELATO);
+
+        // market does not have an active position and the conditional order is reduce only
+        // but a fee should still be paid to gelato for execution
+        IOps(OPS).exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: executionData,
+            moduleData: moduleData,
+            txFee: GELATO_FEE,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        });
+    }
+
+    // assert fee transfer to gelato is called when for a reduce only order that
+    // is not filled due to it being an invalid reduce only order
+    function test_ExecuteConditionalOrder_Valid_InvalidReduceOnly_SameSign_FeeTransfer(
+    ) public {
+        // create a long position in the ETH market
+        address market = getMarketAddressFromKey(sETHPERP);
+        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 sizeDelta = 1 ether;
+        (uint256 desiredFillPrice,) =
+            IPerpsV2MarketConsolidated(market).assetPrice();
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(market, marginDelta);
+        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
+        account.execute(commands, inputs);
+
+        // create and place a conditional order that is reduce only
+        uint256 conditionalOrderId = placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether, // this is the same sign as the pre-existing position
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            desiredFillPrice: DESIRED_FILL_PRICE,
+            reduceOnly: true
+        });
+        (bytes memory executionData, IOps.ModuleData memory moduleData) =
+            generateGelatoModuleData(conditionalOrderId);
+
+        // expect a call w/ empty calldata to gelato (payment through callvalue)
+        vm.expectCall(GELATO, "");
+        vm.prank(GELATO);
+
+        // the incoming conditional order size delta is the same sign,
+        // thus the conditional order is not reduce only;
+        // a fee should still be paid to gelato for execution
+        IOps(OPS).exec({
+            taskCreator: address(account),
+            execAddress: address(account),
+            execData: executionData,
+            moduleData: moduleData,
+            txFee: GELATO_FEE,
+            feeToken: ETH,
+            useTaskTreasuryFunds: false,
+            revertOnFailure: true
+        });
+    }
+
     function test_ExecuteConditionalOrder_Valid_InsufficientEth() public {
         uint256 conditionalOrderId = placeConditionalOrder({
             marketKey: sETHPERP,
@@ -1256,7 +1342,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     conditionalOrderId: conditionalOrderId,
                     gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE
+                    keeperFee: GELATO_FEE,
+                    priceOracle: IAccount.PriceOracleUsed.CHAINLINK
                 });
             } else if (fuzzedSizeDelta + position.size >= 0) {
                 // expect conditional order to be filled with specified fuzzedSizeDelta
@@ -1266,7 +1353,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     conditionalOrderId: conditionalOrderId,
                     gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE
+                    keeperFee: GELATO_FEE,
+                    priceOracle: IAccount.PriceOracleUsed.CHAINLINK
                 });
             } else {
                 revert("Uncaught case");
@@ -1339,7 +1427,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     conditionalOrderId: conditionalOrderId,
                     gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE
+                    keeperFee: GELATO_FEE,
+                    priceOracle: IAccount.PriceOracleUsed.CHAINLINK
                 });
             } else if (fuzzedSizeDelta + position.size <= 0) {
                 // expect conditional order to be filled with specified fuzzedSizeDelta
@@ -1349,7 +1438,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     conditionalOrderId: conditionalOrderId,
                     gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
-                    keeperFee: GELATO_FEE
+                    keeperFee: GELATO_FEE,
+                    priceOracle: IAccount.PriceOracleUsed.CHAINLINK
                 });
             } else {
                 revert("Uncaught case");

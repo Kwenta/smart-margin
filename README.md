@@ -125,15 +125,15 @@ src
 
 ## Test Coverage
 
-| File                           | % Lines          | % Statements     | % Branches      | % Funcs         |
-|--------------------------------|------------------|------------------|-----------------|-----------------|
-| src/Account.sol                | 98.53% (201/204) | 98.61% (213/216) | 92.11% (70/76)  | 100.00% (35/35) |
-| src/AccountProxy.sol           | 100.00% (10/10)  | 76.92% (10/13)   | 50.00% (3/6)    | 100.00% (6/6)   |
-| src/Events.sol                 | 100.00% (6/6)    | 100.00% (6/6)    | 100.00% (0/0)   | 100.00% (6/6)   |
-| src/Factory.sol                | 100.00% (27/27)  | 100.00% (34/34)  | 85.71% (12/14)  | 100.00% (6/6)   |
-| src/Settings.sol               | 100.00% (2/2)    | 100.00% (2/2)    | 100.00% (0/0)   | 100.00% (1/1)   |
-| src/utils/Auth.sol             | 100.00% (15/15)  | 100.00% (18/18)  | 100.00% (10/10) | 100.00% (5/5)   |
-| src/utils/OpsReady.sol         | 100.00% (3/3)    | 100.00% (4/4)    | 75.00% (3/4)    | 100.00% (1/1)   |
+| File                                 | % Lines          | % Statements     | % Branches       | % Funcs         |
+|--------------------------------------|------------------|------------------|------------------|-----------------|
+| src/Account.sol                      | 99.05% (209/211) | 99.10% (221/223) | 93.59% (73/78)   | 100.00% (35/35) |
+| src/AccountProxy.sol                 | 100.00% (10/10)  | 76.92% (10/13)   | 50.00% (3/6)     | 100.00% (6/6)   |
+| src/Events.sol                       | 100.00% (6/6)    | 100.00% (6/6)    | 100.00% (0/0)    | 100.00% (6/6)   |
+| src/Factory.sol                      | 100.00% (27/27)  | 100.00% (34/34)  | 85.71% (12/14)   | 100.00% (6/6)   |
+| src/Settings.sol                     | 100.00% (2/2)    | 100.00% (2/2)    | 100.00% (0/0)    | 100.00% (1/1)   |
+| src/utils/Auth.sol                   | 100.00% (15/15)  | 100.00% (18/18)  | 100.00% (10/10)  | 100.00% (5/5)   |
+| src/utils/OpsReady.sol               | 100.00% (3/3)    | 100.00% (4/4)    | 75.00% (3/4)     | 100.00% (1/1)   |
 
 ## Usage
 
@@ -182,17 +182,16 @@ forge test --fork-url $(grep ARCHIVE_NODE_URL_GOERLI_L2 .env | cut -d '=' -f2) -
 2. Add new directory to `./script/upgrades/` with the version number as the directory name (i.e. v2.6.9)
 3. Create new `Upgrade.s.sol` for the new version in that directory
 4. Add new directory to `./test/upgrades/` with the version number as the directory name (i.e. v2.6.9)
-5. Create new `upgrade.vX.X.X.t.sol` for the new version (where vX.X.X is the version number) in that directory
-6. Test upgrade using new script (example: `./test/upgrades/v2.0.1/upgrade.v2.0.1.t.sol`)
-> If adding new contracts, make sure to test them in the `upgrade.vX.X.X.t.sol` file also
+5. Create new `Upgrade.t.sol` for the new version in that directory
+6. Test upgrade using new script (example: `./test/upgrades/v2.0.1/Upgrade.t.sol`)
 7. Run script and deploy to Testnet
 8. Call `Factory.upgradeAccountImplementation` with new `Account` address (can be done on etherscan)
 > Only factory owner can do this
 9. Update `./deploy-addresses/optimism-goerli.json` with new `Account` address
-10. Ensure tesnet accounts are updated and functional (ensure state is correct)
+10. Ensure testnet accounts are updated and functional (ensure state is correct)
 11. Run script and deploy to Mainnet
 12. Call `Factory.upgradeAccountImplementation` with new `Account` address (can be done on etherscan)
-> Only factory owner can do this (admin dao multisig or pDAO)
+> Only factory owner can do this (pDAO)
 13. Update `./deploy-addresses/optimism.json` with new `Account` address
 14. Ensure mainnet accounts are updated and functional (ensure state is correct)
 

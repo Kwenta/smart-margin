@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-import "../utils/Constants.sol";
+import {Test} from "lib/forge-std/src/Test.sol";
 import {Account} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
 import {Auth} from "../../src/Account.sol";
@@ -12,9 +11,11 @@ import {Factory} from "../../src/Factory.sol";
 import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
 import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
+import {IPerpsV2ExchangeRate} from "../../src/interfaces/IAccount.sol";
 import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
 import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
+import "../utils/Constants.sol";
 
 contract AccountTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
@@ -56,14 +57,17 @@ contract AccountTest is Test, ConsolidatedEvents {
         IAddressResolver addressResolver = IAddressResolver(ADDRESS_RESOLVER);
         address sUSD = addressResolver.getAddress(PROXY_SUSD);
         address futuresMarketManager =
-            addressResolver.getAddress(FUTURES_MANAGER);
+            addressResolver.getAddress(FUTURES_MARKET_MANAGER);
         address systemStatus = addressResolver.getAddress(SYSTEM_STATUS);
+        address perpsV2ExchangeRate =
+            addressResolver.getAddress(PERPS_V2_EXCHANGE_RATE);
 
         // deploy AccountExposed contract for exposing internal account functions
         accountExposed = new AccountExposed(
             address(factory),
             address(events), 
             sUSD, 
+            perpsV2ExchangeRate,
             futuresMarketManager, 
             systemStatus, 
             GELATO, 
@@ -81,7 +85,7 @@ contract AccountTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_GetVerison() public view {
-        assert(account.VERSION() == "2.0.1");
+        assert(account.VERSION() == "2.0.2");
     }
 
     function test_GetTrackingCode() public view {
@@ -672,6 +676,123 @@ contract AccountTest is Test, ConsolidatedEvents {
 
         // no-op that proves execute is not locked
         account.execute(new IAccount.Command[](0), new bytes[](0));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            GETTER UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    // sanity test that testnet return a value even if it is stale
+    function test_PerpsV2ExchangeRate() public view {
+        IPerpsV2MarketConsolidated market =
+            accountExposed.expose_getPerpsV2Market(sETHPERP);
+        IPerpsV2ExchangeRate perpsV2ExchangeRate = IPerpsV2ExchangeRate(
+            IAddressResolver(ADDRESS_RESOLVER).getAddress({
+                name: PERPS_V2_EXCHANGE_RATE
+            })
+        );
+        (uint256 price, uint256 publishTime) =
+            perpsV2ExchangeRate.resolveAndGetLatestPrice(market.baseAsset());
+
+        /// @custom:audit on testnet the publish time lags behind the current block time by
+        /// 65952 seconds (i.e. ~ 18 hours) at this block
+        assert(price != 0);
+        assert(publishTime != 0);
+    }
+
+    function test_getPerpsV2Market_Valid_Key() public view {
+        address market =
+            address(accountExposed.expose_getPerpsV2Market(sETHPERP));
+        assert(market != address(0));
+    }
+
+    function test_getPerpsV2Market_Invalid_Key() public view {
+        address market =
+            address(accountExposed.expose_getPerpsV2Market("unknown"));
+        assert(market == address(0));
+    }
+
+    function test_sUSDRate_Valid_Market() public {
+        IPerpsV2MarketConsolidated market =
+            accountExposed.expose_getPerpsV2Market(sETHPERP);
+
+        // mock call to perpsV2ExchangeRate contract due to
+        // current pyth price there being too stale at this block
+        // (i.e. price used is providied by chainlink)
+        address perpsV2ExchangeRate = IAddressResolver(ADDRESS_RESOLVER)
+            .getAddress({name: PERPS_V2_EXCHANGE_RATE});
+        vm.mockCall(
+            perpsV2ExchangeRate,
+            abi.encodeWithSignature(
+                "resolveAndGetLatestPrice(bytes32)", market.baseAsset()
+            ),
+            abi.encode(1, block.timestamp)
+        );
+
+        (, IAccount.PriceOracleUsed oracle) =
+            accountExposed.expose_sUSDRate(market);
+
+        // assert oracle used is pyth
+        assert(oracle == IAccount.PriceOracleUsed.PYTH);
+    }
+
+    function test_sUSDRate_Invalid_Market() public {
+        vm.expectRevert();
+        accountExposed.expose_sUSDRate(
+            IPerpsV2MarketConsolidated(address(0xBEEFED))
+        );
+    }
+
+    function test_sUSDRate_Pyth_Price() public {
+        IPerpsV2MarketConsolidated market =
+            accountExposed.expose_getPerpsV2Market(sETHPERP);
+
+        // mock call to perpsV2ExchangeRate contract due to
+        // current pyth price there being too stale at this block
+        // (i.e. price used is providied by chainlink)
+        address perpsV2ExchangeRate = IAddressResolver(ADDRESS_RESOLVER)
+            .getAddress({name: PERPS_V2_EXCHANGE_RATE});
+        vm.mockCall(
+            perpsV2ExchangeRate,
+            abi.encodeWithSignature(
+                "resolveAndGetLatestPrice(bytes32)", market.baseAsset()
+            ),
+            abi.encode(1, block.timestamp)
+        );
+
+        (uint256 price,) = accountExposed.expose_sUSDRate(market);
+
+        // assert price returned is mocked value from pyth
+        assert(price == 1);
+    }
+
+    function test_sUSDRate_Chainlink_Price() public view {
+        IPerpsV2MarketConsolidated market =
+            accountExposed.expose_getPerpsV2Market(sETHPERP);
+
+        (uint256 price, IAccount.PriceOracleUsed oracle) =
+            accountExposed.expose_sUSDRate(market);
+
+        // assert oracle used is chainlink since pyth price is stale
+        assert(oracle == IAccount.PriceOracleUsed.CHAINLINK);
+
+        // assert price is not 0
+        assert(price != 0);
+    }
+
+    function test_sUSDRate_Invalid_Chainlink_Price() public {
+        IPerpsV2MarketConsolidated market =
+            accountExposed.expose_getPerpsV2Market(sETHPERP);
+
+        // mock call to _market.assetPrice() to return an invalid price
+        vm.mockCall(
+            address(market),
+            abi.encodeWithSignature("assetPrice()"),
+            abi.encode(2, true)
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(IAccount.InvalidPrice.selector));
+        accountExposed.expose_sUSDRate(market);
     }
 
     /*//////////////////////////////////////////////////////////////

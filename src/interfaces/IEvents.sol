@@ -108,11 +108,13 @@ interface IEvents {
     /// @param gelatoTaskId: id of gelato task
     /// @param fillPrice: price the conditional order was executed at
     /// @param keeperFee: fees paid to the executor
+    /// @param priceOracle: price oracle used to execute conditional order
     function emitConditionalOrderFilled(
         uint256 conditionalOrderId,
         bytes32 gelatoTaskId,
         uint256 fillPrice,
-        uint256 keeperFee
+        uint256 keeperFee,
+        IAccount.PriceOracleUsed priceOracle
     ) external;
 
     event ConditionalOrderFilled(
@@ -120,6 +122,7 @@ interface IEvents {
         uint256 indexed conditionalOrderId,
         bytes32 indexed gelatoTaskId,
         uint256 fillPrice,
-        uint256 keeperFee
+        uint256 keeperFee,
+        IAccount.PriceOracleUsed priceOracle
     );
 }

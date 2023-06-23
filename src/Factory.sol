@@ -3,7 +3,7 @@ pragma solidity 0.8.18;
 
 import {AccountProxy} from "./AccountProxy.sol";
 import {IFactory} from "./interfaces/IFactory.sol";
-import {Owned} from "@solmate/auth/Owned.sol";
+import {Owned} from "./utils/Owned.sol";
 
 /// @title Kwenta Account Factory
 /// @author JaredBorders (jaredborders@pm.me)

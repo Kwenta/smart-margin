@@ -73,7 +73,8 @@ contract ConsolidatedEvents {
         uint256 indexed conditionalOrderId,
         bytes32 indexed gelatoTaskId,
         uint256 fillPrice,
-        uint256 keeperFee
+        uint256 keeperFee,
+        IAccount.PriceOracleUsed priceOracle
     );
 
     /*//////////////////////////////////////////////////////////////

@@ -68,8 +68,9 @@ address constant MARGIN_ASSET = 0xeBaEAAD9236615542844adC5c149F86C36aD1136;
 
 // Synthetix contract names
 bytes32 constant PROXY_SUSD = "ProxysUSD";
-bytes32 constant FUTURES_MANAGER = "FuturesMarketManager";
+bytes32 constant FUTURES_MARKET_MANAGER = "FuturesMarketManager";
 bytes32 constant SYSTEM_STATUS = "SystemStatus";
+bytes32 constant PERPS_V2_EXCHANGE_RATE = "PerpsV2ExchangeRate";
 
 // Synthetix PerpsV2 market key(s)
 bytes32 constant sETHPERP = "sETHPERP";

@@ -49,19 +49,14 @@ contract Setup {
 
         // resolve necessary addresses via the Synthetix Address Resolver
         IAddressResolver addressResolver = IAddressResolver(_addressResolver);
-        address marginAsset =
-            addressResolver.getAddress({name: bytes32("ProxysUSD")});
-        address futuresMarketManager =
-            addressResolver.getAddress({name: bytes32("FuturesMarketManager")});
-        address systemStatus =
-            addressResolver.getAddress({name: bytes32("SystemStatus")});
 
         implementation = new Account({
             _factory: address(factory),
             _events: address(events),
-            _marginAsset: marginAsset,
-            _futuresMarketManager: futuresMarketManager,
-            _systemStatus: systemStatus,
+            _marginAsset: addressResolver.getAddress({name: PROXY_SUSD}),
+            _perpsV2ExchangeRate: addressResolver.getAddress({name: PERPS_V2_EXCHANGE_RATE}),
+            _futuresMarketManager: addressResolver.getAddress({name: FUTURES_MARKET_MANAGER}),
+            _systemStatus: addressResolver.getAddress({name: SYSTEM_STATUS}),
             _gelato: _gelato,
             _ops: _ops,
             _settings: address(settings)

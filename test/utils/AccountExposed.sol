@@ -16,6 +16,7 @@ contract AccountExposed is Account {
         address _factory,
         address _events,
         address _marginAsset,
+        address _perpsV2ExchangeRate,
         address _futuresMarketManager,
         address _systemStatus,
         address _gelato,
@@ -26,6 +27,7 @@ contract AccountExposed is Account {
             _factory,
             _events,
             _marginAsset,
+            _perpsV2ExchangeRate,
             _futuresMarketManager,
             _systemStatus,
             _gelato,
@@ -48,6 +50,10 @@ contract AccountExposed is Account {
 
     function expose_MARGIN_ASSET() public view returns (address) {
         return address(MARGIN_ASSET);
+    }
+
+    function expose_PERPS_V2_EXCHANGE_RATE() public view returns (address) {
+        return address(PERPS_V2_EXCHANGE_RATE);
     }
 
     function expose_FUTURES_MARKET_MANAGER() public view returns (address) {
@@ -97,7 +103,7 @@ contract AccountExposed is Account {
     function expose_sUSDRate(IPerpsV2MarketConsolidated _market)
         public
         view
-        returns (uint256)
+        returns (uint256, PriceOracleUsed)
     {
         return _sUSDRate(_market);
     }

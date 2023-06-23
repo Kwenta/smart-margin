@@ -7,11 +7,12 @@ import {
     IEvents,
     IFactory,
     IFuturesMarketManager,
+    IPerpsV2ExchangeRate,
     IPerpsV2MarketConsolidated,
     ISettings,
     ISystemStatus
 } from "./interfaces/IAccount.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from "./interfaces/IERC20.sol";
 import {OpsReady, IOps} from "./utils/OpsReady.sol";
 
 /// @title Kwenta Smart Margin Account Implementation
@@ -23,10 +24,14 @@ contract Account is IAccount, Auth, OpsReady {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
-    bytes32 public constant VERSION = "2.0.1";
+    bytes32 public constant VERSION = "2.0.2";
 
     /// @notice tracking code used when modifying positions
     bytes32 internal constant TRACKING_CODE = "KWENTA";
+
+    /// @notice used to ensure the pyth provided price is sufficiently recent
+    /// @dev price cannot be older than MAX_PRICE_LATENCY seconds
+    uint256 internal constant MAX_PRICE_LATENCY = 120;
 
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
@@ -43,6 +48,10 @@ contract Account is IAccount, Auth, OpsReady {
     /// @notice address of the Synthetix ProxyERC20sUSD contract used as the margin asset
     /// @dev can be immutable due to the fact the sUSD contract is a proxy address
     IERC20 internal immutable MARGIN_ASSET;
+
+    /// @notice address of the Synthetix PerpsV2ExchangeRate
+    /// @dev used internally by Synthetix Perps V2 contracts to retrieve asset exchange rates
+    IPerpsV2ExchangeRate internal immutable PERPS_V2_EXCHANGE_RATE;
 
     /// @notice address of the Synthetix FuturesMarketManager
     /// @dev the manager keeps track of which markets exist, and is the main window between
@@ -90,11 +99,11 @@ contract Account is IAccount, Auth, OpsReady {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice disable initializers on initial contract deployment
     /// @dev set owner of implementation to zero address
     /// @param _factory: address of the Smart Margin Account Factory
     /// @param _events: address of the contract used by all accounts for emitting events
     /// @param _marginAsset: address of the Synthetix ProxyERC20sUSD contract used as the margin asset
+    /// @param _perpsV2ExchangeRate: address of the Synthetix PerpsV2ExchangeRate
     /// @param _futuresMarketManager: address of the Synthetix FuturesMarketManager
     /// @param _gelato: address of Gelato
     /// @param _ops: address of Ops
@@ -103,6 +112,7 @@ contract Account is IAccount, Auth, OpsReady {
         address _factory,
         address _events,
         address _marginAsset,
+        address _perpsV2ExchangeRate,
         address _futuresMarketManager,
         address _systemStatus,
         address _gelato,
@@ -112,6 +122,7 @@ contract Account is IAccount, Auth, OpsReady {
         FACTORY = IFactory(_factory);
         EVENTS = IEvents(_events);
         MARGIN_ASSET = IERC20(_marginAsset);
+        PERPS_V2_EXCHANGE_RATE = IPerpsV2ExchangeRate(_perpsV2ExchangeRate);
         FUTURES_MARKET_MANAGER = IFuturesMarketManager(_futuresMarketManager);
         SYSTEM_STATUS = ISystemStatus(_systemStatus);
         SETTINGS = ISettings(_settings);
@@ -494,6 +505,7 @@ contract Account is IAccount, Auth, OpsReady {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice submit an atomic order to a Synthetix PerpsV2 Market
+    /// @dev atomic orders are executed immediately and incur a *significant* fee
     /// @param _market: address of market
     /// @param _sizeDelta: size delta of order
     /// @param _desiredFillPrice: desired fill price of order
@@ -745,6 +757,7 @@ contract Account is IAccount, Auth, OpsReady {
         isAccountExecutionEnabled
         onlyOps
     {
+        // store conditional order in memory
         ConditionalOrder memory conditionalOrder =
             getConditionalOrder(_conditionalOrderId);
 
@@ -755,12 +768,16 @@ contract Account is IAccount, Auth, OpsReady {
         /// @dev will revert if task id does not exist {Automate.cancelTask: Task not found}
         IOps(OPS).cancelTask({taskId: conditionalOrder.gelatoTaskId});
 
+        // pay Gelato imposed fee for conditional order execution
+        (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
+        _transfer({_amount: fee, _paymentToken: feeToken});
+
         // define Synthetix PerpsV2 market
         IPerpsV2MarketConsolidated market =
             _getPerpsV2Market(conditionalOrder.marketKey);
 
         /// @dev conditional order is valid given checker() returns true; define fill price
-        uint256 fillPrice = _sUSDRate(market);
+        (uint256 fillPrice, PriceOracleUsed priceOracle) = _sUSDRate(market);
 
         // if conditional order is reduce only, ensure position size is only reduced
         if (conditionalOrder.reduceOnly) {
@@ -807,15 +824,12 @@ contract Account is IAccount, Auth, OpsReady {
             _desiredFillPrice: conditionalOrder.desiredFillPrice
         });
 
-        // pay Gelato imposed fee for conditional order execution
-        (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
-        _transfer({_amount: fee, _paymentToken: feeToken});
-
         EVENTS.emitConditionalOrderFilled({
             conditionalOrderId: _conditionalOrderId,
             gelatoTaskId: conditionalOrder.gelatoTaskId,
             fillPrice: fillPrice,
-            keeperFee: fee
+            keeperFee: fee,
+            priceOracle: priceOracle
         });
     }
 
@@ -838,7 +852,8 @@ contract Account is IAccount, Auth, OpsReady {
         }
 
         /// @dev if marketKey is invalid, this will revert
-        uint256 price = _sUSDRate(_getPerpsV2Market(conditionalOrder.marketKey));
+        (uint256 price,) =
+            _sUSDRate(_getPerpsV2Market(conditionalOrder.marketKey));
 
         // check if markets satisfy specific order type
         if (
@@ -930,13 +945,32 @@ contract Account is IAccount, Auth, OpsReady {
     function _sUSDRate(IPerpsV2MarketConsolidated _market)
         internal
         view
-        returns (uint256)
+        returns (uint256, PriceOracleUsed)
     {
-        (uint256 price, bool invalid) = _market.assetPrice();
-        if (invalid) {
-            revert InvalidPrice();
+        /// @dev will revert if market is invalid
+        bytes32 assetId = _market.baseAsset();
+
+        /// @dev can revert if assetId is invalid OR there's no price for the given asset
+        (uint256 price, uint256 publishTime) =
+            PERPS_V2_EXCHANGE_RATE.resolveAndGetLatestPrice(assetId);
+
+        // resolveAndGetLatestPrice is provide by pyth
+        PriceOracleUsed priceOracle = PriceOracleUsed.PYTH;
+
+        // if the price is stale, get the latest price from the market
+        // (i.e. Chainlink provided price)
+        if (publishTime < block.timestamp - MAX_PRICE_LATENCY) {
+            // set price oracle used to Chainlink
+            priceOracle = PriceOracleUsed.CHAINLINK;
+
+            // fetch asset price and ensure it is valid
+            bool invalid;
+            (price, invalid) = _market.assetPrice();
+            if (invalid) revert InvalidPrice();
         }
-        return price;
+
+        /// @dev see IPerpsV2ExchangeRates to understand risks associated with this price
+        return (price, priceOracle);
     }
 
     /*//////////////////////////////////////////////////////////////

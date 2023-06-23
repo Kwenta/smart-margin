@@ -3,11 +3,14 @@ pragma solidity 0.8.18;
 
 import {IEvents} from "./IEvents.sol";
 import {IFactory} from "./IFactory.sol";
-import {IFuturesMarketManager} from "@synthetix/IFuturesMarketManager.sol";
+import {IFuturesMarketManager} from
+    "src/interfaces/synthetix/IFuturesMarketManager.sol";
+import {IPerpsV2ExchangeRate} from
+    "src/interfaces/synthetix/IPerpsV2ExchangeRate.sol";
 import {IPerpsV2MarketConsolidated} from
-    "@synthetix/IPerpsV2MarketConsolidated.sol";
+    "src/interfaces/synthetix/IPerpsV2MarketConsolidated.sol";
 import {ISettings} from "./ISettings.sol";
-import {ISystemStatus} from "@synthetix/ISystemStatus.sol";
+import {ISystemStatus} from "src/interfaces/synthetix/ISystemStatus.sol";
 
 /// @title Kwenta Smart Margin Account Implementation Interface
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
@@ -47,6 +50,13 @@ interface IAccount {
     enum ConditionalOrderCancelledReason {
         CONDITIONAL_ORDER_CANCELLED_BY_USER,
         CONDITIONAL_ORDER_CANCELLED_NOT_REDUCE_ONLY
+    }
+
+    /// @notice denotes what oracle is used for price when executing conditional orders
+    /// @dev under the hood PYTH = 0, CHAINLINK = 1
+    enum PriceOracleUsed {
+        PYTH,
+        CHAINLINK
     }
 
     /// marketKey: Synthetix PerpsV2 Market id/key
@@ -178,6 +188,8 @@ interface IAccount {
     /// @notice execute a gelato queued conditional order
     /// @notice only keepers can trigger this function
     /// @dev currently only supports conditional order submission via PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER COMMAND
+    /// @custom:audit a compromised Gelato Ops cannot drain accounts due to several interactions with Synthetix PerpsV2
+    /// requiring a valid market which could not be initialized with an invalid conditional order id
     /// @param _conditionalOrderId: key for an active conditional order
     function executeConditionalOrder(uint256 _conditionalOrderId) external;
 }

@@ -1,6 +1,6 @@
 {
   "name": "@kwenta/cross-margin-manager",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "scripts": {
     "compile": "forge build",
     "test": "forge test --fork-url $(grep ARCHIVE_NODE_URL_GOERLI_L2 .env | cut -d '=' -f2) --etherscan-api-key $(grep ETHERSCAN_API_KEY .env | cut -d '=' -f2) --gas-report -vvv",
@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Kwenta/margin-manager"
+    "url": "https://github.com/Kwenta/smart-margin"
   },
   "engines": {
     "node": ">=14.0.0"
