@@ -23,6 +23,7 @@ import {
     OPS,
     MARGIN_ASSET,
     DAI,
+    WETH,
     AMOUNT,
     EOA_WITH_DAI
 } from "../utils/Constants.sol";
@@ -93,41 +94,210 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
     */
 
     function test_Command_UNISWAP_V3_SWAP_INTO_SUSD_Not_Whitelisted() public {
-        /// @custom:todo implement test
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP_INTO_SUSD;
+
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            WETH, // tokenIn; not whitelisted
+            3000, // fee: for this example, we will set the pool fee to 0.3%
+            block.timestamp, // deadline
+            AMOUNT, // amountIn
+            1, // amountOutMinimum
+            0 // sqrtPriceLimitX96
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccount.TokenSwapNotAllowed.selector)
+        );
+
+        account.execute(commands, inputs);
     }
 
     function test_Command_UNISWAP_V3_SWAP_INTO_SUSD_Invalid_Token() public {
-        /// @custom:todo implement test
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP_INTO_SUSD;
+
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            address(bytes20("BAD TOKEN")), // tokenIn; whitelisted but invalid token
+            3000, // fee: for this example, we will set the pool fee to 0.3%
+            block.timestamp, // deadline
+            AMOUNT, // amountIn
+            1, // amountOutMinimum
+            0 // sqrtPriceLimitX96
+        );
+
+        // whitelist a bad token
+        settings.setTokenWhitelistStatus(address(bytes20("BAD TOKEN")), true);
+
+        // Call reverts without data
+        vm.expectRevert();
+        account.execute(commands, inputs);
     }
 
     function test_Command_UNISWAP_V3_SWAP_INTO_SUSD_Insufficient_TokenIn()
         public
     {
-        /// @custom:todo implement test
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP_INTO_SUSD;
+
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            DAI, // tokenIn
+            3000, // fee: for this example, we will set the pool fee to 0.3%
+            block.timestamp, // deadline
+            AMOUNT, // amountIn
+            1, // amountOutMinimum
+            0 // sqrtPriceLimitX96
+        );
+
+        vm.expectRevert("Dai/insufficient-balance");
+        account.execute(commands, inputs);
     }
 
     function test_Command_UNISWAP_V3_SWAP_INTO_SUSD_Invalid_Fee() public {
-        /// @custom:todo implement test
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP_INTO_SUSD;
+
+        // Uniswap v3 introduces multiple pools for each token pair,
+        // each with a different swapping fee. Liquidity providers may
+        // initially create pools at three fee levels: 0.05%, 0.30%, and 1%.
+        //
+        // for this test, we set fee to type(uint24).max which is invalid
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            DAI, // tokenIn
+            type(uint24).max, // fee: invalid fee
+            block.timestamp, // deadline
+            AMOUNT, // amountIn
+            1, // amountOutMinimum
+            0 // sqrtPriceLimitX96
+        );
+
+        account.transferOwnership(EOA_WITH_DAI);
+
+        vm.startPrank(EOA_WITH_DAI);
+
+        dai.approve(address(account), AMOUNT);
+
+        // Call reverts without data
+        vm.expectRevert();
+        account.execute(commands, inputs);
+
+        vm.stopPrank();
     }
 
     function test_Command_UNISWAP_V3_SWAP_INTO_SUSD_Invalid_Deadline() public {
-        /// @custom:todo implement test
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP_INTO_SUSD;
+
+        // for this test, we set deadline to a time before the current block (i.e. in the past)
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            DAI, // tokenIn
+            3000, // fee: for this example, we will set the pool fee to 0.3%
+            block.timestamp - 1, // deadline: invalid because it is in the past
+            AMOUNT, // amountIn
+            1, // amountOutMinimum
+            0 // sqrtPriceLimitX96
+        );
+
+        account.transferOwnership(EOA_WITH_DAI);
+
+        vm.startPrank(EOA_WITH_DAI);
+
+        dai.approve(address(account), AMOUNT);
+
+        vm.expectRevert("Transaction too old");
+        account.execute(commands, inputs);
+
+        vm.stopPrank();
     }
 
     function test_Command_UNISWAP_V3_SWAP_INTO_SUSD_Invalid_AmountIn() public {
-        /// @custom:todo implement test
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP_INTO_SUSD;
+
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            DAI, // tokenIn
+            3000, // fee: for this example, we will set the pool fee to 0.3%
+            block.timestamp, // deadline
+            dai.balanceOf(EOA_WITH_DAI) + 1, // amountIn: greater than EOA's balance
+            1, // amountOutMinimum
+            0 // sqrtPriceLimitX96
+        );
+
+        account.transferOwnership(EOA_WITH_DAI);
+
+        vm.startPrank(EOA_WITH_DAI);
+
+        dai.approve(address(account), AMOUNT);
+
+        vm.expectRevert("Dai/insufficient-balance");
+        account.execute(commands, inputs);
+
+        vm.stopPrank();
     }
 
     function test_Command_UNISWAP_V3_SWAP_INTO_SUSD_Invalid_AmountOutMinimum()
         public
     {
-        /// @custom:todo implement test
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP_INTO_SUSD;
+
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            DAI, // tokenIn
+            3000, // fee: for this example, we will set the pool fee to 0.3%
+            block.timestamp, // deadline
+            AMOUNT, // amountIn
+            type(uint256).max, // amountOutMinimum: invalid due to being greater than current exchange rate
+            0 // sqrtPriceLimitX96
+        );
+
+        account.transferOwnership(EOA_WITH_DAI);
+
+        vm.startPrank(EOA_WITH_DAI);
+
+        dai.approve(address(account), AMOUNT);
+
+        vm.expectRevert("Too little received");
+        account.execute(commands, inputs);
+
+        vm.stopPrank();
     }
 
     function test_Command_UNISWAP_V3_SWAP_INTO_SUSD_Invalid_SqrtPriceLimitX96()
         public
     {
-        /// @custom:todo implement test
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP_INTO_SUSD;
+
+        // for this test, we set sqrtPriceLimitX96 to 1 and amountOutMinimum to an unreachable value
+        // see: https://uniswapv3book.com/docs/milestone_3/slippage-protection/#slippage-protection-in-swaps
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            DAI, // tokenIn
+            3000, // fee: for this example, we will set the pool fee to 0.3%
+            block.timestamp, // deadline
+            AMOUNT, // amountIn
+            1, // amountOutMinimum
+            1 // sqrtPriceLimitX96
+        );
+
+        account.transferOwnership(EOA_WITH_DAI);
+
+        vm.startPrank(EOA_WITH_DAI);
+
+        dai.approve(address(account), AMOUNT);
+
+        // Call reverts with: "SPL" -> sqrtPriceLimit
+        vm.expectRevert(abi.encodePacked("SPL"));
+        account.execute(commands, inputs);
+
+        vm.stopPrank();
     }
 
     function test_Command_UNISWAP_V3_SWAP_OUT_OF_SUSD_Not_Whitelisted()
@@ -277,7 +447,7 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
             amountIn: AMOUNT,
             amountOutMinimum: 1,
             sqrtPriceLimitX96: 0,
-            amountOut: 671101103840006832361 // specific to block number; just verify that it's not 0
+            amountOut: 671_101_103_840_006_832_361 // specific to block number; just verify that it's not 0
         });
         account.execute(commands, inputs);
 
@@ -310,7 +480,7 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
             amountIn: AMOUNT,
             amountOutMinimum: 1,
             sqrtPriceLimitX96: 0,
-            amountOut: 259924071287308426402 // specific to block number; just verify that it's not 0
+            amountOut: 259_924_071_287_308_426_402 // specific to block number; just verify that it's not 0
         });
         account.execute(commands, inputs);
     }
