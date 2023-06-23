@@ -48,6 +48,18 @@ contract ConsolidatedEvents {
         address indexed user, address indexed account, uint256 amount
     );
 
+    event UniswapV3Swap(
+        address tokenIn,
+        address tokenOut,
+        uint24 fee,
+        address recipient,
+        uint256 deadline,
+        uint256 amountIn,
+        uint256 amountOutMinimum,
+        uint160 sqrtPriceLimitX96,
+        uint256 amountOut
+    );
+
     event ConditionalOrderPlaced(
         address indexed account,
         uint256 indexed conditionalOrderId,

@@ -84,6 +84,14 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
                              INVALID SWAPS
     //////////////////////////////////////////////////////////////*/
 
+    /*
+    vm.expectRevert("Insufficient balance after any settlement owing");
+
+    vm.expectRevert(
+            abi.encodeWithSelector(IAccount.LengthMismatch.selector)
+        );
+    */
+
     function test_Command_UNISWAP_V3_SWAP_INTO_SUSD_Not_Whitelisted() public {
         /// @custom:todo implement test
     }
@@ -189,7 +197,7 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
             3000, // fee: for this example, we will set the pool fee to 0.3%
             block.timestamp, // deadline
             AMOUNT, // amountIn
-            0, // amountOutMinimum
+            1, // amountOutMinimum
             0 // sqrtPriceLimitX96
         );
 
@@ -209,28 +217,30 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
     }
 
     function test_Command_UNISWAP_V3_SWAP_OUT_OF_SUSD() public {
-        /// @custom:todo implement test
+        fundAccount(AMOUNT);
 
-        // fundAccount(AMOUNT);
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP_OUT_OF_SUSD;
 
-        // IAccount.Command[] memory commands = new IAccount.Command[](1);
-        // commands[0] = IAccount.Command.UNISWAP_V3_SWAP_OUT_OF_SUSD;
+        // Naively set amountOutMinimum to 0. In production, use an oracle or
+        // other data source to choose a safer value for amountOutMinimum.
+        // We also set the sqrtPriceLimitx96 to be 0 to ensure we swap
+        // our exact input amount.
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            DAI, // tokenOut
+            3000, // fee: for this example, we will set the pool fee to 0.3%
+            block.timestamp, // deadline
+            AMOUNT, // amountIn
+            1, // amountOutMinimum
+            0 // sqrtPriceLimitX96
+        );
 
-        // // Naively set amountOutMinimum to 0. In production, use an oracle or
-        // // other data source to choose a safer value for amountOutMinimum.
-        // // We also set the sqrtPriceLimitx96 to be 0 to ensure we swap
-        // // our exact input amount.
-        // bytes[] memory inputs = new bytes[](1);
-        // inputs[0] = abi.encode(
-        //     DAI, // tokenOut
-        //     3000, // fee: for this example, we will set the pool fee to 0.3%
-        //     block.timestamp, // deadline
-        //     AMOUNT, // amountIn
-        //     0, // amountOutMinimum
-        //     0 // sqrtPriceLimitX96
-        // );
+        uint256 preSwapBalance = dai.balanceOf(address(this));
+        account.execute(commands, inputs);
+        uint256 postSwapBalance = dai.balanceOf(address(this));
 
-        // account.execute(commands, inputs);
+        assert(postSwapBalance > preSwapBalance);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -238,11 +248,71 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_Command_UNISWAP_V3_SWAP_INTO_SUSD_Event() public {
-        /// @custom:todo implement test
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP_INTO_SUSD;
+
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            DAI, // tokenIn
+            3000, // fee: for this example, we will set the pool fee to 0.3%
+            block.timestamp, // deadline
+            AMOUNT, // amountIn
+            1, // amountOutMinimum
+            0 // sqrtPriceLimitX96
+        );
+
+        account.transferOwnership(EOA_WITH_DAI);
+
+        vm.startPrank(EOA_WITH_DAI);
+
+        dai.approve(address(account), AMOUNT);
+
+        vm.expectEmit(true, true, true, true);
+        emit UniswapV3Swap({
+            tokenIn: DAI,
+            tokenOut: MARGIN_ASSET,
+            fee: 3000,
+            recipient: address(account),
+            deadline: block.timestamp,
+            amountIn: AMOUNT,
+            amountOutMinimum: 1,
+            sqrtPriceLimitX96: 0,
+            amountOut: 671101103840006832361 // specific to block number; just verify that it's not 0
+        });
+        account.execute(commands, inputs);
+
+        vm.stopPrank();
     }
 
     function test_Command_UNISWAP_V3_SWAP_OUT_OF_SUSD_Event() public {
-        /// @custom:todo implement test
+        fundAccount(AMOUNT);
+
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP_OUT_OF_SUSD;
+
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            DAI, // tokenOut
+            3000, // fee: for this example, we will set the pool fee to 0.3%
+            block.timestamp, // deadline
+            AMOUNT, // amountIn
+            1, // amountOutMinimum
+            0 // sqrtPriceLimitX96
+        );
+
+        vm.expectEmit(true, true, true, true);
+        emit UniswapV3Swap({
+            tokenIn: MARGIN_ASSET,
+            tokenOut: DAI,
+            fee: 3000,
+            recipient: address(this),
+            deadline: block.timestamp,
+            amountIn: AMOUNT,
+            amountOutMinimum: 1,
+            sqrtPriceLimitX96: 0,
+            amountOut: 259924071287308426402 // specific to block number; just verify that it's not 0
+        });
+        account.execute(commands, inputs);
     }
 
     /*//////////////////////////////////////////////////////////////
