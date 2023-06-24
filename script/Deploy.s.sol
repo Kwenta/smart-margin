@@ -75,7 +75,7 @@ contract Setup {
             // resolve necessary addresses via the Synthetix Address Resolver
             addressResolver = IAddressResolver(_addressResolver);
         }
-        
+
         implementation = new Account({
             _factory: address(factory),
             _events: address(events),
