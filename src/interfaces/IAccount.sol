@@ -19,6 +19,8 @@ interface IAccount {
                                 Types
     ///////////////////////////////////////////////////////////////*/
 
+    /// @custom:todo update wiki with new command types and inputs
+
     /// @notice Command Flags used to decode commands to execute
     /// @dev under the hood ACCOUNT_MODIFY_MARGIN = 0, ACCOUNT_WITHDRAW_ETH = 1
     enum Command {

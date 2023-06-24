@@ -277,6 +277,8 @@ contract Account is IAccount, Auth, OpsReady {
     {
         uint256 commandIndex = uint256(_command);
 
+        /// @custom:todo refactor? gas-snapshot!
+
         if (commandIndex < 3) {
             /// @dev only owner can execute the following commands
             if (!isOwner()) revert Unauthorized();
@@ -973,6 +975,10 @@ contract Account is IAccount, Auth, OpsReady {
                                 UNISWAP
     //////////////////////////////////////////////////////////////*/
 
+    /// @custom:todo add to new file
+
+     /// @custom:todo add documentation
+     /// @dev swaps from sUSD to whitelisted token will not require nonce nor signature
     function _uniswapV3Swap(
         uint256 _amountIn,
         uint256 _amountOutMin,
@@ -1049,6 +1055,7 @@ contract Account is IAccount, Auth, OpsReady {
         });
     }
 
+    /// @custom:todo add documentation
     function _universalRouterExecute(
         address _recipient,
         uint256 _amountIn,
