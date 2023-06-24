@@ -12,17 +12,23 @@ import {
     ISettings,
     ISystemStatus
 } from "./interfaces/IAccount.sol";
+import {
+    IPermit2,
+    ISignatureTransfer,
+    IAllowanceTransfer
+} from "./interfaces/uniswap/IPERMIT2.sol";
 import {BytesLib} from "./utils/uniswap/BytesLib.sol";
 import {IERC20} from "./interfaces/IERC20.sol";
 import {IUniversalRouter} from "./interfaces/uniswap/IUniversalRouter.sol";
 import {OpsReady, IOps} from "./utils/OpsReady.sol";
-import {IPermit2} from "./interfaces/uniswap/IPERMIT2.sol";
+import {SafeCast160} from "./utils/uniswap/SafeCast160.sol";
 
 /// @title Kwenta Smart Margin Account Implementation
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice flexible smart margin account enabling users to trade on-chain derivatives
 contract Account is IAccount, Auth, OpsReady {
     using BytesLib for bytes;
+    using SafeCast160 for uint256;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
@@ -290,7 +296,25 @@ contract Account is IAccount, Auth, OpsReady {
                 _withdrawEth({_amount: amount});
             } else {
                 // Command.UNISWAP_V3_SWAP
-                _uniswapV3Swap(_inputs);
+                uint256 amountIn;
+                uint256 amountOutMin;
+                uint256 nonce;
+                bytes calldata path = _inputs.toBytes(3);
+                bytes calldata signature = _inputs.toBytes(4);
+                assembly {
+                    amountIn := calldataload(_inputs.offset)
+                    amountOutMin := calldataload(add(_inputs.offset, 0x20))
+                    nonce := calldataload(add(_inputs.offset, 0x40))
+                    // 0x60 offset is the path; decoded above
+                    // 0x80 offset is the signature; decoded below
+                }
+                _uniswapV3Swap({
+                    _amountIn: amountIn,
+                    _amountOutMin: amountOutMin,
+                    _nonce: nonce,
+                    _path: path,
+                    _signature: signature
+                });
             }
         } else {
             /// @dev only owner and delegate(s) can execute the following commands
@@ -949,62 +973,100 @@ contract Account is IAccount, Auth, OpsReady {
                                 UNISWAP
     //////////////////////////////////////////////////////////////*/
 
-    function _uniswapV3Swap(bytes calldata _inputs) internal {
-        // define tokens to swap
-        bytes calldata path = _inputs.toBytes(3);
-        (address tokenIn, address tokenOut) = path.toSwap();
+    function _uniswapV3Swap(
+        uint256 _amountIn,
+        uint256 _amountOutMin,
+        uint256 _nonce,
+        bytes calldata _path,
+        bytes calldata _signature
+    ) internal {
+        // decode tokens to swap
+        (address tokenIn, address tokenOut) = _path.toSwap();
 
-        // establish direction
-        /// @custom:todo add logic check here
-
-        // define signature
-        bytes calldata signature = _inputs.toBytes(6);
-
-        // decode inputs to verify and use for tranfer/swap
+        // define recipient of swap
         address recipient;
-        uint256 amountIn;
-        uint256 amountOutMin;
-        bool payerIsUser;
-        uint256 nonce;
-        assembly {
-            recipient := calldataload(_inputs.offset)
-            amountIn := calldataload(add(_inputs.offset, 0x20))
-            amountOutMin := calldataload(add(_inputs.offset, 0x40))
-            // 0x60 offset is the path; was decoded above
-            payerIsUser := calldataload(add(_inputs.offset, 0x80))
-            nonce := calldataload(add(_inputs.offset, 0xa0))
-            // 0xc0 offset is the signature; was decoded above
+
+        /// @dev verify direction and validity of swap (i.e. sUSD <-> whitelisted token)
+        if (
+            tokenIn == address(MARGIN_ASSET)
+                && SETTINGS.whitelistedTokens(tokenOut)
+        ) {
+            // if swapping sUSD for another token, ensure sufficient margin
+            _sufficientMargin(int256(_amountIn));
+
+            recipient = owner;
+        } else if (
+            tokenOut == address(MARGIN_ASSET)
+                && SETTINGS.whitelistedTokens(tokenIn)
+        ) {
+            // if swapping another token for sUSD, token must be transferred to this contract
+            /// @dev Requires user's token approval on the Permit2 contract
+            /// expired prior to this call
+            PERMIT2.permitTransferFrom({
+                permit: ISignatureTransfer.PermitTransferFrom({
+                    permitted: ISignatureTransfer.TokenPermissions({
+                        token: tokenIn,
+                        amount: _amountIn
+                    }),
+                    nonce: _nonce,
+                    deadline: block.timestamp
+                }),
+                transferDetails: ISignatureTransfer.SignatureTransferDetails({
+                    to: address(this),
+                    requestedAmount: _amountIn
+                }),
+                owner: owner,
+                signature: _signature
+            });
+
+            recipient = address(this);
+        } else {
+            // only allow sUSD <-> whitelisted token swaps
+            revert TokenSwapNotAllowed();
         }
 
-        PERMIT2.permitTransferFrom({
-            permit: IPermit2.PermitTransferFrom({
-                permitted: IPermit2.TokenPermissions({token: tokenIn, amount: amountIn}),
-                nonce: nonce,
-                deadline: block.timestamp
-            }),
-            transferDetails: IPermit2.SignatureTransferDetails({
-                to: address(this),
-                requestedAmount: amountIn
-            }),
-            owner: owner,
-            signature: signature
+        // approve tokens to be swapped via Universal Router
+        /// @dev Requires user's token approval on the Permit2 contract
+        PERMIT2.approve({
+            token: tokenIn,
+            spender: address(UNISWAP_UNIVERSAL_ROUTER),
+            amount: _amountIn.toUint160(),
+            // Use an unlimited expiration because it most
+            // closely mimics how a standard approval works
+            expiration: type(uint48).max
         });
 
-        bytes[] memory inputs = new bytes[](1);
-        inputs[0] = _inputs;
-
-        UNISWAP_UNIVERSAL_ROUTER.execute({
-            commands: abi.encodePacked(V3_SWAP_EXACT_IN),
-            inputs: inputs,
-            deadline: block.timestamp
-        });
+        _universalRouterExecute(
+            recipient, _amountIn, _amountOutMin, _path, true
+        );
 
         EVENTS.emitUniswapV3Swap({
             tokenIn: tokenIn,
             tokenOut: tokenOut,
             recipient: recipient,
-            amountIn: amountIn,
-            amountOutMinimum: amountOutMin
+            amountIn: _amountIn,
+            amountOutMinimum: _amountOutMin
+        });
+    }
+
+    function _universalRouterExecute(
+        address _recipient,
+        uint256 _amountIn,
+        uint256 _amountOutMin,
+        bytes calldata _path,
+        bool _payerIsUser
+    ) internal {
+        // create bytes array for Universal Router using only part of the original inputs
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            _recipient, _amountIn, _amountOutMin, _path, _payerIsUser
+        );
+
+        // execute swap
+        UNISWAP_UNIVERSAL_ROUTER.execute({
+            commands: abi.encodePacked(V3_SWAP_EXACT_IN),
+            inputs: inputs,
+            deadline: block.timestamp
         });
     }
 
