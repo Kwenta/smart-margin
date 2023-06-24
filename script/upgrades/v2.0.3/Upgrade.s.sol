@@ -103,7 +103,8 @@ contract UpgradeAccountOptimismGoerli is Script {
                 _gelato: OPTIMISM_GOERLI_GELATO,
                 _ops: OPTIMISM_GOERLI_OPS,
                 _settings: settings,
-                _uniswapV3SwapRouter: OPTIMISM_GOERLI_UNISWAP_V3_SWAP_ROUTER
+                _universalRouter: OPTIMISM_GOERLI_UNISWAP_UNIVERSAL_ROUTER,
+                _permit2: OPTIMISM_GOERLI_UNISWAP_PERMIT2
             })
         );
     }
