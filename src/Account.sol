@@ -16,7 +16,7 @@ import {
     IPermit2,
     ISignatureTransfer,
     IAllowanceTransfer
-} from "./interfaces/uniswap/IPERMIT2.sol";
+} from "./interfaces/uniswap/IPermit2.sol";
 import {BytesLib} from "./utils/uniswap/BytesLib.sol";
 import {IERC20} from "./interfaces/IERC20.sol";
 import {IUniversalRouter} from "./interfaces/uniswap/IUniversalRouter.sol";
@@ -977,8 +977,8 @@ contract Account is IAccount, Auth, OpsReady {
 
     /// @custom:todo add to new file
 
-     /// @custom:todo add documentation
-     /// @dev swaps from sUSD to whitelisted token will not require nonce nor signature
+    /// @custom:todo add documentation
+    /// @dev swaps from sUSD to whitelisted token will not require nonce nor signature
     function _uniswapV3Swap(
         uint256 _amountIn,
         uint256 _amountOutMin,
