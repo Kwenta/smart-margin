@@ -61,7 +61,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             _addressResolver: ADDRESS_RESOLVER,
             _gelato: GELATO,
             _ops: OPS,
-            _uniswapV3SwapRouter: UNISWAP_V3_SWAP_ROUTER
+            _universalRouter: UNISWAP_UNIVERSAL_ROUTER,
+            _permit2: UNISWAP_PERMIT2
         });
 
         // define helper contracts
@@ -84,7 +85,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             GELATO, 
             OPS,
             address(settings),
-            UNISWAP_V3_SWAP_ROUTER
+            UNISWAP_UNIVERSAL_ROUTER,
+            UNISWAP_PERMIT2
         );
 
         // deploy an Account contract and fund it

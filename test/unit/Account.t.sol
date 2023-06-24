@@ -48,7 +48,8 @@ contract AccountTest is Test, ConsolidatedEvents {
             _addressResolver: ADDRESS_RESOLVER,
             _gelato: GELATO,
             _ops: OPS,
-            _uniswapV3SwapRouter: UNISWAP_V3_SWAP_ROUTER
+            _universalRouter: UNISWAP_UNIVERSAL_ROUTER,
+            _permit2: UNISWAP_PERMIT2
         });
 
         // deploy an Account contract
@@ -74,7 +75,8 @@ contract AccountTest is Test, ConsolidatedEvents {
             GELATO, 
             OPS,
             address(settings),
-            UNISWAP_V3_SWAP_ROUTER
+            UNISWAP_UNIVERSAL_ROUTER,
+            UNISWAP_PERMIT2
         );
     }
 
@@ -418,27 +420,11 @@ contract AccountTest is Test, ConsolidatedEvents {
         withdrawEth(AMOUNT);
     }
 
-    function test_DelegatedTrader_Execute_UNISWAP_V3_SWAP_INTO_SUSD() public {
+    function test_DelegatedTrader_Execute_UNISWAP_V3_SWAP() public {
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         bytes[] memory inputs = new bytes[](1);
 
-        commands[0] = IAccount.Command.UNISWAP_V3_SWAP_INTO_SUSD;
-
-        account.addDelegate({_delegate: DELEGATE});
-        vm.prank(DELEGATE);
-
-        /// @notice delegate CANNOT execute the following COMMAND
-        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
-        account.execute(commands, inputs);
-    }
-
-    function test_DelegatedTrader_Execute_UNISWAP_V3_SWAP_OUT_OF_SUSD()
-        public
-    {
-        IAccount.Command[] memory commands = new IAccount.Command[](1);
-        bytes[] memory inputs = new bytes[](1);
-
-        commands[0] = IAccount.Command.UNISWAP_V3_SWAP_OUT_OF_SUSD;
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
 
         account.addDelegate({_delegate: DELEGATE});
         vm.prank(DELEGATE);

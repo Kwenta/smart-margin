@@ -22,7 +22,8 @@ contract AccountExposed is Account {
         address _gelato,
         address _ops,
         address _settings,
-        address _uniswapV3SwapRouter
+        address _universalRouter,
+        address _permit2
     )
         Account(
             _factory,
@@ -34,7 +35,8 @@ contract AccountExposed is Account {
             _gelato,
             _ops,
             _settings,
-            _uniswapV3SwapRouter
+            _universalRouter,
+            _permit2
         )
     {}
 

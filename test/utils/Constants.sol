@@ -95,6 +95,8 @@ uint256 constant GELATO_FEE = 69;
 address constant UNISWAP_UNIVERSAL_ROUTER =
     0xb555edF5dcF85f42cEeF1f3630a52A108E55A654;
 
+address constant UNISWAP_PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+
 /*//////////////////////////////////////////////////////////////
                                   DAI
     //////////////////////////////////////////////////////////////*/

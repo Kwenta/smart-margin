@@ -18,7 +18,8 @@ import {
     FUTURES_MARKET_MANAGER,
     SYSTEM_STATUS,
     PERPS_V2_EXCHANGE_RATE,
-    UNISWAP_V3_SWAP_ROUTER,
+    UNISWAP_UNIVERSAL_ROUTER,
+    UNISWAP_PERMIT2,
     GELATO,
     OPS,
     MARGIN_ASSET,
@@ -61,7 +62,8 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
             _addressResolver: ADDRESS_RESOLVER,
             _gelato: GELATO,
             _ops: OPS,
-            _uniswapV3SwapRouter: UNISWAP_V3_SWAP_ROUTER
+            _universalRouter: UNISWAP_UNIVERSAL_ROUTER,
+            _permit2: UNISWAP_PERMIT2
         });
 
         // deploy an Account contract
