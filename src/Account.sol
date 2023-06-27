@@ -18,11 +18,13 @@ import {IERC20} from "./interfaces/IERC20.sol";
 import {IUniversalRouter} from "./interfaces/uniswap/IUniversalRouter.sol";
 import {OpsReady, IOps} from "./utils/OpsReady.sol";
 import {SafeCast160} from "./utils/uniswap/SafeCast160.sol";
+import {V3Path} from "./utils/uniswap/V3Path.sol";
 
 /// @title Kwenta Smart Margin Account Implementation
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice flexible smart margin account enabling users to trade on-chain derivatives
 contract Account is IAccount, Auth, OpsReady {
+    using V3Path for bytes;
     using BytesLib for bytes;
     using SafeCast160 for uint256;
 
@@ -1008,7 +1010,7 @@ contract Account is IAccount, Auth, OpsReady {
         bytes calldata _path
     ) internal {
         // decode tokens to swap
-        (address tokenIn, address tokenOut) = _path.toSwap();
+        (address tokenIn, address tokenOut) = _getTokenInTokenOut(_path);
 
         // define recipient of swap; set later once direction is established
         address recipient;
@@ -1039,7 +1041,7 @@ contract Account is IAccount, Auth, OpsReady {
             recipient = address(this);
         } else {
             // only allow sUSD <-> whitelisted token swaps
-            revert TokenSwapNotAllowed();
+            revert TokenSwapNotAllowed(tokenIn, tokenOut);
         }
 
         // approve Permit2 to spend _amountIn of this contract's tokenIn
@@ -1086,6 +1088,25 @@ contract Account is IAccount, Auth, OpsReady {
             inputs: inputs,
             deadline: block.timestamp
         });
+    }
+
+    function _getTokenInTokenOut(bytes calldata _path)
+        internal
+        pure
+        returns (address tokenIn, address tokenOut)
+    {
+        tokenIn = _path.decodeFirstToken();
+        while (true) {
+            bool hasMultiplePools = _path.hasMultiplePools();
+
+            // decide whether to continue or terminate
+            if (hasMultiplePools) {
+                _path = _path.skipToken();
+            } else {
+                (,, tokenOut) = _path.toPool();
+                break;
+            }
+        }
     }
 
     /*//////////////////////////////////////////////////////////////

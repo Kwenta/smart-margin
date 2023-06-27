@@ -3,25 +3,41 @@ pragma solidity 0.8.18;
 
 import {Constants} from "./Constants.sol";
 
-/// @title Library for Bytes Manipulation
 library BytesLib {
     error SliceOutOfBounds();
 
-    /// @notice Decode the first and last tokens in `_bytes` as addresses
-    /// @dev Number of pools is derived from the length of `_bytes`
+    /// @notice Returns the address starting at byte 0
+    /// @dev length and overflow checks must be carried out before calling
     /// @param _bytes The input bytes string to slice
-    /// @return tokenIn The first token in of the first given pool
-    /// @return tokenOut The last token out of the last given pool
-    function toSwap(bytes calldata _bytes)
+    /// @return _address The address starting at byte 0
+    function toAddress(bytes calldata _bytes)
         internal
         pure
-        returns (address tokenIn, address tokenOut)
+        returns (address _address)
     {
-        uint256 numberOfPools = _bytes.length / Constants.V3_POP_OFFSET;
+        if (_bytes.length < Constants.ADDR_SIZE) revert SliceOutOfBounds();
         assembly {
-            tokenIn := shr(96, calldataload(_bytes.offset))
-            tokenOut :=
-                shr(96, calldataload(add(_bytes.offset, mul(numberOfPools, 23))))
+            _address := shr(96, calldataload(_bytes.offset))
+        }
+    }
+
+    /// @notice Returns the pool details starting at byte 0
+    /// @dev length and overflow checks must be carried out before calling
+    /// @param _bytes The input bytes string to slice
+    /// @return token0 The address at byte 0
+    /// @return fee The uint24 starting at byte 20
+    /// @return token1 The address at byte 23
+    function toPool(bytes calldata _bytes)
+        internal
+        pure
+        returns (address token0, uint24 fee, address token1)
+    {
+        if (_bytes.length < Constants.V3_POP_OFFSET) revert SliceOutOfBounds();
+        assembly {
+            let firstWord := calldataload(_bytes.offset)
+            token0 := shr(96, firstWord)
+            fee := and(shr(72, firstWord), 0xffffff)
+            token1 := shr(96, calldataload(add(_bytes.offset, 23)))
         }
     }
 
