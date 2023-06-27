@@ -25,7 +25,7 @@ import {
     GELATO,
     OPS,
     DAI,
-    WETH,
+    USDC,
     SWAP_AMOUNT,
     EOA_WITH_DAI,
     AMOUNT,
@@ -48,7 +48,8 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
 
     // helper contracts for testing
     IERC20 private sUSD;
-    IERC20 private dai;
+    IERC20 private dai = IERC20(DAI);
+    IERC20 private usdc = IERC20(USDC);
 
     // uniswap
     IPermit2 private PERMIT2;
@@ -79,8 +80,6 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         sUSD = IERC20(IAddressResolver(ADDRESS_RESOLVER).getAddress(PROXY_SUSD));
         mintSUSD(address(this), AMOUNT);
 
-        settings.setTokenWhitelistStatus(DAI, true);
-        dai = IERC20(DAI);
         vm.prank(EOA_WITH_DAI);
         dai.transfer(address(this), AMOUNT);
     }
@@ -94,6 +93,9 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_UniswapV3Swap_DAI_SUSD() public {
+        // whitelist DAI
+        settings.setTokenWhitelistStatus(address(dai), true);
+
         // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
         dai.approve(UNISWAP_PERMIT2, type(uint256).max);
 
@@ -123,7 +125,47 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         assertGt(postBalance, preBalance);
     }
 
+    function test_UniswapV3Swap_DAI_USDC_SUSD() public {
+        // whitelist DAI
+        settings.setTokenWhitelistStatus(address(dai), true);
+
+        // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
+        dai.approve(UNISWAP_PERMIT2, type(uint256).max);
+
+        // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
+        /// @dev this can be done via signature in production
+        PERMIT2.approve(
+            address(dai), address(account), type(uint160).max, type(uint48).max
+        );
+
+        // define command(s)
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
+
+        // define input(s)
+        bytes[] memory inputs = new bytes[](1);
+        uint256 amountIn = AMOUNT / 2;
+        uint256 amountOutMin = 1;
+        bytes memory path = bytes.concat(
+            bytes20(address(dai)),
+            LOW_FEE_TIER,
+            bytes20(address(usdc)),
+            LOW_FEE_TIER,
+            bytes20(address(sUSD))
+        );
+        inputs[0] = abi.encode(amountIn, amountOutMin, path);
+
+        uint256 preBalance = sUSD.balanceOf(address(account));
+        account.execute(commands, inputs);
+        uint256 postBalance = sUSD.balanceOf(address(account));
+
+        assertGt(postBalance, preBalance);
+    }
+
     function test_UniswapV3Swap_SUSD_DAI() public {
+        // whitelist DAI
+        settings.setTokenWhitelistStatus(address(dai), true);
+
         // fund account with sUSD
         fundAccount(AMOUNT);
 
@@ -147,9 +189,98 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         assertGt(postBalance, preBalance);
     }
 
+    function test_UniswapV3Swap_SUSD_DAI_USDC() public {
+        // whitelist DAI
+        settings.setTokenWhitelistStatus(address(usdc), true);
+
+        // fund account with sUSD
+        fundAccount(AMOUNT);
+
+        // define command(s)
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
+
+        // define input(s)
+        bytes[] memory inputs = new bytes[](1);
+        uint256 amountIn = AMOUNT / 2;
+        uint256 amountOutMin = 1;
+        bytes memory path = bytes.concat(
+            bytes20(address(sUSD)),
+            LOW_FEE_TIER,
+            bytes20(address(dai)),
+            LOW_FEE_TIER,
+            bytes20(address(usdc))
+        );
+        inputs[0] = abi.encode(amountIn, amountOutMin, path);
+
+        uint256 preBalance = usdc.balanceOf(address(this));
+        account.execute(commands, inputs);
+        uint256 postBalance = usdc.balanceOf(address(this));
+
+        assertGt(postBalance, preBalance);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
+
+    // function test_UniswapV3Swap_DAI_SUSD_Event() public {
+    //     // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
+    //     dai.approve(UNISWAP_PERMIT2, type(uint256).max);
+
+    //     // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
+    //     /// @dev this can be done via signature in production
+    //     PERMIT2.approve(
+    //         address(dai), address(account), type(uint160).max, type(uint48).max
+    //     );
+
+    //     // define command(s)
+    //     IAccount.Command[] memory commands = new IAccount.Command[](1);
+    //     commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
+
+    //     // define input(s)
+    //     bytes[] memory inputs = new bytes[](1);
+    //     uint256 amountIn = AMOUNT / 2;
+    //     uint256 amountOutMin = 1;
+    //     bytes memory path = bytes.concat(
+    //         bytes20(address(dai)), LOW_FEE_TIER, bytes20(address(sUSD))
+    //     );
+    //     inputs[0] = abi.encode(amountIn, amountOutMin, path);
+
+    //     vm.expectEmit(true, true, true, true);
+    //     emit UniswapV3Swap(
+    //         address(dai),
+    //         address(sUSD),
+    //         address(account),
+    //         amountIn,
+    //         amountOutMin
+    //     );
+    //     account.execute(commands, inputs);
+    // }
+
+    // function test_UniswapV3Swap_SUSD_DAI_Event() public {
+    //     // fund account with sUSD
+    //     fundAccount(AMOUNT);
+
+    //     // define command(s)
+    //     IAccount.Command[] memory commands = new IAccount.Command[](1);
+    //     commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
+
+    //     // define input(s)
+    //     bytes[] memory inputs = new bytes[](1);
+    //     uint256 amountIn = AMOUNT / 2;
+    //     uint256 amountOutMin = 1;
+    //     bytes memory path = bytes.concat(
+    //         bytes20(address(sUSD)), LOW_FEE_TIER, bytes20(address(dai))
+    //     );
+    //     inputs[0] = abi.encode(amountIn, amountOutMin, path);
+
+    //     vm.expectEmit(true, true, true, true);
+    //     emit UniswapV3Swap(
+    //         address(sUSD), address(dai), address(this), amountIn, amountOutMin
+    //     );
+    //     account.execute(commands, inputs);
+    // }
 
     // /*//////////////////////////////////////////////////////////////
     //                             HELPERS
