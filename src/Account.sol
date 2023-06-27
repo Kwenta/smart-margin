@@ -277,7 +277,7 @@ contract Account is IAccount, Auth, OpsReady {
 
         /// @custom:todo refactor? gas-snapshot!
 
-        if (commandIndex < 3) {
+        if (commandIndex < 4) {
             /// @dev only owner can execute the following commands
             if (!isOwner()) revert Unauthorized();
 
@@ -294,7 +294,7 @@ contract Account is IAccount, Auth, OpsReady {
                     amount := calldataload(_inputs.offset)
                 }
                 _withdrawEth({_amount: amount});
-            } else {
+            } else if (_command == Command.UNISWAP_V3_SWAP) {
                 // Command.UNISWAP_V3_SWAP
                 uint256 amountIn;
                 uint256 amountOutMin;
@@ -309,12 +309,20 @@ contract Account is IAccount, Auth, OpsReady {
                     _amountOutMin: amountOutMin,
                     _path: path
                 });
+            } else {
+                // Command.PERMIT2_PERMIT
+                IPermit2.PermitSingle calldata permitSingle;
+                assembly {
+                    permitSingle := _inputs.offset
+                }
+                bytes calldata data = _inputs.toBytes(6); // PermitSingle takes first 6 slots (0..5)
+                PERMIT2.permit(msg.sender, permitSingle, data);
             }
         } else {
             /// @dev only owner and delegate(s) can execute the following commands
             if (!isAuth()) revert Unauthorized();
 
-            if (commandIndex < 5) {
+            if (commandIndex < 6) {
                 if (_command == Command.PERPS_V2_MODIFY_MARGIN) {
                     // Command.PERPS_V2_MODIFY_MARGIN
                     address market;
@@ -332,7 +340,7 @@ contract Account is IAccount, Auth, OpsReady {
                     }
                     _perpsV2WithdrawAllMargin({_market: market});
                 }
-            } else if (commandIndex < 7) {
+            } else if (commandIndex < 8) {
                 if (_command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
                     // Command.PERPS_V2_SUBMIT_ATOMIC_ORDER
                     address market;
@@ -370,7 +378,7 @@ contract Account is IAccount, Auth, OpsReady {
                         _desiredFillPrice: desiredFillPrice
                     });
                 }
-            } else if (commandIndex < 9) {
+            } else if (commandIndex < 10) {
                 if (_command == Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER)
                 {
                     // Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
@@ -402,7 +410,7 @@ contract Account is IAccount, Auth, OpsReady {
                         _desiredFillPrice: desiredFillPrice
                     });
                 }
-            } else if (commandIndex < 11) {
+            } else if (commandIndex < 12) {
                 if (_command == Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER) {
                     // Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER
                     address market;
@@ -434,7 +442,7 @@ contract Account is IAccount, Auth, OpsReady {
                         _desiredFillPrice: desiredFillPrice
                     });
                 }
-            } else if (commandIndex < 13) {
+            } else if (commandIndex < 14) {
                 if (_command == Command.PERPS_V2_CANCEL_DELAYED_ORDER) {
                     // Command.PERPS_V2_CANCEL_DELAYED_ORDER
                     address market;
@@ -450,7 +458,7 @@ contract Account is IAccount, Auth, OpsReady {
                     }
                     _perpsV2CancelOffchainDelayedOrder({_market: market});
                 }
-            } else if (commandIndex < 15) {
+            } else if (commandIndex < 16) {
                 if (_command == Command.GELATO_PLACE_CONDITIONAL_ORDER) {
                     // Command.GELATO_PLACE_CONDITIONAL_ORDER
                     bytes32 marketKey;
@@ -967,40 +975,10 @@ contract Account is IAccount, Auth, OpsReady {
                                 UNISWAP
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice permit a token allowance to be spent by this contract via a signature
-    /// @dev "Permit" event emitted by canonical Permit2 contract
-    /// @param _token: ERC20 token address to permit
-    /// @param _amount: the maximum amount allowed to spend
-    /// @param _expiration: timestamp at which a spender's token allowance becomes invalid
-    /// @param _nonce: an incrementing value indexed per owner, token, and spender for each signature
-    /// @param _sigDeadline: deadline for permit signature
-    /// @param _signature: owner's signature over the permit data
-    function _permit(
-        address _token,
-        uint160 _amount,
-        uint48 _expiration,
-        uint48 _nonce,
-        uint256 _sigDeadline,
-        bytes calldata _signature
-    ) internal {
-        PERMIT2.permit({
-            owner: msg.sender,
-            permitSingle: IPermit2.PermitSingle({
-                details: IPermit2.PermitDetails({
-                    token: _token,
-                    amount: _amount,
-                    expiration: _expiration,
-                    nonce: _nonce
-                }),
-                spender: address(this),
-                sigDeadline: _sigDeadline
-            }),
-            signature: _signature
-        });
-    }
-
     /// @notice swap tokens via Uniswap V3 (sUSD <-> whitelisted token)
     /// @dev assumes sufficient token allowances (i.e. Permit2 and this contract)
+    /// @dev non-whitelisted connector tokens will NOT cause a revert
+    /// (i.e. sUSD -> non-whitelisted token -> whitelisted token)
     /// @param _amountIn: amount of token to swap
     /// @param _amountOutMin: minimum amount of token to receive
     /// @param _path: path of tokens to swap (token0 - fee - token1)
