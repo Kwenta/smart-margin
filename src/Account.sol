@@ -12,11 +12,7 @@ import {
     ISettings,
     ISystemStatus
 } from "./interfaces/IAccount.sol";
-import {
-    IPermit2,
-    ISignatureTransfer,
-    IAllowanceTransfer
-} from "./interfaces/uniswap/IPermit2.sol";
+import {IPermit2} from "./interfaces/uniswap/IPermit2.sol";
 import {BytesLib} from "./utils/uniswap/BytesLib.sol";
 import {IERC20} from "./interfaces/IERC20.sol";
 import {IUniversalRouter} from "./interfaces/uniswap/IUniversalRouter.sol";
@@ -300,22 +296,16 @@ contract Account is IAccount, Auth, OpsReady {
                 // Command.UNISWAP_V3_SWAP
                 uint256 amountIn;
                 uint256 amountOutMin;
-                uint256 nonce;
-                bytes calldata path = _inputs.toBytes(3);
-                bytes calldata signature = _inputs.toBytes(4);
+                bytes calldata path = _inputs.toBytes(2);
                 assembly {
                     amountIn := calldataload(_inputs.offset)
                     amountOutMin := calldataload(add(_inputs.offset, 0x20))
-                    nonce := calldataload(add(_inputs.offset, 0x40))
-                    // 0x60 offset is the path; decoded above
-                    // 0x80 offset is the signature; decoded below
+                    // 0x40 offset is the path; decoded above
                 }
                 _uniswapV3Swap({
                     _amountIn: amountIn,
                     _amountOutMin: amountOutMin,
-                    _nonce: nonce,
-                    _path: path,
-                    _signature: signature
+                    _path: path
                 });
             }
         } else {
@@ -975,21 +965,52 @@ contract Account is IAccount, Auth, OpsReady {
                                 UNISWAP
     //////////////////////////////////////////////////////////////*/
 
-    /// @custom:todo add to new file
+    /// @notice permit a token allowance to be spent by this contract via a signature
+    /// @dev "Permit" event emitted by canonical Permit2 contract
+    /// @param _token: ERC20 token address to permit
+    /// @param _amount: the maximum amount allowed to spend
+    /// @param _expiration: timestamp at which a spender's token allowance becomes invalid
+    /// @param _nonce: an incrementing value indexed per owner, token, and spender for each signature
+    /// @param _sigDeadline: deadline for permit signature
+    /// @param _signature: owner's signature over the permit data
+    function _permit(
+        address _token,
+        uint160 _amount,
+        uint48 _expiration,
+        uint48 _nonce,
+        uint256 _sigDeadline,
+        bytes calldata _signature
+    ) internal {
+        PERMIT2.permit({
+            owner: msg.sender,
+            permitSingle: IPermit2.PermitSingle({
+                details: IPermit2.PermitDetails({
+                    token: _token,
+                    amount: _amount,
+                    expiration: _expiration,
+                    nonce: _nonce
+                }),
+                spender: address(this),
+                sigDeadline: _sigDeadline
+            }),
+            signature: _signature
+        });
+    }
 
-    /// @custom:todo add documentation
-    /// @dev swaps from sUSD to whitelisted token will not require nonce nor signature
+    /// @notice swap tokens via Uniswap V3 (sUSD <-> whitelisted token)
+    /// @dev assumes sufficient token allowances (i.e. Permit2 and this contract)
+    /// @param _amountIn: amount of token to swap
+    /// @param _amountOutMin: minimum amount of token to receive
+    /// @param _path: path of tokens to swap (token0 - fee - token1)
     function _uniswapV3Swap(
         uint256 _amountIn,
         uint256 _amountOutMin,
-        uint256 _nonce,
-        bytes calldata _path,
-        bytes calldata _signature
+        bytes calldata _path
     ) internal {
         // decode tokens to swap
         (address tokenIn, address tokenOut) = _path.toSwap();
 
-        // define recipient of swap
+        // define recipient of swap; set later once direction is established
         address recipient;
 
         /// @dev verify direction and validity of swap (i.e. sUSD <-> whitelisted token)
@@ -998,31 +1019,21 @@ contract Account is IAccount, Auth, OpsReady {
                 && SETTINGS.whitelistedTokens(tokenOut)
         ) {
             // if swapping sUSD for another token, ensure sufficient margin
+            /// @dev margin is being transferred out of this contract
             _sufficientMargin(int256(_amountIn));
 
-            recipient = owner;
+            recipient = msg.sender;
         } else if (
             tokenOut == address(MARGIN_ASSET)
                 && SETTINGS.whitelistedTokens(tokenIn)
         ) {
             // if swapping another token for sUSD, token must be transferred to this contract
-            /// @dev Requires user's token approval on the Permit2 contract
-            /// expired prior to this call
-            PERMIT2.permitTransferFrom({
-                permit: ISignatureTransfer.PermitTransferFrom({
-                    permitted: ISignatureTransfer.TokenPermissions({
-                        token: tokenIn,
-                        amount: _amountIn
-                    }),
-                    nonce: _nonce,
-                    deadline: block.timestamp
-                }),
-                transferDetails: ISignatureTransfer.SignatureTransferDetails({
-                    to: address(this),
-                    requestedAmount: _amountIn
-                }),
-                owner: owner,
-                signature: _signature
+            /// @dev msg.sender must have approved Permit2 to spend at least the amountIn
+            PERMIT2.transferFrom({
+                from: msg.sender,
+                to: address(this),
+                amount: _amountIn.toUint160(),
+                token: tokenIn
             });
 
             recipient = address(this);
@@ -1032,7 +1043,6 @@ contract Account is IAccount, Auth, OpsReady {
         }
 
         // approve tokens to be swapped via Universal Router
-        /// @dev Requires user's token approval on the Permit2 contract
         PERMIT2.approve({
             token: tokenIn,
             spender: address(UNISWAP_UNIVERSAL_ROUTER),
@@ -1063,15 +1073,13 @@ contract Account is IAccount, Auth, OpsReady {
         bytes calldata _path,
         bool _payerIsUser
     ) internal {
-        // create bytes array for Universal Router using only part of the original inputs
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(
             _recipient, _amountIn, _amountOutMin, _path, _payerIsUser
         );
 
-        // execute swap
         UNISWAP_UNIVERSAL_ROUTER.execute({
-            commands: abi.encodePacked(V3_SWAP_EXACT_IN),
+            commands: abi.encodePacked(bytes1(uint8(V3_SWAP_EXACT_IN))),
             inputs: inputs,
             deadline: block.timestamp
         });
