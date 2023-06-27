@@ -1042,6 +1042,9 @@ contract Account is IAccount, Auth, OpsReady {
             revert TokenSwapNotAllowed();
         }
 
+        // approve Permit2 to spend _amountIn of this contract's tokenIn
+        IERC20(tokenIn).approve(address(PERMIT2), _amountIn);
+
         // approve tokens to be swapped via Universal Router
         PERMIT2.approve({
             token: tokenIn,
