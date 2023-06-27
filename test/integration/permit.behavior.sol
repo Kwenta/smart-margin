@@ -13,6 +13,7 @@ import {ISynth} from "../utils/interfaces/ISynth.sol";
 import {SafeCast160} from "../../src/utils/uniswap/SafeCast160.sol";
 import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
+import {SigUtils} from "../utils/SigUtils.sol";
 import {
     ADDRESS_RESOLVER,
     BLOCK_NUMBER,
@@ -54,6 +55,13 @@ contract PermitBehaviorTest is Test, ConsolidatedEvents {
     // uniswap
     IPermit2 private PERMIT2;
 
+    // signature utils
+    SigUtils private sigUtils;
+    uint256 internal ownerPrivateKey;
+    uint256 internal spenderPrivateKey;
+    address internal owner;
+    address internal spender;
+
     /*//////////////////////////////////////////////////////////////
                                  SETUP
     //////////////////////////////////////////////////////////////*/
@@ -82,6 +90,12 @@ contract PermitBehaviorTest is Test, ConsolidatedEvents {
 
         vm.prank(EOA_WITH_DAI);
         dai.transfer(address(this), AMOUNT);
+
+        ownerPrivateKey = 0xA11CE;
+        spenderPrivateKey = 0xB0B;
+
+        owner = vm.addr(ownerPrivateKey);
+        spender = vm.addr(spenderPrivateKey);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -90,51 +104,59 @@ contract PermitBehaviorTest is Test, ConsolidatedEvents {
 
     function test_Permit() public {}
 
-    // function test_Permit_UniswapV3Swap() public {
-    //     // whitelist DAI
-    //     settings.setTokenWhitelistStatus(address(dai), true);
+    function test_Permit_UniswapV3Swap() public {
+        // whitelist DAI
+        settings.setTokenWhitelistStatus(address(dai), true);
 
-    //     // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
-    //     dai.approve(UNISWAP_PERMIT2, type(uint256).max);
+        // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
+        dai.approve(UNISWAP_PERMIT2, type(uint256).max);
 
-    //     // Calling permit() on the canonical Permit2 contract removes the need to call approve() on an ERC20
-    //     // PERMIT2.approve(
-    //     //     address(dai), address(account), type(uint160).max, type(uint48).max
-    //     // );
+        // Calling permit() on the canonical Permit2 contract removes the need to call approve() on an ERC20
+        // PERMIT2.approve(
+        //     address(dai), address(account), type(uint160).max, type(uint48).max
+        // );
 
-    //     // define _permit() parameters
-    //     IPermit2.PermitSingle memory permitSingle = IPermit2.PermitSingle({
-    //         details: IPermit2.PermitDetails({
-    //             token: address(dai),
-    //             amount: type(uint160).max,
-    //             expiration: type(uint48).max,
-    //             nonce: 0
-    //         }),
-    //         spender: address(account),
-    //         sigDeadline: block.timestamp + 1000
-    //     });
+        // define _permit() parameters
+        IPermit2.PermitSingle memory permitSingle = IPermit2.PermitSingle({
+            details: IPermit2.PermitDetails({
+                token: address(dai),
+                amount: type(uint160).max,
+                expiration: type(uint48).max,
+                nonce: 0
+            }),
+            spender: address(account),
+            sigDeadline: block.timestamp + 1000
+        });
 
-    //     // define command(s)
-    //     IAccount.Command[] memory commands = new IAccount.Command[](2);
-    //     commands[0] = IAccount.Command.PERMIT2_PERMIT;
-    //     commands[1] = IAccount.Command.UNISWAP_V3_SWAP;
+        bytes32 digest = sigUtils.getTypedPermit2DataHash(permit);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, digest);
 
-    //     // define input(s)
-    //     bytes[] memory inputs = new bytes[](2);
-    //     inputs[0] = abi.encode(permitSingle);
-    //     uint256 amountIn = AMOUNT / 2;
-    //     uint256 amountOutMin = 1;
-    //     bytes memory path = bytes.concat(
-    //         bytes20(address(dai)), LOW_FEE_TIER, bytes20(address(sUSD))
-    //     );
-    //     inputs[1] = abi.encode(amountIn, amountOutMin, path);
+        bytes memory signature;
 
-    //     uint256 preBalance = sUSD.balanceOf(address(account));
-    //     account.execute(commands, inputs);
-    //     uint256 postBalance = sUSD.balanceOf(address(account));
+        // define command(s)
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
 
-    //     assertGt(postBalance, preBalance);
-    // }
+        commands[0] = IAccount.Command.PERMIT2_PERMIT;
+        commands[1] = IAccount.Command.UNISWAP_V3_SWAP;
+
+        // define input(s)
+        bytes[] memory inputs = new bytes[](2);
+
+        inputs[0] = abi.encode(permitSingle, signature);
+
+        uint256 amountIn = AMOUNT / 2;
+        uint256 amountOutMin = 1;
+        bytes memory path = bytes.concat(
+            bytes20(address(dai)), LOW_FEE_TIER, bytes20(address(sUSD))
+        );
+        inputs[1] = abi.encode(amountIn, amountOutMin, path);
+
+        uint256 preBalance = sUSD.balanceOf(address(account));
+        account.execute(commands, inputs);
+        uint256 postBalance = sUSD.balanceOf(address(account));
+
+        assertGt(postBalance, preBalance);
+    }
 
     function test_Permit_UniswapV3Swap_Replay() public {
         /// @custom:todo test when same nonce is used twice
@@ -165,5 +187,35 @@ contract PermitBehaviorTest is Test, ConsolidatedEvents {
         mintSUSD(address(this), amount);
         sUSD.approve(address(account), amount);
         modifyAccountMargin({amount: int256(amount)});
+    }
+
+    function getTypedPermit2DataHash(IPermit2.PermitSingle memory permitSingle)
+        private
+        returns (bytes32)
+    {
+        bytes32 PERMIT_TYPEHASH = keccak256(
+            "Permit(address token,uint160 amount,uint48 expiration,uint48 nonce,address spender,uint256 sigDeadline)"
+        );
+
+        // create the hash of a permit
+        bytes32 structHash = keccak256(
+            abi.encode(
+                PERMIT_TYPEHASH,
+                permitSingle.details.token,
+                permitSingle.details.amount,
+                permitSingle.details.expiration,
+                permitSingle.details.nonce,
+                permitSingle.spender,
+                permitSingle.sigDeadline
+            )
+        );
+
+        // computes the hash of the fully encoded EIP-712 message for 
+        // the domain, which can be used to recover the signer
+        bytes32 typedDataHash = keccak256(
+            abi.encodePacked("\x19\x01", PERMIT2.DOMAIN_SEPARATOR(), structHash)
+        );
+
+        return typedDataHash;
     }
 }
