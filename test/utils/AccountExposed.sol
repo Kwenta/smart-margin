@@ -127,4 +127,12 @@ contract AccountExposed is Account {
     function expose_locked() public view returns (uint256) {
         return locked;
     }
+
+    function expose__getTokenInTokenOut(bytes calldata _path)
+        public
+        pure
+        returns (address, address)
+    {
+        return _getTokenInTokenOut(_path);
+    }
 }

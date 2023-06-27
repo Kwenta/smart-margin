@@ -89,7 +89,7 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     /*//////////////////////////////////////////////////////////////
-                              VALID SWAPS
+                            SINGLE POOL SWAP
     //////////////////////////////////////////////////////////////*/
 
     function test_UniswapV3Swap_DAI_SUSD() public {
@@ -121,6 +121,68 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         uint256 preBalance = sUSD.balanceOf(address(account));
         account.execute(commands, inputs);
         uint256 postBalance = sUSD.balanceOf(address(account));
+
+        assertGt(postBalance, preBalance);
+    }
+
+    function test_UniswapV3Swap_SUSD_DAI() public {
+        // whitelist DAI
+        settings.setTokenWhitelistStatus(address(dai), true);
+
+        // fund account with sUSD
+        fundAccount(AMOUNT);
+
+        // define command(s)
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
+
+        // define input(s)
+        bytes[] memory inputs = new bytes[](1);
+        uint256 amountIn = AMOUNT / 2;
+        uint256 amountOutMin = 1;
+        bytes memory path = bytes.concat(
+            bytes20(address(sUSD)), LOW_FEE_TIER, bytes20(address(dai))
+        );
+        inputs[0] = abi.encode(amountIn, amountOutMin, path);
+
+        uint256 preBalance = dai.balanceOf(address(this));
+        account.execute(commands, inputs);
+        uint256 postBalance = dai.balanceOf(address(this));
+
+        assertGt(postBalance, preBalance);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            MULTI POOL SWAP
+    //////////////////////////////////////////////////////////////*/
+
+    function test_UniswapV3Swap_SUSD_DAI_USDC() public {
+        // whitelist DAI
+        settings.setTokenWhitelistStatus(address(usdc), true);
+
+        // fund account with sUSD
+        fundAccount(AMOUNT);
+
+        // define command(s)
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
+
+        // define input(s)
+        bytes[] memory inputs = new bytes[](1);
+        uint256 amountIn = AMOUNT / 2;
+        uint256 amountOutMin = 1;
+        bytes memory path = bytes.concat(
+            bytes20(address(sUSD)),
+            LOW_FEE_TIER,
+            bytes20(address(dai)),
+            LOW_FEE_TIER,
+            bytes20(address(usdc))
+        );
+        inputs[0] = abi.encode(amountIn, amountOutMin, path);
+
+        uint256 preBalance = usdc.balanceOf(address(this));
+        account.execute(commands, inputs);
+        uint256 postBalance = usdc.balanceOf(address(this));
 
         assertGt(postBalance, preBalance);
     }
@@ -162,7 +224,48 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         assertGt(postBalance, preBalance);
     }
 
-    function test_UniswapV3Swap_SUSD_DAI() public {
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_UniswapV3Swap_DAI_SUSD_Event() public {
+        // whitelist DAI
+        settings.setTokenWhitelistStatus(address(dai), true);
+
+        // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
+        dai.approve(UNISWAP_PERMIT2, type(uint256).max);
+
+        // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
+        /// @dev this can be done via signature in production
+        PERMIT2.approve(
+            address(dai), address(account), type(uint160).max, type(uint48).max
+        );
+
+        // define command(s)
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
+
+        // define input(s)
+        bytes[] memory inputs = new bytes[](1);
+        uint256 amountIn = AMOUNT / 2;
+        uint256 amountOutMin = 1;
+        bytes memory path = bytes.concat(
+            bytes20(address(dai)), LOW_FEE_TIER, bytes20(address(sUSD))
+        );
+        inputs[0] = abi.encode(amountIn, amountOutMin, path);
+
+        vm.expectEmit(true, true, true, true);
+        emit UniswapV3Swap(
+            address(dai),
+            address(sUSD),
+            address(account),
+            amountIn,
+            amountOutMin
+        );
+        account.execute(commands, inputs);
+    }
+
+    function test_UniswapV3Swap_SUSD_DAI_Event() public {
         // whitelist DAI
         settings.setTokenWhitelistStatus(address(dai), true);
 
@@ -182,109 +285,60 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         );
         inputs[0] = abi.encode(amountIn, amountOutMin, path);
 
-        uint256 preBalance = dai.balanceOf(address(this));
-        account.execute(commands, inputs);
-        uint256 postBalance = dai.balanceOf(address(this));
-
-        assertGt(postBalance, preBalance);
-    }
-
-    function test_UniswapV3Swap_SUSD_DAI_USDC() public {
-        // whitelist DAI
-        settings.setTokenWhitelistStatus(address(usdc), true);
-
-        // fund account with sUSD
-        fundAccount(AMOUNT);
-
-        // define command(s)
-        IAccount.Command[] memory commands = new IAccount.Command[](1);
-        commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
-
-        // define input(s)
-        bytes[] memory inputs = new bytes[](1);
-        uint256 amountIn = AMOUNT / 2;
-        uint256 amountOutMin = 1;
-        bytes memory path = bytes.concat(
-            bytes20(address(sUSD)),
-            LOW_FEE_TIER,
-            bytes20(address(dai)),
-            LOW_FEE_TIER,
-            bytes20(address(usdc))
+        vm.expectEmit(true, true, true, true);
+        emit UniswapV3Swap(
+            address(sUSD), address(dai), address(this), amountIn, amountOutMin
         );
-        inputs[0] = abi.encode(amountIn, amountOutMin, path);
-
-        uint256 preBalance = usdc.balanceOf(address(this));
         account.execute(commands, inputs);
-        uint256 postBalance = usdc.balanceOf(address(this));
-
-        assertGt(postBalance, preBalance);
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 EVENTS
+                             INVALID SWAPS
     //////////////////////////////////////////////////////////////*/
 
-    // function test_UniswapV3Swap_DAI_SUSD_Event() public {
-    //     // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
-    //     dai.approve(UNISWAP_PERMIT2, type(uint256).max);
+    function test_UniswapV3Swap_Only_Whitelisted_TokenIn() public {
+        /// @custom:todo add test; tokenIn must be whitelisted if tokenOut is sUSD
+    }
 
-    //     // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
-    //     /// @dev this can be done via signature in production
-    //     PERMIT2.approve(
-    //         address(dai), address(account), type(uint160).max, type(uint48).max
-    //     );
+    function test_UniswapV3Swap_Only_Whitelisted_TokenOut() public {
+        /// @custom:todo add test; tokenOut must be whitelisted if tokenIn is sUSD
+    }
 
-    //     // define command(s)
-    //     IAccount.Command[] memory commands = new IAccount.Command[](1);
-    //     commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
+    function test_UniswapV3Swap_Either_SUSD_In_Out() public {
+        /// @custom:todo add test; sUSD must be either tokenIn or tokenOut
+    }
 
-    //     // define input(s)
-    //     bytes[] memory inputs = new bytes[](1);
-    //     uint256 amountIn = AMOUNT / 2;
-    //     uint256 amountOutMin = 1;
-    //     bytes memory path = bytes.concat(
-    //         bytes20(address(dai)), LOW_FEE_TIER, bytes20(address(sUSD))
-    //     );
-    //     inputs[0] = abi.encode(amountIn, amountOutMin, path);
+    function test_UniswapV3Swap_Invalid_AmountIn() public {
+        /// @custom:todo add test; amountIn must be > 0
+    }
 
-    //     vm.expectEmit(true, true, true, true);
-    //     emit UniswapV3Swap(
-    //         address(dai),
-    //         address(sUSD),
-    //         address(account),
-    //         amountIn,
-    //         amountOutMin
-    //     );
-    //     account.execute(commands, inputs);
-    // }
+    function test_UniswapV3Swap_Invalid_AmountOutMin() public {
+        /// @custom:todo add test; if amountOutMin is greater than amountOut, swap should fail
+    }
 
-    // function test_UniswapV3Swap_SUSD_DAI_Event() public {
-    //     // fund account with sUSD
-    //     fundAccount(AMOUNT);
+    function test_UniswapV3Swap_Invalid_Path() public {
+        bytes memory invalidPath = bytes.concat(
+            bytes20(address(dai)),
+            LOW_FEE_TIER,
+            bytes20(address(0xBEEF)), // invalid token; will cause swap to fail
+            LOW_FEE_TIER,
+            bytes20(address(sUSD))
+        );
 
-    //     // define command(s)
-    //     IAccount.Command[] memory commands = new IAccount.Command[](1);
-    //     commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
+        /// @custom:todo add test; if path is invalid, swap should fail
+    }
 
-    //     // define input(s)
-    //     bytes[] memory inputs = new bytes[](1);
-    //     uint256 amountIn = AMOUNT / 2;
-    //     uint256 amountOutMin = 1;
-    //     bytes memory path = bytes.concat(
-    //         bytes20(address(sUSD)), LOW_FEE_TIER, bytes20(address(dai))
-    //     );
-    //     inputs[0] = abi.encode(amountIn, amountOutMin, path);
+    function test_UniswapV3Swap_Insufficient_Margin() public {
+        /// @custom:todo add test; if account has insufficient margin when swapping out of sUSD, swap should fail
+    }
 
-    //     vm.expectEmit(true, true, true, true);
-    //     emit UniswapV3Swap(
-    //         address(sUSD), address(dai), address(this), amountIn, amountOutMin
-    //     );
-    //     account.execute(commands, inputs);
-    // }
+    function test_UniswapV3Swap_Insufficient_TokenIn_Balance() public {
+        /// @custom:todo add test; if EOA has insufficient tokenIn balance, swap should fail
+    }
 
-    // /*//////////////////////////////////////////////////////////////
-    //                             HELPERS
-    // //////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                                HELPERS
+    //////////////////////////////////////////////////////////////*/
 
     function mintSUSD(address to, uint256 amount) private {
         address issuer = IAddressResolver(ADDRESS_RESOLVER).getAddress("Issuer");

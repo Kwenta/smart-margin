@@ -5,6 +5,7 @@ import {Test} from "lib/forge-std/src/Test.sol";
 import {Account} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
 import {Auth} from "../../src/Account.sol";
+import {BytesLib} from "../../src/utils/uniswap/BytesLib.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
@@ -841,6 +842,89 @@ contract AccountTest is Test, ConsolidatedEvents {
 
         vm.expectRevert(abi.encodeWithSelector(IAccount.InvalidPrice.selector));
         accountExposed.expose_sUSDRate(market);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           UNISWAP UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    function test_GetTokenInTokenOut_Single_Pool() public {
+        bytes memory path = bytes.concat(
+            bytes20(address(0xA)), LOW_FEE_TIER, bytes20(address(0xB))
+        );
+
+        (address tokenIn, address tokenOut) =
+            accountExposed.expose__getTokenInTokenOut(path);
+        assertEq(tokenIn, address(0xA));
+        assertEq(tokenOut, address(0xB));
+    }
+
+    function test_GetTokenInTokenOut_Multi_Pool() public {
+        bytes memory path = bytes.concat(
+            bytes20(address(0xA)),
+            LOW_FEE_TIER,
+            bytes20(address(0xB)),
+            LOW_FEE_TIER,
+            bytes20(address(0xC)),
+            LOW_FEE_TIER,
+            bytes20(address(0xD)),
+            LOW_FEE_TIER,
+            bytes20(address(0xE)),
+            LOW_FEE_TIER,
+            bytes20(address(0xF)),
+            LOW_FEE_TIER,
+            bytes20(address(0x10))
+        );
+
+        (address tokenIn, address tokenOut) =
+            accountExposed.expose__getTokenInTokenOut(path);
+        assertEq(tokenIn, address(0xA));
+        assertEq(tokenOut, address(0x10));
+    }
+
+    function test_GetTokenInTokenOut_Invalid_TokenOut() public {
+        bytes memory path = bytes.concat(bytes20(address(0xA)), LOW_FEE_TIER);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(BytesLib.SliceOutOfBounds.selector)
+        );
+        accountExposed.expose__getTokenInTokenOut(path);
+    }
+
+    function test_GetTokenInTokenOut_Invalid_TokenIn() public {
+        bytes memory path = bytes.concat(LOW_FEE_TIER, bytes20(address(0xA)));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(BytesLib.SliceOutOfBounds.selector)
+        );
+        accountExposed.expose__getTokenInTokenOut(path);
+    }
+
+    function test_GetTokenInTokenOut_Invalid_Fee() public {
+        bytes memory path =
+            bytes.concat(bytes20(address(0xA)), bytes20(address(0xB)));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(BytesLib.SliceOutOfBounds.selector)
+        );
+        accountExposed.expose__getTokenInTokenOut(path);
+    }
+
+    function test_GetTokenInTokenOut_Invalid_Pools_No_Revert(
+        bytes calldata path
+    ) public {
+        vm.assume(path.length >= MULTIPLE_V3_POOLS_MIN_LENGTH);
+
+        (address tokenIn, address tokenOut) =
+            accountExposed.expose__getTokenInTokenOut(path);
+
+        // _getTokenInTokenOut makes no assurances about the validity of the tokenIn/tokenOut;
+        // it only checks that the path length is valid.
+        //
+        // Bad paths will be caught by the UniswapV3Pool contract or by the Smart Margin Account \
+        // contract when the swap is submitted.
+        assert(tokenIn != address(0));
+        assert(tokenOut != address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
