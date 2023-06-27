@@ -94,8 +94,14 @@ uint256 constant GELATO_FEE = 69;
 
 address constant UNISWAP_UNIVERSAL_ROUTER =
     0xb555edF5dcF85f42cEeF1f3630a52A108E55A654;
-
 address constant UNISWAP_PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+
+// fee tiers
+// see: https://docs.uniswap.org/sdk/v3/reference/enums/FeeAmount
+bytes3 constant HIGH_FEE_TIER = bytes3(uint24(10_000));
+bytes3 constant MEDIUM_FEE_TIER = bytes3(uint24(3000));
+bytes3 constant LOW_FEE_TIER = bytes3(uint24(500));
+bytes3 constant LOWEST_FEE_TIER = bytes3(uint24(100));
 
 /*//////////////////////////////////////////////////////////////
                                   DAI
