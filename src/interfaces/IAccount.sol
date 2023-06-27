@@ -123,7 +123,9 @@ interface IAccount {
     error Reentrancy();
 
     /// @notice thrown when token swap attempted with invalid token (i.e. token that is not whitelisted)
-    error TokenSwapNotAllowed();
+    /// @param tokenIn: token attempting to swap from
+    /// @param tokenOut: token attempting to swap to
+    error TokenSwapNotAllowed(address tokenIn, address tokenOut);
 
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
