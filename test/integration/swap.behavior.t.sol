@@ -1,35 +1,29 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {Test} from "lib/forge-std/src/Test.sol";
 import {Account} from "../../src/Account.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {IERC20} from "../../src/interfaces/IERC20.sol";
 import {Factory} from "../../src/Factory.sol";
 import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
+import {IERC20} from "../../src/interfaces/IERC20.sol";
 import {IPermit2} from "../../src/interfaces/uniswap/IPermit2.sol";
 import {ISynth} from "../utils/interfaces/ISynth.sol";
 import {SafeCast160} from "../../src/utils/uniswap/SafeCast160.sol";
 import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
+import {Test} from "lib/forge-std/src/Test.sol";
 import {
     ADDRESS_RESOLVER,
-    BLOCK_NUMBER,
-    PROXY_SUSD,
-    FUTURES_MARKET_MANAGER,
-    SYSTEM_STATUS,
-    PERPS_V2_EXCHANGE_RATE,
-    UNISWAP_UNIVERSAL_ROUTER,
-    UNISWAP_PERMIT2,
-    GELATO,
-    OPS,
-    DAI,
-    USDC,
-    SWAP_AMOUNT,
-    EOA_WITH_DAI,
     AMOUNT,
-    LOW_FEE_TIER
+    BLOCK_NUMBER,
+    DAI,
+    EOA_WITH_DAI,
+    LOW_FEE_TIER,
+    PROXY_SUSD,
+    UNISWAP_PERMIT2,
+    UNISWAP_UNIVERSAL_ROUTER,
+    USDC
 } from "../utils/Constants.sol";
 
 contract SwapBehaviorTest is Test, ConsolidatedEvents {
@@ -41,17 +35,14 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    // main contracts
     Factory private factory;
     Account private account;
     Settings private settings;
 
-    // helper contracts for testing
     IERC20 private sUSD;
     IERC20 private dai = IERC20(DAI);
     IERC20 private usdc = IERC20(USDC);
 
-    // uniswap
     IPermit2 private PERMIT2;
 
     /*//////////////////////////////////////////////////////////////
@@ -69,8 +60,8 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
             _deployer: address(0),
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
-            _gelato: GELATO,
-            _ops: OPS,
+            _gelato: address(0),
+            _ops: address(0),
             _universalRouter: UNISWAP_UNIVERSAL_ROUTER,
             _permit2: UNISWAP_PERMIT2
         });
@@ -100,7 +91,7 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         dai.approve(UNISWAP_PERMIT2, type(uint256).max);
 
         // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
-        /// @dev this can be done via signature in production
+        /// @dev this can be done via PERMIT2_PERMIT in production
         PERMIT2.approve(
             address(dai), address(account), type(uint160).max, type(uint48).max
         );
@@ -195,7 +186,7 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         dai.approve(UNISWAP_PERMIT2, type(uint256).max);
 
         // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
-        /// @dev this can be done via signature in production
+        /// @dev this can be done via PERMIT2_PERMIT in production
         PERMIT2.approve(
             address(dai), address(account), type(uint160).max, type(uint48).max
         );
@@ -236,7 +227,7 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         dai.approve(UNISWAP_PERMIT2, type(uint256).max);
 
         // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
-        /// @dev this can be done via signature in production
+        /// @dev this can be done via PERMIT2_PERMIT in production
         PERMIT2.approve(
             address(dai), address(account), type(uint160).max, type(uint48).max
         );
