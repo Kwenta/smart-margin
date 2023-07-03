@@ -3,10 +3,7 @@ pragma solidity 0.8.18;
 
 import {AuthExposed} from "../utils/AuthExposed.sol";
 import {Test} from "lib/forge-std/src/Test.sol";
-import {
-    DELEGATE,
-    USER
-} from "../utils/Constants.sol";
+import {DELEGATE, USER} from "../utils/Constants.sol";
 
 contract AuthTest is Test {
     /*//////////////////////////////////////////////////////////////

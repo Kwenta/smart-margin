@@ -3,9 +3,7 @@ pragma solidity 0.8.18;
 
 import {AccountProxy} from "../../src/AccountProxy.sol";
 import {Test} from "lib/forge-std/src/Test.sol";
-import {
-    BEACON
-} from "../utils/Constants.sol";
+import {BEACON} from "../utils/Constants.sol";
 
 contract AccountProxyTest is Test {
     /*//////////////////////////////////////////////////////////////

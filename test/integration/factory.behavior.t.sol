@@ -5,10 +5,7 @@ import {Account} from "../../src/Account.sol";
 import {Factory} from "../../src/Factory.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 import {Test} from "lib/forge-std/src/Test.sol";
-import {
-    ADDRESS_RESOLVER,
-    BLOCK_NUMBER
-} from "../utils/Constants.sol";
+import {ADDRESS_RESOLVER, BLOCK_NUMBER} from "../utils/Constants.sol";
 
 contract FactoryBehaviorTest is Test {
     /*//////////////////////////////////////////////////////////////
