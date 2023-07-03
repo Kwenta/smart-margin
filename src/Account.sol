@@ -514,7 +514,7 @@ contract Account is IAccount, Auth, OpsReady {
     /// @param _amount: amount to withdraw
     function _withdrawEth(uint256 _amount) internal {
         if (_amount > 0) {
-            (bool success,) = payable(owner).call{value: _amount}("");
+            (bool success,) = payable(msg.sender).call{value: _amount}("");
             if (!success) revert EthWithdrawalFailed();
 
             EVENTS.emitEthWithdraw({user: msg.sender, amount: _amount});
@@ -527,7 +527,16 @@ contract Account is IAccount, Auth, OpsReady {
         // if amount is positive, deposit
         if (_amount > 0) {
             /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
-            MARGIN_ASSET.transferFrom(owner, address(this), _abs(_amount));
+            MARGIN_ASSET.transferFrom(msg.sender, address(this), _abs(_amount));
+
+            /// @custom:todo implement PERMIT2 transfer here
+            /// @dev msg.sender must have approved Permit2 to spend at least the amountIn
+            // PERMIT2.transferFrom({
+            //     from: msg.sender,
+            //     to: address(this),
+            //     amount: _abs(_amount).toUint160(),
+            //     token: address(MARGIN_ASSET)
+            // });
 
             EVENTS.emitDeposit({user: msg.sender, amount: _abs(_amount)});
         } else if (_amount < 0) {
@@ -535,7 +544,7 @@ contract Account is IAccount, Auth, OpsReady {
             _sufficientMargin(_amount);
 
             /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
-            MARGIN_ASSET.transfer(owner, _abs(_amount));
+            MARGIN_ASSET.transfer(msg.sender, _abs(_amount));
 
             EVENTS.emitWithdraw({user: msg.sender, amount: _abs(_amount)});
         }
