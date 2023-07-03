@@ -223,10 +223,26 @@ contract EventsTest is Test, ConsolidatedEvents {
     }
 
     function test_EmitUniswapV3Swap_Event() public {
-        /// @custom:todo implement test
+        vm.expectEmit(true, true, true, true);
+        emit UniswapV3Swap(address(0xA), address(0xB), address(0xC), 1, 2);
+        vm.prank(account);
+        events.emitUniswapV3Swap({
+            tokenIn: address(0xA),
+            tokenOut: address(0xB),
+            recipient: address(0xC),
+            amountIn: 1,
+            amountOutMinimum: 2
+        });
     }
 
     function test_EmitUniswapV3Swap_OnlyAccounts() public {
-        /// @custom:todo implement test
+        vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
+        events.emitUniswapV3Swap({
+            tokenIn: address(0xA),
+            tokenOut: address(0xB),
+            recipient: address(0xC),
+            amountIn: 1,
+            amountOutMinimum: 2
+        });
     }
 }
