@@ -44,7 +44,7 @@ contract Account is IAccount, Auth, OpsReady {
 
     /// @notice Uniswap's Universal Router command for swapping tokens
     /// @dev specifically for swapping exact tokens in for a non-exact amount of tokens out
-    uint256 constant V3_SWAP_EXACT_IN = 0x00;
+    uint256 internal constant V3_SWAP_EXACT_IN = 0x00;
 
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
