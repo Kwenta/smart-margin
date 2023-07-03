@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {Test} from "lib/forge-std/src/Test.sol";
 import {Account} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
 import {Auth} from "../../src/Account.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {IERC20} from "../../src/interfaces/IERC20.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
 import {IAccount} from "../../src/interfaces/IAccount.sol";
@@ -14,12 +12,33 @@ import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
 import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
 import {IOps} from "../../src/utils/OpsReady.sol";
 import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
+import {IERC20} from "../../src/interfaces/IERC20.sol";
 import {ISynth} from "../utils/interfaces/ISynth.sol";
 import {ISystemStatus} from "../utils/interfaces/ISystemStatus.sol";
 import {OpsReady} from "../../src/utils/OpsReady.sol";
 import {Settings} from "../../src/Settings.sol";
 import {Setup} from "../../script/Deploy.s.sol";
-import "../utils/Constants.sol";
+import {Test} from "lib/forge-std/src/Test.sol";
+import {
+    ADDRESS_RESOLVER,
+    AMOUNT,
+    BLOCK_NUMBER,
+    DESIRED_FILL_PRICE,
+    ETH,
+    FUTURES_MARKET_MANAGER,
+    GELATO,
+    GELATO_FEE,
+    OPS,
+    PERPS_V2_EXCHANGE_RATE,
+    PROXY_SUSD,
+    sAUDPERP,
+    sETHPERP,
+    SYSTEM_STATUS,
+    TRACKING_CODE,
+    UNISWAP_PERMIT2,
+    UNISWAP_UNIVERSAL_ROUTER,
+    USER
+} from "../utils/Constants.sol";
 
 // functions tagged with @HELPER are helper functions and not tests
 // tests tagged with @AUDITOR are flags for desired increased scrutiny by the auditors

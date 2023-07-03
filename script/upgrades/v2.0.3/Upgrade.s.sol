@@ -2,12 +2,27 @@
 pragma solidity 0.8.18;
 
 import "lib/forge-std/src/Script.sol";
-import "../../utils/parameters/OptimismGoerliParameters.sol";
-import "../../utils/parameters/OptimismParameters.sol";
 import {Account} from "src/Account.sol";
 import {Events} from "src/Events.sol";
 import {Settings} from "src/Settings.sol";
 import {IAddressResolver} from "../../utils/interfaces/IAddressResolver.sol";
+import {
+    OPTIMISM_SYNTHETIX_ADDRESS_RESOLVER,
+    PROXY_SUSD,
+    PERPS_V2_EXCHANGE_RATE,
+    FUTURES_MARKET_MANAGER,
+    SYSTEM_STATUS,
+    OPTIMISM_FACTORY
+} from "../../utils/parameters/OptimismParameters.sol";
+import {
+    OPTIMISM_GOERLI_SYNTHETIX_ADDRESS_RESOLVER,
+    OPTIMISM_GOERLI_FACTORY,
+    OPTIMISM_GOERLI_GELATO,
+    OPTIMISM_GOERLI_OPS,
+    OPTIMISM_GOERLI_UNISWAP_UNIVERSAL_ROUTER,
+    OPTIMISM_GOERLI_UNISWAP_PERMIT2,
+    OPTIMISM_GOERLI_DEPLOYER
+} from "../../utils/parameters/OptimismGoerliParameters.sol";
 
 /// @title Script to upgrade the Account implementation v2.0.2 -> v2.0.3
 /// @author JaredBorders (jaredborders@pm.me)
@@ -34,8 +49,6 @@ contract UpgradeAccountOptimism is Script {
 
         // // deploy events
         // address events = address(new Events({_factory: OPTIMISM_FACTORY}));
-
-        // console2.log("Events Deployed:", events);
 
         // implementation = address(
         //     new Account({

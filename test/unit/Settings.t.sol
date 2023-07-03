@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {Test} from "lib/forge-std/src/Test.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
 import {Settings} from "../../src/Settings.sol";
-import "../utils/Constants.sol";
+import {Test} from "lib/forge-std/src/Test.sol";
+import {
+    MARGIN_ASSET,
+    USER
+} from "../utils/Constants.sol";
 
 contract SettingsTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////

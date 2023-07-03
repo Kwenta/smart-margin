@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {Test} from "lib/forge-std/src/Test.sol";
 import {AccountProxy} from "../../src/AccountProxy.sol";
-import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {IAccountProxy} from "../../src/interfaces/IAccountProxy.sol";
-import "../utils/Constants.sol";
+import {Test} from "lib/forge-std/src/Test.sol";
+import {
+    BEACON
+} from "../utils/Constants.sol";
 
-contract AccountProxyTest is Test, ConsolidatedEvents {
+contract AccountProxyTest is Test {
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
@@ -19,9 +19,6 @@ contract AccountProxyTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        // select block number
-        vm.rollFork(BLOCK_NUMBER);
-
         accountProxy = new AccountProxy(BEACON);
     }
 

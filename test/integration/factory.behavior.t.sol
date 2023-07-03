@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {Test} from "lib/forge-std/src/Test.sol";
 import {Account} from "../../src/Account.sol";
 import {Factory} from "../../src/Factory.sol";
 import {Setup} from "../../script/Deploy.s.sol";
-import "../utils/Constants.sol";
+import {Test} from "lib/forge-std/src/Test.sol";
+import {
+    ADDRESS_RESOLVER,
+    BLOCK_NUMBER
+} from "../utils/Constants.sol";
 
 contract FactoryBehaviorTest is Test {
     /*//////////////////////////////////////////////////////////////
@@ -31,10 +34,10 @@ contract FactoryBehaviorTest is Test {
             _deployer: address(0),
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
-            _gelato: GELATO,
-            _ops: OPS,
-            _universalRouter: UNISWAP_UNIVERSAL_ROUTER,
-            _permit2: UNISWAP_PERMIT2
+            _gelato: address(0),
+            _ops: address(0),
+            _universalRouter: address(0),
+            _permit2: address(0)
         });
     }
 

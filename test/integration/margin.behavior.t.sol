@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {Test} from "lib/forge-std/src/Test.sol";
 import {Account} from "../../src/Account.sol";
 import {AccountExposed} from "../utils/AccountExposed.sol";
 import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {IERC20} from "../../src/interfaces/IERC20.sol";
 import {Events} from "../../src/Events.sol";
 import {Factory} from "../../src/Factory.sol";
 import {IAccount} from "../../src/interfaces/IAccount.sol";
@@ -13,8 +11,25 @@ import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
 import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
 import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
 import {ISynth} from "../utils/interfaces/ISynth.sol";
+import {IERC20} from "../../src/interfaces/IERC20.sol";
 import {Setup} from "../../script/Deploy.s.sol";
-import "../utils/Constants.sol";
+import {Test} from "lib/forge-std/src/Test.sol";
+import {
+    ADDRESS_RESOLVER,
+    AMOUNT,
+    BLOCK_NUMBER,
+    ETH,
+    FUTURES_MARKET_MANAGER,
+    GELATO,
+    OPS,
+    PERPS_V2_EXCHANGE_RATE,
+    PROXY_SUSD,
+    sETHPERP,
+    SYSTEM_STATUS,
+    TRACKING_CODE,
+    UNISWAP_PERMIT2,
+    UNISWAP_UNIVERSAL_ROUTER
+} from "../utils/Constants.sol";
 
 contract MarginBehaviorTest is Test, ConsolidatedEvents {
     receive() external payable {}
