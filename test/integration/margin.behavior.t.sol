@@ -10,8 +10,9 @@ import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
 import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
 import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
-import {ISynth} from "../utils/interfaces/ISynth.sol";
 import {IERC20} from "../../src/interfaces/IERC20.sol";
+import {IPermit2} from "../../src/interfaces/uniswap/IPermit2.sol";
+import {ISynth} from "../utils/interfaces/ISynth.sol";
 import {Setup} from "../../script/Deploy.s.sol";
 import {Test} from "lib/forge-std/src/Test.sol";
 import {
@@ -47,6 +48,8 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
     IERC20 private sUSD;
     AccountExposed private accountExposed;
 
+    IPermit2 private PERMIT2;
+
     /*//////////////////////////////////////////////////////////////
                                  SETUP
     //////////////////////////////////////////////////////////////*/
@@ -71,6 +74,8 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         // deploy an Account contract
         account = Account(payable(factory.newAccount()));
 
+        PERMIT2 = IPermit2(UNISWAP_PERMIT2);
+
         // define helper contracts
         IAddressResolver addressResolver = IAddressResolver(ADDRESS_RESOLVER);
         sUSD = IERC20(addressResolver.getAddress(PROXY_SUSD));
@@ -93,6 +98,15 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             address(0),
             UNISWAP_UNIVERSAL_ROUTER,
             UNISWAP_PERMIT2
+        );
+
+        // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
+        sUSD.approve(UNISWAP_PERMIT2, type(uint256).max);
+
+        // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
+        /// @dev this can be done via PERMIT2_PERMIT in production
+        PERMIT2.approve(
+            address(sUSD), address(account), type(uint160).max, type(uint48).max
         );
     }
 
@@ -134,22 +148,21 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         ACCOUNT_MODIFY_MARGIN
     */
 
-    function test_Deposit_Margin(int256 x) public {
-        vm.assume(x >= 0);
+    function test_Deposit_Margin(uint256 x) public {
+        vm.assume(x <= type(uint160).max);
 
         mintSUSD(address(this), AMOUNT);
-        sUSD.approve(address(account), AMOUNT);
 
         if (x == 0) {
             // no-op
-            modifyAccountMargin({amount: x});
-        } else if (x > int256(AMOUNT)) {
-            vm.expectRevert("Insufficient balance after any settlement owing");
-            modifyAccountMargin({amount: x});
+            modifyAccountMargin({amount: int256(x)});
+        } else if (x > AMOUNT) {
+            vm.expectRevert("TRANSFER_FROM_FAILED");
+            modifyAccountMargin({amount: int256(x)});
         } else {
             vm.expectEmit(true, true, true, true);
             emit Deposit(address(this), address(account), uint256(x));
-            modifyAccountMargin({amount: x});
+            modifyAccountMargin({amount: int256(x)});
             assert(sUSD.balanceOf(address(account)) == uint256(x));
         }
     }
@@ -158,7 +171,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         vm.assume(x <= 0);
 
         mintSUSD(address(this), AMOUNT);
-        sUSD.approve(address(account), AMOUNT);
         modifyAccountMargin({amount: int256(AMOUNT)});
 
         if (x == 0) {
@@ -727,7 +739,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
     function test_Scenario_1() public {
         // mint sUSD to be deposited into account during execution
         mintSUSD(address(this), AMOUNT);
-        sUSD.approve(address(account), AMOUNT);
 
         // delayed off-chain order details
         address market = getMarketAddressFromKey(sETHPERP);
@@ -783,7 +794,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
     function fundAccount(uint256 amount) private {
         vm.deal(address(account), 1 ether);
         mintSUSD(address(this), amount);
-        sUSD.approve(address(account), amount);
         modifyAccountMargin({amount: int256(amount)});
     }
 

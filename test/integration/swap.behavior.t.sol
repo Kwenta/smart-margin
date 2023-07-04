@@ -74,6 +74,24 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
 
         vm.prank(EOA_WITH_DAI);
         dai.transfer(address(this), AMOUNT);
+
+        // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
+        sUSD.approve(UNISWAP_PERMIT2, type(uint256).max);
+
+        // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
+        /// @dev this can be done via PERMIT2_PERMIT in production
+        PERMIT2.approve(
+            address(sUSD), address(account), type(uint160).max, type(uint48).max
+        );
+
+        // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
+        dai.approve(UNISWAP_PERMIT2, type(uint256).max);
+
+        // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
+        /// @dev this can be done via PERMIT2_PERMIT in production
+        PERMIT2.approve(
+            address(dai), address(account), type(uint160).max, type(uint48).max
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -87,15 +105,6 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
     function test_UniswapV3Swap_DAI_SUSD() public {
         // whitelist DAI
         settings.setTokenWhitelistStatus(address(dai), true);
-
-        // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
-        dai.approve(UNISWAP_PERMIT2, type(uint256).max);
-
-        // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
-        /// @dev this can be done via PERMIT2_PERMIT in production
-        PERMIT2.approve(
-            address(dai), address(account), type(uint160).max, type(uint48).max
-        );
 
         // define command(s)
         IAccount.Command[] memory commands = new IAccount.Command[](1);
@@ -183,15 +192,6 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         // whitelist DAI
         settings.setTokenWhitelistStatus(address(dai), true);
 
-        // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
-        dai.approve(UNISWAP_PERMIT2, type(uint256).max);
-
-        // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
-        /// @dev this can be done via PERMIT2_PERMIT in production
-        PERMIT2.approve(
-            address(dai), address(account), type(uint160).max, type(uint48).max
-        );
-
         // define command(s)
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
@@ -223,15 +223,6 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
     function test_UniswapV3Swap_DAI_SUSD_Event() public {
         // whitelist DAI
         settings.setTokenWhitelistStatus(address(dai), true);
-
-        // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
-        dai.approve(UNISWAP_PERMIT2, type(uint256).max);
-
-        // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
-        /// @dev this can be done via PERMIT2_PERMIT in production
-        PERMIT2.approve(
-            address(dai), address(account), type(uint160).max, type(uint48).max
-        );
 
         // define command(s)
         IAccount.Command[] memory commands = new IAccount.Command[](1);
@@ -289,12 +280,6 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_UniswapV3Swap_Only_Whitelisted_TokenIn() public {
-        dai.approve(UNISWAP_PERMIT2, type(uint256).max);
-
-        PERMIT2.approve(
-            address(dai), address(account), type(uint160).max, type(uint48).max
-        );
-
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
 
@@ -345,12 +330,6 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
 
         settings.setTokenWhitelistStatus(address(dai), true);
 
-        dai.approve(UNISWAP_PERMIT2, type(uint256).max);
-
-        PERMIT2.approve(
-            address(dai), address(account), type(uint160).max, type(uint48).max
-        );
-
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
 
@@ -377,12 +356,6 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
 
         settings.setTokenWhitelistStatus(address(dai), true);
 
-        dai.approve(UNISWAP_PERMIT2, type(uint256).max);
-
-        PERMIT2.approve(
-            address(dai), address(account), type(uint160).max, type(uint48).max
-        );
-
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
 
@@ -404,12 +377,6 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         /// @notice add test; if amountOutMin is greater than amountOut, swap should fail
 
         settings.setTokenWhitelistStatus(address(dai), true);
-
-        dai.approve(UNISWAP_PERMIT2, type(uint256).max);
-
-        PERMIT2.approve(
-            address(dai), address(account), type(uint160).max, type(uint48).max
-        );
 
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
@@ -472,9 +439,7 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccount.InsufficientFreeMargin.selector, 
-                0, 
-                AMOUNT / 2
+                IAccount.InsufficientFreeMargin.selector, 0, AMOUNT / 2
             )
         );
         account.execute(commands, inputs);
@@ -509,7 +474,7 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         vm.expectRevert("TRANSFER_FROM_FAILED");
         account.execute(commands, inputs);
 
-         vm.stopPrank();
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -535,7 +500,6 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
     function fundAccount(uint256 amount) private {
         vm.deal(address(account), 1 ether);
         mintSUSD(address(this), amount);
-        sUSD.approve(address(account), amount);
         modifyAccountMargin({amount: int256(amount)});
     }
 }

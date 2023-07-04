@@ -13,6 +13,7 @@ import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
 import {IOps} from "../../src/utils/OpsReady.sol";
 import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
 import {IERC20} from "../../src/interfaces/IERC20.sol";
+import {IPermit2} from "../../src/interfaces/uniswap/IPermit2.sol";
 import {ISynth} from "../utils/interfaces/ISynth.sol";
 import {ISystemStatus} from "../utils/interfaces/ISystemStatus.sol";
 import {OpsReady} from "../../src/utils/OpsReady.sol";
@@ -63,6 +64,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     // helper variables for testing
     uint256 private currentEthPriceInUSD;
 
+    IPermit2 private PERMIT2;
+
     /*//////////////////////////////////////////////////////////////
                                  SETUP
     //////////////////////////////////////////////////////////////*/
@@ -110,7 +113,8 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
 
         // deploy an Account contract and fund it
         account = Account(payable(factory.newAccount()));
-        fundAccount(AMOUNT);
+
+        PERMIT2 = IPermit2(UNISWAP_PERMIT2);
 
         // get current ETH price in USD
         (currentEthPriceInUSD,) = accountExposed.expose_sUSDRate(
@@ -118,6 +122,17 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                 accountExposed.expose_getPerpsV2Market(sETHPERP)
             )
         );
+
+        // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
+        sUSD.approve(UNISWAP_PERMIT2, type(uint256).max);
+
+        // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
+        /// @dev this can be done via PERMIT2_PERMIT in production
+        PERMIT2.approve(
+            address(sUSD), address(account), type(uint160).max, type(uint48).max
+        );
+
+        fundAccount(AMOUNT);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1546,7 +1561,6 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     function fundAccount(uint256 amount) private {
         vm.deal(address(account), 1 ether);
         mintSUSD(address(this), amount);
-        sUSD.approve(address(account), amount);
         modifyAccountMargin({amount: int256(amount)});
     }
 

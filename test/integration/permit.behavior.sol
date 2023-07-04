@@ -7,6 +7,7 @@ import {IAccount} from "../../src/interfaces/IAccount.sol";
 import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
 import {IERC20} from "../../src/interfaces/IERC20.sol";
 import {IPermit2} from "../../src/interfaces/uniswap/IPermit2.sol";
+import {ISynth} from "../utils/interfaces/ISynth.sol";
 import {PermitSignature} from "../utils/PermitSignature.sol";
 import {SafeCast160} from "../../src/utils/uniswap/SafeCast160.sol";
 import {Settings} from "../../src/Settings.sol";
@@ -44,8 +45,8 @@ contract PermitBehaviorTest is Test, PermitSignature {
 
     IPermit2 private PERMIT2;
 
-    address signer;
-    uint256 signerPrivateKey;
+    address private signer;
+    uint256 private signerPrivateKey;
 
     /*//////////////////////////////////////////////////////////////
                                  SETUP
@@ -81,8 +82,10 @@ contract PermitBehaviorTest is Test, PermitSignature {
 
         settings.setTokenWhitelistStatus(address(dai), true);
 
-        vm.prank(signer);
+        vm.startPrank(signer);
         dai.approve(UNISWAP_PERMIT2, type(uint256).max);
+        sUSD.approve(UNISWAP_PERMIT2, type(uint256).max);
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -121,6 +124,40 @@ contract PermitBehaviorTest is Test, PermitSignature {
         assertEq(amount, type(uint160).max);
         assertEq(expiration, type(uint48).max);
         assertEq(nonce, 1);
+    }
+
+    function test_Permit_Deposit_Margin() public {
+        mintSUSD(signer, AMOUNT);
+
+        IPermit2.PermitSingle memory permitSingle = IPermit2.PermitSingle({
+            details: IPermit2.PermitDetails({
+                token: address(sUSD),
+                amount: type(uint160).max,
+                expiration: type(uint48).max,
+                nonce: 0
+            }),
+            spender: address(account),
+            sigDeadline: block.timestamp + 1000
+        });
+
+        bytes memory signature = getPermitSignature({
+            permit: permitSingle,
+            privateKey: signerPrivateKey,
+            domainSeparator: PERMIT2.DOMAIN_SEPARATOR()
+        });
+
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERMIT2_PERMIT;
+        commands[1] = IAccount.Command.ACCOUNT_MODIFY_MARGIN;
+
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(permitSingle, signature);
+        inputs[1] = abi.encode(AMOUNT);
+
+        vm.prank(signer);
+        account.execute(commands, inputs);
+
+        assertEq(sUSD.balanceOf(address(account)), AMOUNT);
     }
 
     function test_Permit_UniswapV3Swap() public {
@@ -189,5 +226,17 @@ contract PermitBehaviorTest is Test, PermitSignature {
         account.execute(commands, inputs);
         vm.expectRevert();
         account.execute(commands, inputs);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    function mintSUSD(address to, uint256 amount) private {
+        address issuer = IAddressResolver(ADDRESS_RESOLVER).getAddress("Issuer");
+        ISynth synthsUSD =
+            ISynth(IAddressResolver(ADDRESS_RESOLVER).getAddress("SynthsUSD"));
+        vm.prank(issuer);
+        synthsUSD.issue(to, amount);
     }
 }
