@@ -275,8 +275,6 @@ contract Account is IAccount, Auth, OpsReady {
     {
         uint256 commandIndex = uint256(_command);
 
-        /// @custom:todo refactor? gas-snapshot!
-
         if (commandIndex < 4) {
             /// @dev only owner can execute the following commands
             if (!isOwner()) revert Unauthorized();
@@ -527,16 +525,13 @@ contract Account is IAccount, Auth, OpsReady {
         // if amount is positive, deposit
         if (_amount > 0) {
             /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
-            MARGIN_ASSET.transferFrom(msg.sender, address(this), _abs(_amount));
-
-            /// @custom:todo implement PERMIT2 transfer here
             /// @dev msg.sender must have approved Permit2 to spend at least the amountIn
-            // PERMIT2.transferFrom({
-            //     from: msg.sender,
-            //     to: address(this),
-            //     amount: _abs(_amount).toUint160(),
-            //     token: address(MARGIN_ASSET)
-            // });
+            PERMIT2.transferFrom({
+                from: msg.sender,
+                to: address(this),
+                amount: _abs(_amount).toUint160(),
+                token: address(MARGIN_ASSET)
+            });
 
             EVENTS.emitDeposit({user: msg.sender, amount: _abs(_amount)});
         } else if (_amount < 0) {
@@ -1044,9 +1039,7 @@ contract Account is IAccount, Auth, OpsReady {
             expiration: type(uint48).max
         });
 
-        _universalRouterExecute(
-            recipient, _amountIn, _amountOutMin, _path, true
-        );
+        _universalRouterExecute(recipient, _amountIn, _amountOutMin, _path);
 
         EVENTS.emitUniswapV3Swap({
             tokenIn: tokenIn,
@@ -1057,18 +1050,21 @@ contract Account is IAccount, Auth, OpsReady {
         });
     }
 
-    /// @custom:todo add documentation
+    /// @notice call Uniswap's Universal Router to execute a swap
+    /// @param _recipient: address to receive swapped tokens
+    /// @param _amountIn: amount of token to swap
+    /// @param _amountOutMin: minimum amount of token to receive
+    /// @param _path: path of tokens to swap (token0 - fee - token1)
     function _universalRouterExecute(
         address _recipient,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        bytes calldata _path,
-        bool _payerIsUser
+        bytes calldata _path
     ) internal {
+        /// @dev payerIsUser (i.e. 5th argument encoded) will always be true
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(
-            _recipient, _amountIn, _amountOutMin, _path, _payerIsUser
-        );
+        inputs[0] =
+            abi.encode(_recipient, _amountIn, _amountOutMin, _path, true);
 
         UNISWAP_UNIVERSAL_ROUTER.execute({
             commands: abi.encodePacked(bytes1(uint8(V3_SWAP_EXACT_IN))),
