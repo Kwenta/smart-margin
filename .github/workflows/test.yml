@@ -32,7 +32,7 @@ jobs:
 
             - name: Run forge coverage
               run: |
-                  forge coverage --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --report lcov
+                  forge coverage --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --via-ir --report lcov
 
             - name: Upload Coverage Report
               uses: codecov/codecov-action@v3
