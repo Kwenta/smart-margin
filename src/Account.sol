@@ -3,7 +3,9 @@ pragma solidity 0.8.18;
 
 import {Auth} from "src/utils/Auth.sol";
 import {BytesLib} from "src/utils/uniswap/BytesLib.sol";
-import {IAccount, IPerpsV2MarketConsolidated} from "./interfaces/IAccount.sol";
+import {
+    IAccount, IPerpsV2MarketConsolidated
+} from "src/interfaces/IAccount.sol";
 import {IFactory} from "src/interfaces/IFactory.sol";
 import {IFuturesMarketManager} from
     "src/interfaces/synthetix/IFuturesMarketManager.sol";
@@ -128,38 +130,22 @@ contract Account is IAccount, Auth, OpsReady {
 
     /// @notice disable initializers on initial contract deployment
     /// @dev set owner of implementation to zero address
-    /// @param _factory: address of the Smart Margin Account Factory
-    /// @param _events: address of the contract used by all accounts for emitting events
-    /// @param _marginAsset: address of the Synthetix ProxyERC20sUSD contract used as the margin asset
-    /// @param _perpsV2ExchangeRate: address of the Synthetix PerpsV2ExchangeRate
-    /// @param _futuresMarketManager: address of the Synthetix FuturesMarketManager
-    /// @param _gelato: address of Gelato
-    /// @param _ops: address of Ops
-    /// @param _settings: address of contract used to store global settings
-    /// @param _universalRouter: address of Uniswap's Universal Router
-    /// @param _permit2: address of Uniswap's Permit2
-    constructor(
-        address _factory,
-        address _events,
-        address _marginAsset,
-        address _perpsV2ExchangeRate,
-        address _futuresMarketManager,
-        address _systemStatus,
-        address _gelato,
-        address _ops,
-        address _settings,
-        address _universalRouter,
-        address _permit2
-    ) Auth(address(0)) OpsReady(_gelato, _ops) {
-        FACTORY = IFactory(_factory);
-        EVENTS = IEvents(_events);
-        MARGIN_ASSET = IERC20(_marginAsset);
-        PERPS_V2_EXCHANGE_RATE = IPerpsV2ExchangeRate(_perpsV2ExchangeRate);
-        FUTURES_MARKET_MANAGER = IFuturesMarketManager(_futuresMarketManager);
-        SYSTEM_STATUS = ISystemStatus(_systemStatus);
-        SETTINGS = ISettings(_settings);
-        UNISWAP_UNIVERSAL_ROUTER = IUniversalRouter(_universalRouter);
-        PERMIT2 = IPermit2(_permit2);
+    /// @param _params: constructor parameters (see IAccount.sol)
+    constructor(AccountConstructorParams memory _params)
+        Auth(address(0))
+        OpsReady(_params.gelato, _params.ops)
+    {
+        FACTORY = IFactory(_params.factory);
+        EVENTS = IEvents(_params.events);
+        MARGIN_ASSET = IERC20(_params.marginAsset);
+        PERPS_V2_EXCHANGE_RATE =
+            IPerpsV2ExchangeRate(_params.perpsV2ExchangeRate);
+        FUTURES_MARKET_MANAGER =
+            IFuturesMarketManager(_params.futuresMarketManager);
+        SYSTEM_STATUS = ISystemStatus(_params.systemStatus);
+        SETTINGS = ISettings(_params.settings);
+        UNISWAP_UNIVERSAL_ROUTER = IUniversalRouter(_params.universalRouter);
+        PERMIT2 = IPermit2(_params.permit2);
     }
 
     /*//////////////////////////////////////////////////////////////

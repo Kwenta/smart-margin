@@ -4,14 +4,12 @@ pragma solidity 0.8.18;
 import {IPerpsV2MarketConsolidated} from
     "src/interfaces/synthetix/IPerpsV2MarketConsolidated.sol";
 
-/// @title Kwenta Smart Margin Account Implementation Interface
+/// @title Kwenta Smart Margin Account v2.0.3 Implementation Interface
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 interface IAccount {
     /*///////////////////////////////////////////////////////////////
                                 Types
     ///////////////////////////////////////////////////////////////*/
-
-    /// @custom:todo update wiki with new command types and inputs
 
     /// @notice Command Flags used to decode commands to execute
     /// @dev under the hood ACCOUNT_MODIFY_MARGIN = 0, ACCOUNT_WITHDRAW_ETH = 1
@@ -53,6 +51,30 @@ interface IAccount {
     enum PriceOracleUsed {
         PYTH,
         CHAINLINK
+    }
+
+    /// @param _factory: address of the Smart Margin Account Factory
+    /// @param _events: address of the contract used by all accounts for emitting events
+    /// @param _marginAsset: address of the Synthetix ProxyERC20sUSD contract used as the margin asset
+    /// @param _perpsV2ExchangeRate: address of the Synthetix PerpsV2ExchangeRate
+    /// @param _futuresMarketManager: address of the Synthetix FuturesMarketManager
+    /// @param _gelato: address of Gelato
+    /// @param _ops: address of Ops
+    /// @param _settings: address of contract used to store global settings
+    /// @param _universalRouter: address of Uniswap's Universal Router
+    /// @param _permit2: address of Uniswap's Permit2
+    struct AccountConstructorParams {
+        address factory;
+        address events;
+        address marginAsset;
+        address perpsV2ExchangeRate;
+        address futuresMarketManager;
+        address systemStatus;
+        address gelato;
+        address ops;
+        address settings;
+        address universalRouter;
+        address permit2;
     }
 
     /// marketKey: Synthetix PerpsV2 Market id/key
