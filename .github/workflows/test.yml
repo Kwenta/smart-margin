@@ -29,15 +29,16 @@ jobs:
               run: |
                   forge test --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }} -vvv
               id: test
+            
+            # FIXME: Coverage is broken due to stack too deep error
+            # - name: Run forge coverage
+            #   run: |
+            #       forge coverage --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --report lcov
 
-            - name: Run forge coverage
-              run: |
-                  forge coverage --fork-url ${{ secrets.ARCHIVE_NODE_URL_L2 }} --report lcov
-
-            - name: Upload Coverage Report
-              uses: codecov/codecov-action@v3
-              with:
-                  files: ./lcov.info
-                  name: codecov-unit
-                  fail_ci_if_error: true
-                  verbose: true
+            # - name: Upload Coverage Report
+            #   uses: codecov/codecov-action@v3
+            #   with:
+            #       files: ./lcov.info
+            #       name: codecov-unit
+            #       fail_ci_if_error: true
+            #       verbose: true
