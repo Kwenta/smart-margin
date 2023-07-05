@@ -128,7 +128,6 @@ contract Account is IAccount, Auth, OpsReady {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice disable initializers on initial contract deployment
     /// @dev set owner of implementation to zero address
     /// @param _params: constructor parameters (see IAccount.sol)
     constructor(AccountConstructorParams memory _params)
