@@ -89,19 +89,21 @@ contract AccountTest is Test, ConsolidatedEvents {
             addressResolver.getAddress(PERPS_V2_EXCHANGE_RATE);
 
         // deploy AccountExposed contract for exposing internal account functions
-        accountExposed = new AccountExposed(
+        IAccount.AccountConstructorParams memory params = IAccount
+            .AccountConstructorParams(
             address(factory),
-            address(events), 
-            sUSD, 
+            address(events),
+            sUSD,
             perpsV2ExchangeRate,
-            futuresMarketManager, 
-            systemStatus, 
-            GELATO, 
+            futuresMarketManager,
+            systemStatus,
+            GELATO,
             OPS,
             address(settings),
             UNISWAP_UNIVERSAL_ROUTER,
             UNISWAP_PERMIT2
         );
+        accountExposed = new AccountExposed(params);
     }
 
     /*//////////////////////////////////////////////////////////////

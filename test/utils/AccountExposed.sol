@@ -3,41 +3,17 @@ pragma solidity 0.8.18;
 
 import {
     Account,
+    IAccount,
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated,
     IEvents,
     IOps
 } from "src/Account.sol";
-// import {} from "./Constants.sol";
 
 /// @dev This contract exposes the internal functions of Account.sol for testing purposes
 contract AccountExposed is Account {
-    constructor(
-        address _factory,
-        address _events,
-        address _marginAsset,
-        address _perpsV2ExchangeRate,
-        address _futuresMarketManager,
-        address _systemStatus,
-        address _gelato,
-        address _ops,
-        address _settings,
-        address _universalRouter,
-        address _permit2
-    )
-        Account(
-            _factory,
-            _events,
-            _marginAsset,
-            _perpsV2ExchangeRate,
-            _futuresMarketManager,
-            _systemStatus,
-            _gelato,
-            _ops,
-            _settings,
-            _universalRouter,
-            _permit2
-        )
+    constructor(IAccount.AccountConstructorParams memory params)
+        Account(params)
     {}
 
     function expose_TRACKING_CODE() public pure returns (bytes32) {

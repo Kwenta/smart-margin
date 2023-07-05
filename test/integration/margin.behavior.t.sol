@@ -91,19 +91,21 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             addressResolver.getAddress(PERPS_V2_EXCHANGE_RATE);
 
         // deploy AccountExposed contract for exposing internal account functions
-        accountExposed = new AccountExposed(
+        IAccount.AccountConstructorParams memory params = IAccount
+            .AccountConstructorParams(
             address(factory),
-            address(events), 
+            address(events),
             address(sUSD),
             perpsV2ExchangeRate,
-            futuresMarketManager, 
-            systemStatus, 
-            GELATO, 
+            futuresMarketManager,
+            systemStatus,
+            GELATO,
             OPS,
             address(0),
             UNISWAP_UNIVERSAL_ROUTER,
             UNISWAP_PERMIT2
         );
+        accountExposed = new AccountExposed(params);
 
         // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
         sUSD.approve(UNISWAP_PERMIT2, type(uint256).max);
