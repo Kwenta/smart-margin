@@ -1,20 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {Account} from "../../src/Account.sol";
-import {AccountExposed} from "../utils/AccountExposed.sol";
-import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {Events} from "../../src/Events.sol";
-import {Factory} from "../../src/Factory.sol";
-import {IAccount} from "../../src/interfaces/IAccount.sol";
-import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
-import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
-import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
-import {IERC20} from "../../src/interfaces/IERC20.sol";
-import {IPermit2} from "../../src/interfaces/uniswap/IPermit2.sol";
-import {ISynth} from "../utils/interfaces/ISynth.sol";
-import {Setup} from "../../script/Deploy.s.sol";
 import {Test} from "lib/forge-std/src/Test.sol";
+
+import {Setup} from "script/Deploy.s.sol";
+
+import {Account} from "src/Account.sol";
+import {Events} from "src/Events.sol";
+import {Factory} from "src/Factory.sol";
+import {IAccount} from "src/interfaces/IAccount.sol";
+import {IFuturesMarketManager} from "src/interfaces/synthetix/IFuturesMarketManager.sol";
+import {IPermit2} from "src/interfaces/uniswap/IPermit2.sol";
+import {IPerpsV2MarketConsolidated} from "src/interfaces/IAccount.sol";
+import {IERC20} from "src/interfaces/IERC20.sol";
+
+import {AccountExposed} from "test/utils/AccountExposed.sol";
+import {ConsolidatedEvents} from "test/utils/ConsolidatedEvents.sol";
+import {IAddressResolver} from "test/utils/interfaces/IAddressResolver.sol";
+import {ISynth} from "test/utils/interfaces/ISynth.sol";
+
 import {
     ADDRESS_RESOLVER,
     AMOUNT,
@@ -30,7 +34,7 @@ import {
     TRACKING_CODE,
     UNISWAP_PERMIT2,
     UNISWAP_UNIVERSAL_ROUTER
-} from "../utils/Constants.sol";
+} from "test/utils/Constants.sol";
 
 contract MarginBehaviorTest is Test, ConsolidatedEvents {
     receive() external payable {}

@@ -2,10 +2,12 @@
 pragma solidity 0.8.18;
 
 import "lib/forge-std/src/Script.sol";
+
 import {Account} from "src/Account.sol";
 import {Events} from "src/Events.sol";
 import {Settings} from "src/Settings.sol";
-import {IAddressResolver} from "../../utils/interfaces/IAddressResolver.sol";
+import {IAddressResolver} from "script/utils/interfaces/IAddressResolver.sol";
+
 import {
     OPTIMISM_SYNTHETIX_ADDRESS_RESOLVER,
     PROXY_SUSD,
@@ -13,7 +15,7 @@ import {
     FUTURES_MARKET_MANAGER,
     SYSTEM_STATUS,
     OPTIMISM_FACTORY
-} from "../../utils/parameters/OptimismParameters.sol";
+} from "script/utils/parameters/OptimismParameters.sol";
 import {
     OPTIMISM_GOERLI_SYNTHETIX_ADDRESS_RESOLVER,
     OPTIMISM_GOERLI_FACTORY,
@@ -22,7 +24,7 @@ import {
     OPTIMISM_GOERLI_UNISWAP_UNIVERSAL_ROUTER,
     OPTIMISM_GOERLI_UNISWAP_PERMIT2,
     OPTIMISM_GOERLI_DEPLOYER
-} from "../../utils/parameters/OptimismGoerliParameters.sol";
+} from "script/utils/parameters/OptimismGoerliParameters.sol";
 
 /// @title Script to upgrade the Account implementation v2.0.2 -> v2.0.3
 /// @author JaredBorders (jaredborders@pm.me)

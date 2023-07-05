@@ -1,24 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {Auth} from "./utils/Auth.sol";
-import {
-    IAccount,
-    IEvents,
-    IFactory,
-    IFuturesMarketManager,
-    IPerpsV2ExchangeRate,
-    IPerpsV2MarketConsolidated,
-    ISettings,
-    ISystemStatus
-} from "./interfaces/IAccount.sol";
-import {IPermit2} from "./interfaces/uniswap/IPermit2.sol";
-import {BytesLib} from "./utils/uniswap/BytesLib.sol";
-import {IERC20} from "./interfaces/IERC20.sol";
-import {IUniversalRouter} from "./interfaces/uniswap/IUniversalRouter.sol";
-import {OpsReady, IOps} from "./utils/OpsReady.sol";
-import {SafeCast160} from "./utils/uniswap/SafeCast160.sol";
-import {V3Path} from "./utils/uniswap/V3Path.sol";
+import {Auth} from "src/utils/Auth.sol";
+import {BytesLib} from "src/utils/uniswap/BytesLib.sol";
+import {IAccount, IPerpsV2MarketConsolidated} from "./interfaces/IAccount.sol";
+import {IFactory} from "src/interfaces/IFactory.sol";
+import {IFuturesMarketManager} from
+    "src/interfaces/synthetix/IFuturesMarketManager.sol";
+import {IPermit2} from "src/interfaces/uniswap/IPermit2.sol";
+import {ISettings} from "src/interfaces/ISettings.sol";
+import {ISystemStatus} from "src/interfaces/synthetix/ISystemStatus.sol";
+import {IOps, OpsReady} from "src/utils/OpsReady.sol";
+import {IUniversalRouter} from "src/interfaces/uniswap/IUniversalRouter.sol";
+import {IEvents} from "src/interfaces/IEvents.sol";
+import {IPerpsV2ExchangeRate} from
+    "src/interfaces/synthetix/IPerpsV2ExchangeRate.sol";
+import {SafeCast160} from "src/utils/uniswap/SafeCast160.sol";
+import {IERC20} from "src/interfaces/IERC20.sol";
+import {V3Path} from "src/utils/uniswap/V3Path.sol";
 
 /// @title Kwenta Smart Margin Account Implementation
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)

@@ -1,18 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {Account} from "../../src/Account.sol";
-import {Factory} from "../../src/Factory.sol";
-import {IAccount} from "../../src/interfaces/IAccount.sol";
-import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
-import {IERC20} from "../../src/interfaces/IERC20.sol";
-import {IPermit2} from "../../src/interfaces/uniswap/IPermit2.sol";
-import {ISynth} from "../utils/interfaces/ISynth.sol";
-import {PermitSignature} from "../utils/PermitSignature.sol";
-import {SafeCast160} from "../../src/utils/uniswap/SafeCast160.sol";
-import {Settings} from "../../src/Settings.sol";
-import {Setup} from "../../script/Deploy.s.sol";
 import {Test} from "lib/forge-std/src/Test.sol";
+
+import {Setup} from "script/Deploy.s.sol";
+
+import {Account} from "src/Account.sol";
+import {Factory} from "src/Factory.sol";
+import {IAccount} from "src/interfaces/IAccount.sol";
+import {IERC20} from "src/interfaces/IERC20.sol";
+import {IPermit2} from "src/interfaces/uniswap/IPermit2.sol";
+import {SafeCast160} from "src/utils/uniswap/SafeCast160.sol";
+import {Settings} from "src/Settings.sol";
+
+import {IAddressResolver} from "test/utils/interfaces/IAddressResolver.sol";
+import {ISynth} from "test/utils/interfaces/ISynth.sol";
+import {PermitSignature} from "test/utils/PermitSignature.sol";
+
 import {
     ADDRESS_RESOLVER,
     AMOUNT,
@@ -24,7 +28,7 @@ import {
     UNISWAP_PERMIT2,
     UNISWAP_UNIVERSAL_ROUTER,
     USDC
-} from "../utils/Constants.sol";
+} from "test/utils/Constants.sol";
 
 contract PermitBehaviorTest is Test, PermitSignature {
     using SafeCast160 for uint256;

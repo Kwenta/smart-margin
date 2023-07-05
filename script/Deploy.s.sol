@@ -2,11 +2,13 @@
 pragma solidity 0.8.18;
 
 import "lib/forge-std/src/Script.sol";
+
 import {Account} from "src/Account.sol";
 import {Events} from "src/Events.sol";
 import {Factory} from "src/Factory.sol";
-import {IAddressResolver} from "./utils/interfaces/IAddressResolver.sol";
+import {IAddressResolver} from "script/utils/interfaces/IAddressResolver.sol";
 import {Settings} from "src/Settings.sol";
+
 import {
     OPTIMISM_DEPLOYER,
     OPTIMISM_KWENTA_ADMIN_DAO_MULTI_SIG,
@@ -19,7 +21,7 @@ import {
     PERPS_V2_EXCHANGE_RATE,
     FUTURES_MARKET_MANAGER,
     SYSTEM_STATUS
-} from "./utils/parameters/OptimismParameters.sol";
+} from "script/utils/parameters/OptimismParameters.sol";
 import {
     OPTIMISM_GOERLI_DEPLOYER,
     OPTIMISM_GOERLI_KWENTA_ADMIN_DAO_MULTI_SIG,
@@ -28,7 +30,7 @@ import {
     OPTIMISM_GOERLI_OPS,
     OPTIMISM_GOERLI_UNISWAP_UNIVERSAL_ROUTER,
     OPTIMISM_GOERLI_UNISWAP_PERMIT2
-} from "./utils/parameters/OptimismGoerliParameters.sol";
+} from "script/utils/parameters/OptimismGoerliParameters.sol";
 
 /// @title Script to deploy Kwenta's Smart Margin Account Factory
 /// @author JaredBorders (jaredborders@pm.me)

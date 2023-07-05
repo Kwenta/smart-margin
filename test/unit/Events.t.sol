@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {Account} from "../../src/Account.sol";
-import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {Events} from "../../src/Events.sol";
-import {Factory} from "../../src/Factory.sol";
-import {IAccount} from "../../src/interfaces/IAccount.sol";
-import {IEvents} from "../../src/interfaces/IEvents.sol";
-import {Setup} from "../../script/Deploy.s.sol";
 import {Test} from "lib/forge-std/src/Test.sol";
+
+import {Setup} from "script/Deploy.s.sol";
+
+import {Account} from "src/Account.sol";
+import {Events} from "src/Events.sol";
+import {Factory} from "src/Factory.sol";
+import {IAccount} from "src/interfaces/IAccount.sol";
+import {IEvents} from "src/interfaces/IEvents.sol";
+
+import {ConsolidatedEvents} from "test/utils/ConsolidatedEvents.sol";
+
 import {
     ADDRESS_RESOLVER,
     AMOUNT,
@@ -26,7 +30,7 @@ import {
     UNISWAP_PERMIT2,
     UNISWAP_UNIVERSAL_ROUTER,
     USER
-} from "../utils/Constants.sol";
+} from "test/utils/Constants.sol";
 
 contract EventsTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {ISettings} from "./interfaces/ISettings.sol";
-import {Owned} from "./utils/Owned.sol";
+import {ISettings} from "src/interfaces/ISettings.sol";
+import {Owned} from "src/utils/Owned.sol";
 
 /// @title Kwenta Smart Margin Account Settings
 /// @author JaredBorders (jaredborders@pm.me)

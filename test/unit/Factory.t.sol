@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {Account} from "../../src/Account.sol";
-import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {Factory} from "../../src/Factory.sol";
-import {IFactory} from "../../src/interfaces/IFactory.sol";
-import {MockAccount1} from "../utils/MockAccounts.sol";
-import {MockAccount2} from "../utils/MockAccounts.sol";
-import {Setup} from "../../script/Deploy.s.sol";
 import {Test} from "lib/forge-std/src/Test.sol";
-import {UpgradedAccount} from "../utils/UpgradedAccount.sol";
+
+import {Setup} from "script/Deploy.s.sol";
+
+import {Account} from "src/Account.sol";
+import {Factory} from "src/Factory.sol";
+import {IFactory} from "src/interfaces/IFactory.sol";
+
+import {ConsolidatedEvents} from "test/utils/ConsolidatedEvents.sol";
+import {MockAccount1} from "test/utils/MockAccounts.sol";
+import {MockAccount2} from "test/utils/MockAccounts.sol";
+import {UpgradedAccount} from "test/utils/UpgradedAccount.sol";
+
 import {
     ADDRESS_RESOLVER,
     BLOCK_NUMBER,
@@ -19,7 +23,7 @@ import {
     UNISWAP_PERMIT2,
     UNISWAP_UNIVERSAL_ROUTER,
     USER
-} from "../utils/Constants.sol";
+} from "test/utils/Constants.sol";
 
 contract FactoryTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////

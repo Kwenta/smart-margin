@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-/// @custom:todo clean up all test and src/ imports
-/// @custom:todo clean up all files and remove oz
-/// @custom:todo clean up uniswap specific stuff
-/// @custom:todo make constructor params a struct
-
-import {Account} from "../../src/Account.sol";
-import {Factory} from "../../src/Factory.sol";
-import {Setup} from "../../script/Deploy.s.sol";
 import {Test} from "lib/forge-std/src/Test.sol";
-import {ADDRESS_RESOLVER, BLOCK_NUMBER} from "../utils/Constants.sol";
+
+import {Setup} from "script/Deploy.s.sol";
+
+import {Account} from "src/Account.sol";
+import {Factory} from "src/Factory.sol";
+
+import {ADDRESS_RESOLVER, BLOCK_NUMBER} from "test/utils/Constants.sol";
 
 contract FactoryBehaviorTest is Test {
     /*//////////////////////////////////////////////////////////////

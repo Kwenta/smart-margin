@@ -1,21 +1,27 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.18;
 
-import {Account} from "../../src/Account.sol";
-import {AccountExposed} from "../utils/AccountExposed.sol";
-import {Auth} from "../../src/Account.sol";
-import {BytesLib} from "../../src/utils/uniswap/BytesLib.sol";
-import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {Events} from "../../src/Events.sol";
-import {Factory} from "../../src/Factory.sol";
-import {IAccount} from "../../src/interfaces/IAccount.sol";
-import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
-import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
-import {IPerpsV2ExchangeRate} from "../../src/interfaces/IAccount.sol";
-import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
-import {Settings} from "../../src/Settings.sol";
-import {Setup} from "../../script/Deploy.s.sol";
 import {Test} from "lib/forge-std/src/Test.sol";
+
+import {Setup} from "script/Deploy.s.sol";
+
+import {Account} from "src/Account.sol";
+import {Auth} from "src/Account.sol";
+import {BytesLib} from "src/utils/uniswap/BytesLib.sol";
+import {Events} from "src/Events.sol";
+import {Factory} from "src/Factory.sol";
+import {IAccount} from "src/interfaces/IAccount.sol";
+import {IFuturesMarketManager} from
+    "src/interfaces/synthetix/IFuturesMarketManager.sol";
+import {IPerpsV2ExchangeRate} from
+    "src/interfaces/synthetix/IPerpsV2ExchangeRate.sol";
+import {IPerpsV2MarketConsolidated} from "src/interfaces/IAccount.sol";
+import {Settings} from "src/Settings.sol";
+
+import {AccountExposed} from "test/utils/AccountExposed.sol";
+import {ConsolidatedEvents} from "test/utils/ConsolidatedEvents.sol";
+import {IAddressResolver} from "test/utils/interfaces/IAddressResolver.sol";
+
 import {
     ADDRESS_RESOLVER,
     AMOUNT,
@@ -33,7 +39,7 @@ import {
     SYSTEM_STATUS,
     UNISWAP_PERMIT2,
     UNISWAP_UNIVERSAL_ROUTER
-} from "../utils/Constants.sol";
+} from "test/utils/Constants.sol";
 
 contract AccountTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////

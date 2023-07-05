@@ -1,18 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {Account} from "../../src/Account.sol";
-import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {Factory} from "../../src/Factory.sol";
-import {IAccount} from "../../src/interfaces/IAccount.sol";
-import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
-import {IERC20} from "../../src/interfaces/IERC20.sol";
-import {IPermit2} from "../../src/interfaces/uniswap/IPermit2.sol";
-import {ISynth} from "../utils/interfaces/ISynth.sol";
-import {SafeCast160} from "../../src/utils/uniswap/SafeCast160.sol";
-import {Settings} from "../../src/Settings.sol";
-import {Setup} from "../../script/Deploy.s.sol";
 import {Test} from "lib/forge-std/src/Test.sol";
+
+import {Setup} from "script/Deploy.s.sol";
+
+import {Account} from "src/Account.sol";
+import {Factory} from "src/Factory.sol";
+import {IAccount} from "src/interfaces/IAccount.sol";
+import {IERC20} from "src/interfaces/IERC20.sol";
+import {IPermit2} from "src/interfaces/uniswap/IPermit2.sol";
+import {SafeCast160} from "src/utils/uniswap/SafeCast160.sol";
+import {Settings} from "src/Settings.sol";
+
+import {ConsolidatedEvents} from "test/utils/ConsolidatedEvents.sol";
+import {IAddressResolver} from "test/utils/interfaces/IAddressResolver.sol";
+import {ISynth} from "test/utils/interfaces/ISynth.sol";
+
 import {
     ADDRESS_RESOLVER,
     AMOUNT,
@@ -25,7 +29,7 @@ import {
     UNISWAP_UNIVERSAL_ROUTER,
     USDC,
     USER
-} from "../utils/Constants.sol";
+} from "test/utils/Constants.sol";
 
 contract SwapBehaviorTest is Test, ConsolidatedEvents {
     using SafeCast160 for uint256;
