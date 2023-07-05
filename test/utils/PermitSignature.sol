@@ -2,7 +2,7 @@
 pragma solidity 0.8.18;
 
 import {Vm} from "lib/forge-std/src/Vm.sol";
-import {IPermit2} from "../../src/interfaces/uniswap/IPermit2.sol";
+import {IPermit2} from "src/interfaces/uniswap/IPermit2.sol";
 
 contract PermitSignature {
     Vm private constant vm =

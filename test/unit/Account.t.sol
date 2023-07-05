@@ -935,7 +935,7 @@ contract AccountTest is Test, ConsolidatedEvents {
 
     function test_GetTokenInTokenOut_Invalid_Pools_No_Revert(
         bytes calldata path
-    ) public {
+    ) public view {
         vm.assume(path.length >= MULTIPLE_V3_POOLS_MIN_LENGTH);
 
         (address tokenIn, address tokenOut) =

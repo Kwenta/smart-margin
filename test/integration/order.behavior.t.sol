@@ -10,12 +10,14 @@ import {Auth} from "src/Account.sol";
 import {Events} from "src/Events.sol";
 import {Factory} from "src/Factory.sol";
 import {IAccount} from "src/interfaces/IAccount.sol";
-import {IFuturesMarketManager} from "src/interfaces/synthetix/IFuturesMarketManager.sol";
-import {IOps} from "src/utils/OpsReady.sol";
+import {IFuturesMarketManager} from
+    "src/interfaces/synthetix/IFuturesMarketManager.sol";
+import {IOps} from "src/interfaces/gelato/IOps.sol";
 import {IPermit2} from "src/interfaces/uniswap/IPermit2.sol";
-import {IPerpsV2MarketConsolidated} from "src/interfaces/synthetix/IPerpsV2MarketConsolidated.sol";
-import {IERC20} from "src/interfaces/IERC20.sol";
-import {OpsReady} from "src/utils/OpsReady.sol";
+import {IPerpsV2MarketConsolidated} from
+    "src/interfaces/synthetix/IPerpsV2MarketConsolidated.sol";
+import {IERC20} from "src/interfaces/token/IERC20.sol";
+import {OpsReady} from "src/utils/gelato/OpsReady.sol";
 import {Settings} from "src/Settings.sol";
 
 import {AccountExposed} from "test/utils/AccountExposed.sol";

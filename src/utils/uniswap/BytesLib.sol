@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {Constants} from "./Constants.sol";
+import {Constants} from "src/utils/uniswap/Constants.sol";
 
 library BytesLib {
     error SliceOutOfBounds();

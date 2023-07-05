@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {IOps} from "../interfaces/IOps.sol";
-
 /// @dev Inherit this contract to allow your smart
 /// contract to make synchronous fee payments and have
 /// call restrictions for functions to be automated.

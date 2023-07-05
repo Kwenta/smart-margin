@@ -8,7 +8,7 @@ import {Setup} from "script/Deploy.s.sol";
 import {Account} from "src/Account.sol";
 import {Factory} from "src/Factory.sol";
 import {IAccount} from "src/interfaces/IAccount.sol";
-import {IERC20} from "src/interfaces/IERC20.sol";
+import {IERC20} from "src/interfaces/token/IERC20.sol";
 import {IPermit2} from "src/interfaces/uniswap/IPermit2.sol";
 import {SafeCast160} from "src/utils/uniswap/SafeCast160.sol";
 import {Settings} from "src/Settings.sol";

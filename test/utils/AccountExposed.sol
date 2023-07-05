@@ -7,7 +7,7 @@ import {
     IPerpsV2MarketConsolidated,
     IEvents,
     IOps
-} from "../../src/Account.sol";
+} from "src/Account.sol";
 // import {} from "./Constants.sol";
 
 /// @dev This contract exposes the internal functions of Account.sol for testing purposes

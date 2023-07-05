@@ -9,10 +9,11 @@ import {Account} from "src/Account.sol";
 import {Events} from "src/Events.sol";
 import {Factory} from "src/Factory.sol";
 import {IAccount} from "src/interfaces/IAccount.sol";
-import {IFuturesMarketManager} from "src/interfaces/synthetix/IFuturesMarketManager.sol";
+import {IFuturesMarketManager} from
+    "src/interfaces/synthetix/IFuturesMarketManager.sol";
 import {IPermit2} from "src/interfaces/uniswap/IPermit2.sol";
 import {IPerpsV2MarketConsolidated} from "src/interfaces/IAccount.sol";
-import {IERC20} from "src/interfaces/IERC20.sol";
+import {IERC20} from "src/interfaces/token/IERC20.sol";
 
 import {AccountExposed} from "test/utils/AccountExposed.sol";
 import {ConsolidatedEvents} from "test/utils/ConsolidatedEvents.sol";

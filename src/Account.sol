@@ -10,13 +10,14 @@ import {IFuturesMarketManager} from
 import {IPermit2} from "src/interfaces/uniswap/IPermit2.sol";
 import {ISettings} from "src/interfaces/ISettings.sol";
 import {ISystemStatus} from "src/interfaces/synthetix/ISystemStatus.sol";
-import {IOps, OpsReady} from "src/utils/OpsReady.sol";
+import {IOps} from "src/interfaces/gelato/IOps.sol";
 import {IUniversalRouter} from "src/interfaces/uniswap/IUniversalRouter.sol";
 import {IEvents} from "src/interfaces/IEvents.sol";
 import {IPerpsV2ExchangeRate} from
     "src/interfaces/synthetix/IPerpsV2ExchangeRate.sol";
+import {OpsReady} from "src/utils/gelato/OpsReady.sol";
 import {SafeCast160} from "src/utils/uniswap/SafeCast160.sol";
-import {IERC20} from "src/interfaces/IERC20.sol";
+import {IERC20} from "src/interfaces/token/IERC20.sol";
 import {V3Path} from "src/utils/uniswap/V3Path.sol";
 
 /// @title Kwenta Smart Margin Account Implementation
