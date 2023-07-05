@@ -1,29 +1,36 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import "lib/forge-std/src/Script.sol";
+import {Script} from "lib/forge-std/src/Script.sol";
+
+import {IAddressResolver} from "script/utils/interfaces/IAddressResolver.sol";
 
 import {Account} from "src/Account.sol";
 import {Events} from "src/Events.sol";
 import {Settings} from "src/Settings.sol";
-import {IAddressResolver} from "script/utils/interfaces/IAddressResolver.sol";
+import {IAccount} from "src/interfaces/IAccount.sol";
 
 import {
-    OPTIMISM_SYNTHETIX_ADDRESS_RESOLVER,
-    PROXY_SUSD,
-    PERPS_V2_EXCHANGE_RATE,
+    OPTIMISM_PDAO,
+    OPTIMISM_GELATO,
+    OPTIMISM_OPS,
     FUTURES_MARKET_MANAGER,
-    SYSTEM_STATUS,
-    OPTIMISM_FACTORY
+    OPTIMISM_FACTORY,
+    OPTIMISM_SYNTHETIX_ADDRESS_RESOLVER,
+    OPTIMISM_UNISWAP_PERMIT2,
+    OPTIMISM_UNISWAP_UNIVERSAL_ROUTER,
+    PERPS_V2_EXCHANGE_RATE,
+    PROXY_SUSD,
+    SYSTEM_STATUS
 } from "script/utils/parameters/OptimismParameters.sol";
 import {
-    OPTIMISM_GOERLI_SYNTHETIX_ADDRESS_RESOLVER,
+    OPTIMISM_GOERLI_DEPLOYER,
     OPTIMISM_GOERLI_FACTORY,
     OPTIMISM_GOERLI_GELATO,
     OPTIMISM_GOERLI_OPS,
-    OPTIMISM_GOERLI_UNISWAP_UNIVERSAL_ROUTER,
+    OPTIMISM_GOERLI_SYNTHETIX_ADDRESS_RESOLVER,
     OPTIMISM_GOERLI_UNISWAP_PERMIT2,
-    OPTIMISM_GOERLI_DEPLOYER
+    OPTIMISM_GOERLI_UNISWAP_UNIVERSAL_ROUTER
 } from "script/utils/parameters/OptimismGoerliParameters.sol";
 
 /// @title Script to upgrade the Account implementation v2.0.2 -> v2.0.3
@@ -44,29 +51,42 @@ contract UpgradeAccountOptimism is Script {
     }
 
     function upgrade() public returns (address implementation) {
-        /// @custom:todo implement upgrade script
+        IAddressResolver addressResolver =
+            IAddressResolver(OPTIMISM_SYNTHETIX_ADDRESS_RESOLVER);
 
-        // IAddressResolver addressResolver =
-        //     IAddressResolver(OPTIMISM_SYNTHETIX_ADDRESS_RESOLVER);
+        // deploy events
+        address events = address(new Events({_factory: OPTIMISM_FACTORY}));
 
-        // // deploy events
-        // address events = address(new Events({_factory: OPTIMISM_FACTORY}));
+        // deploy settings
+        address settings = address(
+            new Settings({
+                _owner: OPTIMISM_PDAO
+            })
+        );
 
-        // implementation = address(
-        //     new Account({
-        //         _factory: OPTIMISM_FACTORY,
-        //         _events: events,
-        //         _marginAsset: addressResolver.getAddress({name: PROXY_SUSD}),
-        //         _perpsV2ExchangeRate: addressResolver.getAddress({name: PERPS_V2_EXCHANGE_RATE}),
-        //         _futuresMarketManager: addressResolver.getAddress({name: FUTURES_MARKET_MANAGER}),
-        //         _systemStatus: addressResolver.getAddress({name: SYSTEM_STATUS}),
-        //         _gelato: OPTIMISM_GELATO,
-        //         _ops: OPTIMISM_OPS,
-        //         _settings: OPTIMISM_SETTINGS
-        //     })
-        // );
+        address marginAsset = addressResolver.getAddress({name: PROXY_SUSD});
+        address perpsV2ExchangeRate =
+            addressResolver.getAddress({name: PERPS_V2_EXCHANGE_RATE});
+        address futuresMarketManager =
+            addressResolver.getAddress({name: FUTURES_MARKET_MANAGER});
+        address systemStatus = addressResolver.getAddress({name: SYSTEM_STATUS});
 
-        // console2.log("Account Implementation v2.0.3 Deployed:", implementation);
+        IAccount.AccountConstructorParams memory params = IAccount
+            .AccountConstructorParams({
+            factory: OPTIMISM_FACTORY,
+            events: events,
+            marginAsset: marginAsset,
+            perpsV2ExchangeRate: perpsV2ExchangeRate,
+            futuresMarketManager: futuresMarketManager,
+            systemStatus: systemStatus,
+            gelato: OPTIMISM_GELATO,
+            ops: OPTIMISM_OPS,
+            settings: settings,
+            universalRouter: OPTIMISM_UNISWAP_UNIVERSAL_ROUTER,
+            permit2: OPTIMISM_UNISWAP_PERMIT2
+        });
+
+        implementation = address(new Account(params));
     }
 }
 
@@ -107,20 +127,21 @@ contract UpgradeAccountOptimismGoerli is Script {
             addressResolver.getAddress({name: FUTURES_MARKET_MANAGER});
         address systemStatus = addressResolver.getAddress({name: SYSTEM_STATUS});
 
-        implementation = address(
-            new Account({
-                _factory: OPTIMISM_GOERLI_FACTORY,
-                _events: events,
-                _marginAsset: marginAsset,
-                _perpsV2ExchangeRate: perpsV2ExchangeRate,
-                _futuresMarketManager: futuresMarketManager,
-                _systemStatus: systemStatus,
-                _gelato: OPTIMISM_GOERLI_GELATO,
-                _ops: OPTIMISM_GOERLI_OPS,
-                _settings: settings,
-                _universalRouter: OPTIMISM_GOERLI_UNISWAP_UNIVERSAL_ROUTER,
-                _permit2: OPTIMISM_GOERLI_UNISWAP_PERMIT2
-            })
-        );
+        IAccount.AccountConstructorParams memory params = IAccount
+            .AccountConstructorParams({
+            factory: OPTIMISM_GOERLI_FACTORY,
+            events: events,
+            marginAsset: marginAsset,
+            perpsV2ExchangeRate: perpsV2ExchangeRate,
+            futuresMarketManager: futuresMarketManager,
+            systemStatus: systemStatus,
+            gelato: OPTIMISM_GOERLI_GELATO,
+            ops: OPTIMISM_GOERLI_OPS,
+            settings: settings,
+            universalRouter: OPTIMISM_GOERLI_UNISWAP_UNIVERSAL_ROUTER,
+            permit2: OPTIMISM_GOERLI_UNISWAP_PERMIT2
+        });
+
+        implementation = address(new Account(params));
     }
 }

@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import "lib/forge-std/src/Script.sol";
+import {Script} from "lib/forge-std/src/Script.sol";
+
+import {IAddressResolver} from "script/utils/interfaces/IAddressResolver.sol";
 
 import {Account} from "src/Account.sol";
 import {Events} from "src/Events.sol";
 import {Factory} from "src/Factory.sol";
-import {IAddressResolver} from "script/utils/interfaces/IAddressResolver.sol";
+import {IAccount} from "src/interfaces/IAccount.sol";
 import {Settings} from "src/Settings.sol";
 
 import {
@@ -54,43 +56,48 @@ contract Setup {
     {
         IAddressResolver addressResolver;
 
-        {
-            // define *initial* factory owner
-            address temporaryOwner =
-                _deployer == address(0) ? address(this) : _deployer;
+        // define *initial* factory owner
+        address temporaryOwner =
+            _deployer == address(0) ? address(this) : _deployer;
 
-            // deploy the factory
-            factory = new Factory({
+        // deploy the factory
+        factory = new Factory({
                 _owner: temporaryOwner
             });
 
-            // deploy the events contract and set the factory
-            events = new Events({
+        // deploy the events contract and set the factory
+        events = new Events({
                 _factory: address(factory)
             });
 
-            // deploy the settings contract
-            settings = new Settings({
+        // deploy the settings contract
+        settings = new Settings({
                 _owner: _owner
             });
 
-            // resolve necessary addresses via the Synthetix Address Resolver
-            addressResolver = IAddressResolver(_addressResolver);
-        }
+        // resolve necessary addresses via the Synthetix Address Resolver
+        addressResolver = IAddressResolver(_addressResolver);
 
-        implementation = new Account({
-            _factory: address(factory),
-            _events: address(events),
-            _marginAsset: addressResolver.getAddress({name: PROXY_SUSD}),
-            _perpsV2ExchangeRate: addressResolver.getAddress({name: PERPS_V2_EXCHANGE_RATE}),
-            _futuresMarketManager: addressResolver.getAddress({name: FUTURES_MARKET_MANAGER}),
-            _systemStatus: addressResolver.getAddress({name: SYSTEM_STATUS}),
-            _gelato: _gelato,
-            _ops: _ops,
-            _settings: address(settings),
-            _universalRouter: _universalRouter,
-            _permit2: _permit2
+        IAccount.AccountConstructorParams memory params = IAccount
+            .AccountConstructorParams({
+            factory: address(factory),
+            events: address(events),
+            marginAsset: addressResolver.getAddress({name: PROXY_SUSD}),
+            perpsV2ExchangeRate: addressResolver.getAddress({
+                name: PERPS_V2_EXCHANGE_RATE
+            }),
+            futuresMarketManager: addressResolver.getAddress({
+                name: FUTURES_MARKET_MANAGER
+            }),
+            systemStatus: addressResolver.getAddress({name: SYSTEM_STATUS}),
+            gelato: _gelato,
+            ops: _ops,
+            settings: address(settings),
+            universalRouter: _universalRouter,
+            permit2: _permit2
         });
+
+        implementation = new Account(params);
 
         // update the factory with the new account implementation
         factory.upgradeAccountImplementation({
