@@ -1035,6 +1035,29 @@ contract Account is IAccount, Auth, OpsReady {
         });
     }
 
+    /// @notice decode and return tokens encoded in the provided path
+    /// @param _path: path of tokens to swap (token0 - fee - token1)
+    /// @return tokenIn token swapped into the respective pool
+    /// @return tokenOut token swapped out of the respective pool
+    function _getTokenInTokenOut(bytes calldata _path)
+        internal
+        pure
+        returns (address tokenIn, address tokenOut)
+    {
+        tokenIn = _path.decodeFirstToken();
+        while (true) {
+            bool hasMultiplePools = _path.hasMultiplePools();
+
+            // decide whether to continue or terminate
+            if (hasMultiplePools) {
+                _path = _path.skipToken();
+            } else {
+                (,, tokenOut) = _path.toPool();
+                break;
+            }
+        }
+    }
+
     /// @notice call Uniswap's Universal Router to execute a swap
     /// @param _recipient: address to receive swapped tokens
     /// @param _amountIn: amount of token to swap
@@ -1056,25 +1079,6 @@ contract Account is IAccount, Auth, OpsReady {
             inputs: inputs,
             deadline: block.timestamp
         });
-    }
-
-    function _getTokenInTokenOut(bytes calldata _path)
-        internal
-        pure
-        returns (address tokenIn, address tokenOut)
-    {
-        tokenIn = _path.decodeFirstToken();
-        while (true) {
-            bool hasMultiplePools = _path.hasMultiplePools();
-
-            // decide whether to continue or terminate
-            if (hasMultiplePools) {
-                _path = _path.skipToken();
-            } else {
-                (,, tokenOut) = _path.toPool();
-                break;
-            }
-        }
     }
 
     /*//////////////////////////////////////////////////////////////
