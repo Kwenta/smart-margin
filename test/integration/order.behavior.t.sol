@@ -649,12 +649,6 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                  EXECUTING CONDITIONAL ORDERS: GENERAL
     //////////////////////////////////////////////////////////////*/
 
-    function test_ExecuteConditionalOrder_Invalid_NotOps() public {
-        vm.prank(USER);
-        vm.expectRevert(abi.encodeWithSelector(OpsReady.OnlyOps.selector));
-        account.executeConditionalOrder({_conditionalOrderId: 0});
-    }
-
     function test_ExecuteConditionalOrder_MarketIsPaused() public {
         // place conditional order for sAUDPERP market
         uint256 conditionalOrderId = placeConditionalOrder({

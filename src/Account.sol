@@ -805,7 +805,6 @@ contract Account is IAccount, Auth, OpsReady {
         external
         override
         isAccountExecutionEnabled
-        onlyOps
     {
         // store conditional order in memory
         ConditionalOrder memory conditionalOrder =
