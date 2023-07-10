@@ -142,6 +142,21 @@ interface IAccount {
     /// @param tokenOut: token attempting to swap to
     error TokenSwapNotAllowed(address tokenIn, address tokenOut);
 
+    /// @notice thrown when a conditional order is attempted to be executed during invalid market conditions
+    /// @param conditionalOrderId: conditional order id
+    /// @param executor: address of executor
+    error CannotExecuteConditionalOrder(
+        uint256 conditionalOrderId, address executor
+    );
+
+    /// @notice thrown when a conditional order is attempted to be executed but SM account cannot pay fee
+    /// @param executorFee: fee required to execute conditional order
+    error CannotPayExecutorFee(uint256 executorFee, address executor);
+
+    /// @notice thrown when a price update is attempted to be executed but SM account cannot pay fee
+    /// OR it fails for some other reason (ex: bad price feed data)
+    error PythPriceUpdateFailed();
+
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
@@ -211,11 +226,22 @@ interface IAccount {
         external
         payable;
 
-    /// @notice execute a gelato queued conditional order
-    /// @notice only keepers can trigger this function
+    /// @notice execute queued conditional order
     /// @dev currently only supports conditional order submission via PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER COMMAND
-    /// @custom:audit a compromised Gelato Ops cannot drain accounts due to several interactions with Synthetix PerpsV2
-    /// requiring a valid market which could not be initialized with an invalid conditional order id
     /// @param _conditionalOrderId: key for an active conditional order
     function executeConditionalOrder(uint256 _conditionalOrderId) external;
+
+    /// @notice execute a gelato queued conditional order with a pyth oracle price feed update
+    /// @param _conditionalOrderId: key for an active conditional order
+    /// @param priceUpdateData: array of bytes containing price update data for pyth oracle
+    function executeConditionalOrderWithPriceUpdate(
+        uint256 _conditionalOrderId,
+        bytes[] calldata priceUpdateData
+    ) external;
+
+    /// @notice set the executor fee for conditional order execution
+    /// @dev only owner can set executor fee
+    /// @dev there are no checks against new executor fee
+    /// @param _executorFee: new executor fee
+    function setExecutorFee(uint256 _executorFee) external;
 }

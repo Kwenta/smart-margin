@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
+import {IPyth} from "src/interfaces/pyth/IPyth.sol";
+
 /// Used to fetch a price with a degree of uncertainty, represented as a price +- a confidence interval.
 ///
 /// The confidence interval roughly corresponds to the standard error of a normal distribution.
@@ -23,4 +25,6 @@ interface IPerpsV2ExchangeRate {
         external
         view
         returns (uint256 price, uint256 publishTime);
+
+    function offchainOracle() external view returns (IPyth);
 }

@@ -10,6 +10,7 @@ import {IFactory} from "src/interfaces/IFactory.sol";
 import {IFuturesMarketManager} from
     "src/interfaces/synthetix/IFuturesMarketManager.sol";
 import {IPermit2} from "src/interfaces/uniswap/IPermit2.sol";
+import {IPyth} from "src/interfaces/pyth/IPyth.sol";
 import {ISettings} from "src/interfaces/ISettings.sol";
 import {ISystemStatus} from "src/interfaces/synthetix/ISystemStatus.sol";
 import {IOps} from "src/interfaces/gelato/IOps.sol";
@@ -102,6 +103,10 @@ contract Account is IAccount, Auth, OpsReady {
 
     /// @notice value used for reentrancy protection
     uint256 internal locked = 1;
+
+    /// @notice fee the SM account is willing to pay a conditional order executor
+    /// @notice this fee can be calibrated by the owner
+    uint256 public executorFee = 1 ether / 1000;
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -678,7 +683,7 @@ contract Account is IAccount, Auth, OpsReady {
     }
 
     /*//////////////////////////////////////////////////////////////
-                           CONDITIONAL ORDERS
+                        CREATE CONDITIONAL ORDER
     //////////////////////////////////////////////////////////////*/
 
     /// @notice register a conditional order internally and with gelato
@@ -770,6 +775,10 @@ contract Account is IAccount, Auth, OpsReady {
         );
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        CANCEL CONDITIONAL ORDER
+    //////////////////////////////////////////////////////////////*/
+
     /// @notice cancel a gelato queued conditional order
     /// @param _conditionalOrderId: key for an active conditional order
     function _cancelConditionalOrder(uint256 _conditionalOrderId) internal {
@@ -797,16 +806,32 @@ contract Account is IAccount, Auth, OpsReady {
     }
 
     /*//////////////////////////////////////////////////////////////
-                   GELATO CONDITIONAL ORDER HANDLING
+                       EXECUTE CONDITIONAL ORDER
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
     function executeConditionalOrder(uint256 _conditionalOrderId)
         external
         override
+        nonReentrant
         isAccountExecutionEnabled
     {
-        // store conditional order in memory
+        _executeConditionalOrder(_conditionalOrderId);
+    }
+
+    /// @inheritdoc IAccount
+    function executeConditionalOrderWithPriceUpdate(
+        uint256 _conditionalOrderId,
+        bytes[] calldata _priceUpdateData
+    ) external override nonReentrant isAccountExecutionEnabled {
+        // update pyth price feed prior to executing conditional order
+        _updatePythPrice(_priceUpdateData);
+
+        _executeConditionalOrder(_conditionalOrderId);
+    }
+
+    function _executeConditionalOrder(uint256 _conditionalOrderId) internal {
+        // store conditional order object in memory
         ConditionalOrder memory conditionalOrder =
             getConditionalOrder(_conditionalOrderId);
 
@@ -815,11 +840,20 @@ contract Account is IAccount, Auth, OpsReady {
 
         // remove gelato task from their accounting
         /// @dev will revert if task id does not exist {Automate.cancelTask: Task not found}
+        /// @dev if executor is not Gelato, the task will still be cancelled
         IOps(OPS).cancelTask({taskId: conditionalOrder.gelatoTaskId});
 
-        // pay Gelato imposed fee for conditional order execution
-        (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
-        _transfer({_amount: fee, _paymentToken: feeToken});
+        // verify conditional order is ready for execution
+        /// @dev it is understood this is a duplicate check if the executor is Gelato
+        if (!_validConditionalOrder(_conditionalOrderId)) {
+            revert CannotExecuteConditionalOrder({
+                conditionalOrderId: _conditionalOrderId,
+                executor: msg.sender
+            });
+        }
+
+        // impose and record fee paid to executor
+        uint256 fee = _payExecutorFee();
 
         // define Synthetix PerpsV2 market
         IPerpsV2MarketConsolidated market =
@@ -867,6 +901,7 @@ contract Account is IAccount, Auth, OpsReady {
             _market: address(market),
             _amount: conditionalOrder.marginDelta
         });
+
         _perpsV2SubmitOffchainDelayedOrder({
             _market: address(market),
             _sizeDelta: conditionalOrder.sizeDelta,
@@ -880,6 +915,38 @@ contract Account is IAccount, Auth, OpsReady {
             keeperFee: fee,
             priceOracle: priceOracle
         });
+    }
+
+    /// @notice attempt to update the Pyth price feed
+    /// @dev this will revert if the price update fails due to insufficient eth
+    /// @param priceUpdateData: array of bytes containing price update data
+    function _updatePythPrice(bytes[] calldata priceUpdateData) internal {
+        IPyth oracle = PERPS_V2_EXCHANGE_RATE.offchainOracle();
+
+        // determine fee amount to pay to Pyth for price update
+        uint256 fee = oracle.getUpdateFee(priceUpdateData);
+
+        // update the price data (and pay the fee)
+        /// @dev the SM account pays the fee, not the caller (i.e. not the executor)
+        try oracle.updatePriceFeeds{value: fee}(priceUpdateData) {}
+        catch {
+            revert PythPriceUpdateFailed();
+        }
+    }
+
+    /// @notice pay fee for conditional order execution
+    /// @dev fee will be different depending on executor
+    /// @return fee amount paid
+    function _payExecutorFee() internal returns (uint256 fee) {
+        if (msg.sender == OPS) {
+            // pay Gelato imposed fee for conditional order execution
+            address feeToken;
+            (fee, feeToken) = IOps(OPS).getFeeDetails();
+            _transfer({_amount: fee, _paymentToken: feeToken});
+        } else {
+            (bool success,) = payable(msg.sender).call{value: executorFee}("");
+            if (!success) revert CannotPayExecutorFee(executorFee, msg.sender);
+        }
     }
 
     /// @notice order logic condition checker
@@ -1090,6 +1157,16 @@ contract Account is IAccount, Auth, OpsReady {
         if (_abs(_marginOut) > freeMargin()) {
             revert InsufficientFreeMargin(freeMargin(), _abs(_marginOut));
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            SETTER UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IAccount
+    function setExecutorFee(uint256 _executorFee) external override {
+        if (!isOwner()) revert Unauthorized();
+        executorFee = _executorFee;
     }
 
     /*//////////////////////////////////////////////////////////////

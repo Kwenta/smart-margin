@@ -14,6 +14,9 @@ abstract contract OpsReady {
     /// @notice internal address representation of ETH (used by Gelato)
     address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
+    /// @notice thrown when SM account cannot pay the fee
+    error CannotPayGelatoFee(uint256 amount);
+
     /// @notice sets the addresses of the Gelato Network contracts
     /// @param _gelato: address of the Gelato Network contract
     /// @param _ops: address of the Gelato `Automate` contract
@@ -30,6 +33,6 @@ abstract contract OpsReady {
         /// @dev Smart Margin Accounts will only pay fees in ETH
         assert(_paymentToken == ETH);
         (bool success,) = GELATO.call{value: _amount}("");
-        require(success, "OpsReady: ETH transfer failed");
+        if (!success) revert CannotPayGelatoFee(_amount);
     }
 }
