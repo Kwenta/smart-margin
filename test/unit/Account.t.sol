@@ -982,6 +982,29 @@ contract AccountTest is Test, ConsolidatedEvents {
     }
 
     /*//////////////////////////////////////////////////////////////
+                            SETTER UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SetExecutorFee_OnlyOwner() public {
+        uint fee = 1;
+        vm.prank(DELEGATE);
+        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
+        account.setExecutorFee(fee);
+    }
+
+    function test_SetExecutorFee(uint256 fee) public {
+        account.setExecutorFee(fee);
+        assertEq(account.executorFee(), fee);
+    }
+
+    function test_SetExecutorFee_Event() public {
+        uint256 fee = 1 ether;
+        vm.expectEmit(true, true, true, true);
+        emit ExecutorFeeSet(address(account), fee);
+        account.setExecutorFee(fee);
+    }
+    
+    /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
