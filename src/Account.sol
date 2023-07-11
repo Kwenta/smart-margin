@@ -1167,6 +1167,8 @@ contract Account is IAccount, Auth, OpsReady {
     function setExecutorFee(uint256 _executorFee) external override {
         if (!isOwner()) revert Unauthorized();
         executorFee = _executorFee;
+
+        EVENTS.emitExecutorFeeSet({executorFee: _executorFee});
     }
 
     /*//////////////////////////////////////////////////////////////
