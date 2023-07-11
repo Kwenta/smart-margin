@@ -835,14 +835,6 @@ contract Account is IAccount, Auth, OpsReady {
         ConditionalOrder memory conditionalOrder =
             getConditionalOrder(_conditionalOrderId);
 
-        // remove conditional order from internal accounting
-        delete conditionalOrders[_conditionalOrderId];
-
-        // remove gelato task from their accounting
-        /// @dev will revert if task id does not exist {Automate.cancelTask: Task not found}
-        /// @dev if executor is not Gelato, the task will still be cancelled
-        IOps(OPS).cancelTask({taskId: conditionalOrder.gelatoTaskId});
-
         // verify conditional order is ready for execution
         /// @dev it is understood this is a duplicate check if the executor is Gelato
         if (!_validConditionalOrder(_conditionalOrderId)) {
@@ -851,6 +843,14 @@ contract Account is IAccount, Auth, OpsReady {
                 executor: msg.sender
             });
         }
+
+        // remove conditional order from internal accounting
+        delete conditionalOrders[_conditionalOrderId];
+
+        // remove gelato task from their accounting
+        /// @dev will revert if task id does not exist {Automate.cancelTask: Task not found}
+        /// @dev if executor is not Gelato, the task will still be cancelled
+        IOps(OPS).cancelTask({taskId: conditionalOrder.gelatoTaskId});
 
         // impose and record fee paid to executor
         uint256 fee = _payExecutorFee();
