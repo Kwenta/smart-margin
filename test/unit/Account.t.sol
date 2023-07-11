@@ -879,7 +879,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         );
 
         (address tokenIn, address tokenOut) =
-            accountExposed.expose__getTokenInTokenOut(path);
+            accountExposed.expose_getTokenInTokenOut(path);
         assertEq(tokenIn, address(0xA));
         assertEq(tokenOut, address(0xB));
     }
@@ -902,7 +902,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         );
 
         (address tokenIn, address tokenOut) =
-            accountExposed.expose__getTokenInTokenOut(path);
+            accountExposed.expose_getTokenInTokenOut(path);
         assertEq(tokenIn, address(0xA));
         assertEq(tokenOut, address(0x10));
     }
@@ -913,7 +913,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         vm.expectRevert(
             abi.encodeWithSelector(BytesLib.SliceOutOfBounds.selector)
         );
-        accountExposed.expose__getTokenInTokenOut(path);
+        accountExposed.expose_getTokenInTokenOut(path);
     }
 
     function test_GetTokenInTokenOut_Invalid_TokenIn() public {
@@ -922,7 +922,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         vm.expectRevert(
             abi.encodeWithSelector(BytesLib.SliceOutOfBounds.selector)
         );
-        accountExposed.expose__getTokenInTokenOut(path);
+        accountExposed.expose_getTokenInTokenOut(path);
     }
 
     function test_GetTokenInTokenOut_Invalid_Fee() public {
@@ -932,7 +932,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         vm.expectRevert(
             abi.encodeWithSelector(BytesLib.SliceOutOfBounds.selector)
         );
-        accountExposed.expose__getTokenInTokenOut(path);
+        accountExposed.expose_getTokenInTokenOut(path);
     }
 
     function test_GetTokenInTokenOut_Invalid_Pools_No_Revert(
@@ -941,7 +941,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         vm.assume(path.length >= MULTIPLE_V3_POOLS_MIN_LENGTH);
 
         (address tokenIn, address tokenOut) =
-            accountExposed.expose__getTokenInTokenOut(path);
+            accountExposed.expose_getTokenInTokenOut(path);
 
         // _getTokenInTokenOut makes no assurances about the validity of the tokenIn/tokenOut;
         // it only checks that the path length is valid.

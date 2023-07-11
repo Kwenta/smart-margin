@@ -152,6 +152,14 @@ contract OrderPublicBehaviorTest is Test, ConsolidatedEvents {
         assertEq(conditionalOrder.sizeDelta, 0);
     }
 
+    function test_UpdatePythPrice() public {
+        /// @custom:todo will likely need to mock
+    }
+
+    function test_PayExecutorFee() public {
+        /// @custom:todo
+    }
+
     function test_ExecuteConditionalOrderWithPriceUpdate() public {
         /// @custom:todo
     }
