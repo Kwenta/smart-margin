@@ -49,7 +49,7 @@ import {
 
 // functions tagged with @HELPER are helper functions and not tests
 // tests tagged with @AUDITOR are flags for desired increased scrutiny by the auditors
-contract OrderBehaviorTest is Test, ConsolidatedEvents {
+contract OrderGelatoBehaviorTest is Test, ConsolidatedEvents {
     receive() external payable {}
 
     /*//////////////////////////////////////////////////////////////

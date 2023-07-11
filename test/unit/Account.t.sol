@@ -986,7 +986,7 @@ contract AccountTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_SetExecutorFee_OnlyOwner() public {
-        uint fee = 1;
+        uint256 fee = 1;
         vm.prank(DELEGATE);
         vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         account.setExecutorFee(fee);
@@ -1003,7 +1003,7 @@ contract AccountTest is Test, ConsolidatedEvents {
         emit ExecutorFeeSet(address(account), fee);
         account.setExecutorFee(fee);
     }
-    
+
     /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
