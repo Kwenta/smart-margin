@@ -25,10 +25,7 @@ abstract contract OpsReady {
     /// @notice transfers fee (in ETH) to gelato for synchronous fee payments
     /// @dev happens at task execution time
     /// @param _amount: amount of asset to transfer
-    /// @param _paymentToken: address of the token to transfer
-    function _transfer(uint256 _amount, address _paymentToken) internal {
-        /// @dev Smart Margin Accounts will only pay fees in ETH
-        assert(_paymentToken == ETH);
+    function _transfer(uint256 _amount) internal {
         (bool success,) = GELATO.call{value: _amount}("");
         require(success, "OpsReady: ETH transfer failed");
     }
