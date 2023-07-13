@@ -10,7 +10,6 @@ import {IFactory} from "src/interfaces/IFactory.sol";
 import {IFuturesMarketManager} from
     "src/interfaces/synthetix/IFuturesMarketManager.sol";
 import {IPermit2} from "src/interfaces/uniswap/IPermit2.sol";
-import {IPyth} from "src/interfaces/pyth/IPyth.sol";
 import {ISettings} from "src/interfaces/ISettings.sol";
 import {ISystemStatus} from "src/interfaces/synthetix/ISystemStatus.sol";
 import {IOps} from "src/interfaces/gelato/IOps.sol";
@@ -102,11 +101,7 @@ contract Account is IAccount, Auth, OpsReady {
     mapping(uint256 id => ConditionalOrder order) internal conditionalOrders;
 
     /// @notice value used for reentrancy protection
-    uint256 internal locked = 1;
-
-    /// @notice fee the SM account is willing to pay a conditional order executor
-    /// @notice this fee can be calibrated by the owner
-    uint256 public executorFee = 1 ether / 1000;
+    uint256 internal locked;
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -121,12 +116,12 @@ contract Account is IAccount, Auth, OpsReady {
     }
 
     modifier nonReentrant() {
-        if (locked == 2) revert Reentrancy();
-        locked = 2;
+        if (locked == 1) revert Reentrancy();
+        locked = 1;
 
         _;
 
-        locked = 1;
+        locked = 0;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -816,21 +811,6 @@ contract Account is IAccount, Auth, OpsReady {
         nonReentrant
         isAccountExecutionEnabled
     {
-        _executeConditionalOrder(_conditionalOrderId);
-    }
-
-    /// @inheritdoc IAccount
-    function executeConditionalOrderWithPriceUpdate(
-        uint256 _conditionalOrderId,
-        bytes[] calldata _priceUpdateData
-    ) external override nonReentrant isAccountExecutionEnabled {
-        // update pyth price feed prior to executing conditional order
-        _updatePythPrice(_priceUpdateData);
-
-        _executeConditionalOrder(_conditionalOrderId);
-    }
-
-    function _executeConditionalOrder(uint256 _conditionalOrderId) internal {
         // store conditional order object in memory
         ConditionalOrder memory conditionalOrder =
             getConditionalOrder(_conditionalOrderId);
@@ -917,35 +897,17 @@ contract Account is IAccount, Auth, OpsReady {
         });
     }
 
-    /// @notice attempt to update the Pyth price feed
-    /// @dev this will revert if the price update fails due to insufficient eth
-    /// @param priceUpdateData: array of bytes containing price update data
-    function _updatePythPrice(bytes[] calldata priceUpdateData) internal {
-        IPyth oracle = PERPS_V2_EXCHANGE_RATE.offchainOracle();
-
-        // determine fee amount to pay to Pyth for price update
-        uint256 fee = oracle.getUpdateFee(priceUpdateData);
-
-        // update the price data (and pay the fee)
-        /// @dev the SM account pays the fee, not the caller (i.e. not the executor)
-        try oracle.updatePriceFeeds{value: fee}(priceUpdateData) {}
-        catch {
-            revert PythPriceUpdateFailed();
-        }
-    }
-
     /// @notice pay fee for conditional order execution
     /// @dev fee will be different depending on executor
     /// @return fee amount paid
     function _payExecutorFee() internal returns (uint256 fee) {
         if (msg.sender == OPS) {
-            // pay Gelato imposed fee for conditional order execution
-            address feeToken;
-            (fee, feeToken) = IOps(OPS).getFeeDetails();
-            _transfer({_amount: fee, _paymentToken: feeToken});
+            (fee,) = IOps(OPS).getFeeDetails();
+            _transfer({_amount: fee});
         } else {
-            (bool success,) = payable(msg.sender).call{value: executorFee}("");
-            if (!success) revert CannotPayExecutorFee(executorFee, msg.sender);
+            fee = SETTINGS.executorFee();
+            (bool success,) = payable(msg.sender).call{value: fee}("");
+            if (!success) revert CannotPayExecutorFee(fee, msg.sender);
         }
     }
 
@@ -1157,18 +1119,6 @@ contract Account is IAccount, Auth, OpsReady {
         if (_abs(_marginOut) > freeMargin()) {
             revert InsufficientFreeMargin(freeMargin(), _abs(_marginOut));
         }
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            SETTER UTILITIES
-    //////////////////////////////////////////////////////////////*/
-
-    /// @inheritdoc IAccount
-    function setExecutorFee(uint256 _executorFee) external override {
-        if (!isOwner()) revert Unauthorized();
-        executorFee = _executorFee;
-
-        EVENTS.emitExecutorFeeSet({executorFee: _executorFee});
     }
 
     /*//////////////////////////////////////////////////////////////

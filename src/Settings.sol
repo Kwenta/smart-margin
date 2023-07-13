@@ -18,6 +18,9 @@ contract Settings is ISettings, Owned {
     /// @inheritdoc ISettings
     bool public accountExecutionEnabled = true;
 
+    /// @inheritdoc ISettings
+    uint256 public executorFee = 1 ether / 1000;
+
     /// @notice mapping of whitelisted tokens available for swapping via uniswap commands
     mapping(address => bool) internal _whitelistedTokens;
 
@@ -56,6 +59,13 @@ contract Settings is ISettings, Owned {
         accountExecutionEnabled = _enabled;
 
         emit AccountExecutionEnabledSet(_enabled);
+    }
+
+    /// @inheritdoc ISettings
+    function setExecutorFee(uint256 _executorFee) external override onlyOwner {
+        executorFee = _executorFee;
+
+        emit ExecutorFeeSet(_executorFee);
     }
 
     /// @inheritdoc ISettings
