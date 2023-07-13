@@ -60,11 +60,11 @@ contract SettingsTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_whitelistedTokens() public {
-        assertEq(settings.whitelistedTokens(MARGIN_ASSET), false);
+        assertEq(settings.isWhitelistedTokens(MARGIN_ASSET), false);
         settings.setTokenWhitelistStatus(MARGIN_ASSET, true);
-        assertEq(settings.whitelistedTokens(MARGIN_ASSET), true);
+        assertEq(settings.isWhitelistedTokens(MARGIN_ASSET), true);
         settings.setTokenWhitelistStatus(MARGIN_ASSET, false);
-        assertEq(settings.whitelistedTokens(MARGIN_ASSET), false);
+        assertEq(settings.isWhitelistedTokens(MARGIN_ASSET), false);
     }
 
     function test_setTokenWhitelistStatus_OnlyOwner() public {
@@ -74,11 +74,11 @@ contract SettingsTest is Test, ConsolidatedEvents {
     }
 
     function test_setTokenWhitelistStatus(address token) public {
-        assertEq(settings.whitelistedTokens(token), false);
+        assertEq(settings.isWhitelistedTokens(token), false);
         settings.setTokenWhitelistStatus(token, true);
-        assertEq(settings.whitelistedTokens(token), true);
+        assertEq(settings.isWhitelistedTokens(token), true);
         settings.setTokenWhitelistStatus(token, false);
-        assertEq(settings.whitelistedTokens(token), false);
+        assertEq(settings.isWhitelistedTokens(token), false);
     }
 
     function test_setTokenWhitelistStatus_Event() public {

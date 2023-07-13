@@ -27,7 +27,7 @@ interface ISettings {
     /// @notice checks if token is whitelisted
     /// @param _token: address of the token to check
     /// @return true if token is whitelisted, false if not
-    function whitelistedTokens(address _token) external view returns (bool);
+    function isWhitelistedTokens(address _token) external view returns (bool);
 
     /*//////////////////////////////////////////////////////////////
                                 SETTERS
