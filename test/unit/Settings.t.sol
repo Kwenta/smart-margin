@@ -77,7 +77,6 @@ contract SettingsTest is Test, ConsolidatedEvents {
         settings.setExecutorFee(1 ether / 100);
     }
 
-
     /*//////////////////////////////////////////////////////////////
                           WHITELISTING TOKENS
     //////////////////////////////////////////////////////////////*/
