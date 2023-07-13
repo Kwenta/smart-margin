@@ -66,6 +66,6 @@ contract Settings is ISettings, Owned {
     {
         _whitelistedTokens[_token] = _isWhitelisted;
 
-        emit TokenWhitelistStatusUpdated(_token);
+        emit TokenWhitelistStatusUpdated(_token, _isWhitelisted);
     }
 }

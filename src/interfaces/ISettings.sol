@@ -14,7 +14,8 @@ interface ISettings {
 
     /// @notice emitted when a token is added to or removed from the whitelist
     /// @param token: address of the token
-    event TokenWhitelistStatusUpdated(address token);
+    /// @param isWhitelisted: true if token is whitelisted, false if not
+    event TokenWhitelistStatusUpdated(address token, bool isWhitelisted);
 
     /*//////////////////////////////////////////////////////////////
                                  VIEWS

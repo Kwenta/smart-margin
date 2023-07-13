@@ -83,7 +83,10 @@ contract SettingsTest is Test, ConsolidatedEvents {
 
     function test_setTokenWhitelistStatus_Event() public {
         vm.expectEmit(true, true, true, true);
-        emit TokenWhitelistStatusUpdated(MARGIN_ASSET);
+        emit TokenWhitelistStatusUpdated(MARGIN_ASSET, true);
         settings.setTokenWhitelistStatus(MARGIN_ASSET, true);
+        vm.expectEmit(true, true, true, true);
+        emit TokenWhitelistStatusUpdated(MARGIN_ASSET, false);
+        settings.setTokenWhitelistStatus(MARGIN_ASSET, false);
     }
 }
