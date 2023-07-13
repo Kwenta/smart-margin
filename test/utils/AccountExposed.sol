@@ -112,10 +112,6 @@ contract AccountExposed is Account {
         return _getTokenInTokenOut(_path);
     }
 
-    function expose_updatePythPrice(bytes[] calldata priceUpdateData) public {
-        _updatePythPrice(priceUpdateData);
-    }
-
     function expose_payExecutorFee() public returns (uint256) {
         return _payExecutorFee();
     }

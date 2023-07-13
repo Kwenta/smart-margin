@@ -413,9 +413,9 @@ contract AccountTest is Test, ConsolidatedEvents {
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.ACCOUNT_MODIFY_MARGIN;
         bytes[] memory inputs = new bytes[](1);
-        assertEq(1, accountExposed.expose_locked());
+        assertEq(0, accountExposed.expose_locked());
         account.execute(commands, inputs);
-        assertEq(1, accountExposed.expose_locked());
+        assertEq(0, accountExposed.expose_locked());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -979,29 +979,6 @@ contract AccountTest is Test, ConsolidatedEvents {
         } else {
             assert(false);
         }
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            SETTER UTILITIES
-    //////////////////////////////////////////////////////////////*/
-
-    function test_SetExecutorFee_OnlyOwner() public {
-        uint256 fee = 1;
-        vm.prank(DELEGATE);
-        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
-        account.setExecutorFee(fee);
-    }
-
-    function test_SetExecutorFee(uint256 fee) public {
-        account.setExecutorFee(fee);
-        assertEq(account.executorFee(), fee);
-    }
-
-    function test_SetExecutorFee_Event() public {
-        uint256 fee = 1 ether;
-        vm.expectEmit(true, true, true, true);
-        emit ExecutorFeeSet(address(account), fee);
-        account.setExecutorFee(fee);
     }
 
     /*//////////////////////////////////////////////////////////////

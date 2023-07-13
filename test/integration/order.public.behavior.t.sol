@@ -69,7 +69,7 @@ contract OrderPublicBehaviorTest is Test, ConsolidatedEvents {
     IPermit2 private PERMIT2;
 
     // conditional order variables
-    uint256 conditionalOrderId;
+    uint256 private conditionalOrderId;
 
     /*//////////////////////////////////////////////////////////////
                                  SETUP
@@ -145,50 +145,54 @@ contract OrderPublicBehaviorTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
                                  TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_ExecuteConditionalOrder() public {
+
+    function test_ExecuteConditionalOrder_Public() public {
+        vm.deal(USER, 1 ether);
+        vm.prank(USER);
         account.executeConditionalOrder(conditionalOrderId);
         IAccount.ConditionalOrder memory conditionalOrder =
             account.getConditionalOrder(conditionalOrderId);
         assertEq(conditionalOrder.sizeDelta, 0);
     }
 
-    function test_UpdatePythPrice() public {
-        /// @custom:todo will likely need to mock
+    function test_ExecuteConditionalOrder_Public_PayExecutorFee() public {
+        vm.deal(USER, 1 ether);
+        uint256 balanceBefore = USER.balance;
+        vm.prank(USER);
+        account.executeConditionalOrder(conditionalOrderId);
+        uint256 balanceAfter = USER.balance;
+        assertGt(balanceAfter, balanceBefore);
     }
 
-    function test_PayExecutorFee() public {
-        /// @custom:todo
-    }
-
-    function test_ExecuteConditionalOrderWithPriceUpdate() public {
-        /// @custom:todo
-    }
-
-    function test_ExecuteConditionalOrderWithPriceUpdate_Executor_Fee()
+    function test_ExecuteConditionalOrder_Public_Cannot_PayExecutorFee()
         public
     {
-        /// @custom:todo
+        withdrawEth(address(account).balance);
+        vm.startPrank(USER);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccount.CannotPayExecutorFee.selector,
+                settings.executorFee(),
+                USER
+            )
+        );
+        account.executeConditionalOrder(conditionalOrderId);
+        vm.stopPrank();
     }
 
-    function test_ExecuteConditionalOrderWithPriceUpdate_Pyth_Updated()
+    function test_ExecuteConditionalOrder_Public_Invalid_ConditionalOrder()
         public
     {
-        /// @custom:todo
-    }
-
-    function test_ExecuteConditionalOrderWithPriceUpdate_Pyth_Fee() public {
-        /// @custom:todo
-    }
-
-    function test_ExecuteConditionalOrderWithPriceUpdate_Invalid_PriceFeed()
-        public
-    {
-        /// @custom:todo
-    }
-
-    function test_ExecuteConditionalOrder_Invalid_ConditionalOrder() public {
-        /// @custom:todo
-        // expect -> CannotExecuteConditionalOrder Custom Error
+        suspendPerpsV2Market(sETHPERP);
+        vm.prank(USER);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccount.CannotExecuteConditionalOrder.selector,
+                conditionalOrderId,
+                USER
+            )
+        );
+        account.executeConditionalOrder(conditionalOrderId);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -207,43 +211,6 @@ contract OrderPublicBehaviorTest is Test, ConsolidatedEvents {
         vm.deal(address(account), 1 ether);
         mintSUSD(address(this), amount);
         modifyAccountMargin({amount: int256(amount)});
-    }
-
-    function getMarketAddressFromKey(bytes32 key)
-        private
-        view
-        returns (address market)
-    {
-        market = address(
-            IPerpsV2MarketConsolidated(
-                IFuturesMarketManager(
-                    IAddressResolver(ADDRESS_RESOLVER).getAddress(
-                        "FuturesMarketManager"
-                    )
-                ).marketForKey(key)
-            )
-        );
-    }
-
-    function generateGelatoModuleData(uint256 conditionalOrderId)
-        internal
-        view
-        returns (bytes memory executionData, IOps.ModuleData memory moduleData)
-    {
-        executionData =
-            abi.encodeCall(account.executeConditionalOrder, conditionalOrderId);
-
-        moduleData = IOps.ModuleData({
-            modules: new IOps.Module[](1),
-            args: new bytes[](1)
-        });
-
-        moduleData.modules[0] = IOps.Module.RESOLVER;
-
-        moduleData.args[0] = abi.encode(
-            address(account),
-            abi.encodeCall(account.checker, conditionalOrderId)
-        );
     }
 
     function suspendPerpsV2Market(bytes32 market) internal {
@@ -283,7 +250,7 @@ contract OrderPublicBehaviorTest is Test, ConsolidatedEvents {
         IAccount.ConditionalOrderTypes conditionalOrderType,
         uint256 desiredFillPrice,
         bool reduceOnly
-    ) private returns (uint256 conditionalOrderId) {
+    ) private returns (uint256) {
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.GELATO_PLACE_CONDITIONAL_ORDER;
         bytes[] memory inputs = new bytes[](1);
@@ -297,6 +264,14 @@ contract OrderPublicBehaviorTest is Test, ConsolidatedEvents {
             reduceOnly
         );
         account.execute(commands, inputs);
-        conditionalOrderId = account.conditionalOrderId() - 1;
+        return account.conditionalOrderId() - 1;
+    }
+
+    function withdrawEth(uint256 amount) private {
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.ACCOUNT_WITHDRAW_ETH;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(amount);
+        account.execute(commands, inputs);
     }
 }

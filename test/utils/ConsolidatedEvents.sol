@@ -93,5 +93,7 @@ contract ConsolidatedEvents {
 
     event AccountExecutionEnabledSet(bool enabled);
 
+    event ExecutorFeeSet(uint256 executorFee);
+
     event TokenWhitelistStatusUpdated(address token);
 }
