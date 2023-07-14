@@ -1019,9 +1019,8 @@ contract Account is IAccount, Auth, OpsReady {
             token: tokenIn,
             spender: address(UNISWAP_UNIVERSAL_ROUTER),
             amount: _amountIn.toUint160(),
-            // Use an unlimited expiration because it most
-            // closely mimics how a standard approval works
-            expiration: type(uint48).max
+            /// @dev timstamp will never overflow (i.e. maximum value of uint48 is year 8 million 921 thousand 556)
+            expiration: uint48(block.timestamp)
         });
 
         _universalRouterExecute(recipient, _amountIn, _amountOutMin, _path);
