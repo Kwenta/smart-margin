@@ -1076,6 +1076,7 @@ contract Account is IAccount, Auth, OpsReady {
         UNISWAP_UNIVERSAL_ROUTER.execute({
             commands: abi.encodePacked(bytes1(uint8(V3_SWAP_EXACT_IN))),
             inputs: inputs
+            /// @custom:auditor removed deadline here and want increased scrutiny
         });
     }
 
