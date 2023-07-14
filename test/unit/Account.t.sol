@@ -413,9 +413,9 @@ contract AccountTest is Test, ConsolidatedEvents {
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         commands[0] = IAccount.Command.ACCOUNT_MODIFY_MARGIN;
         bytes[] memory inputs = new bytes[](1);
-        assertEq(1, accountExposed.expose_locked());
+        assertEq(0, accountExposed.expose_locked());
         account.execute(commands, inputs);
-        assertEq(1, accountExposed.expose_locked());
+        assertEq(0, accountExposed.expose_locked());
     }
 
     /*//////////////////////////////////////////////////////////////

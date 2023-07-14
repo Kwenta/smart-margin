@@ -101,7 +101,7 @@ contract Account is IAccount, Auth, OpsReady {
     mapping(uint256 id => ConditionalOrder order) internal conditionalOrders;
 
     /// @notice value used for reentrancy protection
-    uint256 internal locked = 1;
+    uint256 internal locked;
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -116,12 +116,12 @@ contract Account is IAccount, Auth, OpsReady {
     }
 
     modifier nonReentrant() {
-        if (locked == 2) revert Reentrancy();
-        locked = 2;
+        if (locked == 1) revert Reentrancy();
+        locked = 1;
 
         _;
 
-        locked = 1;
+        locked = 0;
     }
 
     /*//////////////////////////////////////////////////////////////
