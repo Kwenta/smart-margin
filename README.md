@@ -183,6 +183,15 @@ forge test --fork-url $(grep ARCHIVE_NODE_URL_L2 .env | cut -d '=' -f2) --match-
 13. Update `./deploy-addresses/optimism.json` with new `Account` address
 14. Ensure mainnet accounts are updated and functional (ensure state is correct)
 
+## External Conditional Order Executors
+> As of SM v2.1.0, public actors can execute conditional orders and receive a fee for doing so
+1. Navigate to `src/utils/executors/OrderExecution.sol`
+2. `OrderExecution` is a *simplified* abstract contract which defines: (1) basic batch conditional order execution functionality, (2) a method to update onchain Pyth oracle price feed(s), (3) **combined** price feed update(s) and then conditional order execution functionality
+> `OrderExecution` is meant to serve as a starting point for developers to build their own conditional order executors and IS NOT production ready nor has it been audited
+3. See https://docs.pyth.network/evm/update-price-feeds for more information on updating Pyth oracle price feeds
+4. See `IAccount.executeConditionalOrder` for more information on conditional order execution
+5. Currently there are no scripts in this repository which deploy the `OrderExecution` contract
+
 ## Project Tools
 
 ### Static Analysis
