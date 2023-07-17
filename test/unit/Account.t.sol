@@ -416,7 +416,6 @@ contract AccountTest is Test, ConsolidatedEvents {
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP));
 
-
         /// @dev initially `locked == 0` if this is first interaction with account
         assertEq(0, accountExposed.expose_locked());
 

@@ -59,7 +59,11 @@ abstract contract OrderExecution {
 
     /// @dev updates the Pyth oracle price feed and refunds the caller any unused value
     /// not used to update feed
-    function updatePythPrice(bytes[] calldata priceUpdateData) public payable virtual {
+    function updatePythPrice(bytes[] calldata priceUpdateData)
+        public
+        payable
+        virtual
+    {
         /// @custom:optimization oracle could be immutable if we can guarantee it will never change
         IPyth oracle = PERPS_V2_EXCHANGE_RATE.offchainOracle();
 
@@ -118,7 +122,7 @@ abstract contract OrderExecution {
         bytes[] calldata priceUpdateData,
         address[] calldata accounts,
         uint256[] calldata ids
-    ) external virtual payable {
+    ) external payable virtual {
         updatePythPrice(priceUpdateData);
         executeOrders(accounts, ids);
     }
