@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 import {IPerpsV2MarketConsolidated} from
     "src/interfaces/synthetix/IPerpsV2MarketConsolidated.sol";
 
-/// @title Kwenta Smart Margin Account v2.0.3 Implementation Interface
+/// @title Kwenta Smart Margin Account v2.1.0 Implementation Interface
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 interface IAccount {
     /*///////////////////////////////////////////////////////////////
