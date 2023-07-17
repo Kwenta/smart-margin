@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-/// @title Utility contract for executing conditional orders
-/// @notice This contract is untested and should be used with caution
-/// @custom:auditor ignore
-/// @author JaredBorders (jaredborders@pm.me)
 interface IAccount {
-     /// @param _conditionalOrderId: key for an active conditional order
+    /// @param _conditionalOrderId: key for an active conditional order
     function executeConditionalOrder(uint256 _conditionalOrderId) external;
 
     /// @notice checker() is the Resolver for Gelato
@@ -24,7 +20,7 @@ interface IAccount {
 }
 
 interface IPerpsV2ExchangeRate {
-    /// @notice fetches the Pyth oracle contract address from Synthetix 
+    /// @notice fetches the Pyth oracle contract address from Synthetix
     /// @return Pyth contract
     function offchainOracle() external view returns (IPyth);
 }
@@ -48,8 +44,11 @@ interface IPyth {
         returns (uint256 feeAmount);
 }
 
+/// @title Utility contract for executing conditional orders
+/// @notice This contract is untested and should be used with caution
+/// @custom:auditor ignore
+/// @author JaredBorders (jaredborders@pm.me)
 contract OrderExecution {
-
     IPerpsV2ExchangeRate public immutable PERPS_V2_EXCHANGE_RATE;
 
     error PythPriceUpdateFailed();
@@ -57,7 +56,7 @@ contract OrderExecution {
     constructor(address _perpsV2ExchangeRate) {
         PERPS_V2_EXCHANGE_RATE = IPerpsV2ExchangeRate(_perpsV2ExchangeRate);
     }
-    
+
     /// @dev updates the Pyth oracle price feed and refunds the caller any unused value
     /// not used to update feed
     function updatePythPrice(bytes[] calldata priceUpdateData) public payable {
@@ -73,22 +72,26 @@ contract OrderExecution {
             revert PythPriceUpdateFailed();
         }
 
-        uint refund = msg.value - fee;
+        uint256 refund = msg.value - fee;
         if (refund > 0) {
             // refund caller the unused value
-            (bool success, ) = msg.sender.call{value: refund}("");
+            (bool success,) = msg.sender.call{value: refund}("");
             assert(success);
         }
     }
 
     /// @dev executes a batch of conditional orders in reverse order (i.e. LIFO)
-    function executeOrders(address[] calldata accounts, uint[] calldata ids) public {
+    function executeOrders(address[] calldata accounts, uint256[] calldata ids)
+        public
+    {
         assert(accounts.length > 0);
         assert(accounts.length == ids.length);
 
-        uint i = accounts.length;
+        uint256 i = accounts.length;
         do {
-            unchecked { --i; }
+            unchecked {
+                --i;
+            }
 
             /**
              * @custom:logic could ensure onchain order can be executed via call to `checker`
@@ -99,13 +102,13 @@ contract OrderExecution {
              */
 
             IAccount(accounts[i]).executeConditionalOrder(ids[i]);
-        } while ( i != 0);
+        } while (i != 0);
     }
 
     function updatePriceThenExecuteOrders(
         bytes[] calldata priceUpdateData,
         address[] calldata accounts,
-        uint[] calldata ids
+        uint256[] calldata ids
     ) external payable {
         updatePythPrice(priceUpdateData);
         executeOrders(accounts, ids);
