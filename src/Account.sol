@@ -101,6 +101,7 @@ contract Account is IAccount, Auth, OpsReady {
     mapping(uint256 id => ConditionalOrder order) internal conditionalOrders;
 
     /// @notice value used for reentrancy protection
+    /// @dev nonReentrant checks that locked is NOT EQUAL to 2
     uint256 internal locked;
 
     /*//////////////////////////////////////////////////////////////
@@ -116,12 +117,14 @@ contract Account is IAccount, Auth, OpsReady {
     }
 
     modifier nonReentrant() {
-        if (locked == 1) revert Reentrancy();
-        locked = 1;
+        /// @dev locked is intially set to 0 due to the proxy nature of SM accounts
+        /// however after the inital call to nonReentrant(), locked will be set to 1
+        if (locked == 2) revert Reentrancy();
+        locked = 2;
 
         _;
 
-        locked = 0;
+        locked = 1;
     }
 
     /*//////////////////////////////////////////////////////////////
