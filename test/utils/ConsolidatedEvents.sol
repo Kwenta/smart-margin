@@ -95,5 +95,5 @@ contract ConsolidatedEvents {
 
     event ExecutorFeeSet(uint256 executorFee);
 
-    event TokenWhitelistStatusUpdated(address token);
+    event TokenWhitelistStatusUpdated(address token, bool isWhitelisted);
 }
