@@ -85,11 +85,15 @@ contract ConsolidatedEvents {
         IAccount.PriceOracleUsed priceOracle
     );
 
+    event ExecutorFeeSet(address indexed account, uint256 indexed executorFee);
+
     /*//////////////////////////////////////////////////////////////
                                ISETTINGS
     //////////////////////////////////////////////////////////////*/
 
     event AccountExecutionEnabledSet(bool enabled);
 
-    event TokenWhitelistStatusUpdated(address token, bool isWhitelisted);
+    event ExecutorFeeSet(uint256 executorFee);
+
+    event TokenWhitelistStatusUpdated(address token);
 }

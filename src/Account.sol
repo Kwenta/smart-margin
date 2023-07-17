@@ -678,7 +678,7 @@ contract Account is IAccount, Auth, OpsReady {
     }
 
     /*//////////////////////////////////////////////////////////////
-                           CONDITIONAL ORDERS
+                        CREATE CONDITIONAL ORDER
     //////////////////////////////////////////////////////////////*/
 
     /// @notice register a conditional order internally and with gelato
@@ -770,6 +770,10 @@ contract Account is IAccount, Auth, OpsReady {
         );
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        CANCEL CONDITIONAL ORDER
+    //////////////////////////////////////////////////////////////*/
+
     /// @notice cancel a gelato queued conditional order
     /// @param _conditionalOrderId: key for an active conditional order
     function _cancelConditionalOrder(uint256 _conditionalOrderId) internal {
@@ -797,30 +801,39 @@ contract Account is IAccount, Auth, OpsReady {
     }
 
     /*//////////////////////////////////////////////////////////////
-                   GELATO CONDITIONAL ORDER HANDLING
+                       EXECUTE CONDITIONAL ORDER
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
     function executeConditionalOrder(uint256 _conditionalOrderId)
         external
         override
+        nonReentrant
         isAccountExecutionEnabled
-        onlyOps
     {
-        // store conditional order in memory
+        // store conditional order object in memory
         ConditionalOrder memory conditionalOrder =
             getConditionalOrder(_conditionalOrderId);
+
+        // verify conditional order is ready for execution
+        /// @dev it is understood this is a duplicate check if the executor is Gelato
+        if (!_validConditionalOrder(_conditionalOrderId)) {
+            revert CannotExecuteConditionalOrder({
+                conditionalOrderId: _conditionalOrderId,
+                executor: msg.sender
+            });
+        }
 
         // remove conditional order from internal accounting
         delete conditionalOrders[_conditionalOrderId];
 
         // remove gelato task from their accounting
         /// @dev will revert if task id does not exist {Automate.cancelTask: Task not found}
+        /// @dev if executor is not Gelato, the task will still be cancelled
         IOps(OPS).cancelTask({taskId: conditionalOrder.gelatoTaskId});
 
-        // pay Gelato imposed fee for conditional order execution
-        (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
-        _transfer({_amount: fee, _paymentToken: feeToken});
+        // impose and record fee paid to executor
+        uint256 fee = _payExecutorFee();
 
         // define Synthetix PerpsV2 market
         IPerpsV2MarketConsolidated market =
@@ -868,6 +881,7 @@ contract Account is IAccount, Auth, OpsReady {
             _market: address(market),
             _amount: conditionalOrder.marginDelta
         });
+
         _perpsV2SubmitOffchainDelayedOrder({
             _market: address(market),
             _sizeDelta: conditionalOrder.sizeDelta,
@@ -881,6 +895,20 @@ contract Account is IAccount, Auth, OpsReady {
             keeperFee: fee,
             priceOracle: priceOracle
         });
+    }
+
+    /// @notice pay fee for conditional order execution
+    /// @dev fee will be different depending on executor
+    /// @return fee amount paid
+    function _payExecutorFee() internal returns (uint256 fee) {
+        if (msg.sender == OPS) {
+            (fee,) = IOps(OPS).getFeeDetails();
+            _transfer({_amount: fee});
+        } else {
+            fee = SETTINGS.executorFee();
+            (bool success,) = payable(msg.sender).call{value: fee}("");
+            if (!success) revert CannotPayExecutorFee(fee, msg.sender);
+        }
     }
 
     /// @notice order logic condition checker

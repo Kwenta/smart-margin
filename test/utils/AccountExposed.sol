@@ -104,11 +104,15 @@ contract AccountExposed is Account {
         return locked;
     }
 
-    function expose__getTokenInTokenOut(bytes calldata _path)
+    function expose_getTokenInTokenOut(bytes calldata _path)
         public
         pure
         returns (address, address)
     {
         return _getTokenInTokenOut(_path);
+    }
+
+    function expose_payExecutorFee() public returns (uint256) {
+        return _payExecutorFee();
     }
 }

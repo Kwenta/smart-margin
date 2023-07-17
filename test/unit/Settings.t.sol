@@ -56,6 +56,28 @@ contract SettingsTest is Test, ConsolidatedEvents {
     }
 
     /*//////////////////////////////////////////////////////////////
+                              EXECUTOR FEE
+    //////////////////////////////////////////////////////////////*/
+
+    function test_setExecutorFee() public {
+        assertEq(settings.executorFee(), 1 ether / 1000);
+        settings.setExecutorFee(1 ether / 100);
+        assertEq(settings.executorFee(), 1 ether / 100);
+    }
+
+    function test_setExecutorFee_OnlyOwner() public {
+        vm.expectRevert("UNAUTHORIZED");
+        vm.prank(USER);
+        settings.setExecutorFee(1 ether / 100);
+    }
+
+    function test_setExecutorFee_Event() public {
+        vm.expectEmit(true, true, true, true);
+        emit ExecutorFeeSet(1 ether / 100);
+        settings.setExecutorFee(1 ether / 100);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                           WHITELISTING TOKENS
     //////////////////////////////////////////////////////////////*/
 

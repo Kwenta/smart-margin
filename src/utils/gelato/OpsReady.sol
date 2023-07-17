@@ -5,8 +5,6 @@ pragma solidity 0.8.18;
 /// contract to make synchronous fee payments and have
 /// call restrictions for functions to be automated.
 abstract contract OpsReady {
-    error OnlyOps();
-
     /// @notice address of Gelato Network contract
     address public immutable GELATO;
 
@@ -15,12 +13,6 @@ abstract contract OpsReady {
 
     /// @notice internal address representation of ETH (used by Gelato)
     address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-
-    /// @notice modifier to restrict access to the `Automate` contract
-    modifier onlyOps() {
-        if (msg.sender != OPS) revert OnlyOps();
-        _;
-    }
 
     /// @notice sets the addresses of the Gelato Network contracts
     /// @param _gelato: address of the Gelato Network contract
@@ -33,10 +25,7 @@ abstract contract OpsReady {
     /// @notice transfers fee (in ETH) to gelato for synchronous fee payments
     /// @dev happens at task execution time
     /// @param _amount: amount of asset to transfer
-    /// @param _paymentToken: address of the token to transfer
-    function _transfer(uint256 _amount, address _paymentToken) internal {
-        /// @dev Smart Margin Accounts will only pay fees in ETH
-        assert(_paymentToken == ETH);
+    function _transfer(uint256 _amount) internal {
         (bool success,) = GELATO.call{value: _amount}("");
         require(success, "OpsReady: ETH transfer failed");
     }
