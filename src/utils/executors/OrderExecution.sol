@@ -44,11 +44,11 @@ interface IPyth {
         returns (uint256 feeAmount);
 }
 
-/// @title Utility contract for executing conditional orders
-/// @notice This contract is untested and should be used with caution
-/// @custom:auditor ignore
+/// @title utility contract for executing conditional orders
+/// @notice this contract is untested and should be used with caution
+/// @custom:auditor ignore this file
 /// @author JaredBorders (jaredborders@pm.me)
-contract OrderExecution {
+abstract contract OrderExecution {
     IPerpsV2ExchangeRate public immutable PERPS_V2_EXCHANGE_RATE;
 
     error PythPriceUpdateFailed();
@@ -59,14 +59,16 @@ contract OrderExecution {
 
     /// @dev updates the Pyth oracle price feed and refunds the caller any unused value
     /// not used to update feed
-    function updatePythPrice(bytes[] calldata priceUpdateData) public payable {
+    function updatePythPrice(bytes[] calldata priceUpdateData) public payable virtual {
         /// @custom:optimization oracle could be immutable if we can guarantee it will never change
         IPyth oracle = PERPS_V2_EXCHANGE_RATE.offchainOracle();
 
         // determine fee amount to pay to Pyth for price update
+        /// @custom:optimization fee could be set to be high and executor can rely on refund to avoid querying oracle
         uint256 fee = oracle.getUpdateFee(priceUpdateData);
 
         // try to update the price data (and pay the fee)
+        /// @custom:optimization this check could be ignored for gas savings
         try oracle.updatePriceFeeds{value: fee}(priceUpdateData) {}
         catch {
             revert PythPriceUpdateFailed();
@@ -83,7 +85,9 @@ contract OrderExecution {
     /// @dev executes a batch of conditional orders in reverse order (i.e. LIFO)
     function executeOrders(address[] calldata accounts, uint256[] calldata ids)
         public
+        virtual
     {
+        /// @custom:optimization length checks could be ignored for gas savings
         assert(accounts.length > 0);
         assert(accounts.length == ids.length);
 
@@ -97,7 +101,12 @@ contract OrderExecution {
              * @custom:logic could ensure onchain order can be executed via call to `checker`
              *
              * (bool canExec,) = IAccount(accounts[i]).checker(ids[i]);
-             * assert(canExec);
+             *
+             * assert(canExec); // revert if an order cannot be executed
+             *
+             * OR
+             *
+             * if (!canExec) continue; // skip to next order without reverting
              *
              */
 
@@ -109,8 +118,12 @@ contract OrderExecution {
         bytes[] calldata priceUpdateData,
         address[] calldata accounts,
         uint256[] calldata ids
-    ) external payable {
+    ) external virtual payable {
         updatePythPrice(priceUpdateData);
         executeOrders(accounts, ids);
     }
+
+    /// @dev withdraws ETH from the contract to the caller
+    /// @dev consider protecting call with onlyOwner-like check
+    function withdrawEth() external virtual;
 }
