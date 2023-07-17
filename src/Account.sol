@@ -1013,7 +1013,7 @@ contract Account is IAccount, Auth, OpsReady {
         /// @dev verify direction and validity of swap (i.e. sUSD <-> whitelisted token)
         if (
             tokenIn == address(MARGIN_ASSET)
-                && SETTINGS.whitelistedTokens(tokenOut)
+                && SETTINGS.isWhitelistedTokens(tokenOut)
         ) {
             // if swapping sUSD for another token, ensure sufficient margin
             /// @dev margin is being transferred out of this contract
@@ -1022,7 +1022,7 @@ contract Account is IAccount, Auth, OpsReady {
             recipient = msg.sender;
         } else if (
             tokenOut == address(MARGIN_ASSET)
-                && SETTINGS.whitelistedTokens(tokenIn)
+                && SETTINGS.isWhitelistedTokens(tokenIn)
         ) {
             // if swapping another token for sUSD, token must be transferred to this contract
             /// @dev msg.sender must have approved Permit2 to spend at least the amountIn
@@ -1047,9 +1047,8 @@ contract Account is IAccount, Auth, OpsReady {
             token: tokenIn,
             spender: address(UNISWAP_UNIVERSAL_ROUTER),
             amount: _amountIn.toUint160(),
-            // Use an unlimited expiration because it most
-            // closely mimics how a standard approval works
-            expiration: type(uint48).max
+            /// @dev timstamp will never overflow (i.e. maximum value of uint48 is year 8 million 921 thousand 556)
+            expiration: uint48(block.timestamp)
         });
 
         _universalRouterExecute(recipient, _amountIn, _amountOutMin, _path);
@@ -1104,8 +1103,8 @@ contract Account is IAccount, Auth, OpsReady {
 
         UNISWAP_UNIVERSAL_ROUTER.execute({
             commands: abi.encodePacked(bytes1(uint8(V3_SWAP_EXACT_IN))),
-            inputs: inputs,
-            deadline: block.timestamp
+            inputs: inputs
+            /// @custom:auditor removed deadline here and want increased scrutiny
         });
     }
 

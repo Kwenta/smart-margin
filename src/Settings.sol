@@ -37,7 +37,7 @@ contract Settings is ISettings, Owned {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISettings
-    function whitelistedTokens(address _token)
+    function isWhitelistedTokens(address _token)
         external
         view
         override
@@ -76,6 +76,6 @@ contract Settings is ISettings, Owned {
     {
         _whitelistedTokens[_token] = _isWhitelisted;
 
-        emit TokenWhitelistStatusUpdated(_token);
+        emit TokenWhitelistStatusUpdated(_token, _isWhitelisted);
     }
 }

@@ -123,11 +123,14 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         );
         inputs[0] = abi.encode(amountIn, amountOutMin, path);
 
-        uint256 preBalance = sUSD.balanceOf(address(account));
+        uint256 preSUSDBalance = sUSD.balanceOf(address(account));
+        uint256 preDAIBalance = dai.balanceOf(address(this));
         account.execute(commands, inputs);
-        uint256 postBalance = sUSD.balanceOf(address(account));
+        uint256 postSUSDBalance = sUSD.balanceOf(address(account));
+        uint256 postDAIBalance = dai.balanceOf(address(this));
 
-        assertGt(postBalance, preBalance);
+        assertGt(postSUSDBalance, preSUSDBalance);
+        assertLt(postDAIBalance, preDAIBalance);
     }
 
     function test_UniswapV3Swap_SUSD_DAI() public {
@@ -150,11 +153,14 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         );
         inputs[0] = abi.encode(amountIn, amountOutMin, path);
 
-        uint256 preBalance = dai.balanceOf(address(this));
+        uint256 preSUSDBalance = sUSD.balanceOf(address(account));
+        uint256 preDAIBalance = dai.balanceOf(address(this));
         account.execute(commands, inputs);
-        uint256 postBalance = dai.balanceOf(address(this));
+        uint256 postSUSDBalance = sUSD.balanceOf(address(account));
+        uint256 postDAIBalance = dai.balanceOf(address(this));
 
-        assertGt(postBalance, preBalance);
+        assertGt(postDAIBalance, preDAIBalance);
+        assertLt(postSUSDBalance, preSUSDBalance);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -185,11 +191,14 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         );
         inputs[0] = abi.encode(amountIn, amountOutMin, path);
 
-        uint256 preBalance = usdc.balanceOf(address(this));
+        uint256 preSUSDBalance = sUSD.balanceOf(address(account));
+        uint256 preUSDCBalance = usdc.balanceOf(address(this));
         account.execute(commands, inputs);
-        uint256 postBalance = usdc.balanceOf(address(this));
+        uint256 postSUSDBalance = sUSD.balanceOf(address(account));
+        uint256 postUSDCBalance = usdc.balanceOf(address(this));
 
-        assertGt(postBalance, preBalance);
+        assertGt(postUSDCBalance, preUSDCBalance);
+        assertLt(postSUSDBalance, preSUSDBalance);
     }
 
     function test_UniswapV3Swap_DAI_USDC_SUSD() public {
@@ -213,11 +222,14 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
         );
         inputs[0] = abi.encode(amountIn, amountOutMin, path);
 
-        uint256 preBalance = sUSD.balanceOf(address(account));
+        uint256 preSUSDBalance = sUSD.balanceOf(address(account));
+        uint256 preDAIBalance = dai.balanceOf(address(this));
         account.execute(commands, inputs);
-        uint256 postBalance = sUSD.balanceOf(address(account));
+        uint256 postSUSDBalance = sUSD.balanceOf(address(account));
+        uint256 postDAIBalance = dai.balanceOf(address(this));
 
-        assertGt(postBalance, preBalance);
+        assertGt(postSUSDBalance, preSUSDBalance);
+        assertLt(postDAIBalance, preDAIBalance);
     }
 
     /*//////////////////////////////////////////////////////////////

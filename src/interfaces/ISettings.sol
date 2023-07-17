@@ -18,7 +18,8 @@ interface ISettings {
 
     /// @notice emitted when a token is added to or removed from the whitelist
     /// @param token: address of the token
-    event TokenWhitelistStatusUpdated(address token);
+    /// @param isWhitelisted: true if token is whitelisted, false if not
+    event TokenWhitelistStatusUpdated(address token, bool isWhitelisted);
 
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
@@ -35,7 +36,7 @@ interface ISettings {
     /// @notice checks if token is whitelisted
     /// @param _token: address of the token to check
     /// @return true if token is whitelisted, false if not
-    function whitelistedTokens(address _token) external view returns (bool);
+    function isWhitelistedTokens(address _token) external view returns (bool);
 
     /*//////////////////////////////////////////////////////////////
                                 SETTERS

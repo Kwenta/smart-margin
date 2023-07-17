@@ -53,16 +53,17 @@ interface IAccount {
         CHAINLINK
     }
 
-    /// @param _factory: address of the Smart Margin Account Factory
-    /// @param _events: address of the contract used by all accounts for emitting events
-    /// @param _marginAsset: address of the Synthetix ProxyERC20sUSD contract used as the margin asset
-    /// @param _perpsV2ExchangeRate: address of the Synthetix PerpsV2ExchangeRate
-    /// @param _futuresMarketManager: address of the Synthetix FuturesMarketManager
-    /// @param _gelato: address of Gelato
-    /// @param _ops: address of Ops
-    /// @param _settings: address of contract used to store global settings
-    /// @param _universalRouter: address of Uniswap's Universal Router
-    /// @param _permit2: address of Uniswap's Permit2
+    /// @param factory: address of the Smart Margin Account Factory
+    /// @param events: address of the contract used by all accounts for emitting events
+    /// @param marginAsset: address of the Synthetix ProxyERC20sUSD contract used as the margin asset
+    /// @param perpsV2ExchangeRate: address of the Synthetix PerpsV2ExchangeRate
+    /// @param futuresMarketManager: address of the Synthetix FuturesMarketManager
+    /// @param systemStatus: address of the Synthetix SystemStatus
+    /// @param gelato: address of Gelato
+    /// @param ops: address of Ops
+    /// @param settings: address of contract used to store global settings
+    /// @param universalRouter: address of Uniswap's Universal Router
+    /// @param permit2: address of Uniswap's Permit2
     struct AccountConstructorParams {
         address factory;
         address events;
