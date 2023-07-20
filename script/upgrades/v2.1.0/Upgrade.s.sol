@@ -33,12 +33,12 @@ import {
     OPTIMISM_GOERLI_UNISWAP_UNIVERSAL_ROUTER
 } from "script/utils/parameters/OptimismGoerliParameters.sol";
 
-/// @title Script to upgrade the Account implementation v2.0.2 -> v2.0.3
+/// @title Script to upgrade the Account implementation v2.0.2 -> v2.1.0
 /// @author JaredBorders (jaredborders@pm.me)
 
 /// @dev steps to deploy and verify on Optimism:
 /// (1) load the variables in the .env file via `source .env`
-/// (2) run `forge script script/upgrades/v2.0.3/Upgrade.s.sol:UpgradeAccountOptimism --rpc-url $ARCHIVE_NODE_URL_L2 --broadcast --verify -vvvv`
+/// (2) run `forge script script/upgrades/v2.1.0/Upgrade.s.sol:UpgradeAccountOptimism --rpc-url $ARCHIVE_NODE_URL_L2 --broadcast --verify -vvvv`
 /// (3) Smart Margin Account Factory owner (i.e. Kwenta pDAO) will need to call `upgradeAccountImplementation` on the Factory with the address of the new Account implementation
 contract UpgradeAccountOptimism is Script {
     function run() public {
@@ -92,7 +92,7 @@ contract UpgradeAccountOptimism is Script {
 
 /// @dev steps to deploy and verify on Optimism Goerli:
 /// (1) load the variables in the .env file via `source .env`
-/// (2) run `forge script script/upgrades/v2.0.3/Upgrade.s.sol:UpgradeAccountOptimismGoerli --rpc-url $ARCHIVE_NODE_URL_GOERLI_L2 --broadcast --verify -vvvv`
+/// (2) run `forge script script/upgrades/v2.1.0/Upgrade.s.sol:UpgradeAccountOptimismGoerli --rpc-url $ARCHIVE_NODE_URL_GOERLI_L2 --broadcast --verify -vvvv`
 /// (3) Smart Margin Account Factory owner (i.e. Kwenta pDAO) will need to call `upgradeAccountImplementation` on the Factory with the address of the new Account implementation
 contract UpgradeAccountOptimismGoerli is Script {
     function run() public {
