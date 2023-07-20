@@ -2,7 +2,7 @@
 pragma solidity 0.8.18;
 
 import {BytesLib} from "src/utils/uniswap/BytesLib.sol";
-import {Constants} from "src/utils/uniswap//Constants.sol";
+import {Constants} from "src/utils/uniswap/Constants.sol";
 
 /// @title Functions for manipulating path data for multihop swaps
 library V3Path {
