@@ -1002,6 +1002,13 @@ contract Account is IAccount, Auth, OpsReady {
     /// @param _amountIn: amount of token to swap
     /// @param _amountOutMin: minimum amount of token to receive
     /// @param _path: path of tokens to swap (token0 - fee - token1)
+    /// @notice swap tokens via Uniswap V3 (sUSD <-> whitelisted token)
+    /// @dev assumes sufficient token allowances (i.e. Permit2 and this contract)
+    /// @dev non-whitelisted connector tokens will NOT cause a revert
+    /// (i.e. sUSD -> non-whitelisted token -> whitelisted token)
+    /// @param _amountIn: amount of token to swap
+    /// @param _amountOutMin: minimum amount of token to receive
+    /// @param _path: path of tokens to swap (token0 - fee - token1)
     function _uniswapV3Swap(
         uint256 _amountIn,
         uint256 _amountOutMin,
@@ -1023,6 +1030,10 @@ contract Account is IAccount, Auth, OpsReady {
             _sufficientMargin(int256(_amountIn));
 
             recipient = msg.sender;
+
+            // transfer sUSD to the UniversalRouter for the swap
+            /// @dev not using SafeERC20 because sUSD is a trusted token
+            IERC20(tokenIn).transfer(address(UNISWAP_UNIVERSAL_ROUTER), _amountIn);
         } else if (
             tokenOut == address(MARGIN_ASSET)
                 && SETTINGS.isWhitelistedTokens(tokenIn)
@@ -1031,7 +1042,7 @@ contract Account is IAccount, Auth, OpsReady {
             /// @dev msg.sender must have approved Permit2 to spend at least the amountIn
             PERMIT2.transferFrom({
                 from: msg.sender,
-                to: address(this),
+                to: address(UNISWAP_UNIVERSAL_ROUTER),
                 amount: _amountIn.toUint160(),
                 token: tokenIn
             });
@@ -1041,18 +1052,6 @@ contract Account is IAccount, Auth, OpsReady {
             // only allow sUSD <-> whitelisted token swaps
             revert TokenSwapNotAllowed(tokenIn, tokenOut);
         }
-
-        // approve Permit2 to spend _amountIn of this contract's tokenIn
-        IERC20(tokenIn).approve(address(PERMIT2), _amountIn);
-
-        // approve tokens to be swapped via Universal Router
-        PERMIT2.approve({
-            token: tokenIn,
-            spender: address(UNISWAP_UNIVERSAL_ROUTER),
-            amount: _amountIn.toUint160(),
-            /// @dev timstamp will never overflow (i.e. maximum value of uint48 is year 8 million 921 thousand 556)
-            expiration: uint48(block.timestamp)
-        });
 
         _universalRouterExecute(recipient, _amountIn, _amountOutMin, _path);
 
@@ -1099,15 +1098,15 @@ contract Account is IAccount, Auth, OpsReady {
         uint256 _amountOutMin,
         bytes calldata _path
     ) internal {
-        /// @dev payerIsUser (i.e. 5th argument encoded) will always be true
+        /// @dev payerIsUser (i.e. 5th argument encoded) will always be false because
+        /// tokens are transferred to the UniversalRouter before executing the swap
         bytes[] memory inputs = new bytes[](1);
         inputs[0] =
-            abi.encode(_recipient, _amountIn, _amountOutMin, _path, true);
+            abi.encode(_recipient, _amountIn, _amountOutMin, _path, false);
 
         UNISWAP_UNIVERSAL_ROUTER.execute({
             commands: abi.encodePacked(bytes1(uint8(V3_SWAP_EXACT_IN))),
             inputs: inputs
-            /// @custom:auditor removed deadline here and want increased scrutiny
         });
     }
 
