@@ -238,6 +238,7 @@ contract Account is IAccount, Auth, OpsReady {
         external
         payable
         override
+        nonReentrant
         isAccountExecutionEnabled
     {
         uint256 numCommands = _commands.length;
@@ -257,10 +258,7 @@ contract Account is IAccount, Auth, OpsReady {
     /// @notice Decodes and executes the given command with the given inputs
     /// @param _command: The command type to execute
     /// @param _inputs: The inputs to execute the command with
-    function _dispatch(Command _command, bytes calldata _inputs)
-        internal
-        nonReentrant
-    {
+    function _dispatch(Command _command, bytes calldata _inputs) internal {
         uint256 commandIndex = uint256(_command);
 
         if (commandIndex < 4) {
@@ -1026,7 +1024,9 @@ contract Account is IAccount, Auth, OpsReady {
 
             // transfer sUSD to the UniversalRouter for the swap
             /// @dev not using SafeERC20 because sUSD is a trusted token
-            IERC20(tokenIn).transfer(address(UNISWAP_UNIVERSAL_ROUTER), _amountIn);
+            IERC20(tokenIn).transfer(
+                address(UNISWAP_UNIVERSAL_ROUTER), _amountIn
+            );
         } else if (
             tokenOut == address(MARGIN_ASSET)
                 && SETTINGS.isWhitelistedTokens(tokenIn)
