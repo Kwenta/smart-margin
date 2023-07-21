@@ -143,13 +143,4 @@ contract Events is IEvents {
             priceOracle: priceOracle
         });
     }
-
-    /// @inheritdoc IEvents
-    function emitExecutorFeeSet(uint256 executorFee)
-        external
-        override
-        onlyAccounts
-    {
-        emit ExecutorFeeSet({account: msg.sender, executorFee: executorFee});
-    }
 }
