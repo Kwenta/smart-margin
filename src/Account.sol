@@ -907,7 +907,7 @@ contract Account is IAccount, Auth, OpsReady {
             _transfer({_amount: fee});
         } else {
             fee = SETTINGS.executorFee();
-            (bool success,) = payable(msg.sender).call{value: fee}("");
+            (bool success,) = msg.sender.call{value: fee}("");
             if (!success) revert CannotPayExecutorFee(fee, msg.sender);
         }
     }
