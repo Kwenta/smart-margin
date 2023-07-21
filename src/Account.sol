@@ -1002,13 +1002,6 @@ contract Account is IAccount, Auth, OpsReady {
     /// @param _amountIn: amount of token to swap
     /// @param _amountOutMin: minimum amount of token to receive
     /// @param _path: path of tokens to swap (token0 - fee - token1)
-    /// @notice swap tokens via Uniswap V3 (sUSD <-> whitelisted token)
-    /// @dev assumes sufficient token allowances (i.e. Permit2 and this contract)
-    /// @dev non-whitelisted connector tokens will NOT cause a revert
-    /// (i.e. sUSD -> non-whitelisted token -> whitelisted token)
-    /// @param _amountIn: amount of token to swap
-    /// @param _amountOutMin: minimum amount of token to receive
-    /// @param _path: path of tokens to swap (token0 - fee - token1)
     function _uniswapV3Swap(
         uint256 _amountIn,
         uint256 _amountOutMin,
