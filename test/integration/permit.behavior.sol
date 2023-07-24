@@ -164,6 +164,49 @@ contract PermitBehaviorTest is Test, PermitSignature {
         assertEq(sUSD.balanceOf(address(account)), AMOUNT);
     }
 
+    function test_Permit_Deposit_Margin_Twice() public {
+        mintSUSD(signer, AMOUNT * 2);
+
+        IPermit2.PermitSingle memory permitSingle = IPermit2.PermitSingle({
+            details: IPermit2.PermitDetails({
+                token: address(sUSD),
+                amount: type(uint160).max,
+                expiration: type(uint48).max,
+                nonce: 0
+            }),
+            spender: address(account),
+            sigDeadline: block.timestamp + 1000
+        });
+
+        bytes memory signature = getPermitSignature({
+            permit: permitSingle,
+            privateKey: signerPrivateKey,
+            domainSeparator: PERMIT2.DOMAIN_SEPARATOR()
+        });
+
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERMIT2_PERMIT;
+        commands[1] = IAccount.Command.ACCOUNT_MODIFY_MARGIN;
+
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(permitSingle, signature);
+        inputs[1] = abi.encode(AMOUNT);
+
+        vm.prank(signer);
+        account.execute(commands, inputs);
+
+        commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.ACCOUNT_MODIFY_MARGIN;
+
+        inputs = new bytes[](1);
+        inputs[0] = abi.encode(AMOUNT);
+
+        vm.prank(signer);
+        account.execute(commands, inputs);
+
+        assertEq(sUSD.balanceOf(address(account)), AMOUNT * 2);
+    }
+
     function test_Permit_UniswapV3Swap() public {
         IPermit2.PermitSingle memory permitSingle = IPermit2.PermitSingle({
             details: IPermit2.PermitDetails({
