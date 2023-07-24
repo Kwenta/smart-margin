@@ -85,8 +85,6 @@ contract ConsolidatedEvents {
         IAccount.PriceOracleUsed priceOracle
     );
 
-    event ExecutorFeeSet(address indexed account, uint256 indexed executorFee);
-
     /*//////////////////////////////////////////////////////////////
                                ISETTINGS
     //////////////////////////////////////////////////////////////*/

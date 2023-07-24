@@ -147,10 +147,4 @@ interface IEvents {
         uint256 keeperFee,
         IAccount.PriceOracleUsed priceOracle
     );
-
-    /// @notice emitter when executor fee is set by the account owner
-    /// @param executorFee: executor fee
-    function emitExecutorFeeSet(uint256 executorFee) external;
-
-    event ExecutorFeeSet(address indexed account, uint256 indexed executorFee);
 }

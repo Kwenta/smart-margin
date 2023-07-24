@@ -3,7 +3,7 @@ pragma solidity 0.8.18;
 
 import {Test} from "lib/forge-std/src/Test.sol";
 
-import {UpgradeAccountOptimism} from "script/upgrades/v2.0.3/Upgrade.s.sol";
+import {UpgradeAccountOptimism} from "script/upgrades/v2.1.0/Upgrade.s.sol";
 import {
     OPTIMISM_FACTORY,
     OPTIMISM_PDAO,
@@ -14,7 +14,7 @@ import {Factory} from "src/Factory.sol";
 import {IAccount as OldAccount} from
     "test/upgrades/v2.0.2/interfaces/IAccount.sol";
 import {IAccount as NewAccount} from
-    "test/upgrades/v2.0.3/interfaces/IAccount.sol";
+    "test/upgrades/v2.1.0/interfaces/IAccount.sol";
 import {IERC20} from "src/interfaces/token/IERC20.sol";
 import {ISynth} from "test/utils/interfaces/ISynth.sol";
 
@@ -36,7 +36,7 @@ contract UpgradeTest is Test {
         0x3BC8D34314E77c2E36948Fd8F4B353f1baDc3F6C;
 
     /*//////////////////////////////////////////////////////////////
-                         V2.0.3 IMPLEMENTATION
+                         V2.1.0 IMPLEMENTATION
     //////////////////////////////////////////////////////////////*/
 
     address private NEW_IMPLEMENTATION;
@@ -61,7 +61,7 @@ contract UpgradeTest is Test {
         UpgradeAccountOptimism upgradeAccountOptimism =
             new UpgradeAccountOptimism();
 
-        // deploy v2.0.3 implementation
+        // deploy v2.1.0 implementation
         address implementationAddr = upgradeAccountOptimism.upgrade();
         NEW_IMPLEMENTATION = payable(implementationAddr);
     }
@@ -121,7 +121,7 @@ contract UpgradeTest is Test {
          * EXECUTE UPGRADE
          */
 
-        // upgrade Active Account to v2.0.3
+        // upgrade Active Account to v2.1.0
         vm.prank(OPTIMISM_PDAO);
         Factory(OPTIMISM_FACTORY).upgradeAccountImplementation(
             address(NEW_IMPLEMENTATION)

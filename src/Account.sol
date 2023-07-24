@@ -238,6 +238,7 @@ contract Account is IAccount, Auth, OpsReady {
         external
         payable
         override
+        nonReentrant
         isAccountExecutionEnabled
     {
         uint256 numCommands = _commands.length;
@@ -257,10 +258,7 @@ contract Account is IAccount, Auth, OpsReady {
     /// @notice Decodes and executes the given command with the given inputs
     /// @param _command: The command type to execute
     /// @param _inputs: The inputs to execute the command with
-    function _dispatch(Command _command, bytes calldata _inputs)
-        internal
-        nonReentrant
-    {
+    function _dispatch(Command _command, bytes calldata _inputs) internal {
         uint256 commandIndex = uint256(_command);
 
         if (commandIndex < 4) {
@@ -909,7 +907,7 @@ contract Account is IAccount, Auth, OpsReady {
             _transfer({_amount: fee});
         } else {
             fee = SETTINGS.executorFee();
-            (bool success,) = payable(msg.sender).call{value: fee}("");
+            (bool success,) = msg.sender.call{value: fee}("");
             if (!success) revert CannotPayExecutorFee(fee, msg.sender);
         }
     }
@@ -1023,6 +1021,12 @@ contract Account is IAccount, Auth, OpsReady {
             _sufficientMargin(int256(_amountIn));
 
             recipient = msg.sender;
+
+            // transfer sUSD to the UniversalRouter for the swap
+            /// @dev not using SafeERC20 because sUSD is a trusted token
+            IERC20(tokenIn).transfer(
+                address(UNISWAP_UNIVERSAL_ROUTER), _amountIn
+            );
         } else if (
             tokenOut == address(MARGIN_ASSET)
                 && SETTINGS.isWhitelistedTokens(tokenIn)
@@ -1031,7 +1035,7 @@ contract Account is IAccount, Auth, OpsReady {
             /// @dev msg.sender must have approved Permit2 to spend at least the amountIn
             PERMIT2.transferFrom({
                 from: msg.sender,
-                to: address(this),
+                to: address(UNISWAP_UNIVERSAL_ROUTER),
                 amount: _amountIn.toUint160(),
                 token: tokenIn
             });
@@ -1041,18 +1045,6 @@ contract Account is IAccount, Auth, OpsReady {
             // only allow sUSD <-> whitelisted token swaps
             revert TokenSwapNotAllowed(tokenIn, tokenOut);
         }
-
-        // approve Permit2 to spend _amountIn of this contract's tokenIn
-        IERC20(tokenIn).approve(address(PERMIT2), _amountIn);
-
-        // approve tokens to be swapped via Universal Router
-        PERMIT2.approve({
-            token: tokenIn,
-            spender: address(UNISWAP_UNIVERSAL_ROUTER),
-            amount: _amountIn.toUint160(),
-            /// @dev timstamp will never overflow (i.e. maximum value of uint48 is year 8 million 921 thousand 556)
-            expiration: uint48(block.timestamp)
-        });
 
         _universalRouterExecute(recipient, _amountIn, _amountOutMin, _path);
 
@@ -1099,15 +1091,15 @@ contract Account is IAccount, Auth, OpsReady {
         uint256 _amountOutMin,
         bytes calldata _path
     ) internal {
-        /// @dev payerIsUser (i.e. 5th argument encoded) will always be true
+        /// @dev payerIsUser (i.e. 5th argument encoded) will always be false because
+        /// tokens are transferred to the UniversalRouter before executing the swap
         bytes[] memory inputs = new bytes[](1);
         inputs[0] =
-            abi.encode(_recipient, _amountIn, _amountOutMin, _path, true);
+            abi.encode(_recipient, _amountIn, _amountOutMin, _path, false);
 
         UNISWAP_UNIVERSAL_ROUTER.execute({
             commands: abi.encodePacked(bytes1(uint8(V3_SWAP_EXACT_IN))),
             inputs: inputs
-            /// @custom:auditor removed deadline here and want increased scrutiny
         });
     }
 
