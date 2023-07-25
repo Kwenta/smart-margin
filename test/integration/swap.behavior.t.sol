@@ -75,22 +75,13 @@ contract SwapBehaviorTest is Test, ConsolidatedEvents {
 
         sUSD = IERC20(IAddressResolver(ADDRESS_RESOLVER).getAddress(PROXY_SUSD));
         mintSUSD(address(this), AMOUNT);
+        // call approve() on an ERC20 to grant an infinite allowance to the SM account contract
+        sUSD.approve(address(account), type(uint256).max);
 
         vm.prank(EOA_WITH_DAI);
         dai.transfer(address(this), AMOUNT);
-
-        // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
-        sUSD.approve(UNISWAP_PERMIT2, type(uint256).max);
-
-        // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
-        /// @dev this can be done via PERMIT2_PERMIT in production
-        PERMIT2.approve(
-            address(sUSD), address(account), type(uint160).max, type(uint48).max
-        );
-
         // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
         dai.approve(UNISWAP_PERMIT2, type(uint256).max);
-
         // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
         /// @dev this can be done via PERMIT2_PERMIT in production
         PERMIT2.approve(

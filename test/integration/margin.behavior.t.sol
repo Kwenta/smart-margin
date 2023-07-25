@@ -53,8 +53,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
     IERC20 private sUSD;
     AccountExposed private accountExposed;
 
-    IPermit2 private PERMIT2;
-
     /*//////////////////////////////////////////////////////////////
                                  SETUP
     //////////////////////////////////////////////////////////////*/
@@ -78,8 +76,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
 
         // deploy an Account contract
         account = Account(payable(factory.newAccount()));
-
-        PERMIT2 = IPermit2(UNISWAP_PERMIT2);
 
         // define helper contracts
         IAddressResolver addressResolver = IAddressResolver(ADDRESS_RESOLVER);
@@ -107,14 +103,8 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         );
         accountExposed = new AccountExposed(params);
 
-        // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
-        sUSD.approve(UNISWAP_PERMIT2, type(uint256).max);
-
-        // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
-        /// @dev this can be done via PERMIT2_PERMIT in production
-        PERMIT2.approve(
-            address(sUSD), address(account), type(uint160).max, type(uint48).max
-        );
+        // call approve() on an ERC20 to grant an infinite allowance to the SM account contract
+        sUSD.approve(address(account), type(uint256).max);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -164,7 +154,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             // no-op
             modifyAccountMargin({amount: int256(x)});
         } else if (x > AMOUNT) {
-            vm.expectRevert("TRANSFER_FROM_FAILED");
+            vm.expectRevert("Insufficient balance after any settlement owing");
             modifyAccountMargin({amount: int256(x)});
         } else {
             vm.expectEmit(true, true, true, true);

@@ -70,8 +70,6 @@ contract OrderGelatoBehaviorTest is Test, ConsolidatedEvents {
     // helper variables for testing
     uint256 private currentEthPriceInUSD;
 
-    IPermit2 private PERMIT2;
-
     /*//////////////////////////////////////////////////////////////
                                  SETUP
     //////////////////////////////////////////////////////////////*/
@@ -122,8 +120,6 @@ contract OrderGelatoBehaviorTest is Test, ConsolidatedEvents {
         // deploy an Account contract and fund it
         account = Account(payable(factory.newAccount()));
 
-        PERMIT2 = IPermit2(UNISWAP_PERMIT2);
-
         // get current ETH price in USD
         (currentEthPriceInUSD,) = accountExposed.expose_sUSDRate(
             IPerpsV2MarketConsolidated(
@@ -131,14 +127,8 @@ contract OrderGelatoBehaviorTest is Test, ConsolidatedEvents {
             )
         );
 
-        // call approve() on an ERC20 to grant an infinite allowance to the canonical Permit2 contract
-        sUSD.approve(UNISWAP_PERMIT2, type(uint256).max);
-
-        // call approve() on the canonical Permit2 contract to grant an infinite allowance to the SM Account
-        /// @dev this can be done via PERMIT2_PERMIT in production
-        PERMIT2.approve(
-            address(sUSD), address(account), type(uint160).max, type(uint48).max
-        );
+        // call approve() on an ERC20 to grant an infinite allowance to the SM account contract
+        sUSD.approve(address(account), type(uint256).max);
 
         fundAccount(AMOUNT);
     }

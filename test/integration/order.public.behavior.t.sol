@@ -65,9 +65,6 @@ contract OrderPublicBehaviorTest is Test, ConsolidatedEvents {
 
     // helper variables for testing
     uint256 private currentEthPriceInUSD;
-
-    IPermit2 private PERMIT2;
-
     // conditional order variables
     uint256 private conditionalOrderId;
 
@@ -123,11 +120,8 @@ contract OrderPublicBehaviorTest is Test, ConsolidatedEvents {
             )
         );
 
-        PERMIT2 = IPermit2(UNISWAP_PERMIT2);
-        sUSD.approve(UNISWAP_PERMIT2, type(uint256).max);
-        PERMIT2.approve(
-            address(sUSD), address(account), type(uint160).max, type(uint48).max
-        );
+        // call approve() on an ERC20 to grant an infinite allowance to the SM account contract
+        sUSD.approve(address(account), type(uint256).max);
 
         fundAccount(AMOUNT);
 
