@@ -261,7 +261,7 @@ contract Account is IAccount, Auth, OpsReady {
     function _dispatch(Command _command, bytes calldata _inputs) internal {
         uint256 commandIndex = uint256(_command);
 
-        if (commandIndex < 4) {
+        if (commandIndex < 2 || commandIndex == 14 || commandIndex == 15) {
             /// @dev only owner can execute the following commands
             if (!isOwner()) revert Unauthorized();
 
@@ -306,7 +306,7 @@ contract Account is IAccount, Auth, OpsReady {
             /// @dev only owner and delegate(s) can execute the following commands
             if (!isAuth()) revert Unauthorized();
 
-            if (commandIndex < 6) {
+            if (commandIndex < 4) {
                 if (_command == Command.PERPS_V2_MODIFY_MARGIN) {
                     // Command.PERPS_V2_MODIFY_MARGIN
                     address market;
@@ -324,7 +324,7 @@ contract Account is IAccount, Auth, OpsReady {
                     }
                     _perpsV2WithdrawAllMargin({_market: market});
                 }
-            } else if (commandIndex < 8) {
+            } else if (commandIndex < 6) {
                 if (_command == Command.PERPS_V2_SUBMIT_ATOMIC_ORDER) {
                     // Command.PERPS_V2_SUBMIT_ATOMIC_ORDER
                     address market;
@@ -362,7 +362,7 @@ contract Account is IAccount, Auth, OpsReady {
                         _desiredFillPrice: desiredFillPrice
                     });
                 }
-            } else if (commandIndex < 10) {
+            } else if (commandIndex < 8) {
                 if (_command == Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER)
                 {
                     // Command.PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
@@ -394,7 +394,7 @@ contract Account is IAccount, Auth, OpsReady {
                         _desiredFillPrice: desiredFillPrice
                     });
                 }
-            } else if (commandIndex < 12) {
+            } else if (commandIndex < 10) {
                 if (_command == Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER) {
                     // Command.PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER
                     address market;
@@ -426,7 +426,7 @@ contract Account is IAccount, Auth, OpsReady {
                         _desiredFillPrice: desiredFillPrice
                     });
                 }
-            } else if (commandIndex < 14) {
+            } else if (commandIndex < 12) {
                 if (_command == Command.PERPS_V2_CANCEL_DELAYED_ORDER) {
                     // Command.PERPS_V2_CANCEL_DELAYED_ORDER
                     address market;
@@ -442,7 +442,7 @@ contract Account is IAccount, Auth, OpsReady {
                     }
                     _perpsV2CancelOffchainDelayedOrder({_market: market});
                 }
-            } else if (commandIndex < 16) {
+            } else if (commandIndex < 14) {
                 if (_command == Command.GELATO_PLACE_CONDITIONAL_ORDER) {
                     // Command.GELATO_PLACE_CONDITIONAL_ORDER
                     bytes32 marketKey;
@@ -480,7 +480,8 @@ contract Account is IAccount, Auth, OpsReady {
                     }
                     _cancelConditionalOrder({_conditionalOrderId: orderId});
                 }
-            } else {
+            } else if (commandIndex > 15) {
+                // commandIndex 14 & 15 valid and already checked
                 revert InvalidCommandType(commandIndex);
             }
         }
