@@ -511,13 +511,7 @@ contract Account is IAccount, Auth, OpsReady {
         // if amount is positive, deposit
         if (_amount > 0) {
             /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
-            /// @dev msg.sender must have approved Permit2 to spend at least the amountIn
-            PERMIT2.transferFrom({
-                from: msg.sender,
-                to: address(this),
-                amount: _abs(_amount).toUint160(),
-                token: address(MARGIN_ASSET)
-            });
+            MARGIN_ASSET.transferFrom(owner, address(this), _abs(_amount));
 
             EVENTS.emitDeposit({user: msg.sender, amount: _abs(_amount)});
         } else if (_amount < 0) {
