@@ -512,7 +512,7 @@ contract Account is IAccount, Auth, OpsReady {
         // if amount is positive, deposit
         if (_amount > 0) {
             /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
-            MARGIN_ASSET.transferFrom(owner, address(this), _abs(_amount));
+            MARGIN_ASSET.transferFrom(msg.sender, address(this), _abs(_amount));
 
             EVENTS.emitDeposit({user: msg.sender, amount: _abs(_amount)});
         } else if (_amount < 0) {
