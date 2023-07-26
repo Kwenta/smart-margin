@@ -1009,7 +1009,7 @@ contract Account is IAccount, Auth, OpsReady {
         /// @dev verify direction and validity of swap (i.e. sUSD <-> whitelisted token)
         if (
             tokenIn == address(MARGIN_ASSET)
-                && SETTINGS.isWhitelistedTokens(tokenOut)
+                && SETTINGS.isTokenWhitelisted(tokenOut)
         ) {
             // if swapping sUSD for another token, ensure sufficient margin
             /// @dev margin is being transferred out of this contract
@@ -1024,7 +1024,7 @@ contract Account is IAccount, Auth, OpsReady {
             );
         } else if (
             tokenOut == address(MARGIN_ASSET)
-                && SETTINGS.isWhitelistedTokens(tokenIn)
+                && SETTINGS.isTokenWhitelisted(tokenIn)
         ) {
             // if swapping another token for sUSD, incoming token must be transferred to the UniversalRouter
             /// @dev msg.sender must have approved Permit2 to spend at least the amountIn
