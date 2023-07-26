@@ -39,8 +39,9 @@ bytes32 constant SYSTEM_STATUS = "SystemStatus";
 bytes32 constant PERPS_V2_EXCHANGE_RATE = "PerpsV2ExchangeRate";
 
 // uniswap
+// UniversalRouterV1_2
 address constant OPTIMISM_UNISWAP_UNIVERSAL_ROUTER =
-    0xb555edF5dcF85f42cEeF1f3630a52A108E55A654;
+    0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD;
 
 address constant OPTIMISM_UNISWAP_PERMIT2 =
     0x000000000022D473030F116dDEE9F6B43aC78BA3;
