@@ -36,24 +36,7 @@ Calls to `Account.execute`, the entrypoint to the smart margin account, require 
 
 `commands[i]` is the command that will use `inputs[i]` as its encoded input parameters.
 
-The supported commands can be found below (ordering may _not_ match what is defined in `IAccount.sol`):
-
-```
-ACCOUNT_MODIFY_MARGIN
-ACCOUNT_WITHDRAW_ETH
-PERPS_V2_MODIFY_MARGIN
-PERPS_V2_WITHDRAW_ALL_MARGIN
-PERPS_V2_SUBMIT_ATOMIC_ORDER
-PERPS_V2_SUBMIT_DELAYED_ORDER
-PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
-PERPS_V2_CLOSE_POSITION
-PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER
-PERPS_V2_SUBMIT_CLOSE_OFFCHAIN_DELAYED_ORDER
-PERPS_V2_CANCEL_DELAYED_ORDER
-PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER
-GELATO_PLACE_CONDITIONAL_ORDER
-GELATO_CANCEL_CONDITIONAL_ORDER
-```
+The supported commands can be found in the [wiki](https://github.com/Kwenta/smart-margin/wiki/Commands) and [code](https://github.com/Kwenta/smart-margin/blob/main/src/interfaces/IAccount.sol).
 
 #### How the input bytes are structured
 
@@ -73,7 +56,7 @@ Encoding parameters in a bytes string in this way gives us maximum flexiblity to
 
 For a more detailed breakdown of which parameters you should provide for each command take a look at the `Account.dispatch` function.
 
-Developer documentation to give a detailed explanation of the inputs for every command can be found in the [wiki](https://github.com/Kwenta/margin-manager/wiki/Commands)
+Developer documentation to give a detailed explanation of the inputs for every command can also be found in the [wiki](https://github.com/Kwenta/margin-manager/wiki/Commands)
 
 #### Diagram
 
@@ -100,8 +83,10 @@ Smart margin accounts are upgradable. This is achieved by using a proxy pattern,
 Finally, all associated functionality related to upgradability can be disabled by the `Factory` contract owner.
 
 ## Folder Structure
+> to run: `tree src/`
+
 ```
-src
+src/
 ├── Account.sol
 ├── AccountProxy.sol
 ├── Events.sol
@@ -110,17 +95,34 @@ src
 ├── interfaces
 │   ├── IAccount.sol
 │   ├── IAccountProxy.sol
+│   ├── IERC20.sol
 │   ├── IEvents.sol
 │   ├── IFactory.sol
-│   ├── IOps.sol
 │   ├── ISettings.sol
-│   └── synthetix
-│       ├── IFuturesMarketManager.sol
-│       ├── IPerpsV2MarketConsolidated.sol
-│       └── ISystemStatus.sol
+│   ├── gelato
+│   │   └── IOps.sol
+│   ├── synthetix
+│   │   ├── IFuturesMarketManager.sol
+│   │   ├── IPerpsV2ExchangeRate.sol
+│   │   ├── IPerpsV2MarketConsolidated.sol
+│   │   └── ISystemStatus.sol
+│   ├── token
+│   │   └── IERC20.sol
+│   └── uniswap
+│       ├── IPermit2.sol
+│       └── IUniversalRouter.sol
 └── utils
     ├── Auth.sol
-    └── OpsReady.sol
+    ├── Owned.sol
+    ├── executors
+    │   └── OrderExecution.sol
+    ├── gelato
+    │   └── OpsReady.sol
+    └── uniswap
+        ├── BytesLib.sol
+        ├── Constants.sol
+        ├── SafeCast160.sol
+        └── V3Path.sol
 ```
 
 ## Usage
@@ -191,6 +193,7 @@ forge test --fork-url $(grep ARCHIVE_NODE_URL_L2 .env | cut -d '=' -f2) --match-
 3. See https://docs.pyth.network/evm/update-price-feeds for more information on updating Pyth oracle price feeds
 4. See `IAccount.executeConditionalOrder` for more information on conditional order execution
 5. Currently there are no scripts in this repository which deploy the `OrderExecution` contract
+6. See https://github.com/JaredBorders/KwentaOrderExecutor for an conditional order executor that includes deployment scripts
 
 ## Project Tools
 
