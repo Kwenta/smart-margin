@@ -1026,7 +1026,7 @@ contract Account is IAccount, Auth, OpsReady {
             tokenOut == address(MARGIN_ASSET)
                 && SETTINGS.isWhitelistedTokens(tokenIn)
         ) {
-            // if swapping another token for sUSD, token must be transferred to this contract
+            // if swapping another token for sUSD, incoming token must be transferred to the UniversalRouter
             /// @dev msg.sender must have approved Permit2 to spend at least the amountIn
             PERMIT2.transferFrom({
                 from: msg.sender,
