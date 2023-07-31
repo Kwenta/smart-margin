@@ -177,9 +177,9 @@ contract AccountTest is Test, ConsolidatedEvents {
         account.getDelayedOrder({_marketKey: "unknown"});
     }
 
-    function test_Checker() public {
-        vm.expectRevert();
-        account.checker({_conditionalOrderId: 0});
+    function test_Checker() public view {
+        (bool canExecute,) = account.checker({_conditionalOrderId: 0});
+        assert(!canExecute);
     }
 
     function test_GetFreeMargin() public {
