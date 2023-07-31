@@ -189,6 +189,22 @@ contract OrderPublicBehaviorTest is Test, ConsolidatedEvents {
         account.executeConditionalOrder(conditionalOrderId);
     }
 
+    function test_ExecuteConditionalOrder_Public_Replay_Prevented() public {
+        vm.deal(USER, 1 ether);
+        vm.startPrank(USER);
+        account.executeConditionalOrder(conditionalOrderId);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccount.CannotExecuteConditionalOrder.selector,
+                conditionalOrderId,
+                USER
+            )
+        );
+        account.executeConditionalOrder(conditionalOrderId);
+        vm.stopPrank();
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
