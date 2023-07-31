@@ -807,10 +807,6 @@ contract Account is IAccount, Auth, OpsReady {
         nonReentrant
         isAccountExecutionEnabled
     {
-        // store conditional order object in memory
-        ConditionalOrder memory conditionalOrder =
-            getConditionalOrder(_conditionalOrderId);
-
         // verify conditional order is ready for execution
         /// @dev it is understood this is a duplicate check if the executor is Gelato
         if (!_validConditionalOrder(_conditionalOrderId)) {
@@ -819,6 +815,10 @@ contract Account is IAccount, Auth, OpsReady {
                 executor: msg.sender
             });
         }
+
+        // store conditional order object in memory
+        ConditionalOrder memory conditionalOrder =
+            getConditionalOrder(_conditionalOrderId);
 
         // remove conditional order from internal accounting
         delete conditionalOrders[_conditionalOrderId];
@@ -918,6 +918,11 @@ contract Account is IAccount, Auth, OpsReady {
     {
         ConditionalOrder memory conditionalOrder =
             getConditionalOrder(_conditionalOrderId);
+
+        /// @dev return false early if market key is the default value (i.e. "")
+        if (conditionalOrder.marketKey == bytes32(0)) {
+            return false;
+        }
 
         // return false if market is paused
         try SYSTEM_STATUS.requireFuturesMarketActive(conditionalOrder.marketKey)
