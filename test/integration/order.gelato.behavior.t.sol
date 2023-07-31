@@ -642,17 +642,17 @@ contract OrderGelatoBehaviorTest is Test, ConsolidatedEvents {
     function test_ExecuteConditionalOrder_MarketIsPaused() public {
         // place conditional order for sAUDPERP market
         uint256 conditionalOrderId = placeConditionalOrder({
-            marketKey: sAUDPERP,
-            marginDelta: int256(AMOUNT),
-            sizeDelta: int256(AMOUNT),
-            targetPrice: 0,
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            desiredFillPrice: 0,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
 
-        // pause sAUDPERP market
-        suspendPerpsV2Market(sAUDPERP);
+        // pause sETHPERP market
+        suspendPerpsV2Market(sETHPERP);
 
         // assert conditional order cannot be executed due to paused market
         (bool canExecute,) = account.checker(conditionalOrderId);
@@ -990,7 +990,6 @@ contract OrderGelatoBehaviorTest is Test, ConsolidatedEvents {
             revertOnFailure: true
         }) {} catch {
             // ensure task still exists
-            // ensure task is cancelled (i.e. gelato task is removed)
             bytes32[] memory outstandingTasks =
                 IOps(OPS).getTaskIdsByUser(address(account));
             assertEq(outstandingTasks.length, 1);
