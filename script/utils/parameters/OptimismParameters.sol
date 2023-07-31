@@ -4,11 +4,8 @@ pragma solidity 0.8.18;
 /// @dev for Synthetix addresses see:
 /// https://github.com/Synthetixio/synthetix-docs/blob/master/content/addresses.md#mainnet-optimism-l2
 
-// v2.0.1 deployer
-address constant OPTIMISM_DEPLOYER = 0x39CFcA7b389529ac861CbB05aDD802e5B06E5101;
-
-address constant OPTIMISM_KWENTA_ADMIN_DAO_MULTI_SIG =
-    0xF510a2Ff7e9DD7e18629137adA4eb56B9c13E885;
+// v2.1.0 deployer
+address constant OPTIMISM_DEPLOYER = 0xb7CefE980D41F2f83d4272526b0A0F04617da96b;
 
 address constant OPTIMISM_PDAO = 0xe826d43961a87fBE71C91d9B73F7ef9b16721C07;
 
