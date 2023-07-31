@@ -35,7 +35,7 @@ address constant OPTIMISM_GOERLI_FACTORY =
 address constant OPTIMISM_GOERLI_SETTINGS =
     0x8B9CbD3da94c637c0652c680Abd3CF7f787aBAF4;
 
-// uniswap v3: 
+// uniswap v3:
 // UniversalRouterV1_2
 address constant OPTIMISM_GOERLI_UNISWAP_UNIVERSAL_ROUTER =
     0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD;
