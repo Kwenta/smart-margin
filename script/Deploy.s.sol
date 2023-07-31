@@ -13,7 +13,7 @@ import {Settings} from "src/Settings.sol";
 
 import {
     OPTIMISM_DEPLOYER,
-    OPTIMISM_KWENTA_ADMIN_DAO_MULTI_SIG,
+    OPTIMISM_PDAO,
     OPTIMISM_SYNTHETIX_ADDRESS_RESOLVER,
     OPTIMISM_GELATO,
     OPTIMISM_OPS,
@@ -119,7 +119,7 @@ contract DeployOptimism is Script, Setup {
 
         Setup.deploySystem({
             _deployer: OPTIMISM_DEPLOYER,
-            _owner: OPTIMISM_KWENTA_ADMIN_DAO_MULTI_SIG,
+            _owner: OPTIMISM_PDAO,
             _addressResolver: OPTIMISM_SYNTHETIX_ADDRESS_RESOLVER,
             _gelato: OPTIMISM_GELATO,
             _ops: OPTIMISM_OPS,
