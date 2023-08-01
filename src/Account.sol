@@ -1121,18 +1121,23 @@ contract Account is IAccount, Auth, OpsReady {
 
     /// @notice fetch PerpsV2Market market defined by market key
     /// @param _marketKey: key for Synthetix PerpsV2 market
-    /// @return IPerpsV2MarketConsolidated contract interface
+    /// @return market IPerpsV2MarketConsolidated contract interface
     function _getPerpsV2Market(bytes32 _marketKey)
         internal
         view
-        returns (IPerpsV2MarketConsolidated)
+        returns (IPerpsV2MarketConsolidated market)
     {
-        return IPerpsV2MarketConsolidated(
+        market = IPerpsV2MarketConsolidated(
             FUTURES_MARKET_MANAGER.marketForKey(_marketKey)
         );
+
+        // sanity check
+        assert(address(market) != address(0));
     }
 
     /// @notice get exchange rate of underlying market asset in terms of sUSD
+    /// @dev _sUSDRate can only be reached after a successful internal call to _getPerpsV2Market
+    /// which will revert if the market address returned is address(0)
     /// @param _market: Synthetix PerpsV2 Market
     /// @return price in sUSD
     function _sUSDRate(IPerpsV2MarketConsolidated _market)
