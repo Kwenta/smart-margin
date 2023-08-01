@@ -48,86 +48,84 @@ interface IPyth {
 /// @notice this contract is untested and should be used with caution
 /// @custom:auditor ignore this file
 /// @author JaredBorders (jaredborders@pm.me)
-abstract contract OrderExecution {
-    IPerpsV2ExchangeRate public immutable PERPS_V2_EXCHANGE_RATE;
+contract OrderExecution {
+    address internal immutable OWNER;
+    IPerpsV2ExchangeRate internal immutable PERPS_V2_EXCHANGE_RATE;
+    IPyth internal immutable ORACLE;
 
     error PythPriceUpdateFailed();
+    error OnlyOwner();
 
-    constructor(address _perpsV2ExchangeRate) {
-        PERPS_V2_EXCHANGE_RATE = IPerpsV2ExchangeRate(_perpsV2ExchangeRate);
+    modifier onlyOwner() {
+        if (msg.sender != OWNER) revert OnlyOwner();
+        _;
     }
 
-    /// @dev updates the Pyth oracle price feed and refunds the caller any unused value
-    /// not used to update feed
-    function updatePythPrice(bytes[] calldata priceUpdateData)
-        public
-        payable
-        virtual
-    {
-        /// @custom:optimization oracle could be immutable if we can guarantee it will never change
-        IPyth oracle = PERPS_V2_EXCHANGE_RATE.offchainOracle();
+    constructor(address _owner, address _perpsV2ExchangeRate) {
+        OWNER = _owner;
+        PERPS_V2_EXCHANGE_RATE = IPerpsV2ExchangeRate(_perpsV2ExchangeRate);
+        ORACLE = PERPS_V2_EXCHANGE_RATE.offchainOracle();
+    }
 
-        // determine fee amount to pay to Pyth for price update
-        /// @custom:optimization fee could be set to be high and executor can rely on refund to avoid querying oracle
-        uint256 fee = oracle.getUpdateFee(priceUpdateData);
+    /// @notice updates the Pyth oracle price feed and executes a batch of conditional orders
+    /// @dev reverts if the Pyth price update fails
+    /// @param priceUpdateData: array of price update data
+    /// @param accounts: array of SM account addresses
+    /// @param ids: array of conditional order Ids
+    function updatePriceThenExecuteOrders(
+        bytes[] calldata priceUpdateData,
+        address[] calldata accounts,
+        uint256[] calldata ids
+    ) external payable {
+        updatePythPrice(priceUpdateData);
+        executeOrders(accounts, ids);
+    }
+
+    /// @dev updates the Pyth oracle price feed
+    /// @dev refunds the caller any unused value not used to update feed
+    /// @param priceUpdateData: array of price update data
+    function updatePythPrice(bytes[] calldata priceUpdateData) public payable {
+        uint256 fee = ORACLE.getUpdateFee(priceUpdateData);
 
         // try to update the price data (and pay the fee)
-        /// @custom:optimization this check could be ignored for gas savings
-        try oracle.updatePriceFeeds{value: fee}(priceUpdateData) {}
+        /// @dev excess value is *not* automatically refunded
+        /// and the caller must withdraw it manually
+        try ORACLE.updatePriceFeeds{value: fee}(priceUpdateData) {}
         catch {
             revert PythPriceUpdateFailed();
-        }
-
-        uint256 refund = msg.value - fee;
-        if (refund > 0) {
-            // refund caller the unused value
-            (bool success,) = msg.sender.call{value: refund}("");
-            assert(success);
         }
     }
 
     /// @dev executes a batch of conditional orders in reverse order (i.e. LIFO)
+    /// @param accounts: array of SM account addresses
+    /// @param ids: array of conditional order Ids
     function executeOrders(address[] calldata accounts, uint256[] calldata ids)
         public
-        virtual
     {
-        /// @custom:optimization length checks could be ignored for gas savings
-        assert(accounts.length > 0);
-        assert(accounts.length == ids.length);
-
         uint256 i = accounts.length;
         do {
             unchecked {
                 --i;
             }
 
-            /**
-             * @custom:logic could ensure onchain order can be executed via call to `checker`
-             *
-             * (bool canExec,) = IAccount(accounts[i]).checker(ids[i]);
-             *
-             * assert(canExec); // revert if an order cannot be executed
-             *
-             * OR
-             *
-             * if (!canExec) continue; // skip to next order without reverting
-             *
-             */
+            (bool canExec,) = IAccount(accounts[i]).checker(ids[i]);
+            if (!canExec) continue; // skip to next order without reverting
 
             IAccount(accounts[i]).executeConditionalOrder(ids[i]);
         } while (i != 0);
     }
 
-    function updatePriceThenExecuteOrders(
-        bytes[] calldata priceUpdateData,
-        address[] calldata accounts,
-        uint256[] calldata ids
-    ) external payable virtual {
-        updatePythPrice(priceUpdateData);
-        executeOrders(accounts, ids);
+    /*//////////////////////////////////////////////////////////////
+                      MODIFY CONTRACT ETH BALANCE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice withdraws ETH from the contract to the _beneficiary
+    /// @dev reverts if the transfer fails
+    /// @param _beneficiary: address to send ETH to
+    function withdrawEth(address payable _beneficiary) external onlyOwner {
+        (bool success,) = _beneficiary.call{value: address(this).balance}("");
+        assert(success);
     }
 
-    /// @dev withdraws ETH from the contract to the caller
-    /// @dev consider protecting call with onlyOwner-like check
-    function withdrawEth() external virtual;
+    receive() external payable {}
 }
