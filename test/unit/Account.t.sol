@@ -780,10 +780,9 @@ contract AccountTest is Test, ConsolidatedEvents {
         assert(market != address(0));
     }
 
-    function test_getPerpsV2Market_Invalid_Key() public view {
-        address market =
-            address(accountExposed.expose_getPerpsV2Market("unknown"));
-        assert(market == address(0));
+    function test_getPerpsV2Market_Invalid_Key() public {
+        vm.expectRevert();
+        accountExposed.expose_getPerpsV2Market("unknown");
     }
 
     function test_sUSDRate_Valid_Market() public {
