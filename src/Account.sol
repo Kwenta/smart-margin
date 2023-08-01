@@ -919,7 +919,7 @@ contract Account is IAccount, Auth, OpsReady {
         ConditionalOrder memory conditionalOrder =
             getConditionalOrder(_conditionalOrderId);
 
-        /// @dev return false early if market key is the default value (i.e. "")
+        // return false if market key is the default value (i.e. "")
         if (conditionalOrder.marketKey == bytes32(0)) {
             return false;
         }
