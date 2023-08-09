@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {IEvents, IAccount} from "./interfaces/IEvents.sol";
+import {IAccount, IEvents} from "src/interfaces/IEvents.sol";
 import {IFactory} from "./interfaces/IFactory.sol";
 
 /// @title Consolidates all events emitted by the Smart Margin Accounts
@@ -67,6 +67,23 @@ contract Events is IEvents {
         onlyAccounts
     {
         emit EthWithdraw({user: user, account: msg.sender, amount: amount});
+    }
+
+    /// @inheritdoc IEvents
+    function emitUniswapV3Swap(
+        address tokenIn,
+        address tokenOut,
+        address recipient,
+        uint256 amountIn,
+        uint256 amountOutMinimum
+    ) external override onlyAccounts {
+        emit UniswapV3Swap({
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            recipient: recipient,
+            amountIn: amountIn,
+            amountOutMinimum: amountOutMinimum
+        });
     }
 
     /// @inheritdoc IEvents

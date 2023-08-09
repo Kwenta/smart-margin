@@ -25,7 +25,7 @@ Contracts to manage account abstractions and features on top of [Synthetix Perps
 
 > See ./deploy-addresses/ for deployed contract addresses
 
-The Margin Manager codebase consists of the `Factory` and `Account` contracts, and all of the associated dependencies. The purpose of the `Factory` is to create/deploy trading accounts (`Account` contracts) for users that support features ranging from cross-margin, conditional orders, copy trading, etc.. Once a smart margin account has been created, the main point of entry is the `Account.execute` function. `Account.execute` allows users to execute a set of commands describing the actions/trades they want executed by their account.
+The Smart Margin codebase consists of the `Factory` and `Account` contracts, and all of the associated dependencies. The purpose of the `Factory` is to create/deploy trading accounts (`Account` contracts) for users that support features ranging from cross-margin, conditional orders, copy trading, etc.. Once a smart margin account has been created, the main point of entry is the `Account.execute` function. `Account.execute` allows users to execute a set of commands describing the actions/trades they want executed by their account.
 
 ### User Entry: MarginBase Command Execution
 
@@ -36,24 +36,7 @@ Calls to `Account.execute`, the entrypoint to the smart margin account, require 
 
 `commands[i]` is the command that will use `inputs[i]` as its encoded input parameters.
 
-The supported commands can be found below (ordering may _not_ match what is defined in `IAccount.sol`):
-
-```
-ACCOUNT_MODIFY_MARGIN
-ACCOUNT_WITHDRAW_ETH
-PERPS_V2_MODIFY_MARGIN
-PERPS_V2_WITHDRAW_ALL_MARGIN
-PERPS_V2_SUBMIT_ATOMIC_ORDER
-PERPS_V2_SUBMIT_DELAYED_ORDER
-PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER
-PERPS_V2_CLOSE_POSITION
-PERPS_V2_SUBMIT_CLOSE_DELAYED_ORDER
-PERPS_V2_SUBMIT_CLOSE_OFFCHAIN_DELAYED_ORDER
-PERPS_V2_CANCEL_DELAYED_ORDER
-PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER
-GELATO_PLACE_CONDITIONAL_ORDER
-GELATO_CANCEL_CONDITIONAL_ORDER
-```
+The supported commands can be found in the [wiki](https://github.com/Kwenta/smart-margin/wiki/Commands) and [code](https://github.com/Kwenta/smart-margin/blob/main/src/interfaces/IAccount.sol).
 
 #### How the input bytes are structured
 
@@ -73,7 +56,7 @@ Encoding parameters in a bytes string in this way gives us maximum flexiblity to
 
 For a more detailed breakdown of which parameters you should provide for each command take a look at the `Account.dispatch` function.
 
-Developer documentation to give a detailed explanation of the inputs for every command can be found in the [wiki](https://github.com/Kwenta/margin-manager/wiki/Commands)
+Developer documentation to give a detailed explanation of the inputs for every command can also be found in the [wiki](https://github.com/Kwenta/margin-manager/wiki/Commands)
 
 #### Diagram
 
@@ -100,8 +83,10 @@ Smart margin accounts are upgradable. This is achieved by using a proxy pattern,
 Finally, all associated functionality related to upgradability can be disabled by the `Factory` contract owner.
 
 ## Folder Structure
+> to run: `tree src/`
+
 ```
-src
+src/
 ├── Account.sol
 ├── AccountProxy.sol
 ├── Events.sol
@@ -110,30 +95,35 @@ src
 ├── interfaces
 │   ├── IAccount.sol
 │   ├── IAccountProxy.sol
+│   ├── IERC20.sol
 │   ├── IEvents.sol
 │   ├── IFactory.sol
-│   ├── IOps.sol
 │   ├── ISettings.sol
-│   └── synthetix
-│       ├── IFuturesMarketManager.sol
-│       ├── IPerpsV2MarketConsolidated.sol
-│       └── ISystemStatus.sol
+│   ├── gelato
+│   │   └── IOps.sol
+│   ├── synthetix
+│   │   ├── IFuturesMarketManager.sol
+│   │   ├── IPerpsV2ExchangeRate.sol
+│   │   ├── IPerpsV2MarketConsolidated.sol
+│   │   └── ISystemStatus.sol
+│   ├── token
+│   │   └── IERC20.sol
+│   └── uniswap
+│       ├── IPermit2.sol
+│       └── IUniversalRouter.sol
 └── utils
     ├── Auth.sol
-    └── OpsReady.sol
+    ├── Owned.sol
+    ├── executors
+    │   └── OrderExecution.sol
+    ├── gelato
+    │   └── OpsReady.sol
+    └── uniswap
+        ├── BytesLib.sol
+        ├── Constants.sol
+        ├── SafeCast160.sol
+        └── V3Path.sol
 ```
-
-## Test Coverage
-
-| File                                 | % Lines          | % Statements     | % Branches       | % Funcs         |
-|--------------------------------------|------------------|------------------|------------------|-----------------|
-| src/Account.sol                      | 99.05% (209/211) | 99.10% (221/223) | 93.59% (73/78)   | 100.00% (35/35) |
-| src/AccountProxy.sol                 | 100.00% (10/10)  | 76.92% (10/13)   | 50.00% (3/6)     | 100.00% (6/6)   |
-| src/Events.sol                       | 100.00% (6/6)    | 100.00% (6/6)    | 100.00% (0/0)    | 100.00% (6/6)   |
-| src/Factory.sol                      | 100.00% (27/27)  | 100.00% (34/34)  | 85.71% (12/14)   | 100.00% (6/6)   |
-| src/Settings.sol                     | 100.00% (2/2)    | 100.00% (2/2)    | 100.00% (0/0)    | 100.00% (1/1)   |
-| src/utils/Auth.sol                   | 100.00% (15/15)  | 100.00% (18/18)  | 100.00% (10/10)  | 100.00% (5/5)   |
-| src/utils/OpsReady.sol               | 100.00% (3/3)    | 100.00% (4/4)    | 75.00% (3/4)     | 100.00% (1/1)   |
 
 ## Usage
 
@@ -164,7 +154,7 @@ npm run test
 4. Run specific test
 
 ```
-forge test --fork-url $(grep ARCHIVE_NODE_URL_GOERLI_L2 .env | cut -d '=' -f2) --match-test TEST_NAME -vvv
+forge test --fork-url $(grep ARCHIVE_NODE_URL_L2 .env | cut -d '=' -f2) --match-test TEST_NAME -vvv
 ```
 
 > tests will fail if you have not set up your .env (see .env.example)
@@ -194,6 +184,16 @@ forge test --fork-url $(grep ARCHIVE_NODE_URL_GOERLI_L2 .env | cut -d '=' -f2) -
 > Only factory owner can do this (pDAO)
 13. Update `./deploy-addresses/optimism.json` with new `Account` address
 14. Ensure mainnet accounts are updated and functional (ensure state is correct)
+
+## External Conditional Order Executors
+> As of SM v2.1.0, public actors can execute conditional orders and receive a fee for doing so
+1. Navigate to `src/utils/executors/OrderExecution.sol`
+2. `OrderExecution` is a *simplified* contract which defines: (1) basic batch conditional order execution functionality, (2) a method to update onchain Pyth oracle price feed(s), (3) **combined** price feed update(s) and then conditional order execution functionality
+> `OrderExecution` is meant to serve as a starting point for developers to build their own conditional order executors and IS NOT production ready nor has it been audited
+3. See https://docs.pyth.network/evm/update-price-feeds for more information on updating Pyth oracle price feeds
+4. See `IAccount.executeConditionalOrder` for more information on conditional order execution
+5. Currently there are no scripts in this repository which deploy the `OrderExecution` contract
+6. See https://github.com/JaredBorders/KwentaOrderExecutor for a conditional order executor that includes deployment scripts
 
 ## Project Tools
 

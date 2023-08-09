@@ -2,14 +2,35 @@
 pragma solidity 0.8.18;
 
 import {Test} from "lib/forge-std/src/Test.sol";
-import {Account} from "../../src/Account.sol";
-import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {Events} from "../../src/Events.sol";
-import {Factory} from "../../src/Factory.sol";
-import {IAccount} from "../../src/interfaces/IAccount.sol";
-import {IEvents} from "../../src/interfaces/IEvents.sol";
-import {Setup} from "../../script/Deploy.s.sol";
-import "../utils/Constants.sol";
+
+import {Setup} from "script/Deploy.s.sol";
+
+import {Account} from "src/Account.sol";
+import {Events} from "src/Events.sol";
+import {Factory} from "src/Factory.sol";
+import {IAccount} from "src/interfaces/IAccount.sol";
+import {IEvents} from "src/interfaces/IEvents.sol";
+
+import {ConsolidatedEvents} from "test/utils/ConsolidatedEvents.sol";
+
+import {
+    ADDRESS_RESOLVER,
+    AMOUNT,
+    BLOCK_NUMBER,
+    DESIRED_FILL_PRICE,
+    FILL_PRICE,
+    GELATO,
+    GELATO_FEE,
+    MARGIN_ASSET,
+    MARGIN_DELTA,
+    OPS,
+    sETHPERP,
+    SIZE_DELTA,
+    TARGET_PRICE,
+    UNISWAP_PERMIT2,
+    UNISWAP_UNIVERSAL_ROUTER,
+    USER
+} from "test/utils/Constants.sol";
 
 contract EventsTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
@@ -37,7 +58,9 @@ contract EventsTest is Test, ConsolidatedEvents {
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
             _gelato: GELATO,
-            _ops: OPS
+            _ops: OPS,
+            _universalRouter: UNISWAP_UNIVERSAL_ROUTER,
+            _permit2: UNISWAP_PERMIT2
         });
 
         // deploy an Account contract
@@ -200,6 +223,30 @@ contract EventsTest is Test, ConsolidatedEvents {
             fillPrice: FILL_PRICE,
             keeperFee: GELATO_FEE,
             priceOracle: IAccount.PriceOracleUsed.PYTH
+        });
+    }
+
+    function test_EmitUniswapV3Swap_Event() public {
+        vm.expectEmit(true, true, true, true);
+        emit UniswapV3Swap(address(0xA), address(0xB), address(0xC), 1, 2);
+        vm.prank(account);
+        events.emitUniswapV3Swap({
+            tokenIn: address(0xA),
+            tokenOut: address(0xB),
+            recipient: address(0xC),
+            amountIn: 1,
+            amountOutMinimum: 2
+        });
+    }
+
+    function test_EmitUniswapV3Swap_OnlyAccounts() public {
+        vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
+        events.emitUniswapV3Swap({
+            tokenIn: address(0xA),
+            tokenOut: address(0xB),
+            recipient: address(0xC),
+            amountIn: 1,
+            amountOutMinimum: 2
         });
     }
 }

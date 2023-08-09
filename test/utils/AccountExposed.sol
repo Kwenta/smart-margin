@@ -3,37 +3,17 @@ pragma solidity 0.8.18;
 
 import {
     Account,
+    IAccount,
     IFuturesMarketManager,
     IPerpsV2MarketConsolidated,
     IEvents,
     IOps
-} from "../../src/Account.sol";
-import "./Constants.sol";
+} from "src/Account.sol";
 
 /// @dev This contract exposes the internal functions of Account.sol for testing purposes
 contract AccountExposed is Account {
-    constructor(
-        address _factory,
-        address _events,
-        address _marginAsset,
-        address _perpsV2ExchangeRate,
-        address _futuresMarketManager,
-        address _systemStatus,
-        address _gelato,
-        address _ops,
-        address _settings
-    )
-        Account(
-            _factory,
-            _events,
-            _marginAsset,
-            _perpsV2ExchangeRate,
-            _futuresMarketManager,
-            _systemStatus,
-            _gelato,
-            _ops,
-            _settings
-        )
+    constructor(IAccount.AccountConstructorParams memory params)
+        Account(params)
     {}
 
     function expose_TRACKING_CODE() public pure returns (bytes32) {
@@ -114,5 +94,25 @@ contract AccountExposed is Account {
 
     function expose_isSameSign(int256 x, int256 y) public pure returns (bool) {
         return _isSameSign(x, y);
+    }
+
+    function expose_nonReentrant() public nonReentrant returns (bool) {
+        expose_nonReentrant();
+    }
+
+    function expose_locked() public view returns (uint256) {
+        return locked;
+    }
+
+    function expose_getTokenInTokenOut(bytes calldata _path)
+        public
+        pure
+        returns (address, address)
+    {
+        return _getTokenInTokenOut(_path);
+    }
+
+    function expose_payExecutorFee() public returns (uint256) {
+        return _payExecutorFee();
     }
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {IAccount} from "../../src/interfaces/IAccount.sol";
+import {IAccount} from "src/interfaces/IAccount.sol";
 
 /// utility contract for *testing* events. consolidates all events into one contract
 
@@ -48,6 +48,14 @@ contract ConsolidatedEvents {
         address indexed user, address indexed account, uint256 amount
     );
 
+    event UniswapV3Swap(
+        address tokenIn,
+        address tokenOut,
+        address recipient,
+        uint256 amountIn,
+        uint256 amountOutMinimum
+    );
+
     event ConditionalOrderPlaced(
         address indexed account,
         uint256 indexed conditionalOrderId,
@@ -82,4 +90,8 @@ contract ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     event AccountExecutionEnabledSet(bool enabled);
+
+    event ExecutorFeeSet(uint256 executorFee);
+
+    event TokenWhitelistStatusUpdated(address token, bool isWhitelisted);
 }

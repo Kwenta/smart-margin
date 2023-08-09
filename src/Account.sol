@@ -1,30 +1,41 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {Auth} from "./utils/Auth.sol";
+import {Auth} from "src/utils/Auth.sol";
+import {BytesLib} from "src/utils/uniswap/BytesLib.sol";
 import {
-    IAccount,
-    IEvents,
-    IFactory,
-    IFuturesMarketManager,
-    IPerpsV2ExchangeRate,
-    IPerpsV2MarketConsolidated,
-    ISettings,
-    ISystemStatus
-} from "./interfaces/IAccount.sol";
-import {IERC20} from "./interfaces/IERC20.sol";
-import {OpsReady, IOps} from "./utils/OpsReady.sol";
+    IAccount, IPerpsV2MarketConsolidated
+} from "src/interfaces/IAccount.sol";
+import {IFactory} from "src/interfaces/IFactory.sol";
+import {IFuturesMarketManager} from
+    "src/interfaces/synthetix/IFuturesMarketManager.sol";
+import {IPermit2} from "src/interfaces/uniswap/IPermit2.sol";
+import {ISettings} from "src/interfaces/ISettings.sol";
+import {ISystemStatus} from "src/interfaces/synthetix/ISystemStatus.sol";
+import {IOps} from "src/interfaces/gelato/IOps.sol";
+import {IUniversalRouter} from "src/interfaces/uniswap/IUniversalRouter.sol";
+import {IEvents} from "src/interfaces/IEvents.sol";
+import {IPerpsV2ExchangeRate} from
+    "src/interfaces/synthetix/IPerpsV2ExchangeRate.sol";
+import {OpsReady} from "src/utils/gelato/OpsReady.sol";
+import {SafeCast160} from "src/utils/uniswap/SafeCast160.sol";
+import {IERC20} from "src/interfaces/token/IERC20.sol";
+import {V3Path} from "src/utils/uniswap/V3Path.sol";
 
 /// @title Kwenta Smart Margin Account Implementation
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 /// @notice flexible smart margin account enabling users to trade on-chain derivatives
 contract Account is IAccount, Auth, OpsReady {
+    using V3Path for bytes;
+    using BytesLib for bytes;
+    using SafeCast160 for uint256;
+
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
-    bytes32 public constant VERSION = "2.0.2";
+    bytes32 public constant VERSION = "2.1.0";
 
     /// @notice tracking code used when modifying positions
     bytes32 internal constant TRACKING_CODE = "KWENTA";
@@ -32,6 +43,10 @@ contract Account is IAccount, Auth, OpsReady {
     /// @notice used to ensure the pyth provided price is sufficiently recent
     /// @dev price cannot be older than MAX_PRICE_LATENCY seconds
     uint256 internal constant MAX_PRICE_LATENCY = 120;
+
+    /// @notice Uniswap's Universal Router command for swapping tokens
+    /// @dev specifically for swapping exact tokens in for a non-exact amount of tokens out
+    uint256 internal constant V3_SWAP_EXACT_IN = 0x00;
 
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
@@ -66,6 +81,12 @@ contract Account is IAccount, Auth, OpsReady {
     /// @notice address of contract used to store global settings
     ISettings internal immutable SETTINGS;
 
+    /// @notice address of Uniswap's Universal Router
+    IUniversalRouter internal immutable UNISWAP_UNIVERSAL_ROUTER;
+
+    /// @notice address of Uniswap's Permit2
+    IPermit2 public immutable PERMIT2;
+
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
@@ -79,20 +100,31 @@ contract Account is IAccount, Auth, OpsReady {
     /// @notice track conditional orders by id
     mapping(uint256 id => ConditionalOrder order) internal conditionalOrders;
 
+    /// @notice value used for reentrancy protection
+    /// @dev nonReentrant checks that locked is NOT EQUAL to 2
+    uint256 internal locked;
+
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
     modifier isAccountExecutionEnabled() {
-        _isAccountExecutionEnabled();
+        if (!SETTINGS.accountExecutionEnabled()) {
+            revert AccountExecutionDisabled();
+        }
 
         _;
     }
 
-    function _isAccountExecutionEnabled() internal view {
-        if (!SETTINGS.accountExecutionEnabled()) {
-            revert AccountExecutionDisabled();
-        }
+    modifier nonReentrant() {
+        /// @dev locked is intially set to 0 due to the proxy nature of SM accounts
+        /// however after the inital call to nonReentrant(), locked will be set to 1
+        if (locked == 2) revert Reentrancy();
+        locked = 2;
+
+        _;
+
+        locked = 1;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -100,32 +132,22 @@ contract Account is IAccount, Auth, OpsReady {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev set owner of implementation to zero address
-    /// @param _factory: address of the Smart Margin Account Factory
-    /// @param _events: address of the contract used by all accounts for emitting events
-    /// @param _marginAsset: address of the Synthetix ProxyERC20sUSD contract used as the margin asset
-    /// @param _perpsV2ExchangeRate: address of the Synthetix PerpsV2ExchangeRate
-    /// @param _futuresMarketManager: address of the Synthetix FuturesMarketManager
-    /// @param _gelato: address of Gelato
-    /// @param _ops: address of Ops
-    /// @param _settings: address of contract used to store global settings
-    constructor(
-        address _factory,
-        address _events,
-        address _marginAsset,
-        address _perpsV2ExchangeRate,
-        address _futuresMarketManager,
-        address _systemStatus,
-        address _gelato,
-        address _ops,
-        address _settings
-    ) Auth(address(0)) OpsReady(_gelato, _ops) {
-        FACTORY = IFactory(_factory);
-        EVENTS = IEvents(_events);
-        MARGIN_ASSET = IERC20(_marginAsset);
-        PERPS_V2_EXCHANGE_RATE = IPerpsV2ExchangeRate(_perpsV2ExchangeRate);
-        FUTURES_MARKET_MANAGER = IFuturesMarketManager(_futuresMarketManager);
-        SYSTEM_STATUS = ISystemStatus(_systemStatus);
-        SETTINGS = ISettings(_settings);
+    /// @param _params: constructor parameters (see IAccount.sol)
+    constructor(AccountConstructorParams memory _params)
+        Auth(address(0))
+        OpsReady(_params.gelato, _params.ops)
+    {
+        FACTORY = IFactory(_params.factory);
+        EVENTS = IEvents(_params.events);
+        MARGIN_ASSET = IERC20(_params.marginAsset);
+        PERPS_V2_EXCHANGE_RATE =
+            IPerpsV2ExchangeRate(_params.perpsV2ExchangeRate);
+        FUTURES_MARKET_MANAGER =
+            IFuturesMarketManager(_params.futuresMarketManager);
+        SYSTEM_STATUS = ISystemStatus(_params.systemStatus);
+        SETTINGS = ISettings(_params.settings);
+        UNISWAP_UNIVERSAL_ROUTER = IUniversalRouter(_params.universalRouter);
+        PERMIT2 = IPermit2(_params.permit2);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -216,6 +238,7 @@ contract Account is IAccount, Auth, OpsReady {
         external
         payable
         override
+        nonReentrant
         isAccountExecutionEnabled
     {
         uint256 numCommands = _commands.length;
@@ -238,7 +261,7 @@ contract Account is IAccount, Auth, OpsReady {
     function _dispatch(Command _command, bytes calldata _inputs) internal {
         uint256 commandIndex = uint256(_command);
 
-        if (commandIndex < 2) {
+        if (commandIndex < 2 || commandIndex == 14 || commandIndex == 15) {
             /// @dev only owner can execute the following commands
             if (!isOwner()) revert Unauthorized();
 
@@ -249,13 +272,35 @@ contract Account is IAccount, Auth, OpsReady {
                     amount := calldataload(_inputs.offset)
                 }
                 _modifyAccountMargin({_amount: amount});
-            } else {
-                // Command.ACCOUNT_WITHDRAW_ETH
+            } else if (_command == Command.ACCOUNT_WITHDRAW_ETH) {
                 uint256 amount;
                 assembly {
                     amount := calldataload(_inputs.offset)
                 }
                 _withdrawEth({_amount: amount});
+            } else if (_command == Command.UNISWAP_V3_SWAP) {
+                // Command.UNISWAP_V3_SWAP
+                uint256 amountIn;
+                uint256 amountOutMin;
+                bytes calldata path = _inputs.toBytes(2);
+                assembly {
+                    amountIn := calldataload(_inputs.offset)
+                    amountOutMin := calldataload(add(_inputs.offset, 0x20))
+                    // 0x40 offset is the path; decoded above
+                }
+                _uniswapV3Swap({
+                    _amountIn: amountIn,
+                    _amountOutMin: amountOutMin,
+                    _path: path
+                });
+            } else {
+                // Command.PERMIT2_PERMIT
+                IPermit2.PermitSingle calldata permitSingle;
+                assembly {
+                    permitSingle := _inputs.offset
+                }
+                bytes calldata data = _inputs.toBytes(6); // PermitSingle takes first 6 slots (0..5)
+                PERMIT2.permit(msg.sender, permitSingle, data);
             }
         } else {
             /// @dev only owner and delegate(s) can execute the following commands
@@ -435,7 +480,8 @@ contract Account is IAccount, Auth, OpsReady {
                     }
                     _cancelConditionalOrder({_conditionalOrderId: orderId});
                 }
-            } else {
+            } else if (commandIndex > 15) {
+                // commandIndex 14 & 15 valid and already checked
                 revert InvalidCommandType(commandIndex);
             }
         }
@@ -453,7 +499,7 @@ contract Account is IAccount, Auth, OpsReady {
     /// @param _amount: amount to withdraw
     function _withdrawEth(uint256 _amount) internal {
         if (_amount > 0) {
-            (bool success,) = payable(owner).call{value: _amount}("");
+            (bool success,) = payable(msg.sender).call{value: _amount}("");
             if (!success) revert EthWithdrawalFailed();
 
             EVENTS.emitEthWithdraw({user: msg.sender, amount: _amount});
@@ -466,7 +512,7 @@ contract Account is IAccount, Auth, OpsReady {
         // if amount is positive, deposit
         if (_amount > 0) {
             /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
-            MARGIN_ASSET.transferFrom(owner, address(this), _abs(_amount));
+            MARGIN_ASSET.transferFrom(msg.sender, address(this), _abs(_amount));
 
             EVENTS.emitDeposit({user: msg.sender, amount: _abs(_amount)});
         } else if (_amount < 0) {
@@ -474,7 +520,7 @@ contract Account is IAccount, Auth, OpsReady {
             _sufficientMargin(_amount);
 
             /// @dev failed Synthetix asset transfer will revert and not return false if unsuccessful
-            MARGIN_ASSET.transfer(owner, _abs(_amount));
+            MARGIN_ASSET.transfer(msg.sender, _abs(_amount));
 
             EVENTS.emitWithdraw({user: msg.sender, amount: _abs(_amount)});
         }
@@ -628,7 +674,7 @@ contract Account is IAccount, Auth, OpsReady {
     }
 
     /*//////////////////////////////////////////////////////////////
-                           CONDITIONAL ORDERS
+                        CREATE CONDITIONAL ORDER
     //////////////////////////////////////////////////////////////*/
 
     /// @notice register a conditional order internally and with gelato
@@ -720,6 +766,10 @@ contract Account is IAccount, Auth, OpsReady {
         );
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        CANCEL CONDITIONAL ORDER
+    //////////////////////////////////////////////////////////////*/
+
     /// @notice cancel a gelato queued conditional order
     /// @param _conditionalOrderId: key for an active conditional order
     function _cancelConditionalOrder(uint256 _conditionalOrderId) internal {
@@ -747,17 +797,26 @@ contract Account is IAccount, Auth, OpsReady {
     }
 
     /*//////////////////////////////////////////////////////////////
-                   GELATO CONDITIONAL ORDER HANDLING
+                       EXECUTE CONDITIONAL ORDER
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
     function executeConditionalOrder(uint256 _conditionalOrderId)
         external
         override
+        nonReentrant
         isAccountExecutionEnabled
-        onlyOps
     {
-        // store conditional order in memory
+        // verify conditional order is ready for execution
+        /// @dev it is understood this is a duplicate check if the executor is Gelato
+        if (!_validConditionalOrder(_conditionalOrderId)) {
+            revert CannotExecuteConditionalOrder({
+                conditionalOrderId: _conditionalOrderId,
+                executor: msg.sender
+            });
+        }
+
+        // store conditional order object in memory
         ConditionalOrder memory conditionalOrder =
             getConditionalOrder(_conditionalOrderId);
 
@@ -766,11 +825,11 @@ contract Account is IAccount, Auth, OpsReady {
 
         // remove gelato task from their accounting
         /// @dev will revert if task id does not exist {Automate.cancelTask: Task not found}
+        /// @dev if executor is not Gelato, the task will still be cancelled
         IOps(OPS).cancelTask({taskId: conditionalOrder.gelatoTaskId});
 
-        // pay Gelato imposed fee for conditional order execution
-        (uint256 fee, address feeToken) = IOps(OPS).getFeeDetails();
-        _transfer({_amount: fee, _paymentToken: feeToken});
+        // impose and record fee paid to executor
+        uint256 fee = _payExecutorFee();
 
         // define Synthetix PerpsV2 market
         IPerpsV2MarketConsolidated market =
@@ -818,6 +877,7 @@ contract Account is IAccount, Auth, OpsReady {
             _market: address(market),
             _amount: conditionalOrder.marginDelta
         });
+
         _perpsV2SubmitOffchainDelayedOrder({
             _market: address(market),
             _sizeDelta: conditionalOrder.sizeDelta,
@@ -833,6 +893,20 @@ contract Account is IAccount, Auth, OpsReady {
         });
     }
 
+    /// @notice pay fee for conditional order execution
+    /// @dev fee will be different depending on executor
+    /// @return fee amount paid
+    function _payExecutorFee() internal returns (uint256 fee) {
+        if (msg.sender == OPS) {
+            (fee,) = IOps(OPS).getFeeDetails();
+            _transfer({_amount: fee});
+        } else {
+            fee = SETTINGS.executorFee();
+            (bool success,) = msg.sender.call{value: fee}("");
+            if (!success) revert CannotPayExecutorFee(fee, msg.sender);
+        }
+    }
+
     /// @notice order logic condition checker
     /// @dev this is where order type logic checks are handled
     /// @param _conditionalOrderId: key for an active order
@@ -844,6 +918,11 @@ contract Account is IAccount, Auth, OpsReady {
     {
         ConditionalOrder memory conditionalOrder =
             getConditionalOrder(_conditionalOrderId);
+
+        // return false if market key is the default value (i.e. "")
+        if (conditionalOrder.marketKey == bytes32(0)) {
+            return false;
+        }
 
         // return false if market is paused
         try SYSTEM_STATUS.requireFuturesMarketActive(conditionalOrder.marketKey)
@@ -911,6 +990,120 @@ contract Account is IAccount, Auth, OpsReady {
     }
 
     /*//////////////////////////////////////////////////////////////
+                                UNISWAP
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice swap tokens via Uniswap V3 (sUSD <-> whitelisted token)
+    /// @dev assumes sufficient token allowances (i.e. Permit2 and this contract)
+    /// @dev non-whitelisted connector tokens will NOT cause a revert
+    /// (i.e. sUSD -> non-whitelisted token -> whitelisted token)
+    /// @param _amountIn: amount of token to swap
+    /// @param _amountOutMin: minimum amount of token to receive
+    /// @param _path: path of tokens to swap (token0 - fee - token1)
+    function _uniswapV3Swap(
+        uint256 _amountIn,
+        uint256 _amountOutMin,
+        bytes calldata _path
+    ) internal {
+        // decode tokens to swap
+        (address tokenIn, address tokenOut) = _getTokenInTokenOut(_path);
+
+        // define recipient of swap; set later once direction is established
+        address recipient;
+
+        /// @dev verify direction and validity of swap (i.e. sUSD <-> whitelisted token)
+        if (
+            tokenIn == address(MARGIN_ASSET)
+                && SETTINGS.isTokenWhitelisted(tokenOut)
+        ) {
+            // if swapping sUSD for another token, ensure sufficient margin
+            /// @dev margin is being transferred out of this contract
+            _sufficientMargin(int256(_amountIn));
+
+            recipient = msg.sender;
+
+            // transfer sUSD to the UniversalRouter for the swap
+            /// @dev not using SafeERC20 because sUSD is a trusted token
+            IERC20(tokenIn).transfer(
+                address(UNISWAP_UNIVERSAL_ROUTER), _amountIn
+            );
+        } else if (
+            tokenOut == address(MARGIN_ASSET)
+                && SETTINGS.isTokenWhitelisted(tokenIn)
+        ) {
+            // if swapping another token for sUSD, incoming token must be transferred to the UniversalRouter
+            /// @dev msg.sender must have approved Permit2 to spend at least the amountIn
+            PERMIT2.transferFrom({
+                from: msg.sender,
+                to: address(UNISWAP_UNIVERSAL_ROUTER),
+                amount: _amountIn.toUint160(),
+                token: tokenIn
+            });
+
+            recipient = address(this);
+        } else {
+            // only allow sUSD <-> whitelisted token swaps
+            revert TokenSwapNotAllowed(tokenIn, tokenOut);
+        }
+
+        _universalRouterExecute(recipient, _amountIn, _amountOutMin, _path);
+
+        EVENTS.emitUniswapV3Swap({
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            recipient: recipient,
+            amountIn: _amountIn,
+            amountOutMinimum: _amountOutMin
+        });
+    }
+
+    /// @notice decode and return tokens encoded in the provided path
+    /// @param _path: path of tokens to swap (token0 - fee - token1)
+    /// @return tokenIn token swapped into the respective pool
+    /// @return tokenOut token swapped out of the respective pool
+    function _getTokenInTokenOut(bytes calldata _path)
+        internal
+        pure
+        returns (address tokenIn, address tokenOut)
+    {
+        tokenIn = _path.decodeFirstToken();
+        while (true) {
+            bool hasMultiplePools = _path.hasMultiplePools();
+
+            // decide whether to continue or terminate
+            if (hasMultiplePools) {
+                _path = _path.skipToken();
+            } else {
+                (,, tokenOut) = _path.toPool();
+                break;
+            }
+        }
+    }
+
+    /// @notice call Uniswap's Universal Router to execute a swap
+    /// @param _recipient: address to receive swapped tokens
+    /// @param _amountIn: amount of token to swap
+    /// @param _amountOutMin: minimum amount of token to receive
+    /// @param _path: path of tokens to swap (token0 - fee - token1)
+    function _universalRouterExecute(
+        address _recipient,
+        uint256 _amountIn,
+        uint256 _amountOutMin,
+        bytes calldata _path
+    ) internal {
+        /// @dev payerIsUser (i.e. 5th argument encoded) will always be false because
+        /// tokens are transferred to the UniversalRouter before executing the swap
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] =
+            abi.encode(_recipient, _amountIn, _amountOutMin, _path, false);
+
+        UNISWAP_UNIVERSAL_ROUTER.execute({
+            commands: abi.encodePacked(bytes1(uint8(V3_SWAP_EXACT_IN))),
+            inputs: inputs
+        });
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             MARGIN UTILITIES
     //////////////////////////////////////////////////////////////*/
 
@@ -928,18 +1121,23 @@ contract Account is IAccount, Auth, OpsReady {
 
     /// @notice fetch PerpsV2Market market defined by market key
     /// @param _marketKey: key for Synthetix PerpsV2 market
-    /// @return IPerpsV2MarketConsolidated contract interface
+    /// @return market IPerpsV2MarketConsolidated contract interface
     function _getPerpsV2Market(bytes32 _marketKey)
         internal
         view
-        returns (IPerpsV2MarketConsolidated)
+        returns (IPerpsV2MarketConsolidated market)
     {
-        return IPerpsV2MarketConsolidated(
+        market = IPerpsV2MarketConsolidated(
             FUTURES_MARKET_MANAGER.marketForKey(_marketKey)
         );
+
+        // sanity check
+        assert(address(market) != address(0));
     }
 
     /// @notice get exchange rate of underlying market asset in terms of sUSD
+    /// @dev _sUSDRate can only be reached after a successful internal call to _getPerpsV2Market
+    /// which will revert if the market address returned is address(0)
     /// @param _market: Synthetix PerpsV2 Market
     /// @return price in sUSD
     function _sUSDRate(IPerpsV2MarketConsolidated _market)

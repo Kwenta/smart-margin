@@ -19,18 +19,26 @@ address constant OPTIMISM_GOERLI_GELATO =
 address constant OPTIMISM_GOERLI_OPS =
     0x255F82563b5973264e89526345EcEa766DB3baB2;
 
-// v2.0.2
+// v2.1.0
 address constant OPTIMISM_GOERLI_IMPLEMENTATION =
-    0xf9CC1eD5EC9b8DFb9273fdDABD07C7bB37938285;
+    0x0fCeF9608B9F7a8C57D53B98E78fA64b4D786a9F;
 
-// released with v2.0.2 implementation
+// released with v2.1.0 implementation
 address constant OPTIMISM_GOERLI_EVENTS =
-    0xa7AE3969A128048290968b41865Eaa53B20FA69e;
+    0xe32F27B27F4ea5f10f269b52223910bA83e2933C;
 
-// updated with v2.0.2 implementation
+// updated with v2.1.0 implementation
 address constant OPTIMISM_GOERLI_FACTORY =
     0x30582eeE34719fe22b1B6c3b607636A3ab94522E;
 
-// released with v2.0.1 implementation
+// released with v2.1.0 implementation
 address constant OPTIMISM_GOERLI_SETTINGS =
-    0xd2f3c4D549EF6AB572dB6512AB0e33f709E7caE1;
+    0x8B9CbD3da94c637c0652c680Abd3CF7f787aBAF4;
+
+// uniswap v3:
+// UniversalRouterV1_2
+address constant OPTIMISM_GOERLI_UNISWAP_UNIVERSAL_ROUTER =
+    0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD;
+// PERMIT2
+address constant OPTIMISM_GOERLI_UNISWAP_PERMIT2 =
+    0x000000000022D473030F116dDEE9F6B43aC78BA3;

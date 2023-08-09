@@ -2,19 +2,40 @@
 pragma solidity 0.8.18;
 
 import {Test} from "lib/forge-std/src/Test.sol";
-import {Account} from "../../src/Account.sol";
-import {AccountExposed} from "../utils/AccountExposed.sol";
-import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {IERC20} from "../../src/interfaces/IERC20.sol";
-import {Events} from "../../src/Events.sol";
-import {Factory} from "../../src/Factory.sol";
-import {IAccount} from "../../src/interfaces/IAccount.sol";
-import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
-import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
-import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
-import {ISynth} from "../utils/interfaces/ISynth.sol";
-import {Setup} from "../../script/Deploy.s.sol";
-import "../utils/Constants.sol";
+
+import {Setup} from "script/Deploy.s.sol";
+
+import {Account} from "src/Account.sol";
+import {Events} from "src/Events.sol";
+import {Factory} from "src/Factory.sol";
+import {IAccount} from "src/interfaces/IAccount.sol";
+import {IFuturesMarketManager} from
+    "src/interfaces/synthetix/IFuturesMarketManager.sol";
+import {IPermit2} from "src/interfaces/uniswap/IPermit2.sol";
+import {IPerpsV2MarketConsolidated} from "src/interfaces/IAccount.sol";
+import {IERC20} from "src/interfaces/token/IERC20.sol";
+
+import {AccountExposed} from "test/utils/AccountExposed.sol";
+import {ConsolidatedEvents} from "test/utils/ConsolidatedEvents.sol";
+import {IAddressResolver} from "test/utils/interfaces/IAddressResolver.sol";
+import {ISynth} from "test/utils/interfaces/ISynth.sol";
+
+import {
+    ADDRESS_RESOLVER,
+    AMOUNT,
+    BLOCK_NUMBER,
+    ETH,
+    FUTURES_MARKET_MANAGER,
+    GELATO,
+    OPS,
+    PERPS_V2_EXCHANGE_RATE,
+    PROXY_SUSD,
+    sETHPERP,
+    SYSTEM_STATUS,
+    TRACKING_CODE,
+    UNISWAP_PERMIT2,
+    UNISWAP_UNIVERSAL_ROUTER
+} from "test/utils/Constants.sol";
 
 contract MarginBehaviorTest is Test, ConsolidatedEvents {
     receive() external payable {}
@@ -48,7 +69,9 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
             _gelato: GELATO,
-            _ops: OPS
+            _ops: OPS,
+            _universalRouter: UNISWAP_UNIVERSAL_ROUTER,
+            _permit2: UNISWAP_PERMIT2
         });
 
         // deploy an Account contract
@@ -64,17 +87,24 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             addressResolver.getAddress(PERPS_V2_EXCHANGE_RATE);
 
         // deploy AccountExposed contract for exposing internal account functions
-        accountExposed = new AccountExposed(
+        IAccount.AccountConstructorParams memory params = IAccount
+            .AccountConstructorParams(
             address(factory),
-            address(events), 
+            address(events),
             address(sUSD),
             perpsV2ExchangeRate,
-            futuresMarketManager, 
-            systemStatus, 
-            GELATO, 
+            futuresMarketManager,
+            systemStatus,
+            GELATO,
             OPS,
-            address(0)
+            address(0),
+            UNISWAP_UNIVERSAL_ROUTER,
+            UNISWAP_PERMIT2
         );
+        accountExposed = new AccountExposed(params);
+
+        // call approve() on an ERC20 to grant an infinite allowance to the SM account contract
+        sUSD.approve(address(account), type(uint256).max);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -115,22 +145,21 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         ACCOUNT_MODIFY_MARGIN
     */
 
-    function test_Deposit_Margin(int256 x) public {
-        vm.assume(x >= 0);
+    function test_Deposit_Margin(uint256 x) public {
+        vm.assume(x <= type(uint160).max);
 
         mintSUSD(address(this), AMOUNT);
-        sUSD.approve(address(account), AMOUNT);
 
         if (x == 0) {
             // no-op
-            modifyAccountMargin({amount: x});
-        } else if (x > int256(AMOUNT)) {
+            modifyAccountMargin({amount: int256(x)});
+        } else if (x > AMOUNT) {
             vm.expectRevert("Insufficient balance after any settlement owing");
-            modifyAccountMargin({amount: x});
+            modifyAccountMargin({amount: int256(x)});
         } else {
             vm.expectEmit(true, true, true, true);
             emit Deposit(address(this), address(account), uint256(x));
-            modifyAccountMargin({amount: x});
+            modifyAccountMargin({amount: int256(x)});
             assert(sUSD.balanceOf(address(account)) == uint256(x));
         }
     }
@@ -139,7 +168,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         vm.assume(x <= 0);
 
         mintSUSD(address(this), AMOUNT);
-        sUSD.approve(address(account), AMOUNT);
         modifyAccountMargin({amount: int256(AMOUNT)});
 
         if (x == 0) {
@@ -557,7 +585,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         fundAccount(AMOUNT);
 
         address market = getMarketAddressFromKey(sETHPERP);
-        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 marginDelta = int256(AMOUNT) / 2;
         int256 sizeDelta = 1 ether;
         (uint256 desiredFillPrice,) =
             IPerpsV2MarketConsolidated(market).assetPrice();
@@ -608,7 +636,7 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         fundAccount(AMOUNT);
 
         address market = getMarketAddressFromKey(sETHPERP);
-        int256 marginDelta = int256(AMOUNT) / 10;
+        int256 marginDelta = int256(AMOUNT) / 2;
         int256 sizeDelta = 1 ether;
         (uint256 desiredFillPrice,) =
             IPerpsV2MarketConsolidated(market).assetPrice();
@@ -708,7 +736,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
     function test_Scenario_1() public {
         // mint sUSD to be deposited into account during execution
         mintSUSD(address(this), AMOUNT);
-        sUSD.approve(address(account), AMOUNT);
 
         // delayed off-chain order details
         address market = getMarketAddressFromKey(sETHPERP);
@@ -764,7 +791,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
     function fundAccount(uint256 amount) private {
         vm.deal(address(account), 1 ether);
         mintSUSD(address(this), amount);
-        sUSD.approve(address(account), amount);
         modifyAccountMargin({amount: int256(amount)});
     }
 

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {AccountProxy} from "./AccountProxy.sol";
-import {IFactory} from "./interfaces/IFactory.sol";
-import {Owned} from "./utils/Owned.sol";
+import {AccountProxy} from "src/AccountProxy.sol";
+import {IFactory} from "src/interfaces/IFactory.sol";
+import {Owned} from "src/utils/Owned.sol";
 
 /// @title Kwenta Account Factory
 /// @author JaredBorders (jaredborders@pm.me)

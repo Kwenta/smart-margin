@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {IAccountProxy} from "./interfaces/IAccountProxy.sol";
+import {IAccountProxy} from "src/interfaces/IAccountProxy.sol";
 
 /// @title Kwenta Account Proxy
 /// @author OpenZeppelin, JaredBorders (jaredborders@pm.me)

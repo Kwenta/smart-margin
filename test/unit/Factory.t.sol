@@ -2,15 +2,28 @@
 pragma solidity 0.8.18;
 
 import {Test} from "lib/forge-std/src/Test.sol";
-import {Account} from "../../src/Account.sol";
-import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {Factory} from "../../src/Factory.sol";
-import {IFactory} from "../../src/interfaces/IFactory.sol";
-import {MockAccount1} from "../utils/MockAccounts.sol";
-import {MockAccount2} from "../utils/MockAccounts.sol";
-import {Setup} from "../../script/Deploy.s.sol";
-import {UpgradedAccount} from "../utils/UpgradedAccount.sol";
-import "../utils/Constants.sol";
+
+import {Setup} from "script/Deploy.s.sol";
+
+import {Account} from "src/Account.sol";
+import {Factory} from "src/Factory.sol";
+import {IFactory} from "src/interfaces/IFactory.sol";
+
+import {ConsolidatedEvents} from "test/utils/ConsolidatedEvents.sol";
+import {MockAccount1} from "test/utils/MockAccounts.sol";
+import {MockAccount2} from "test/utils/MockAccounts.sol";
+import {UpgradedAccount} from "test/utils/UpgradedAccount.sol";
+
+import {
+    ADDRESS_RESOLVER,
+    BLOCK_NUMBER,
+    GELATO,
+    KWENTA_TREASURY,
+    OPS,
+    UNISWAP_PERMIT2,
+    UNISWAP_UNIVERSAL_ROUTER,
+    USER
+} from "test/utils/Constants.sol";
 
 contract FactoryTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
@@ -37,7 +50,9 @@ contract FactoryTest is Test, ConsolidatedEvents {
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
             _gelato: GELATO,
-            _ops: OPS
+            _ops: OPS,
+            _universalRouter: UNISWAP_UNIVERSAL_ROUTER,
+            _permit2: UNISWAP_PERMIT2
         });
     }
 
@@ -219,7 +234,7 @@ contract FactoryTest is Test, ConsolidatedEvents {
 
     function test_Upgrade_Remove_OnlyOwner() public {
         vm.expectRevert("UNAUTHORIZED");
-        vm.prank(ACCOUNT);
+        vm.prank(address(0xBAE));
         factory.removeUpgradability();
     }
 
@@ -234,7 +249,7 @@ contract FactoryTest is Test, ConsolidatedEvents {
 
     function test_Upgrade_Implementation_OnlyOwner() public {
         vm.expectRevert("UNAUTHORIZED");
-        vm.prank(ACCOUNT);
+        vm.prank(address(0xA));
         factory.upgradeAccountImplementation({_implementation: address(0)});
     }
 
@@ -261,10 +276,10 @@ contract FactoryTest is Test, ConsolidatedEvents {
         assertEq(Account(accountAddress).owner(), KWENTA_TREASURY);
 
         // check new account uses new implementation
-        vm.prank(ACCOUNT);
+        vm.prank(address(0xA));
         address payable accountAddress2 = factory.newAccount();
         assertEq(Account(accountAddress2).VERSION(), newVersion);
-        assertEq(Account(accountAddress2).owner(), ACCOUNT);
+        assertEq(Account(accountAddress2).owner(), address(0xA));
     }
 
     function test_Upgrade_Implementation_Event() public {

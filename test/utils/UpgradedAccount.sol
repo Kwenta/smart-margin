@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {UpgradedAuth} from "./UpgradedAuth.sol";
+import {UpgradedAuth} from "test/utils/UpgradedAuth.sol";
 
 contract UpgradedAccount is UpgradedAuth {
     bytes32 public constant VERSION = "6.9.0";

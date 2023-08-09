@@ -2,20 +2,44 @@
 pragma solidity 0.8.18;
 
 import {Test} from "lib/forge-std/src/Test.sol";
-import {Account} from "../../src/Account.sol";
-import {AccountExposed} from "../utils/AccountExposed.sol";
-import {Auth} from "../../src/Account.sol";
-import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {Events} from "../../src/Events.sol";
-import {Factory} from "../../src/Factory.sol";
-import {IAccount} from "../../src/interfaces/IAccount.sol";
-import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
-import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
-import {IPerpsV2ExchangeRate} from "../../src/interfaces/IAccount.sol";
-import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
-import {Settings} from "../../src/Settings.sol";
-import {Setup} from "../../script/Deploy.s.sol";
-import "../utils/Constants.sol";
+
+import {Setup} from "script/Deploy.s.sol";
+
+import {Account} from "src/Account.sol";
+import {Auth} from "src/Account.sol";
+import {BytesLib} from "src/utils/uniswap/BytesLib.sol";
+import {Events} from "src/Events.sol";
+import {Factory} from "src/Factory.sol";
+import {IAccount} from "src/interfaces/IAccount.sol";
+import {IFuturesMarketManager} from
+    "src/interfaces/synthetix/IFuturesMarketManager.sol";
+import {IPerpsV2ExchangeRate} from
+    "src/interfaces/synthetix/IPerpsV2ExchangeRate.sol";
+import {IPerpsV2MarketConsolidated} from "src/interfaces/IAccount.sol";
+import {Settings} from "src/Settings.sol";
+
+import {AccountExposed} from "test/utils/AccountExposed.sol";
+import {ConsolidatedEvents} from "test/utils/ConsolidatedEvents.sol";
+import {IAddressResolver} from "test/utils/interfaces/IAddressResolver.sol";
+
+import {
+    ADDRESS_RESOLVER,
+    AMOUNT,
+    BLOCK_NUMBER,
+    DELEGATE,
+    FUTURES_MARKET_MANAGER,
+    GELATO,
+    KWENTA_TREASURY,
+    LOW_FEE_TIER,
+    MULTIPLE_V3_POOLS_MIN_LENGTH,
+    OPS,
+    PERPS_V2_EXCHANGE_RATE,
+    PROXY_SUSD,
+    sETHPERP,
+    SYSTEM_STATUS,
+    UNISWAP_PERMIT2,
+    UNISWAP_UNIVERSAL_ROUTER
+} from "test/utils/Constants.sol";
 
 contract AccountTest is Test, ConsolidatedEvents {
     /*//////////////////////////////////////////////////////////////
@@ -47,7 +71,9 @@ contract AccountTest is Test, ConsolidatedEvents {
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
             _gelato: GELATO,
-            _ops: OPS
+            _ops: OPS,
+            _universalRouter: UNISWAP_UNIVERSAL_ROUTER,
+            _permit2: UNISWAP_PERMIT2
         });
 
         // deploy an Account contract
@@ -63,17 +89,21 @@ contract AccountTest is Test, ConsolidatedEvents {
             addressResolver.getAddress(PERPS_V2_EXCHANGE_RATE);
 
         // deploy AccountExposed contract for exposing internal account functions
-        accountExposed = new AccountExposed(
+        IAccount.AccountConstructorParams memory params = IAccount
+            .AccountConstructorParams(
             address(factory),
-            address(events), 
-            sUSD, 
+            address(events),
+            sUSD,
             perpsV2ExchangeRate,
-            futuresMarketManager, 
-            systemStatus, 
-            GELATO, 
+            futuresMarketManager,
+            systemStatus,
+            GELATO,
             OPS,
-            address(settings)
+            address(settings),
+            UNISWAP_UNIVERSAL_ROUTER,
+            UNISWAP_PERMIT2
         );
+        accountExposed = new AccountExposed(params);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -85,7 +115,7 @@ contract AccountTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_GetVerison() public view {
-        assert(account.VERSION() == "2.0.2");
+        assert(account.VERSION() == "2.1.0");
     }
 
     function test_GetTrackingCode() public view {
@@ -147,9 +177,9 @@ contract AccountTest is Test, ConsolidatedEvents {
         account.getDelayedOrder({_marketKey: "unknown"});
     }
 
-    function test_Checker() public {
-        vm.expectRevert();
-        account.checker({_conditionalOrderId: 0});
+    function test_Checker() public view {
+        (bool canExecute,) = account.checker({_conditionalOrderId: 0});
+        assert(!canExecute);
     }
 
     function test_GetFreeMargin() public {
@@ -374,6 +404,36 @@ contract AccountTest is Test, ConsolidatedEvents {
         account.execute(commands, inputs);
     }
 
+    function test_NonReentrant_Locked() public {
+        vm.expectRevert(abi.encodeWithSelector(IAccount.Reentrancy.selector));
+        accountExposed.expose_nonReentrant();
+    }
+
+    function test_NonReentrant_Unlocked() public {
+        // command to be executed is a no-op (i.e. no events emitted, no state changed)
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.PERPS_V2_WITHDRAW_ALL_MARGIN;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(getMarketAddressFromKey(sETHPERP));
+
+        /// @dev initially `locked == 0` if this is first interaction with account
+        assertEq(0, accountExposed.expose_locked());
+
+        vm.prank(address(0));
+        accountExposed.execute(commands, inputs);
+
+        assertEq(1, accountExposed.expose_locked());
+
+        /// @dev subsequent interactions with account: `locked == 1` before and after execution
+        /// and `locked == 2` during execution
+        assertEq(1, accountExposed.expose_locked());
+
+        vm.prank(address(0));
+        accountExposed.execute(commands, inputs);
+
+        assertEq(1, accountExposed.expose_locked());
+    }
+
     /*//////////////////////////////////////////////////////////////
                            COMMAND EXECUTION
     //////////////////////////////////////////////////////////////*/
@@ -400,6 +460,20 @@ contract AccountTest is Test, ConsolidatedEvents {
         /// @notice delegate CANNOT execute the following COMMAND
         vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
         withdrawEth(AMOUNT);
+    }
+
+    function test_DelegatedTrader_Execute_UNISWAP_V3_SWAP() public {
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.UNISWAP_V3_SWAP;
+
+        account.addDelegate({_delegate: DELEGATE});
+        vm.prank(DELEGATE);
+
+        /// @notice delegate CANNOT execute the following COMMAND
+        vm.expectRevert(abi.encodeWithSelector(Auth.Unauthorized.selector));
+        account.execute(commands, inputs);
     }
 
     /**
@@ -706,19 +780,15 @@ contract AccountTest is Test, ConsolidatedEvents {
         assert(market != address(0));
     }
 
-    function test_getPerpsV2Market_Invalid_Key() public view {
-        address market =
-            address(accountExposed.expose_getPerpsV2Market("unknown"));
-        assert(market == address(0));
+    function test_getPerpsV2Market_Invalid_Key() public {
+        vm.expectRevert();
+        accountExposed.expose_getPerpsV2Market("unknown");
     }
 
     function test_sUSDRate_Valid_Market() public {
         IPerpsV2MarketConsolidated market =
             accountExposed.expose_getPerpsV2Market(sETHPERP);
 
-        // mock call to perpsV2ExchangeRate contract due to
-        // current pyth price there being too stale at this block
-        // (i.e. price used is providied by chainlink)
         address perpsV2ExchangeRate = IAddressResolver(ADDRESS_RESOLVER)
             .getAddress({name: PERPS_V2_EXCHANGE_RATE});
         vm.mockCall(
@@ -747,9 +817,6 @@ contract AccountTest is Test, ConsolidatedEvents {
         IPerpsV2MarketConsolidated market =
             accountExposed.expose_getPerpsV2Market(sETHPERP);
 
-        // mock call to perpsV2ExchangeRate contract due to
-        // current pyth price there being too stale at this block
-        // (i.e. price used is providied by chainlink)
         address perpsV2ExchangeRate = IAddressResolver(ADDRESS_RESOLVER)
             .getAddress({name: PERPS_V2_EXCHANGE_RATE});
         vm.mockCall(
@@ -766,9 +833,20 @@ contract AccountTest is Test, ConsolidatedEvents {
         assert(price == 1);
     }
 
-    function test_sUSDRate_Chainlink_Price() public view {
+    function test_sUSDRate_Chainlink_Price() public {
         IPerpsV2MarketConsolidated market =
             accountExposed.expose_getPerpsV2Market(sETHPERP);
+
+        // mock call to ensure pyth price is stale
+        address perpsV2ExchangeRate = IAddressResolver(ADDRESS_RESOLVER)
+            .getAddress({name: PERPS_V2_EXCHANGE_RATE});
+        vm.mockCall(
+            perpsV2ExchangeRate,
+            abi.encodeWithSignature(
+                "resolveAndGetLatestPrice(bytes32)", market.baseAsset()
+            ),
+            abi.encode(1, block.timestamp - 1 days)
+        );
 
         (uint256 price, IAccount.PriceOracleUsed oracle) =
             accountExposed.expose_sUSDRate(market);
@@ -784,6 +862,17 @@ contract AccountTest is Test, ConsolidatedEvents {
         IPerpsV2MarketConsolidated market =
             accountExposed.expose_getPerpsV2Market(sETHPERP);
 
+        // mock call to ensure pyth price is stale
+        address perpsV2ExchangeRate = IAddressResolver(ADDRESS_RESOLVER)
+            .getAddress({name: PERPS_V2_EXCHANGE_RATE});
+        vm.mockCall(
+            perpsV2ExchangeRate,
+            abi.encodeWithSignature(
+                "resolveAndGetLatestPrice(bytes32)", market.baseAsset()
+            ),
+            abi.encode(1, block.timestamp - 1 days)
+        );
+
         // mock call to _market.assetPrice() to return an invalid price
         vm.mockCall(
             address(market),
@@ -793,6 +882,89 @@ contract AccountTest is Test, ConsolidatedEvents {
 
         vm.expectRevert(abi.encodeWithSelector(IAccount.InvalidPrice.selector));
         accountExposed.expose_sUSDRate(market);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           UNISWAP UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    function test_GetTokenInTokenOut_Single_Pool() public {
+        bytes memory path = bytes.concat(
+            bytes20(address(0xA)), LOW_FEE_TIER, bytes20(address(0xB))
+        );
+
+        (address tokenIn, address tokenOut) =
+            accountExposed.expose_getTokenInTokenOut(path);
+        assertEq(tokenIn, address(0xA));
+        assertEq(tokenOut, address(0xB));
+    }
+
+    function test_GetTokenInTokenOut_Multi_Pool() public {
+        bytes memory path = bytes.concat(
+            bytes20(address(0xA)),
+            LOW_FEE_TIER,
+            bytes20(address(0xB)),
+            LOW_FEE_TIER,
+            bytes20(address(0xC)),
+            LOW_FEE_TIER,
+            bytes20(address(0xD)),
+            LOW_FEE_TIER,
+            bytes20(address(0xE)),
+            LOW_FEE_TIER,
+            bytes20(address(0xF)),
+            LOW_FEE_TIER,
+            bytes20(address(0x10))
+        );
+
+        (address tokenIn, address tokenOut) =
+            accountExposed.expose_getTokenInTokenOut(path);
+        assertEq(tokenIn, address(0xA));
+        assertEq(tokenOut, address(0x10));
+    }
+
+    function test_GetTokenInTokenOut_Invalid_TokenOut() public {
+        bytes memory path = bytes.concat(bytes20(address(0xA)), LOW_FEE_TIER);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(BytesLib.SliceOutOfBounds.selector)
+        );
+        accountExposed.expose_getTokenInTokenOut(path);
+    }
+
+    function test_GetTokenInTokenOut_Invalid_TokenIn() public {
+        bytes memory path = bytes.concat(LOW_FEE_TIER, bytes20(address(0xA)));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(BytesLib.SliceOutOfBounds.selector)
+        );
+        accountExposed.expose_getTokenInTokenOut(path);
+    }
+
+    function test_GetTokenInTokenOut_Invalid_Fee() public {
+        bytes memory path =
+            bytes.concat(bytes20(address(0xA)), bytes20(address(0xB)));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(BytesLib.SliceOutOfBounds.selector)
+        );
+        accountExposed.expose_getTokenInTokenOut(path);
+    }
+
+    function test_GetTokenInTokenOut_Invalid_Pools_No_Revert(
+        bytes calldata path
+    ) public view {
+        vm.assume(path.length >= MULTIPLE_V3_POOLS_MIN_LENGTH);
+
+        (address tokenIn, address tokenOut) =
+            accountExposed.expose_getTokenInTokenOut(path);
+
+        // _getTokenInTokenOut makes no assurances about the validity of the tokenIn/tokenOut;
+        // it only checks that the path length is valid.
+        //
+        // Bad paths will be caught by the UniswapV3Pool contract or by the Smart Margin Account \
+        // contract when the swap is submitted.
+        assert(tokenIn != address(0));
+        assert(tokenOut != address(0));
     }
 
     /*//////////////////////////////////////////////////////////////

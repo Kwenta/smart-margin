@@ -1,18 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.18;
 
-import {IEvents} from "./IEvents.sol";
-import {IFactory} from "./IFactory.sol";
-import {IFuturesMarketManager} from
-    "src/interfaces/synthetix/IFuturesMarketManager.sol";
-import {IPerpsV2ExchangeRate} from
-    "src/interfaces/synthetix/IPerpsV2ExchangeRate.sol";
 import {IPerpsV2MarketConsolidated} from
     "src/interfaces/synthetix/IPerpsV2MarketConsolidated.sol";
-import {ISettings} from "./ISettings.sol";
-import {ISystemStatus} from "src/interfaces/synthetix/ISystemStatus.sol";
 
-/// @title Kwenta Smart Margin Account Implementation Interface
+/// @title Kwenta Smart Margin Account v2.1.0 Implementation Interface
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 interface IAccount {
     /*///////////////////////////////////////////////////////////////
@@ -35,7 +27,9 @@ interface IAccount {
         PERPS_V2_CANCEL_DELAYED_ORDER, // 10
         PERPS_V2_CANCEL_OFFCHAIN_DELAYED_ORDER,
         GELATO_PLACE_CONDITIONAL_ORDER,
-        GELATO_CANCEL_CONDITIONAL_ORDER
+        GELATO_CANCEL_CONDITIONAL_ORDER,
+        UNISWAP_V3_SWAP,
+        PERMIT2_PERMIT // 15
     }
 
     /// @notice denotes conditional order types for code clarity
@@ -57,6 +51,31 @@ interface IAccount {
     enum PriceOracleUsed {
         PYTH,
         CHAINLINK
+    }
+
+    /// @param factory: address of the Smart Margin Account Factory
+    /// @param events: address of the contract used by all accounts for emitting events
+    /// @param marginAsset: address of the Synthetix ProxyERC20sUSD contract used as the margin asset
+    /// @param perpsV2ExchangeRate: address of the Synthetix PerpsV2ExchangeRate
+    /// @param futuresMarketManager: address of the Synthetix FuturesMarketManager
+    /// @param systemStatus: address of the Synthetix SystemStatus
+    /// @param gelato: address of Gelato
+    /// @param ops: address of Ops
+    /// @param settings: address of contract used to store global settings
+    /// @param universalRouter: address of Uniswap's Universal Router
+    /// @param permit2: address of Uniswap's Permit2
+    struct AccountConstructorParams {
+        address factory;
+        address events;
+        address marginAsset;
+        address perpsV2ExchangeRate;
+        address futuresMarketManager;
+        address systemStatus;
+        address gelato;
+        address ops;
+        address settings;
+        address universalRouter;
+        address permit2;
     }
 
     /// marketKey: Synthetix PerpsV2 Market id/key
@@ -115,6 +134,25 @@ interface IAccount {
 
     /// @notice thrown when account execution has been disabled in the settings contract
     error AccountExecutionDisabled();
+
+    /// @notice thrown when a call attempts to reenter the protected function
+    error Reentrancy();
+
+    /// @notice thrown when token swap attempted with invalid token (i.e. token that is not whitelisted)
+    /// @param tokenIn: token attempting to swap from
+    /// @param tokenOut: token attempting to swap to
+    error TokenSwapNotAllowed(address tokenIn, address tokenOut);
+
+    /// @notice thrown when a conditional order is attempted to be executed during invalid market conditions
+    /// @param conditionalOrderId: conditional order id
+    /// @param executor: address of executor
+    error CannotExecuteConditionalOrder(
+        uint256 conditionalOrderId, address executor
+    );
+
+    /// @notice thrown when a conditional order is attempted to be executed but SM account cannot pay fee
+    /// @param executorFee: fee required to execute conditional order
+    error CannotPayExecutorFee(uint256 executorFee, address executor);
 
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
@@ -185,11 +223,8 @@ interface IAccount {
         external
         payable;
 
-    /// @notice execute a gelato queued conditional order
-    /// @notice only keepers can trigger this function
+    /// @notice execute queued conditional order
     /// @dev currently only supports conditional order submission via PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER COMMAND
-    /// @custom:audit a compromised Gelato Ops cannot drain accounts due to several interactions with Synthetix PerpsV2
-    /// requiring a valid market which could not be initialized with an invalid conditional order id
     /// @param _conditionalOrderId: key for an active conditional order
     function executeConditionalOrder(uint256 _conditionalOrderId) external;
 }

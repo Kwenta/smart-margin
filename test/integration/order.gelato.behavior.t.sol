@@ -2,28 +2,54 @@
 pragma solidity 0.8.18;
 
 import {Test} from "lib/forge-std/src/Test.sol";
-import {Account} from "../../src/Account.sol";
-import {AccountExposed} from "../utils/AccountExposed.sol";
-import {Auth} from "../../src/Account.sol";
-import {ConsolidatedEvents} from "../utils/ConsolidatedEvents.sol";
-import {IERC20} from "../../src/interfaces/IERC20.sol";
-import {Events} from "../../src/Events.sol";
-import {Factory} from "../../src/Factory.sol";
-import {IAccount} from "../../src/interfaces/IAccount.sol";
-import {IAddressResolver} from "../utils/interfaces/IAddressResolver.sol";
-import {IFuturesMarketManager} from "../../src/interfaces/IAccount.sol";
-import {IOps} from "../../src/utils/OpsReady.sol";
-import {IPerpsV2MarketConsolidated} from "../../src/interfaces/IAccount.sol";
-import {ISynth} from "../utils/interfaces/ISynth.sol";
-import {ISystemStatus} from "../utils/interfaces/ISystemStatus.sol";
-import {OpsReady} from "../../src/utils/OpsReady.sol";
-import {Settings} from "../../src/Settings.sol";
-import {Setup} from "../../script/Deploy.s.sol";
-import "../utils/Constants.sol";
+
+import {Setup} from "script/Deploy.s.sol";
+
+import {Account} from "src/Account.sol";
+import {Auth} from "src/Account.sol";
+import {Events} from "src/Events.sol";
+import {Factory} from "src/Factory.sol";
+import {IAccount} from "src/interfaces/IAccount.sol";
+import {IFuturesMarketManager} from
+    "src/interfaces/synthetix/IFuturesMarketManager.sol";
+import {IOps} from "src/interfaces/gelato/IOps.sol";
+import {IPermit2} from "src/interfaces/uniswap/IPermit2.sol";
+import {IPerpsV2MarketConsolidated} from
+    "src/interfaces/synthetix/IPerpsV2MarketConsolidated.sol";
+import {IERC20} from "src/interfaces/token/IERC20.sol";
+import {OpsReady} from "src/utils/gelato/OpsReady.sol";
+import {Settings} from "src/Settings.sol";
+
+import {AccountExposed} from "test/utils/AccountExposed.sol";
+import {ConsolidatedEvents} from "test/utils/ConsolidatedEvents.sol";
+import {IAddressResolver} from "test/utils/interfaces/IAddressResolver.sol";
+import {ISynth} from "test/utils/interfaces/ISynth.sol";
+import {ISystemStatus} from "test/utils/interfaces/ISystemStatus.sol";
+
+import {
+    ADDRESS_RESOLVER,
+    AMOUNT,
+    BLOCK_NUMBER,
+    DESIRED_FILL_PRICE,
+    ETH,
+    FUTURES_MARKET_MANAGER,
+    GELATO,
+    GELATO_FEE,
+    OPS,
+    PERPS_V2_EXCHANGE_RATE,
+    PROXY_SUSD,
+    sAUDPERP,
+    sETHPERP,
+    SYSTEM_STATUS,
+    TRACKING_CODE,
+    UNISWAP_PERMIT2,
+    UNISWAP_UNIVERSAL_ROUTER,
+    USER
+} from "test/utils/Constants.sol";
 
 // functions tagged with @HELPER are helper functions and not tests
 // tests tagged with @AUDITOR are flags for desired increased scrutiny by the auditors
-contract OrderBehaviorTest is Test, ConsolidatedEvents {
+contract OrderGelatoBehaviorTest is Test, ConsolidatedEvents {
     receive() external payable {}
 
     /*//////////////////////////////////////////////////////////////
@@ -60,7 +86,9 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             _owner: address(this),
             _addressResolver: ADDRESS_RESOLVER,
             _gelato: GELATO,
-            _ops: OPS
+            _ops: OPS,
+            _universalRouter: UNISWAP_UNIVERSAL_ROUTER,
+            _permit2: UNISWAP_PERMIT2
         });
 
         // define helper contracts
@@ -73,21 +101,24 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             addressResolver.getAddress(PERPS_V2_EXCHANGE_RATE);
 
         // deploy AccountExposed contract for exposing internal account functions
-        accountExposed = new AccountExposed(
+        IAccount.AccountConstructorParams memory params = IAccount
+            .AccountConstructorParams(
             address(factory),
-            address(events), 
-            address(sUSD), 
+            address(events),
+            address(sUSD),
             perpsV2ExchangeRate,
-            futuresMarketManager, 
-            address(systemStatus), 
-            GELATO, 
+            futuresMarketManager,
+            address(systemStatus),
+            GELATO,
             OPS,
-            address(settings)
+            address(settings),
+            UNISWAP_UNIVERSAL_ROUTER,
+            UNISWAP_PERMIT2
         );
+        accountExposed = new AccountExposed(params);
 
         // deploy an Account contract and fund it
         account = Account(payable(factory.newAccount()));
-        fundAccount(AMOUNT);
 
         // get current ETH price in USD
         (currentEthPriceInUSD,) = accountExposed.expose_sUSDRate(
@@ -95,6 +126,11 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                 accountExposed.expose_getPerpsV2Market(sETHPERP)
             )
         );
+
+        // call approve() on an ERC20 to grant an infinite allowance to the SM account contract
+        sUSD.approve(address(account), type(uint256).max);
+
+        fundAccount(AMOUNT);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -603,26 +639,20 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                  EXECUTING CONDITIONAL ORDERS: GENERAL
     //////////////////////////////////////////////////////////////*/
 
-    function test_ExecuteConditionalOrder_Invalid_NotOps() public {
-        vm.prank(USER);
-        vm.expectRevert(abi.encodeWithSelector(OpsReady.OnlyOps.selector));
-        account.executeConditionalOrder({_conditionalOrderId: 0});
-    }
-
     function test_ExecuteConditionalOrder_MarketIsPaused() public {
         // place conditional order for sAUDPERP market
         uint256 conditionalOrderId = placeConditionalOrder({
-            marketKey: sAUDPERP,
-            marginDelta: int256(AMOUNT),
-            sizeDelta: int256(AMOUNT),
-            targetPrice: 0,
+            marketKey: sETHPERP,
+            marginDelta: int256(currentEthPriceInUSD),
+            sizeDelta: 1 ether,
+            targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            desiredFillPrice: 0,
+            desiredFillPrice: DESIRED_FILL_PRICE,
             reduceOnly: false
         });
 
-        // pause sAUDPERP market
-        suspendPerpsV2Market(sAUDPERP);
+        // pause sETHPERP market
+        suspendPerpsV2Market(sETHPERP);
 
         // assert conditional order cannot be executed due to paused market
         (bool canExecute,) = account.checker(conditionalOrderId);
@@ -960,7 +990,6 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             revertOnFailure: true
         }) {} catch {
             // ensure task still exists
-            // ensure task is cancelled (i.e. gelato task is removed)
             bytes32[] memory outstandingTasks =
                 IOps(OPS).getTaskIdsByUser(address(account));
             assertEq(outstandingTasks.length, 1);
@@ -1289,15 +1318,11 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     function test_ReduceOnlyOrder_Valid_Long(int256 fuzzedSizeDelta) public {
         vm.assume(fuzzedSizeDelta != 0);
 
-        (uint256 desiredFillPrice,) = IPerpsV2MarketConsolidated(
-            getMarketAddressFromKey(sETHPERP)
-        ).assetPrice();
-
         submitAtomicOrder({
             marketKey: sETHPERP,
             marginDelta: int256(currentEthPriceInUSD),
             sizeDelta: 1 ether,
-            desiredFillPrice: desiredFillPrice
+            desiredFillPrice: currentEthPriceInUSD
         });
 
         IPerpsV2MarketConsolidated.Position memory position =
@@ -1311,7 +1336,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
             sizeDelta: fuzzedSizeDelta,
             targetPrice: currentEthPriceInUSD,
             conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
-            desiredFillPrice: DESIRED_FILL_PRICE,
+            desiredFillPrice: currentEthPriceInUSD,
             reduceOnly: true
         });
 
@@ -1343,7 +1368,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
                     keeperFee: GELATO_FEE,
-                    priceOracle: IAccount.PriceOracleUsed.CHAINLINK
+                    priceOracle: IAccount.PriceOracleUsed.PYTH
                 });
             } else if (fuzzedSizeDelta + position.size >= 0) {
                 // expect conditional order to be filled with specified fuzzedSizeDelta
@@ -1354,7 +1379,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
                     keeperFee: GELATO_FEE,
-                    priceOracle: IAccount.PriceOracleUsed.CHAINLINK
+                    priceOracle: IAccount.PriceOracleUsed.PYTH
                 });
             } else {
                 revert("Uncaught case");
@@ -1428,7 +1453,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
                     keeperFee: GELATO_FEE,
-                    priceOracle: IAccount.PriceOracleUsed.CHAINLINK
+                    priceOracle: IAccount.PriceOracleUsed.PYTH
                 });
             } else if (fuzzedSizeDelta + position.size <= 0) {
                 // expect conditional order to be filled with specified fuzzedSizeDelta
@@ -1439,7 +1464,7 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
                     gelatoTaskId: conditionalOrder.gelatoTaskId,
                     fillPrice: currentEthPriceInUSD,
                     keeperFee: GELATO_FEE,
-                    priceOracle: IAccount.PriceOracleUsed.CHAINLINK
+                    priceOracle: IAccount.PriceOracleUsed.PYTH
                 });
             } else {
                 revert("Uncaught case");
@@ -1527,7 +1552,6 @@ contract OrderBehaviorTest is Test, ConsolidatedEvents {
     function fundAccount(uint256 amount) private {
         vm.deal(address(account), 1 ether);
         mintSUSD(address(this), amount);
-        sUSD.approve(address(account), amount);
         modifyAccountMargin({amount: int256(amount)});
     }
 
