@@ -8,8 +8,8 @@
 [gha-badge]: https://github.com/Kwenta/margin-manager/actions/workflows/test.yml/badge.svg
 [foundry]: https://getfoundry.sh/
 [foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
-[license]: https://opensource.org/licenses/MIT
-[license-badge]: https://img.shields.io/badge/License-MIT-blue.svg
+[license]: https://opensource.org/license/GPL-3.0/
+[license-badge]:https://img.shields.io/badge/GitHub-GPL--3.0-informational
 
 ## High-Level Overview
 
