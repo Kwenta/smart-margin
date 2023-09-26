@@ -29,7 +29,8 @@ interface IAccount {
         GELATO_PLACE_CONDITIONAL_ORDER,
         GELATO_CANCEL_CONDITIONAL_ORDER,
         UNISWAP_V3_SWAP,
-        PERMIT2_PERMIT // 15
+        PERMIT2_PERMIT, // 15
+        PERPS_V2_SET_MIN_KEEPER_FEE
     }
 
     /// @notice denotes conditional order types for code clarity
@@ -153,6 +154,9 @@ interface IAccount {
     /// @notice thrown when a conditional order is attempted to be executed but SM account cannot pay fee
     /// @param executorFee: fee required to execute conditional order
     error CannotPayExecutorFee(uint256 executorFee, address executor);
+
+    /// @notice thrown when call to set/updates the min keeper fee fails
+    error SetMinKeeperFeeFailed();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEWS

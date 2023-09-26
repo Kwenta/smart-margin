@@ -15,6 +15,8 @@ import {ISystemStatus} from "src/interfaces/synthetix/ISystemStatus.sol";
 import {IOps} from "src/interfaces/gelato/IOps.sol";
 import {IUniversalRouter} from "src/interfaces/uniswap/IUniversalRouter.sol";
 import {IEvents} from "src/interfaces/IEvents.sol";
+import {IPerpsV2DynamicFeesModule} from
+    "src/interfaces/synthetix/IPerpsV2DynamicFeesModule.sol";
 import {IPerpsV2ExchangeRate} from
     "src/interfaces/synthetix/IPerpsV2ExchangeRate.sol";
 import {OpsReady} from "src/utils/gelato/OpsReady.sol";
@@ -47,6 +49,11 @@ contract Account is IAccount, Auth, OpsReady {
     /// @notice Uniswap's Universal Router command for swapping tokens
     /// @dev specifically for swapping exact tokens in for a non-exact amount of tokens out
     uint256 internal constant V3_SWAP_EXACT_IN = 0x00;
+
+    /// @notice Synthetix Dynamic Fees Module
+    /// @dev address will never change and only exists on Optimism Mainnet
+    IPerpsV2DynamicFeesModule internal constant PERPS_V2_DYNAMIC_FEES_MODULE =
+        IPerpsV2DynamicFeesModule(0xF4bc5588aAB8CBB412baDd3674094ECF808286f6);
 
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
@@ -480,8 +487,13 @@ contract Account is IAccount, Auth, OpsReady {
                     }
                     _cancelConditionalOrder({_conditionalOrderId: orderId});
                 }
-            } else if (commandIndex > 15) {
-                // commandIndex 14 & 15 valid and already checked
+            } else if (commandIndex == 16) {
+                // Command.PERPS_V2_SET_MIN_KEEPER_FEE
+                if (!PERPS_V2_DYNAMIC_FEES_MODULE.setMinKeeperFee()) {
+                    revert SetMinKeeperFeeFailed();
+                }
+            } else {
+                // command indices beyond 16 are invalid
                 revert InvalidCommandType(commandIndex);
             }
         }
