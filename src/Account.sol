@@ -37,7 +37,7 @@ contract Account is IAccount, Auth, OpsReady {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
-    bytes32 public constant VERSION = "2.1.0";
+    bytes32 public constant VERSION = "2.1.1";
 
     /// @notice tracking code used when modifying positions
     bytes32 internal constant TRACKING_CODE = "KWENTA";
