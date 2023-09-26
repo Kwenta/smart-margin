@@ -131,8 +131,7 @@ contract UpgradeTest is Test {
          * VERIFY VERSION DID CHANGE
          */
 
-        (, response) =
-            activeAccount.call(abi.encodeWithSignature("VERSION()"));
+        (, response) = activeAccount.call(abi.encodeWithSignature("VERSION()"));
         (bytes32 version) = abi.decode(response, (bytes32));
         assertEq(version, "2.1.1", "wrong version");
 
