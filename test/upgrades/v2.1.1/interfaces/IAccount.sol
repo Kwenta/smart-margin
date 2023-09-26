@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 import {IPerpsV2MarketConsolidated} from
     "src/interfaces/synthetix/IPerpsV2MarketConsolidated.sol";
 
-/// @title Kwenta Smart Margin Account v2.1.0 Implementation Interface
+/// @title Kwenta Smart Margin Account v2.1.1 Implementation Interface
 /// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
 interface IAccount {
     /*///////////////////////////////////////////////////////////////
@@ -29,7 +29,8 @@ interface IAccount {
         GELATO_PLACE_CONDITIONAL_ORDER,
         GELATO_CANCEL_CONDITIONAL_ORDER,
         UNISWAP_V3_SWAP,
-        PERMIT2_PERMIT // 15
+        PERMIT2_PERMIT, // 15
+        PERPS_V2_SET_MIN_KEEPER_FEE
     }
 
     /// @notice denotes conditional order types for code clarity
@@ -53,16 +54,17 @@ interface IAccount {
         CHAINLINK
     }
 
-    /// @param _factory: address of the Smart Margin Account Factory
-    /// @param _events: address of the contract used by all accounts for emitting events
-    /// @param _marginAsset: address of the Synthetix ProxyERC20sUSD contract used as the margin asset
-    /// @param _perpsV2ExchangeRate: address of the Synthetix PerpsV2ExchangeRate
-    /// @param _futuresMarketManager: address of the Synthetix FuturesMarketManager
-    /// @param _gelato: address of Gelato
-    /// @param _ops: address of Ops
-    /// @param _settings: address of contract used to store global settings
-    /// @param _universalRouter: address of Uniswap's Universal Router
-    /// @param _permit2: address of Uniswap's Permit2
+    /// @param factory: address of the Smart Margin Account Factory
+    /// @param events: address of the contract used by all accounts for emitting events
+    /// @param marginAsset: address of the Synthetix ProxyERC20sUSD contract used as the margin asset
+    /// @param perpsV2ExchangeRate: address of the Synthetix PerpsV2ExchangeRate
+    /// @param futuresMarketManager: address of the Synthetix FuturesMarketManager
+    /// @param systemStatus: address of the Synthetix SystemStatus
+    /// @param gelato: address of Gelato
+    /// @param ops: address of Ops
+    /// @param settings: address of contract used to store global settings
+    /// @param universalRouter: address of Uniswap's Universal Router
+    /// @param permit2: address of Uniswap's Permit2
     struct AccountConstructorParams {
         address factory;
         address events;
@@ -142,6 +144,20 @@ interface IAccount {
     /// @param tokenOut: token attempting to swap to
     error TokenSwapNotAllowed(address tokenIn, address tokenOut);
 
+    /// @notice thrown when a conditional order is attempted to be executed during invalid market conditions
+    /// @param conditionalOrderId: conditional order id
+    /// @param executor: address of executor
+    error CannotExecuteConditionalOrder(
+        uint256 conditionalOrderId, address executor
+    );
+
+    /// @notice thrown when a conditional order is attempted to be executed but SM account cannot pay fee
+    /// @param executorFee: fee required to execute conditional order
+    error CannotPayExecutorFee(uint256 executorFee, address executor);
+
+    /// @notice thrown when call to set/updates the min keeper fee fails
+    error SetMinKeeperFeeFailed();
+
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
@@ -211,11 +227,8 @@ interface IAccount {
         external
         payable;
 
-    /// @notice execute a gelato queued conditional order
-    /// @notice only keepers can trigger this function
+    /// @notice execute queued conditional order
     /// @dev currently only supports conditional order submission via PERPS_V2_SUBMIT_OFFCHAIN_DELAYED_ORDER COMMAND
-    /// @custom:audit a compromised Gelato Ops cannot drain accounts due to several interactions with Synthetix PerpsV2
-    /// requiring a valid market which could not be initialized with an invalid conditional order id
     /// @param _conditionalOrderId: key for an active conditional order
     function executeConditionalOrder(uint256 _conditionalOrderId) external;
 }
