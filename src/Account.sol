@@ -488,6 +488,7 @@ contract Account is IAccount, Auth, OpsReady {
                     _cancelConditionalOrder({_conditionalOrderId: orderId});
                 }
             } else if (commandIndex == 16) {
+                /// @dev command indices 14 and 15 have already been checked
                 // Command.PERPS_V2_SET_MIN_KEEPER_FEE
                 if (!PERPS_V2_DYNAMIC_FEES_MODULE.setMinKeeperFee()) {
                     revert SetMinKeeperFeeFailed();
