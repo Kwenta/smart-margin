@@ -121,7 +121,7 @@ contract UpgradeTest is Test {
          * EXECUTE UPGRADE
          */
 
-        // upgrade Active Account to v2.1.0
+        // upgrade Active Account to v2.1.1
         vm.prank(OPTIMISM_PDAO);
         Factory(OPTIMISM_FACTORY).upgradeAccountImplementation(
             address(NEW_IMPLEMENTATION)
