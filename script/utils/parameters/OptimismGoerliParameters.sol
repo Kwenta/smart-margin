@@ -27,7 +27,7 @@ address constant OPTIMISM_GOERLI_IMPLEMENTATION =
 address constant OPTIMISM_GOERLI_EVENTS =
     0xe32F27B27F4ea5f10f269b52223910bA83e2933C;
 
-// updated with v2.1.1 implementation 
+// updated with v2.1.1 implementation
 address constant OPTIMISM_GOERLI_FACTORY =
     0x30582eeE34719fe22b1B6c3b607636A3ab94522E;
 
