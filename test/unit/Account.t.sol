@@ -13,6 +13,8 @@ import {Factory} from "src/Factory.sol";
 import {IAccount} from "src/interfaces/IAccount.sol";
 import {IFuturesMarketManager} from
     "src/interfaces/synthetix/IFuturesMarketManager.sol";
+import {IPerpsV2DynamicFeesModule} from
+    "src/interfaces/synthetix/IPerpsV2DynamicFeesModule.sol";
 import {IPerpsV2ExchangeRate} from
     "src/interfaces/synthetix/IPerpsV2ExchangeRate.sol";
 import {IPerpsV2MarketConsolidated} from "src/interfaces/IAccount.sol";
@@ -33,6 +35,7 @@ import {
     LOW_FEE_TIER,
     MULTIPLE_V3_POOLS_MIN_LENGTH,
     OPS,
+    PERPS_V2_DYNAMIC_FEES_MODULE,
     PERPS_V2_EXCHANGE_RATE,
     PROXY_SUSD,
     sETHPERP,
@@ -115,7 +118,7 @@ contract AccountTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_GetVerison() public view {
-        assert(account.VERSION() == "2.1.0");
+        assert(account.VERSION() == "2.1.1");
     }
 
     function test_GetTrackingCode() public view {
@@ -389,7 +392,9 @@ contract AccountTest is Test, ConsolidatedEvents {
         );
 
         vm.expectRevert(
-            abi.encodeWithSelector(IAccount.InvalidCommandType.selector, 69)
+            abi.encodeWithSelector(
+                IAccount.InvalidCommandType.selector, type(uint256).max
+            )
         );
         (bool s,) = address(account).call(dataWithInvalidCommand);
         assert(!s);
@@ -712,6 +717,28 @@ contract AccountTest is Test, ConsolidatedEvents {
         /// @dev execute will fail for other reasons (e.g. no task exists with id 0)
         vm.expectRevert("Automate.cancelTask: Task not found");
         account.execute(commands, inputs);
+    }
+
+    function test_DelegatedTrader_Execute_PERPS_V2_SET_MIN_KEEPER_FEE()
+        public
+    {
+        account.addDelegate({_delegate: DELEGATE});
+
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.PERPS_V2_SET_MIN_KEEPER_FEE;
+        inputs[0] = abi.encode(0);
+
+        vm.prank(DELEGATE);
+
+        account.execute(commands, inputs);
+
+        (,,,,,, uint256 lastUpdatedAtTime) = IPerpsV2DynamicFeesModule(
+            PERPS_V2_DYNAMIC_FEES_MODULE
+        ).getParameters();
+
+        assertEq(lastUpdatedAtTime, block.timestamp);
     }
 
     /*//////////////////////////////////////////////////////////////

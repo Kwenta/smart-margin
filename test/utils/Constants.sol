@@ -65,6 +65,10 @@ address constant ADDRESS_RESOLVER = 0x1Cb059b7e74fD21665968C908806143E744D5F30;
 // Synthetix (ProxyERC20sUSD)
 address constant MARGIN_ASSET = 0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9;
 
+// Synthetix (IPerpsV2DynamicFeesModule)
+address constant PERPS_V2_DYNAMIC_FEES_MODULE =
+    0xF4bc5588aAB8CBB412baDd3674094ECF808286f6;
+
 // Synthetix contract names
 bytes32 constant PROXY_SUSD = "ProxysUSD";
 bytes32 constant FUTURES_MARKET_MANAGER = "FuturesMarketManager";

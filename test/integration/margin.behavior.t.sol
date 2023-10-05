@@ -11,8 +11,9 @@ import {Factory} from "src/Factory.sol";
 import {IAccount} from "src/interfaces/IAccount.sol";
 import {IFuturesMarketManager} from
     "src/interfaces/synthetix/IFuturesMarketManager.sol";
-import {IPermit2} from "src/interfaces/uniswap/IPermit2.sol";
 import {IPerpsV2MarketConsolidated} from "src/interfaces/IAccount.sol";
+import {IPerpsV2DynamicFeesModule} from
+    "src/interfaces/synthetix/IPerpsV2DynamicFeesModule.sol";
 import {IERC20} from "src/interfaces/token/IERC20.sol";
 
 import {AccountExposed} from "test/utils/AccountExposed.sol";
@@ -28,6 +29,7 @@ import {
     FUTURES_MARKET_MANAGER,
     GELATO,
     OPS,
+    PERPS_V2_DYNAMIC_FEES_MODULE,
     PERPS_V2_EXCHANGE_RATE,
     PROXY_SUSD,
     sETHPERP,
@@ -723,6 +725,42 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
             account.getDelayedOrder(sETHPERP);
         assert(order.isOffchain == true);
         assert(order.sizeDelta == -sizeDelta);
+    }
+
+    function test_Commands_SetMinKeeperFee() public {
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.PERPS_V2_SET_MIN_KEEPER_FEE;
+        inputs[0] = abi.encode(0);
+
+        account.execute(commands, inputs);
+
+        (,,,,,, uint256 lastUpdatedAtTime) = IPerpsV2DynamicFeesModule(
+            PERPS_V2_DYNAMIC_FEES_MODULE
+        ).getParameters();
+
+        assertEq(lastUpdatedAtTime, block.timestamp);
+    }
+
+    function test_Commands_SetMinKeeperFee_Fails() public {
+        vm.mockCall(
+            PERPS_V2_DYNAMIC_FEES_MODULE,
+            abi.encodeWithSignature("setMinKeeperFee()"),
+            abi.encode(false)
+        );
+
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        bytes[] memory inputs = new bytes[](1);
+
+        commands[0] = IAccount.Command.PERPS_V2_SET_MIN_KEEPER_FEE;
+        inputs[0] = abi.encode(0);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccount.SetMinKeeperFeeFailed.selector)
+        );
+
+        account.execute(commands, inputs);
     }
 
     /*//////////////////////////////////////////////////////////////
