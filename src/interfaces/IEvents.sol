@@ -147,4 +147,34 @@ interface IEvents {
         uint256 keeperFee,
         IAccount.PriceOracleUsed priceOracle
     );
+
+    /// @notice emitted after ownership transfer
+    /// @param caller: previous owner
+    /// @param newOwner: new owner
+    function emitOwnershipTransferred(address caller, address newOwner)
+        external;
+
+    event OwnershipTransferred(
+        address indexed caller, address indexed newOwner
+    );
+
+    /// @notice emitted after a delegate is added
+    /// @param caller: owner of the account
+    /// @param delegate: address of the delegate being added
+    function emitDelegatedAccountAdded(address caller, address delegate)
+        external;
+
+    event DelegatedAccountAdded(
+        address indexed caller, address indexed delegate
+    );
+
+    /// @notice emitted after a delegate is removed
+    /// @param caller: owner of the account
+    /// @param delegate: address of the delegate being removed
+    function emitDelegatedAccountRemoved(address caller, address delegate)
+        external;
+
+    event DelegatedAccountRemoved(
+        address indexed caller, address indexed delegate
+    );
 }
