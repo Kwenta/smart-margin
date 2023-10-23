@@ -6,6 +6,7 @@ import {Test} from "lib/forge-std/src/Test.sol";
 import {Setup} from "script/Deploy.s.sol";
 
 import {Account} from "src/Account.sol";
+import {Auth} from "src/utils/Auth.sol";
 import {Events} from "src/Events.sol";
 import {Factory} from "src/Factory.sol";
 import {IAccount} from "src/interfaces/IAccount.sol";
@@ -247,6 +248,60 @@ contract EventsTest is Test, ConsolidatedEvents {
             recipient: address(0xC),
             amountIn: 1,
             amountOutMinimum: 2
+        });
+    }
+
+    function test_EmitOwnershipTransferred_Event() public {
+        vm.expectEmit(true, true, true, true);
+        emit OwnershipTransferred(address(0xA), address(0xB));
+        vm.prank(account);
+        events.emitOwnershipTransferred({
+            caller: address(0xA),
+            newOwner: address(0xB)
+        });
+    }
+
+    function test_EmitOwnershipTransferred_OnlyAccounts() public {
+        vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
+        events.emitOwnershipTransferred({
+            caller: address(0xA),
+            newOwner: address(0xB)
+        });
+    }
+
+    function test_EmitDelegatedAccountAdded_Event() public {
+        vm.expectEmit(true, true, true, true);
+        emit DelegatedAccountAdded(address(0xA), address(0xB));
+        vm.prank(account);
+        events.emitDelegatedAccountAdded({
+            caller: address(0xA),
+            delegate: address(0xB)
+        });
+    }
+
+    function test_EmitDelegatedAccountAdded_OnlyAccounts() public {
+        vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
+        events.emitDelegatedAccountAdded({
+            caller: address(0xA),
+            delegate: address(0xB)
+        });
+    }
+
+    function test_EmitDelegatedAccountRemoved_Event() public {
+        vm.expectEmit(true, true, true, true);
+        emit DelegatedAccountRemoved(address(0xA), address(0xB));
+        vm.prank(account);
+        events.emitDelegatedAccountRemoved({
+            caller: address(0xA),
+            delegate: address(0xB)
+        });
+    }
+
+    function test_EmitDelegatedAccountRemoved_OnlyAccounts() public {
+        vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
+        events.emitDelegatedAccountRemoved({
+            caller: address(0xA),
+            delegate: address(0xB)
         });
     }
 }
