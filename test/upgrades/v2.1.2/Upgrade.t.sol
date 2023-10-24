@@ -3,7 +3,7 @@ pragma solidity 0.8.18;
 
 import {Test} from "lib/forge-std/src/Test.sol";
 
-import {UpgradeAccountOptimism} from "script/upgrades/v2.1.1/Upgrade.s.sol";
+import {UpgradeAccountOptimism} from "script/upgrades/v2.1.2/Upgrade.s.sol";
 import {
     OPTIMISM_FACTORY,
     OPTIMISM_PDAO,
@@ -12,9 +12,9 @@ import {
 
 import {Factory} from "src/Factory.sol";
 import {IAccount as OldAccount} from
-    "test/upgrades/v2.1.0/interfaces/IAccount.sol";
-import {IAccount as NewAccount} from
     "test/upgrades/v2.1.1/interfaces/IAccount.sol";
+import {IAccount as NewAccount} from
+    "test/upgrades/v2.1.2/interfaces/IAccount.sol";
 import {IERC20} from "src/interfaces/token/IERC20.sol";
 import {ISynth} from "test/utils/interfaces/ISynth.sol";
 
@@ -22,27 +22,27 @@ import {IAddressResolver} from "test/utils/interfaces/IAddressResolver.sol";
 import {ADDRESS_RESOLVER, PROXY_SUSD} from "test/utils/Constants.sol";
 
 contract UpgradeTest is Test {
-    // BLOCK_NUMBER_UPGRADE corresponds to Optimism network state @ Sep-26-2023 08:39:37 PM +UTC
+    // BLOCK_NUMBER_UPGRADE corresponds to Optimism network state @ Oct-24-2023 05:53:13 PM +UTC
     // hard coded addresses are only guaranteed for this block
-    uint256 private constant BLOCK_NUMBER_UPGRADE = 110_081_000;
+    uint256 private constant BLOCK_NUMBER_UPGRADE = 111_285_608;
 
     address private constant DELEGATE = address(0xDE1A6A7E);
-
-    /*//////////////////////////////////////////////////////////////
-                         V2.1.0 IMPLEMENTATION
-    //////////////////////////////////////////////////////////////*/
-
-    address private constant OLD_IMPLEMENTATION =
-        0x83E13069aA457778ca349E0128927B417A2c2B3f;
 
     /*//////////////////////////////////////////////////////////////
                          V2.1.1 IMPLEMENTATION
     //////////////////////////////////////////////////////////////*/
 
+    address private constant OLD_IMPLEMENTATION =
+        0x6B86c1A6878940666489780871E1C98B366d0aFF;
+
+    /*//////////////////////////////////////////////////////////////
+                         V2.1.2 IMPLEMENTATION
+    //////////////////////////////////////////////////////////////*/
+
     address private NEW_IMPLEMENTATION;
 
     /*//////////////////////////////////////////////////////////////
-                         V2.1.0 ACTIVE ACCOUNT
+                         V2.1.1 ACTIVE ACCOUNT
     //////////////////////////////////////////////////////////////*/
 
     address private activeAccount;
@@ -54,14 +54,14 @@ contract UpgradeTest is Test {
     function setUp() public {
         vm.rollFork(BLOCK_NUMBER_UPGRADE);
 
-        // create active v2.1.0 account
+        // create active v2.1.1 account
         activeAccount = initAccountForStateTesting();
 
         // define Setup contract used for upgrades
         UpgradeAccountOptimism upgradeAccountOptimism =
             new UpgradeAccountOptimism();
 
-        // deploy v2.1.1 implementation
+        // deploy v2.1.2 implementation
         address implementationAddr = upgradeAccountOptimism.upgrade();
         NEW_IMPLEMENTATION = payable(implementationAddr);
     }
@@ -74,7 +74,7 @@ contract UpgradeTest is Test {
         (, bytes memory response) =
             activeAccount.call(abi.encodeWithSignature("VERSION()"));
         (bytes32 version) = abi.decode(response, (bytes32));
-        assertEq(version, "2.1.0", "wrong version");
+        assertEq(version, "2.1.1", "wrong version");
     }
 
     function test_Upgrade() public {
@@ -121,7 +121,7 @@ contract UpgradeTest is Test {
          * EXECUTE UPGRADE
          */
 
-        // upgrade Active Account to v2.1.1
+        // upgrade Active Account to v2.1.2
         vm.prank(OPTIMISM_PDAO);
         Factory(OPTIMISM_FACTORY).upgradeAccountImplementation(
             address(NEW_IMPLEMENTATION)
@@ -133,7 +133,7 @@ contract UpgradeTest is Test {
 
         (, response) = activeAccount.call(abi.encodeWithSignature("VERSION()"));
         (bytes32 version) = abi.decode(response, (bytes32));
-        assert(version != "2.1.0");
+        assert(version != "2.1.1");
 
         /**
          * CHECK STATE DID NOT CHANGE
