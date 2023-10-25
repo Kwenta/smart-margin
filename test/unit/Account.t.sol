@@ -41,7 +41,8 @@ import {
     sETHPERP,
     SYSTEM_STATUS,
     UNISWAP_PERMIT2,
-    UNISWAP_UNIVERSAL_ROUTER
+    UNISWAP_UNIVERSAL_ROUTER,
+    USER
 } from "test/utils/Constants.sol";
 
 contract AccountTest is Test, ConsolidatedEvents {
@@ -118,7 +119,7 @@ contract AccountTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_GetVerison() public view {
-        assert(account.VERSION() == "2.1.1");
+        assert(account.VERSION() == "2.1.2");
     }
 
     function test_GetTrackingCode() public view {
@@ -251,6 +252,20 @@ contract AccountTest is Test, ConsolidatedEvents {
         vm.expectEmit(true, true, true, true);
         emit OwnershipTransferred(address(this), KWENTA_TREASURY);
         account.transferOwnership(KWENTA_TREASURY);
+    }
+
+    function test_Ownership_Transfer_Twice() public {
+        // ensure factory and account state align
+        address originalOwner = factory.getAccountOwner(address(account));
+
+        account.transferOwnership(KWENTA_TREASURY);
+        vm.prank(KWENTA_TREASURY);
+        account.transferOwnership(USER);
+
+        address newOwner = factory.getAccountOwner(address(account));
+        assert(newOwner == USER && newOwner == account.owner());
+        assert(factory.getAccountsOwnedBy(USER)[0] == address(account));
+        assert(factory.getAccountsOwnedBy(originalOwner).length == 0);
     }
 
     function test_Ownership_setInitialOwnership_OnlyFactory() public {

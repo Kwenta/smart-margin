@@ -32,31 +32,6 @@ abstract contract Auth {
     error InvalidDelegateAddress(address delegateAddress);
 
     /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice emitted after ownership transfer
-    /// @param caller: previous owner
-    /// @param newOwner: new owner
-    event OwnershipTransferred(
-        address indexed caller, address indexed newOwner
-    );
-
-    /// @notice emitted after a delegate is added
-    /// @param caller: owner of the account
-    /// @param delegate: address of the delegate being added
-    event DelegatedAccountAdded(
-        address indexed caller, address indexed delegate
-    );
-
-    /// @notice emitted after a delegate is removed
-    /// @param caller: owner of the account
-    /// @param delegate: address of the delegate being removed
-    event DelegatedAccountRemoved(
-        address indexed caller, address indexed delegate
-    );
-
-    /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
@@ -64,8 +39,6 @@ abstract contract Auth {
     /// @param _owner The address of the owner
     constructor(address _owner) {
         owner = _owner;
-
-        emit OwnershipTransferred(address(0), _owner);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -93,8 +66,6 @@ abstract contract Auth {
         if (!isOwner()) revert Unauthorized();
 
         owner = _newOwner;
-
-        emit OwnershipTransferred(msg.sender, _newOwner);
     }
 
     /// @notice Add a delegate to the account
@@ -108,8 +79,6 @@ abstract contract Auth {
         }
 
         delegates[_delegate] = true;
-
-        emit DelegatedAccountAdded({caller: msg.sender, delegate: _delegate});
     }
 
     /// @notice Remove a delegate from the account
@@ -123,7 +92,5 @@ abstract contract Auth {
         }
 
         delete delegates[_delegate];
-
-        emit DelegatedAccountRemoved({caller: msg.sender, delegate: _delegate});
     }
 }

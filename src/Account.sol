@@ -37,7 +37,7 @@ contract Account is IAccount, Auth, OpsReady {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
-    bytes32 public constant VERSION = "2.1.1";
+    bytes32 public constant VERSION = "2.1.2";
 
     /// @notice tracking code used when modifying positions
     bytes32 internal constant TRACKING_CODE = "KWENTA";
@@ -218,13 +218,14 @@ contract Account is IAccount, Auth, OpsReady {
     /// @inheritdoc IAccount
     function setInitialOwnership(address _owner) external override {
         if (msg.sender != address(FACTORY)) revert Unauthorized();
+
+        /// @dev set owner directly
         owner = _owner;
-        emit OwnershipTransferred(address(0), _owner);
+
+        EVENTS.emitOwnershipTransferred({caller: address(0), newOwner: _owner});
     }
 
-    /// @notice transfer ownership of account to new address
-    /// @dev update factory's record of account ownership
-    /// @param _newOwner: new account owner
+    /// @inheritdoc Auth
     function transferOwnership(address _newOwner) public override {
         // will revert if msg.sender is *NOT* owner
         super.transferOwnership(_newOwner);
@@ -233,6 +234,38 @@ contract Account is IAccount, Auth, OpsReady {
         FACTORY.updateAccountOwnership({
             _newOwner: _newOwner,
             _oldOwner: msg.sender // verified to be old owner
+        });
+
+        /// @notice previous owner was verified to be msg.sender
+        EVENTS.emitOwnershipTransferred({
+            caller: msg.sender,
+            newOwner: _newOwner
+        });
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               DELEGATION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc Auth
+    function addDelegate(address _delegate) public override {
+        // will revert if msg.sender is *NOT* owner
+        super.addDelegate(_delegate);
+
+        EVENTS.emitDelegatedAccountAdded({
+            caller: msg.sender,
+            delegate: _delegate
+        });
+    }
+
+    /// @inheritdoc Auth
+    function removeDelegate(address _delegate) public override {
+        // will revert if msg.sender is *NOT* owner
+        super.removeDelegate(_delegate);
+
+        EVENTS.emitDelegatedAccountRemoved({
+            caller: msg.sender,
+            delegate: _delegate
         });
     }
 

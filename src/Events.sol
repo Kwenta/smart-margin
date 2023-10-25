@@ -143,4 +143,31 @@ contract Events is IEvents {
             priceOracle: priceOracle
         });
     }
+
+    /// @inheritdoc IEvents
+    function emitOwnershipTransferred(address caller, address newOwner)
+        external
+        override
+        onlyAccounts
+    {
+        emit OwnershipTransferred({caller: caller, newOwner: newOwner});
+    }
+
+    /// @inheritdoc IEvents
+    function emitDelegatedAccountAdded(address caller, address delegate)
+        external
+        override
+        onlyAccounts
+    {
+        emit DelegatedAccountAdded({caller: caller, delegate: delegate});
+    }
+
+    /// @inheritdoc IEvents
+    function emitDelegatedAccountRemoved(address caller, address delegate)
+        external
+        override
+        onlyAccounts
+    {
+        emit DelegatedAccountRemoved({caller: caller, delegate: delegate});
+    }
 }
