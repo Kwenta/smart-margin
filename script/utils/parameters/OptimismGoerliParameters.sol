@@ -19,15 +19,15 @@ address constant OPTIMISM_GOERLI_GELATO =
 address constant OPTIMISM_GOERLI_OPS =
     0x255F82563b5973264e89526345EcEa766DB3baB2;
 
-// v2.1.1
+// v2.1.2
 address constant OPTIMISM_GOERLI_IMPLEMENTATION =
-    0x5f78a5EdF0B356F50886a6829Fc02B16532e8735;
+    0x62b26650A52E1B6a669C21a9d43aFD78AC0Ef84F;
 
-// released with v2.1.0 implementation (used by v2.1.*)
+// released with v2.1.2 implementation (used by v2.1.*)
 address constant OPTIMISM_GOERLI_EVENTS =
-    0xe32F27B27F4ea5f10f269b52223910bA83e2933C;
+    0x4533D9eAC2eb200B98fD9BaA306221ad2528e52F;
 
-// updated with v2.1.1 implementation
+// updated with v2.1.2 implementation
 address constant OPTIMISM_GOERLI_FACTORY =
     0x30582eeE34719fe22b1B6c3b607636A3ab94522E;
 
