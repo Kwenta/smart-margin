@@ -18,10 +18,10 @@ address constant OPTIMISM_OPS = 0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c;
 
 // v2.1.2
 address constant OPTIMISM_IMPLEMENTATION =
-    0x9AcbDBABafC7E47dE0769C352b725Fa9fd443Bc2;
+    0x8857CA2255f82E19c52f2E22529afb5f8d021492;
 
 // released with v2.1.2 implementation (used by v2.1.*)
-address constant OPTIMISM_EVENTS = 0x349142D51afCFbB3E9ef70DB1F7dB8437aABC5F7;
+address constant OPTIMISM_EVENTS = 0xc3d16e00833355b48d2fD69D838c6ACF004cf4b6;
 
 // updated with v2.1.2 implementation
 address constant OPTIMISM_FACTORY = 0x8234F990b149Ae59416dc260305E565e5DAfEb54;
