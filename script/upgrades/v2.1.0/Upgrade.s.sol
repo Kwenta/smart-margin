@@ -58,11 +58,7 @@ contract UpgradeAccountOptimism is Script {
         address events = address(new Events({_factory: OPTIMISM_FACTORY}));
 
         // deploy settings
-        address settings = address(
-            new Settings({
-                _owner: OPTIMISM_PDAO
-            })
-        );
+        address settings = address(new Settings({_owner: OPTIMISM_PDAO}));
 
         address marginAsset = addressResolver.getAddress({name: PROXY_SUSD});
         address perpsV2ExchangeRate =
@@ -114,11 +110,8 @@ contract UpgradeAccountOptimismGoerli is Script {
 
         // deploy settings
         /// @dev owner on Optimism is the kwenta admin DAO multisig
-        address settings = address(
-            new Settings({
-                _owner: OPTIMISM_GOERLI_DEPLOYER
-            })
-        );
+        address settings =
+            address(new Settings({_owner: OPTIMISM_GOERLI_DEPLOYER}));
 
         address marginAsset = addressResolver.getAddress({name: PROXY_SUSD});
         address perpsV2ExchangeRate =
