@@ -30,6 +30,7 @@ interface IAccount {
         GELATO_CANCEL_CONDITIONAL_ORDER,
         UNISWAP_V3_SWAP,
         PERMIT2_PERMIT // 15
+
     }
 
     /// @notice denotes conditional order types for code clarity

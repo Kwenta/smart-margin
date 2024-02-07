@@ -130,7 +130,6 @@ contract UpgradeTest is Test {
         /**
          * CHECK STATE DID NOT CHANGE
          */
-
         (, response) =
             activeAccount.call(abi.encodeWithSignature("committedMargin()"));
         assertEq(

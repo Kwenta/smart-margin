@@ -130,7 +130,6 @@ contract UpgradeTest is Test {
         /**
          * VERIFY VERSION DID CHANGE
          */
-
         (, response) = activeAccount.call(abi.encodeWithSignature("VERSION()"));
         (bytes32 version) = abi.decode(response, (bytes32));
         assert(version != "2.1.1");
@@ -138,7 +137,6 @@ contract UpgradeTest is Test {
         /**
          * CHECK STATE DID NOT CHANGE
          */
-
         (, response) =
             activeAccount.call(abi.encodeWithSignature("committedMargin()"));
         assertEq(

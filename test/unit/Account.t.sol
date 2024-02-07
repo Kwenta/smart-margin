@@ -463,7 +463,6 @@ contract AccountTest is Test, ConsolidatedEvents {
      * @dev All commands can be executed by the owner and this behavior is tested in
      * test/integration/margin.behavior.t.sol and test/integration/order.behavior.t.sol
      */
-
     function test_DelegatedTrader_Execute_ACCOUNT_MODIFY_MARGIN() public {
         account.addDelegate({_delegate: DELEGATE});
         vm.prank(DELEGATE);
@@ -501,7 +500,6 @@ contract AccountTest is Test, ConsolidatedEvents {
      * @dev All commands can be executed by the owner and this behavior is tested in
      * test/integration/margin.behavior.t.sol and test/integration/order.behavior.t.sol
      */
-
     function test_DelegatedTrader_Execute_PERPS_V2_MODIFY_MARGIN() public {
         account.addDelegate({_delegate: DELEGATE});
 
