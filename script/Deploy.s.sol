@@ -33,6 +33,15 @@ import {
     OPTIMISM_GOERLI_UNISWAP_UNIVERSAL_ROUTER,
     OPTIMISM_GOERLI_UNISWAP_PERMIT2
 } from "script/utils/parameters/OptimismGoerliParameters.sol";
+import {
+    OPTIMISM_SEPOLIA_DEPLOYER,
+    OPTIMISM_SEPOLIA_PDAO,
+    OPTIMISM_SEPOLIA_SYNTHETIX_ADDRESS_RESOLVER,
+    OPTIMISM_SEPOLIA_GELATO,
+    OPTIMISM_SEPOLIA_OPS,
+    OPTIMISM_SEPOLIA_UNISWAP_UNIVERSAL_ROUTER,
+    OPTIMISM_SEPOLIA_UNISWAP_PERMIT2
+} from "script/utils/parameters/OptimismSepoliaParameters.sol";
 
 /// @title Script to deploy Kwenta's Smart Margin Account Factory
 /// @author JaredBorders (jaredborders@pm.me)
@@ -61,19 +70,13 @@ contract Setup {
             _deployer == address(0) ? address(this) : _deployer;
 
         // deploy the factory
-        factory = new Factory({
-                _owner: temporaryOwner
-            });
+        factory = new Factory({_owner: temporaryOwner});
 
         // deploy the events contract and set the factory
-        events = new Events({
-                _factory: address(factory)
-            });
+        events = new Events({_factory: address(factory)});
 
         // deploy the settings contract
-        settings = new Settings({
-                _owner: _owner
-            });
+        settings = new Settings({_owner: _owner});
 
         // resolve necessary addresses via the Synthetix Address Resolver
         addressResolver = IAddressResolver(_addressResolver);
@@ -147,6 +150,28 @@ contract DeployOptimismGoerli is Script, Setup {
             _ops: OPTIMISM_GOERLI_OPS,
             _universalRouter: OPTIMISM_GOERLI_UNISWAP_UNIVERSAL_ROUTER,
             _permit2: OPTIMISM_GOERLI_UNISWAP_PERMIT2
+        });
+
+        vm.stopBroadcast();
+    }
+}
+
+/// @dev steps to deploy and verify on Optimism Sepolia:
+/// (1) load the variables in the .env file via `source .env`
+/// (2) run `forge script script/Deploy.s.sol:DeployOptimismSepolia --rpc-url $ARCHIVE_NODE_URL_SEPOLIA_L2 --broadcast --verify -vvvv`
+contract DeployOptimismSepolia is Script, Setup {
+    function run() public {
+        uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
+        vm.startBroadcast(deployerPrivateKey);
+
+        Setup.deploySystem({
+            _deployer: OPTIMISM_SEPOLIA_DEPLOYER,
+            _owner: OPTIMISM_SEPOLIA_PDAO,
+            _addressResolver: OPTIMISM_SEPOLIA_SYNTHETIX_ADDRESS_RESOLVER,
+            _gelato: OPTIMISM_SEPOLIA_GELATO,
+            _ops: OPTIMISM_SEPOLIA_OPS,
+            _universalRouter: OPTIMISM_SEPOLIA_UNISWAP_UNIVERSAL_ROUTER,
+            _permit2: OPTIMISM_SEPOLIA_UNISWAP_PERMIT2
         });
 
         vm.stopBroadcast();
