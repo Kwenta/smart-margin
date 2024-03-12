@@ -51,9 +51,8 @@ contract Account is IAccount, Auth, OpsReady {
     uint256 internal constant V3_SWAP_EXACT_IN = 0x00;
 
     /// @notice Synthetix Dynamic Fees Module
-    /// @dev address will never change and only exists on Optimism Mainnet
     IPerpsV2DynamicFeesModule internal constant PERPS_V2_DYNAMIC_FEES_MODULE =
-        IPerpsV2DynamicFeesModule(0xF4bc5588aAB8CBB412baDd3674094ECF808286f6);
+        IPerpsV2DynamicFeesModule(0x05F6f46e5EED6dec1D8Cc3c6e8169D447966844d);
 
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
