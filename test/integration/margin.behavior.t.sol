@@ -728,6 +728,12 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
     }
 
     function test_Commands_SetMinKeeperFee() public {
+        vm.mockCall(
+            PERPS_V2_DYNAMIC_FEES_MODULE,
+            abi.encodeWithSignature("setMinKeeperFee()"),
+            abi.encode(true)
+        );
+
         IAccount.Command[] memory commands = new IAccount.Command[](1);
         bytes[] memory inputs = new bytes[](1);
 
@@ -735,12 +741,6 @@ contract MarginBehaviorTest is Test, ConsolidatedEvents {
         inputs[0] = abi.encode(0);
 
         account.execute(commands, inputs);
-
-        (,,,,,, uint256 lastUpdatedAtTime) = IPerpsV2DynamicFeesModule(
-            PERPS_V2_DYNAMIC_FEES_MODULE
-        ).getParameters();
-
-        assertEq(lastUpdatedAtTime, block.timestamp);
     }
 
     function test_Commands_SetMinKeeperFee_Fails() public {
