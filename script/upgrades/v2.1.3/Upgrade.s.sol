@@ -11,7 +11,6 @@ import {Settings} from "src/Settings.sol";
 import {IAccount} from "src/interfaces/IAccount.sol";
 
 import {
-    OPTIMISM_PDAO,
     OPTIMISM_GELATO,
     OPTIMISM_OPS,
     FUTURES_MARKET_MANAGER,
@@ -26,7 +25,6 @@ import {
     SYSTEM_STATUS
 } from "script/utils/parameters/OptimismParameters.sol";
 import {
-    OPTIMISM_GOERLI_DEPLOYER,
     OPTIMISM_GOERLI_EVENTS,
     OPTIMISM_GOERLI_SETTINGS,
     OPTIMISM_GOERLI_FACTORY,
@@ -58,9 +56,6 @@ contract UpgradeAccountOptimism is Script {
         IAddressResolver addressResolver =
             IAddressResolver(OPTIMISM_SYNTHETIX_ADDRESS_RESOLVER);
 
-        // deploy events
-        address events = address(new Events({_factory: OPTIMISM_FACTORY}));
-
         address marginAsset = addressResolver.getAddress({name: PROXY_SUSD});
         address perpsV2ExchangeRate =
             addressResolver.getAddress({name: PERPS_V2_EXCHANGE_RATE});
@@ -71,7 +66,7 @@ contract UpgradeAccountOptimism is Script {
         IAccount.AccountConstructorParams memory params = IAccount
             .AccountConstructorParams({
             factory: OPTIMISM_FACTORY,
-            events: events,
+            events: OPTIMISM_EVENTS,
             marginAsset: marginAsset,
             perpsV2ExchangeRate: perpsV2ExchangeRate,
             futuresMarketManager: futuresMarketManager,
@@ -105,10 +100,6 @@ contract UpgradeAccountOptimismGoerli is Script {
         IAddressResolver addressResolver =
             IAddressResolver(OPTIMISM_GOERLI_SYNTHETIX_ADDRESS_RESOLVER);
 
-        // deploy events
-        address events =
-            address(new Events({_factory: OPTIMISM_GOERLI_FACTORY}));
-
         address marginAsset = addressResolver.getAddress({name: PROXY_SUSD});
         address perpsV2ExchangeRate =
             addressResolver.getAddress({name: PERPS_V2_EXCHANGE_RATE});
@@ -119,7 +110,7 @@ contract UpgradeAccountOptimismGoerli is Script {
         IAccount.AccountConstructorParams memory params = IAccount
             .AccountConstructorParams({
             factory: OPTIMISM_GOERLI_FACTORY,
-            events: events,
+            events: OPTIMISM_GOERLI_EVENTS,
             marginAsset: marginAsset,
             perpsV2ExchangeRate: perpsV2ExchangeRate,
             futuresMarketManager: futuresMarketManager,
