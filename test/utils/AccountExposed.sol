@@ -115,4 +115,48 @@ contract AccountExposed is Account {
     function expose_payExecutorFee() public returns (uint256) {
         return _payExecutorFee();
     }
+
+    function expose_committedMargin_slot() public pure returns (uint256 slot) {
+        assembly {
+            slot := committedMargin.slot
+        }
+    }
+
+    function expose_conditionalOrderId_slot()
+        public
+        pure
+        returns (uint256 slot)
+    {
+        assembly {
+            slot := conditionalOrderId.slot
+        }
+    }
+
+    function expose_conditionalOrders_slot()
+        public
+        pure
+        returns (uint256 slot)
+    {
+        assembly {
+            slot := conditionalOrders.slot
+        }
+    }
+
+    function expose_locked_slot() public pure returns (uint256 slot) {
+        assembly {
+            slot := locked.slot
+        }
+    }
+
+    function expose_owner_slot() public pure returns (uint256 slot) {
+        assembly {
+            slot := owner.slot
+        }
+    }
+
+    function expose_delegates_slot() public pure returns (uint256 slot) {
+        assembly {
+            slot := delegates.slot
+        }
+    }
 }

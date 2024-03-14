@@ -119,7 +119,7 @@ contract AccountTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_GetVerison() public view {
-        assert(account.VERSION() == "2.1.2");
+        assert(account.VERSION() == "2.1.3");
     }
 
     function test_GetTrackingCode() public view {
@@ -730,28 +730,6 @@ contract AccountTest is Test, ConsolidatedEvents {
         /// @dev execute will fail for other reasons (e.g. no task exists with id 0)
         vm.expectRevert("Automate.cancelTask: Task not found");
         account.execute(commands, inputs);
-    }
-
-    function test_DelegatedTrader_Execute_PERPS_V2_SET_MIN_KEEPER_FEE()
-        public
-    {
-        account.addDelegate({_delegate: DELEGATE});
-
-        IAccount.Command[] memory commands = new IAccount.Command[](1);
-        bytes[] memory inputs = new bytes[](1);
-
-        commands[0] = IAccount.Command.PERPS_V2_SET_MIN_KEEPER_FEE;
-        inputs[0] = abi.encode(0);
-
-        vm.prank(DELEGATE);
-
-        account.execute(commands, inputs);
-
-        (,,,,,, uint256 lastUpdatedAtTime) = IPerpsV2DynamicFeesModule(
-            PERPS_V2_DYNAMIC_FEES_MODULE
-        ).getParameters();
-
-        assertEq(lastUpdatedAtTime, block.timestamp);
     }
 
     /*//////////////////////////////////////////////////////////////

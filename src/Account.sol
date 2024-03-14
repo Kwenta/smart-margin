@@ -37,7 +37,7 @@ contract Account is IAccount, Auth, OpsReady {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
-    bytes32 public constant VERSION = "2.1.2";
+    bytes32 public constant VERSION = "2.1.3";
 
     /// @notice tracking code used when modifying positions
     bytes32 internal constant TRACKING_CODE = "KWENTA";
@@ -51,9 +51,8 @@ contract Account is IAccount, Auth, OpsReady {
     uint256 internal constant V3_SWAP_EXACT_IN = 0x00;
 
     /// @notice Synthetix Dynamic Fees Module
-    /// @dev address will never change and only exists on Optimism Mainnet
     IPerpsV2DynamicFeesModule internal constant PERPS_V2_DYNAMIC_FEES_MODULE =
-        IPerpsV2DynamicFeesModule(0xF4bc5588aAB8CBB412baDd3674094ECF808286f6);
+        IPerpsV2DynamicFeesModule(0x05F6f46e5EED6dec1D8Cc3c6e8169D447966844d);
 
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
