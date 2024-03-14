@@ -1,6 +1,6 @@
 {
   "name": "@kwenta/cross-margin-manager",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "scripts": {
     "compile": "forge build",
     "test": "forge test --fork-url $(grep ARCHIVE_NODE_URL_L2 .env | cut -d '=' -f2) --etherscan-api-key $(grep ETHERSCAN_API_KEY .env | cut -d '=' -f2) --gas-report -vvv",
