@@ -21,10 +21,7 @@ contract Events is IEvents {
 
     /// @dev modifier that restricts access to only accounts
     modifier onlyAccounts() {
-        if (!IFactory(factory).accounts(msg.sender)) {
-            revert OnlyAccounts();
-        }
-
+        _checkAccounts();
         _;
     }
 
@@ -36,6 +33,17 @@ contract Events is IEvents {
     /// @param _factory: address of the factory contract
     constructor(address _factory) {
         factory = _factory;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTION    
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev internal function for the modifier `onlyAccounts`
+    function _checkAccounts() internal view {
+        if (!IFactory(factory).accounts(msg.sender)) {
+            revert OnlyAccounts();
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
