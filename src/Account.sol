@@ -592,6 +592,45 @@ contract Account is IAccount, Auth, OpsReady {
     }
 
     /*//////////////////////////////////////////////////////////////
+                       ORDER FLOW PROCESSING FEE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice impose an order flow fee on the account
+    /// @param _market: address of market
+    /// @param _sizeDelta: size delta of order
+    /// @dev will attempt to deduct fee from account's idle margin first
+    /// @dev if fee exceeds idle margin, fee will be deducted from market's margin
+    /// if possible. If not possible, the transaction will revert.
+    /// @dev if fee is deducted from market's margin, then the following order
+    /// may be rejected if the account has insufficient available market margin
+    function _imposeOrderFlowFee(address _market, int256 _sizeDelta) internal {
+        // fetch order flow fee from settings
+        uint256 orderFlowFee = SETTINGS.orderFlowFee();
+
+        // fetch current sUSD exchange rate for market
+        IPerpsV2MarketConsolidated market = IPerpsV2MarketConsolidated(_market);
+        (uint256 price,) = _sUSDRate(market);
+
+        // calculate notional value of order
+        uint256 notionalValue = _abs(_sizeDelta) * price;
+
+        // calculate fee to impose
+        uint256 fee =
+            notionalValue * orderFlowFee / SETTINGS.MAX_ORDER_FLOW_FEE();
+
+        // check if fee can be deducted from account's idle margin
+        if (fee < freeMargin()) {
+            // impose fee on account from idle margin
+            MARGIN_ASSET.transfer(SETTINGS.TREASURY(), fee);
+            return;
+        }
+
+        // attempt to deduct fee from market's margin
+        _perpsV2ModifyMargin(_market, -int256(fee));
+        MARGIN_ASSET.transfer(SETTINGS.TREASURY(), fee);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                              ATOMIC ORDERS
     //////////////////////////////////////////////////////////////*/
 
