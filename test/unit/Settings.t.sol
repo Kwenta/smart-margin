@@ -59,10 +59,9 @@ contract SettingsTest is Test, ConsolidatedEvents {
                               EXECUTOR FEE
     //////////////////////////////////////////////////////////////*/
 
-    function test_setExecutorFee() public {
-        assertEq(settings.executorFee(), 1 ether / 1000);
-        settings.setExecutorFee(1 ether / 100);
-        assertEq(settings.executorFee(), 1 ether / 100);
+    function test_setExecutorFee(uint256 fee) public {
+        settings.setExecutorFee(fee);
+        assertEq(settings.executorFee(), fee);
     }
 
     function test_setExecutorFee_OnlyOwner() public {
