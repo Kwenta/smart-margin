@@ -21,6 +21,18 @@ interface ISettings {
     /// @param isWhitelisted: true if token is whitelisted, false if not
     event TokenWhitelistStatusUpdated(address token, bool isWhitelisted);
 
+    /// @notice emitted when the order flow fee is updated
+    /// @param orderFlowFee: the order flow fee
+    event OrderFlowFeeSet(uint256 orderFlowFee);
+
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice thrown when the executor fee is invalid (e.g. exceeds 100%)
+    /// @dev 100% is represented as 100_000
+    error InvalidOrderFlowFee();
+
     /*//////////////////////////////////////////////////////////////
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
@@ -32,6 +44,13 @@ interface ISettings {
     /// @notice gets the conditional order executor fee
     /// @return executorFee: the executor fee
     function executorFee() external view returns (uint256);
+
+    /// @notice gets the order flow fee
+    /// @dev three decimal places, e.g. 1 == 0.001%
+    /// @custom:example 10 == 0.01% && 100 == 0.1% && 1_000 == 1% && 10_000 == 10%
+    /// @dev cannot exceed 100_000 (100%)
+    /// @return orderFlowFee: the order flow fee
+    function orderFlowFee() external view returns (uint256);
 
     /// @notice checks if token is whitelisted
     /// @param _token: address of the token to check
@@ -56,4 +75,11 @@ interface ISettings {
     /// @param _isWhitelisted: true if token is to be whitelisted, false if not
     function setTokenWhitelistStatus(address _token, bool _isWhitelisted)
         external;
+
+    /// @notice sets the order flow fee
+    /// @dev three decimal places, e.g. 1 == 0.001%
+    /// @custom:example 10 == 0.01% && 100 == 0.1% && 1_000 == 1% && 10_000 == 10%
+    /// @dev cannot exceed 100_000 (100%)
+    /// @param _orderFlowFee: the order flow fee
+    function setOrderFlowFee(uint256 _orderFlowFee) external;
 }
