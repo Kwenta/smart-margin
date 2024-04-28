@@ -177,4 +177,7 @@ interface IEvents {
     event DelegatedAccountRemoved(
         address indexed caller, address indexed delegate
     );
+
+    /// @custom:todo add event function for order flow fee imposed
+    /// @custom:todo add event for order flow fee imposed
 }
