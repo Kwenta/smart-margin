@@ -210,6 +210,16 @@ contract Account is IAccount, Auth, OpsReady {
         return conditionalOrders[_conditionalOrderId];
     }
 
+    /// @inheritdoc IAccount
+    function getExpectedOrderFlowFee(address _market, int256 _sizeDelta)
+        public
+        view
+        override
+        returns (uint256)
+    {
+        return _calculateOrderFlowFee(_market, _sizeDelta);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                OWNERSHIP
     //////////////////////////////////////////////////////////////*/
@@ -604,6 +614,39 @@ contract Account is IAccount, Auth, OpsReady {
     /// @dev if fee is deducted from market's margin, then the following order
     /// may be rejected if the account has insufficient available market margin
     function _imposeOrderFlowFee(address _market, int256 _sizeDelta) internal {
+        // calculate order flow fee
+        uint256 fee = _calculateOrderFlowFee(_market, _sizeDelta);
+
+        if (fee != 0) {
+            uint256 idleMargin = freeMargin();
+
+            /// @notice if fee exceeds free margin,
+            /// attempt to withdraw fee amount
+            /// from the market margin
+            if (fee > idleMargin) {
+                uint256 difference = fee - idleMargin;
+
+                /// @dev this will revert if market does not
+                /// have sufficient available margin
+                _perpsV2ModifyMargin(_market, -int256(difference));
+            }
+
+            // impose fee on account from account margin
+            MARGIN_ASSET.transfer(SETTINGS.TREASURY(), fee);
+        }
+
+        /// @custom:todo add event emission for order flow fee imposed
+    }
+
+    /// @notice calculate order flow fee for a given market and size delta
+    /// @param _market: address of market
+    /// @param _sizeDelta: size delta of order
+    /// @return fee: order flow fee to impose
+    function _calculateOrderFlowFee(address _market, int256 _sizeDelta)
+        internal
+        view
+        returns (uint256)
+    {
         // fetch order flow fee from settings
         uint256 orderFlowFee = SETTINGS.orderFlowFee();
 
@@ -615,19 +658,7 @@ contract Account is IAccount, Auth, OpsReady {
         uint256 notionalValue = _abs(_sizeDelta) * price;
 
         // calculate fee to impose
-        uint256 fee =
-            notionalValue * orderFlowFee / SETTINGS.MAX_ORDER_FLOW_FEE();
-
-        // check if fee can be deducted from account's idle margin
-        if (fee < freeMargin()) {
-            // impose fee on account from idle margin
-            MARGIN_ASSET.transfer(SETTINGS.TREASURY(), fee);
-            return;
-        }
-
-        // attempt to deduct fee from market's margin
-        _perpsV2ModifyMargin(_market, -int256(fee));
-        MARGIN_ASSET.transfer(SETTINGS.TREASURY(), fee);
+        return notionalValue * orderFlowFee / SETTINGS.MAX_ORDER_FLOW_FEE();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -644,6 +675,8 @@ contract Account is IAccount, Auth, OpsReady {
         int256 _sizeDelta,
         uint256 _desiredFillPrice
     ) internal {
+        _imposeOrderFlowFee(_market, _sizeDelta);
+
         IPerpsV2MarketConsolidated(_market).modifyPositionWithTracking({
             sizeDelta: _sizeDelta,
             desiredFillPrice: _desiredFillPrice,
@@ -657,6 +690,13 @@ contract Account is IAccount, Auth, OpsReady {
     function _perpsV2ClosePosition(address _market, uint256 _desiredFillPrice)
         internal
     {
+        _imposeOrderFlowFee(
+            _market,
+            IPerpsV2MarketConsolidated(_market).positions({
+                account: address(this)
+            }).size
+        );
+
         // close position (i.e. reduce size to zero)
         /// @dev this does not remove margin from market
         IPerpsV2MarketConsolidated(_market).closePositionWithTracking({
@@ -680,6 +720,8 @@ contract Account is IAccount, Auth, OpsReady {
         uint256 _desiredTimeDelta,
         uint256 _desiredFillPrice
     ) internal {
+        _imposeOrderFlowFee(_market, _sizeDelta);
+
         IPerpsV2MarketConsolidated(_market).submitDelayedOrderWithTracking({
             sizeDelta: _sizeDelta,
             desiredTimeDelta: _desiredTimeDelta,
@@ -703,6 +745,13 @@ contract Account is IAccount, Auth, OpsReady {
         uint256 _desiredTimeDelta,
         uint256 _desiredFillPrice
     ) internal {
+        _imposeOrderFlowFee(
+            _market,
+            IPerpsV2MarketConsolidated(_market).positions({
+                account: address(this)
+            }).size
+        );
+
         // close position (i.e. reduce size to zero)
         /// @dev this does not remove margin from market
         IPerpsV2MarketConsolidated(_market).submitCloseDelayedOrderWithTracking({
@@ -725,6 +774,8 @@ contract Account is IAccount, Auth, OpsReady {
         int256 _sizeDelta,
         uint256 _desiredFillPrice
     ) internal {
+        _imposeOrderFlowFee(_market, _sizeDelta);
+
         IPerpsV2MarketConsolidated(_market)
             .submitOffchainDelayedOrderWithTracking({
             sizeDelta: _sizeDelta,
@@ -748,6 +799,13 @@ contract Account is IAccount, Auth, OpsReady {
         address _market,
         uint256 _desiredFillPrice
     ) internal {
+        _imposeOrderFlowFee(
+            _market,
+            IPerpsV2MarketConsolidated(_market).positions({
+                account: address(this)
+            }).size
+        );
+
         // close position (i.e. reduce size to zero)
         /// @dev this does not remove margin from market
         IPerpsV2MarketConsolidated(_market)
@@ -956,11 +1014,12 @@ contract Account is IAccount, Auth, OpsReady {
             committedMargin -= _abs(conditionalOrder.marginDelta);
         }
 
-        // execute trade
         _perpsV2ModifyMargin({
             _market: address(market),
             _amount: conditionalOrder.marginDelta
         });
+
+        _imposeOrderFlowFee(address(market), conditionalOrder.sizeDelta);
 
         _perpsV2SubmitOffchainDelayedOrder({
             _market: address(market),
