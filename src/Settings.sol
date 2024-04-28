@@ -98,7 +98,7 @@ contract Settings is ISettings, Owned {
         if (_orderFlowFee > MAX_ORDER_FLOW_FEE) {
             revert InvalidOrderFlowFee();
         }
-        
+
         orderFlowFee = _orderFlowFee;
 
         emit OrderFlowFeeSet(_orderFlowFee);
