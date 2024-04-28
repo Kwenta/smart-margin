@@ -304,4 +304,6 @@ contract EventsTest is Test, ConsolidatedEvents {
             delegate: address(0xB)
         });
     }
+
+    /// @custom:todo test event for order flow fee imposed as done above
 }

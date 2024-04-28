@@ -110,4 +110,24 @@ contract SettingsTest is Test, ConsolidatedEvents {
         emit TokenWhitelistStatusUpdated(MARGIN_ASSET, false);
         settings.setTokenWhitelistStatus(MARGIN_ASSET, false);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                             ORDER FLOW FEE
+    //////////////////////////////////////////////////////////////*/
+
+    function test_setOrderFlowFee(uint256 fee) public {
+        /// @custom:todo
+    }
+
+    function test_setOrderFlowFee_OnlyOwner() public {
+        /// @custom:todo
+    }
+
+    function test_setOrderFlowFee_Event() public {
+        /// @custom:todo
+    }
+
+    function test_setOrderFlowFee_InvalidOrderFlowFee() public {
+        /// @custom:todo
+    }
 }
