@@ -15,8 +15,6 @@ import {
     OPTIMISM_OPS,
     FUTURES_MARKET_MANAGER,
     OPTIMISM_FACTORY,
-    OPTIMISM_EVENTS,
-    OPTIMISM_SETTINGS,
     OPTIMISM_SYNTHETIX_ADDRESS_RESOLVER,
     OPTIMISM_UNISWAP_PERMIT2,
     OPTIMISM_UNISWAP_UNIVERSAL_ROUTER,
@@ -54,7 +52,9 @@ contract UpgradeAccountOptimism is Script {
             addressResolver.getAddress({name: FUTURES_MARKET_MANAGER});
         address systemStatus = addressResolver.getAddress({name: SYSTEM_STATUS});
 
-        Settings settings = new Settings(OPTIMISM_PDAO);
+        address events = address(new Events({_factory: OPTIMISM_FACTORY}));
+
+        address settings = address(new Settings({_owner: OPTIMISM_PDAO}));
 
         // the following tokens should be whitelisted by the owner of the Account
         // immediately following deployment in the same transaction:
@@ -63,10 +63,13 @@ contract UpgradeAccountOptimism is Script {
         // USDT: 0x94b008aA00579c1307B0EF2c499aD98a8ce58e58
         // LUSD: 0xc40F949F8a4e094D1b49a23ea9241D289B7b2819
 
+        // the orderFlowFee should be set appropriately by the owner of the Account
+        // immediately following deployment in the same transaction
+
         IAccount.AccountConstructorParams memory params = IAccount
             .AccountConstructorParams({
             factory: OPTIMISM_FACTORY,
-            events: OPTIMISM_EVENTS,
+            events: events,
             marginAsset: marginAsset,
             perpsV2ExchangeRate: perpsV2ExchangeRate,
             futuresMarketManager: futuresMarketManager,
