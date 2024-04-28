@@ -170,4 +170,6 @@ contract Events is IEvents {
     {
         emit DelegatedAccountRemoved({caller: caller, delegate: delegate});
     }
+
+    /// @custom:todo add event for order flow fee imposed
 }
