@@ -12,6 +12,13 @@ import {Owned} from "src/utils/Owned.sol";
 /// via the Settings contract constructor.
 contract Settings is ISettings, Owned {
     /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice maximum order flow fee
+    uint256 internal constant MAX_ORDER_FLOW_FEE = 100_000;
+
+    /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
@@ -19,10 +26,13 @@ contract Settings is ISettings, Owned {
     bool public accountExecutionEnabled = true;
 
     /// @inheritdoc ISettings
-    uint256 public executorFee = 1 ether / 1000;
+    uint256 public executorFee = 3 ether / 10_000;
 
     /// @notice mapping of whitelisted tokens available for swapping via uniswap commands
     mapping(address => bool) internal _whitelistedTokens;
+
+    /// @inheritdoc ISettings
+    uint256 public orderFlowFee = 5;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -77,5 +87,20 @@ contract Settings is ISettings, Owned {
         _whitelistedTokens[_token] = _isWhitelisted;
 
         emit TokenWhitelistStatusUpdated(_token, _isWhitelisted);
+    }
+
+    /// @inheritdoc ISettings
+    function setOrderFlowFee(uint256 _orderFlowFee)
+        external
+        override
+        onlyOwner
+    {
+        if (_orderFlowFee > MAX_ORDER_FLOW_FEE) {
+            revert InvalidOrderFlowFee();
+        }
+        
+        orderFlowFee = _orderFlowFee;
+
+        emit OrderFlowFeeSet(_orderFlowFee);
     }
 }
