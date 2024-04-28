@@ -18,6 +18,7 @@ contract Settings is ISettings, Owned {
     /// @inheritdoc ISettings
     uint256 public constant MAX_ORDER_FLOW_FEE = 100_000;
 
+    /// @inheritdoc ISettings
     address public constant TREASURY =
         0x82d2242257115351899894eF384f779b5ba8c695;
 

@@ -37,6 +37,15 @@ interface ISettings {
                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice gets the maximum order flow fee
+    /// @dev 100% is represented as 100_000
+    /// @return MAX_ORDER_FLOW_FEE: the maximum order flow fee
+    function MAX_ORDER_FLOW_FEE() external view returns (uint256);
+
+    /// @notice gets the Kwenta treasury address
+    /// @return TREASURY: the treasury address
+    function TREASURY() external view returns (address);
+
     /// @notice checks if account execution is enabled or disabled
     /// @return enabled: true if account execution is enabled, false if disabled
     function accountExecutionEnabled() external view returns (bool);
