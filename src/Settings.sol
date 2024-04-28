@@ -36,7 +36,7 @@ contract Settings is ISettings, Owned {
     mapping(address => bool) internal _whitelistedTokens;
 
     /// @inheritdoc ISettings
-    uint256 public orderFlowFee = 5;
+    uint256 public orderFlowFee;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
