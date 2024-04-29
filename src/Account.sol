@@ -774,6 +774,7 @@ contract Account is IAccount, Auth, OpsReady {
         int256 _sizeDelta,
         uint256 _desiredFillPrice
     ) internal {
+        /// @custom:todo use _desiredFillPrice
         _imposeOrderFlowFee(_market, _sizeDelta);
 
         IPerpsV2MarketConsolidated(_market)
@@ -799,6 +800,7 @@ contract Account is IAccount, Auth, OpsReady {
         address _market,
         uint256 _desiredFillPrice
     ) internal {
+        /// @custom:todo use _desiredFillPrice
         _imposeOrderFlowFee(
             _market,
             IPerpsV2MarketConsolidated(_market).positions({

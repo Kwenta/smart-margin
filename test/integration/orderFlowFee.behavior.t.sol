@@ -150,6 +150,10 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         /// 1. error is caught for each scenario where the market margin is insufficient
     }
 
+    /// @custom:todo desired fill price behaviour? floor/ceiling price behaviour? reverts? etc
+    /// @custom:todo what happens if withdrawing margin from market results in leverage exceeding allowed leverage? revert?
+    /// @custom:todo think deeply about the edge cases
+
     /// @custom:todo use atomic order flow to simplify testing
     function test_imposeOrderFlowFee_event() public {
         /// @custom:todo test the following:
