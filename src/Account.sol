@@ -635,7 +635,7 @@ contract Account is IAccount, Auth, OpsReady {
             MARGIN_ASSET.transfer(SETTINGS.TREASURY(), fee);
         }
 
-        /// @custom:todo add event emission for order flow fee imposed
+        EVENTS.emitOrderFlowFeeImposed({amount: fee});
     }
 
     /// @notice calculate order flow fee for a given market and size delta
@@ -886,7 +886,7 @@ contract Account is IAccount, Auth, OpsReady {
             execAddress: address(this),
             execData: abi.encodeCall(
                 this.executeConditionalOrder, conditionalOrderId
-                ),
+            ),
             moduleData: moduleData,
             feeToken: ETH
         });

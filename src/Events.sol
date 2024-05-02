@@ -171,5 +171,12 @@ contract Events is IEvents {
         emit DelegatedAccountRemoved({caller: caller, delegate: delegate});
     }
 
-    /// @custom:todo add event for order flow fee imposed
+    /// @inheritdoc IEvents
+    function emitOrderFlowFeeImposed(uint256 amount)
+        external
+        override
+        onlyAccounts
+    {
+        emit OrderFlowFeeImposed({account: msg.sender, amount: amount});
+    }
 }
