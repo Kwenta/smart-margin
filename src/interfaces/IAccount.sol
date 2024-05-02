@@ -214,11 +214,12 @@ interface IAccount {
     /// @notice get the expected order flow fee for a given market and size delta
     /// @param _market: address of market
     /// @param _sizeDelta: size delta of order
-    /// @return order flow fee expected for the given market and size delta
+    /// @return sUSDmarketRate sUSD exchange rate for market
+    /// @return orderFlowFee order flow fee expected for the given market and size delta
     function getExpectedOrderFlowFee(address _market, int256 _sizeDelta)
         external
         view
-        returns (uint256);
+        returns (uint256 sUSDmarketRate, uint256 orderFlowFee);
 
     /*//////////////////////////////////////////////////////////////
                                 MUTATIVE
