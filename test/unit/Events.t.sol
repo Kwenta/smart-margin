@@ -305,5 +305,15 @@ contract EventsTest is Test, ConsolidatedEvents {
         });
     }
 
-    /// @custom:todo test event for order flow fee imposed as done above
+    function test_emitOrderFlowFeeImposed_Event() public {
+        vm.expectEmit(true, true, true, true);
+        emit OrderFlowFeeImposed(address(account), AMOUNT);
+        vm.prank(account);
+        events.emitOrderFlowFeeImposed({amount: AMOUNT});
+    }
+
+    function test_emitOrderFlowFeeImposed_OnlyAccounts() public {
+        vm.expectRevert(abi.encodeWithSelector(IEvents.OnlyAccounts.selector));
+        events.emitOrderFlowFeeImposed({amount: AMOUNT});
+    }
 }

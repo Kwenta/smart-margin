@@ -85,6 +85,8 @@ contract ConsolidatedEvents {
         IAccount.PriceOracleUsed priceOracle
     );
 
+    event OrderFlowFeeImposed(address indexed account, uint256 amount);
+
     /*//////////////////////////////////////////////////////////////
                                ISETTINGS
     //////////////////////////////////////////////////////////////*/
