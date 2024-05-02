@@ -5,6 +5,8 @@ import {Test} from "lib/forge-std/src/Test.sol";
 
 import {Settings} from "src/Settings.sol";
 
+import {ISettings} from "src/interfaces/ISettings.sol";
+
 import {ConsolidatedEvents} from "test/utils/ConsolidatedEvents.sol";
 
 import {MARGIN_ASSET, USER} from "test/utils/Constants.sol";
@@ -116,18 +118,26 @@ contract SettingsTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_setOrderFlowFee(uint256 fee) public {
-        /// @custom:todo
+        if (fee > 100_000) {
+            vm.expectRevert(
+                abi.encodeWithSelector(ISettings.InvalidOrderFlowFee.selector)
+            );
+            settings.setOrderFlowFee(fee);
+        } else {
+            settings.setOrderFlowFee(fee);
+            assertEq(settings.orderFlowFee(), fee);
+        }
     }
 
     function test_setOrderFlowFee_OnlyOwner() public {
-        /// @custom:todo
+        vm.expectRevert("UNAUTHORIZED");
+        vm.prank(USER);
+        settings.setExecutorFee(5);
     }
 
     function test_setOrderFlowFee_Event() public {
-        /// @custom:todo
-    }
-
-    function test_setOrderFlowFee_InvalidOrderFlowFee() public {
-        /// @custom:todo
+        vm.expectEmit(true, true, true, true);
+        emit ExecutorFeeSet(5);
+        settings.setExecutorFee(5);
     }
 }
