@@ -98,7 +98,7 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
             systemStatus,
             GELATO,
             OPS,
-            address(0),
+            address(settings),
             UNISWAP_UNIVERSAL_ROUTER,
             UNISWAP_PERMIT2
         );
