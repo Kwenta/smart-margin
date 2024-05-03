@@ -147,9 +147,12 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         }
     }
 
-    /// Verifies that OrderFlowFee is correctly sent from account margin when there is enough funds to cover orderFlowFee
+    /// Verifies that OrderFlowFee is correctly sent from account margin to treasury when there is enough funds in account margin to cover orderFlowFee
     function test_imposeOrderFlowFee_account_margin() public {
         fundAccount(AMOUNT);
+
+        uint256 treasuryPreBalance = sUSD.balanceOf(settings.TREASURY());
+
         // create a long position in the ETH market
         address market = getMarketAddressFromKey(sETHPERP);
 
@@ -162,18 +165,27 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
 
         submitAtomicOrder(sETHPERP, marginDelta, sizeDelta, desiredFillPrice);
 
+        uint256 treasuryPostBalance = sUSD.balanceOf(settings.TREASURY());
+
         /// inital funding - sETHPERP margin = 8000 ether
         uint256 accountMarginBeforeFee = AMOUNT - uint256(marginDelta);
 
-        (, uint256 imposedFee) =
+        (, uint256 imposedOrderFlowFee) =
             account.getExpectedOrderFlowFee(market, sizeDelta);
 
-        assertEq(accountMarginBeforeFee - imposedFee, account.freeMargin());
+        // Assert that fee was correctly sent from account margin
+        assertEq(
+            accountMarginBeforeFee - imposedOrderFlowFee, account.freeMargin()
+        );
+        // Assert that fee was correctly sent to treasury address
+        assertEq(treasuryPostBalance - treasuryPreBalance, imposedOrderFlowFee);
     }
 
-    /// Verifies that OrderFlowFee is correctly sent from market margin when there is no funds to cover orderFlowFee in account margin
+    /// Verifies that OrderFlowFee is correctly sent from market margin to treasury when there is no funds in account margin to cover orderFlowFee in account margin
     function test_imposeOrderFlowFee_market_margin() public {
         fundAccount(AMOUNT);
+
+        uint256 treasuryPreBalance = sUSD.balanceOf(settings.TREASURY());
 
         // create a long position in the ETH market
         address market = getMarketAddressFromKey(sETHPERP);
@@ -187,18 +199,25 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
 
         submitAtomicOrder(sETHPERP, marginDelta, sizeDelta, desiredFillPrice);
 
+        uint256 treasuryPostBalance = sUSD.balanceOf(settings.TREASURY());
+
         IPerpsV2MarketConsolidated.Position memory position =
             account.getPosition(sETHPERP);
 
-        (, uint256 imposedFee) =
+        (, uint256 imposedOrderFlowFee) =
             account.getExpectedOrderFlowFee(market, position.size);
 
-        assertEq(uint256(position.margin), AMOUNT - imposedFee - 563);
+        // Assert that fee was correctly sent from market margin
+        assertEq(uint256(position.margin), AMOUNT - imposedOrderFlowFee - 563);
+        // Assert that fee was correctly sent to treasury address
+        assertEq(treasuryPostBalance - treasuryPreBalance, imposedOrderFlowFee);
     }
 
     /// Verifies that OrderFlowFee is correctly sent from both market margin and account margin when there is not enough funds to cover orderFlowFee in account margin
     function test_imposeOrderFlowFee_both_margin() public {
         fundAccount(AMOUNT);
+
+        uint256 treasuryPreBalance = sUSD.balanceOf(settings.TREASURY());
 
         // create a long position in the ETH market
         address market = getMarketAddressFromKey(sETHPERP);
@@ -212,20 +231,25 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
 
         submitAtomicOrder(sETHPERP, marginDelta, sizeDelta, desiredFillPrice);
 
+        uint256 treasuryPostBalance = sUSD.balanceOf(settings.TREASURY());
+
         IPerpsV2MarketConsolidated.Position memory position =
             account.getPosition(sETHPERP);
 
-        (, uint256 imposedFee) =
+        (, uint256 imposedOrderFlowFee) =
             account.getExpectedOrderFlowFee(market, position.size);
 
         // Account margin is emptied
         assertEq(account.freeMargin(), 0);
 
-        // Market margin is reduced by (imposedFee - 10 000)
+        // Market margin is reduced by (imposedOrderFlowFee - 10 000)
         assertEq(
             uint256(position.margin),
-            uint256(marginDelta) - (imposedFee - 10_000) - 563
+            uint256(marginDelta) - (imposedOrderFlowFee - 10_000) - 563
         );
+
+        // Assert that fee was correctly sent to treasury address
+        assertEq(treasuryPostBalance - treasuryPreBalance, imposedOrderFlowFee);
     }
 
     /// @custom:todo use atomic order flow to simplify testing
