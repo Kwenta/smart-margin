@@ -147,7 +147,8 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         }
     }
 
-    /// Verifies that OrderFlowFee is correctly sent from account margin to treasury when there is enough funds in account margin to cover orderFlowFee
+    /// Verifies that OrderFlowFee is correctly sent from account margin to treasury 
+    // when there is enough funds in account margin to cover orderFlowFee
     function test_imposeOrderFlowFee_account_margin() public {
         fundAccount(AMOUNT);
 
@@ -181,7 +182,8 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         assertEq(treasuryPostBalance - treasuryPreBalance, imposedOrderFlowFee);
     }
 
-    /// Verifies that OrderFlowFee is correctly sent from market margin to treasury when there is no funds in account margin to cover orderFlowFee in account margin
+    /// Verifies that OrderFlowFee is correctly sent from market margin to treasury 
+    // when there is no funds in account margin to cover orderFlowFee in account margin
     function test_imposeOrderFlowFee_market_margin() public {
         fundAccount(AMOUNT);
 
@@ -213,7 +215,8 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         assertEq(treasuryPostBalance - treasuryPreBalance, imposedOrderFlowFee);
     }
 
-    /// Verifies that OrderFlowFee is correctly sent from both market margin and account margin when there is not enough funds to cover orderFlowFee in account margin
+    /// Verifies that OrderFlowFee is correctly sent from both market margin and account margin 
+    // when there is not enough funds to cover orderFlowFee in account margin
     function test_imposeOrderFlowFee_both_margin() public {
         fundAccount(AMOUNT);
 

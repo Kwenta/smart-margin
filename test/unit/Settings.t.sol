@@ -118,7 +118,7 @@ contract SettingsTest is Test, ConsolidatedEvents {
     //////////////////////////////////////////////////////////////*/
 
     function test_setOrderFlowFee(uint256 fee) public {
-        if (fee > 100_000) {
+        if (fee > settings.MAX_ORDER_FLOW_FEE()) {
             vm.expectRevert(
                 abi.encodeWithSelector(ISettings.InvalidOrderFlowFee.selector)
             );
