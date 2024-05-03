@@ -674,14 +674,18 @@ contract Account is IAccount, Auth, OpsReady {
         // fetch order flow fee from settings
         uint256 orderFlowFee = SETTINGS.orderFlowFee();
 
-        // fetch current sUSD exchange rate for market
-        IPerpsV2MarketConsolidated market = IPerpsV2MarketConsolidated(_market);
-        (uint256 price,) = _sUSDRate(market);
+        uint256 price;
 
-        uint256 usedPrice = (_desiredFillPrice != 0) ? _desiredFillPrice : price;
+        // if desiredFillPrice is specified then use it
+        if (_desiredFillPrice != 0) {
+            price = _desiredFillPrice;
+        } else {
+            // fetch current sUSD exchange rate for market
+            (price,) = _sUSDRate(IPerpsV2MarketConsolidated(_market));
+        }
 
         // calculate notional value of order
-        uint256 notionalValue = _abs(_sizeDelta) * usedPrice;
+        uint256 notionalValue = _abs(_sizeDelta) * price;
 
         // calculate fee to impose
         return notionalValue * orderFlowFee / SETTINGS.MAX_ORDER_FLOW_FEE();
@@ -754,7 +758,7 @@ contract Account is IAccount, Auth, OpsReady {
         uint256 _desiredTimeDelta,
         uint256 _desiredFillPrice
     ) internal {
-        _imposeOrderFlowFee(_market, _sizeDelta);
+        _imposeOrderFlowFee(_market, _sizeDelta, _desiredFillPrice);
 
         IPerpsV2MarketConsolidated(_market).submitDelayedOrderWithTracking({
             sizeDelta: _sizeDelta,
