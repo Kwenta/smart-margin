@@ -682,16 +682,12 @@ contract Account is IAccount, Auth, OpsReady {
         return notionalValue * orderFlowFee / SETTINGS.MAX_ORDER_FLOW_FEE();
     }
 
-    /// @notice calculate order flow fee for a given market and size delta
-    /// @param _market: address of market
-    /// @param _sizeDelta: size delta of order
-    /// @return fee: order flow fee to impose
     function _calculateOrderFlowFee(address _market, int256 _sizeDelta)
         internal
         view
-        returns (uint256)
+        returns (uint256 orderflowFee)
     {
-        _calculateOrderFlowFee(_market, _sizeDelta, 0);
+        orderflowFee = _calculateOrderFlowFee(_market, _sizeDelta, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
