@@ -1058,9 +1058,6 @@ contract Account is IAccount, Auth, OpsReady {
             _amount: conditionalOrder.marginDelta
         });
 
-        // Use conditionalOrder.desiredFillPrice as the submitted order is a delayed order
-        _imposeOrderFlowFee(address(market), conditionalOrder.sizeDelta, conditionalOrder.desiredFillPrice);
-
         _perpsV2SubmitOffchainDelayedOrder({
             _market: address(market),
             _sizeDelta: conditionalOrder.sizeDelta,
