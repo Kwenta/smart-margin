@@ -12,15 +12,23 @@ import {IERC20} from "src/interfaces/token/IERC20.sol";
 import {AccountExposed} from "test/utils/AccountExposed.sol";
 import {ConsolidatedEvents} from "test/utils/ConsolidatedEvents.sol";
 import {IAddressResolver} from "test/utils/interfaces/IAddressResolver.sol";
+import {ISynth} from "test/utils/interfaces/ISynth.sol";
+import {IFuturesMarketManager} from
+    "src/interfaces/synthetix/IFuturesMarketManager.sol";
+import {IPerpsV2MarketConsolidated} from "src/interfaces/IAccount.sol";
+import {IPerpsV2ExchangeRate} from
+    "src/interfaces/synthetix/IPerpsV2ExchangeRate.sol";
 
 import {
     ADDRESS_RESOLVER,
+    AMOUNT,
     BLOCK_NUMBER,
     FUTURES_MARKET_MANAGER,
     GELATO,
     OPS,
     PERPS_V2_EXCHANGE_RATE,
     PROXY_SUSD,
+    sETHPERP,
     SYSTEM_STATUS,
     UNISWAP_PERMIT2,
     UNISWAP_UNIVERSAL_ROUTER
@@ -90,7 +98,7 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
             systemStatus,
             GELATO,
             OPS,
-            address(settings),
+            address(0),
             UNISWAP_UNIVERSAL_ROUTER,
             UNISWAP_PERMIT2
         );
@@ -107,57 +115,219 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
                                  TESTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @custom:todo use atomic order flow to simplify testing
+    /// Verifies that Order Flow Fee is correctly calculated
+    /// For this test, it is assumed that there is enough account margin to cover fee
     function test_calculateOrderFlowFee(uint256 fee) public {
         vm.assume(fee < settings.MAX_ORDER_FLOW_FEE());
         settings.setOrderFlowFee(fee);
 
-        /// @custom:todo test the following:
-        /// 1. what happens if {orderFlowFee} is zero
-        /// 2. what happens if {orderFlowFee} is non-zero but fee is zero
-        /// 3. what happens if {orderFlowFee} is non-zero and fee is non-zero
-        /// 4. can division by zero occur
-        /// 5. is division completely safe
-        ///
-        /// use public Account.getExpectedOrderFlowFee() to calculate the expected fee
-        ///
-        /// use fuzzing
+        fundAccount(AMOUNT);
+
+        // create a long position in the ETH market
+        address market = getMarketAddressFromKey(sETHPERP);
+
+        /// Keep account margin to cover for orderFlowFee
+        int256 marginDelta = int256(AMOUNT) / 5;
+        int256 sizeDelta = 1;
+
+        (uint256 desiredFillPrice,) =
+            IPerpsV2MarketConsolidated(market).assetPrice();
+
+        submitAtomicOrder(sETHPERP, marginDelta, sizeDelta, desiredFillPrice);
+
+        (uint256 sUSDmarketRate, uint256 imposedOrderFlowFee) =
+            account.getExpectedOrderFlowFee(market, sizeDelta);
+
+        if (fee == 0) {
+            assertEq(imposedOrderFlowFee, 0);
+        } else {
+            uint256 orderFlowFeeMath = abs(sizeDelta) * sUSDmarketRate
+                * settings.orderFlowFee() / settings.MAX_ORDER_FLOW_FEE();
+            assertEq(orderFlowFeeMath, imposedOrderFlowFee);
+        }
     }
 
-    /// @custom:todo use atomic order flow to simplify testing
+    /// Verifies that OrderFlowFee is correctly sent from account margin when there is enough funds to cover orderFlowFee
     function test_imposeOrderFlowFee_account_margin() public {
-        /// @custom:todo test the following assuming the account
-        /// has sufficient margin:
-        /// 1. is the fee sent to the correct address
-        /// 2. can this be gameable at all
+        fundAccount(AMOUNT);
+        // create a long position in the ETH market
+        address market = getMarketAddressFromKey(sETHPERP);
+
+        /// Keep account margin to cover for orderFlowFee
+        int256 marginDelta = int256(AMOUNT) / 5;
+        int256 sizeDelta = 1;
+
+        (uint256 desiredFillPrice,) =
+            IPerpsV2MarketConsolidated(market).assetPrice();
+
+        submitAtomicOrder(sETHPERP, marginDelta, sizeDelta, desiredFillPrice);
+
+        /// inital funding - sETHPERP margin = 8000 ether
+        uint256 accountMarginBeforeFee = AMOUNT - uint256(marginDelta);
+
+        (, uint256 imposedFee) =
+            account.getExpectedOrderFlowFee(market, sizeDelta);
+
+        assertEq(accountMarginBeforeFee - imposedFee, account.freeMargin());
     }
 
-    /// @custom:todo use atomic order flow to simplify testing
+    /// Verifies that OrderFlowFee is correctly sent from market margin when there is no funds to cover orderFlowFee in account margin
     function test_imposeOrderFlowFee_market_margin() public {
-        /// @custom:todo test the following assuming the account
-        /// has insufficient margin but the market has sufficient margin:
-        /// 1. is the fee sent to the correct address
-        /// 2. can this be gameable at all
-        /// 3. is only what is necessary taken from the market
+        fundAccount(AMOUNT);
+
+        // create a long position in the ETH market
+        address market = getMarketAddressFromKey(sETHPERP);
+
+        /// Deposit all margin so that account has no margin to cover orderFlowFee
+        int256 marginDelta = int256(AMOUNT);
+        int256 sizeDelta = 1;
+
+        (uint256 desiredFillPrice,) =
+            IPerpsV2MarketConsolidated(market).assetPrice();
+
+        submitAtomicOrder(sETHPERP, marginDelta, sizeDelta, desiredFillPrice);
+
+        IPerpsV2MarketConsolidated.Position memory position =
+            account.getPosition(sETHPERP);
+
+        (, uint256 imposedFee) =
+            account.getExpectedOrderFlowFee(market, position.size);
+
+        assertEq(uint256(position.margin), AMOUNT - imposedFee - 563);
+    }
+
+    /// Verifies that OrderFlowFee is correctly sent from both market margin and account margin when there is not enough funds to cover orderFlowFee in account margin
+    function test_imposeOrderFlowFee_both_margin() public {
+        fundAccount(AMOUNT);
+
+        // create a long position in the ETH market
+        address market = getMarketAddressFromKey(sETHPERP);
+
+        /// Leave 10_000 in account (not enough to cover fees)
+        int256 marginDelta = int256(AMOUNT) - 10_000;
+        int256 sizeDelta = 1;
+
+        (uint256 desiredFillPrice,) =
+            IPerpsV2MarketConsolidated(market).assetPrice();
+
+        submitAtomicOrder(sETHPERP, marginDelta, sizeDelta, desiredFillPrice);
+
+        IPerpsV2MarketConsolidated.Position memory position =
+            account.getPosition(sETHPERP);
+
+        (, uint256 imposedFee) =
+            account.getExpectedOrderFlowFee(market, position.size);
+
+        // Account margin is emptied
+        assertEq(account.freeMargin(), 0);
+
+        // Market margin is reduced by (imposedFee - 10 000)
+        assertEq(
+            uint256(position.margin),
+            uint256(marginDelta) - (imposedFee - 10_000) - 563
+        );
     }
 
     /// @custom:todo use atomic order flow to simplify testing
+    /// Synthetix makes modify position (which is called if there is not enough account margin
+    /// Reverts if the resulting position is too large, outside the max leverage, or is liquidating.
     function test_imposeOrderFlowFee_market_margin_failed() public {
         /// @custom:todo test the following assuming the account
         /// has insufficient margin and the market has insufficient margin
         /// (i.e., withdrawing from the market fails due to outstanding position or
         /// order exceeding allowed leverage if margin is taken):
         /// 1. error is caught for each scenario where the market margin is insufficient
+        //
     }
 
-    /// @custom:todo desired fill price behaviour? floor/ceiling price behaviour? reverts? etc
-    /// @custom:todo what happens if withdrawing margin from market results in leverage exceeding allowed leverage? revert?
-    /// @custom:todo think deeply about the edge cases
-
-    /// @custom:todo use atomic order flow to simplify testing
+    /// Verifies that the correct Event is emitted with correct value
     function test_imposeOrderFlowFee_event() public {
         /// @custom:todo test the following:
-        /// 1. is the correct event emitted
-        /// 2. is the correct fee emitted with it
+
+        fundAccount(AMOUNT);
+        // create a long position in the ETH market
+        address market = getMarketAddressFromKey(sETHPERP);
+
+        /// Keep account margin to cover for orderFlowFee
+        int256 marginDelta = int256(AMOUNT) / 5;
+        int256 sizeDelta = 1;
+
+        (uint256 desiredFillPrice,) =
+            IPerpsV2MarketConsolidated(market).assetPrice();
+
+        vm.expectEmit(true, true, true, true);
+        // orderFlowFee is 94025250000000000 in this configuration
+        emit OrderFlowFeeImposed(address(account), 94_025_250_000_000_000);
+
+        submitAtomicOrder(sETHPERP, marginDelta, sizeDelta, desiredFillPrice);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    function mintSUSD(address to, uint256 amount) private {
+        address issuer = IAddressResolver(ADDRESS_RESOLVER).getAddress("Issuer");
+        ISynth synthsUSD =
+            ISynth(IAddressResolver(ADDRESS_RESOLVER).getAddress("SynthsUSD"));
+        vm.prank(issuer);
+        synthsUSD.issue(to, amount);
+    }
+
+    function fundAccount(uint256 amount) private {
+        vm.deal(address(account), 1 ether);
+        mintSUSD(address(this), amount);
+        modifyAccountMargin({amount: int256(amount)});
+    }
+
+    function getMarketAddressFromKey(bytes32 key)
+        private
+        view
+        returns (address market)
+    {
+        market = address(
+            IPerpsV2MarketConsolidated(
+                IFuturesMarketManager(
+                    IAddressResolver(ADDRESS_RESOLVER).getAddress(
+                        "FuturesMarketManager"
+                    )
+                ).marketForKey(key)
+            )
+        );
+    }
+
+    function abs(int256 x) private pure returns (uint256 z) {
+        assembly {
+            let mask := sub(0, shr(255, x))
+            z := xor(mask, add(mask, x))
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           COMMAND SHORTCUTS
+    //////////////////////////////////////////////////////////////*/
+
+    function modifyAccountMargin(int256 amount) private {
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.ACCOUNT_MODIFY_MARGIN;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(amount);
+        account.execute(commands, inputs);
+    }
+
+    function submitAtomicOrder(
+        bytes32 marketKey,
+        int256 marginDelta,
+        int256 sizeDelta,
+        uint256 desiredFillPrice
+    ) private {
+        address market = getMarketAddressFromKey(marketKey);
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(market, marginDelta);
+        inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
+        account.execute(commands, inputs);
     }
 }
