@@ -252,22 +252,54 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         assertEq(treasuryPostBalance - treasuryPreBalance, imposedOrderFlowFee);
     }
 
-    /// @custom:todo use atomic order flow to simplify testing
-    /// Synthetix makes modify position (which is called if there is not enough account margin
-    /// Reverts if the resulting position is too large, outside the max leverage, or is liquidating.
+    /// Verifies that transaction reverts if there is insufficient margin to cover for orderFlowFee without exceeding positions limits
+    /// @dev Synthetix makes transaction reverts if the resulting position is too large, outside the max leverage, or is liquidating.
     function test_imposeOrderFlowFee_market_margin_failed() public {
-        /// @custom:todo test the following assuming the account
-        /// has insufficient margin and the market has insufficient margin
-        /// (i.e., withdrawing from the market fails due to outstanding position or
-        /// order exceeding allowed leverage if margin is taken):
-        /// 1. error is caught for each scenario where the market margin is insufficient
-        //
+        // Set orderflow fee high to easily test that transaction fails if neither account or market has sufficient margin to cover for fees
+        uint256 testOrderFlowFee = 10_000; // 10%
+        settings.setOrderFlowFee(testOrderFlowFee);
+
+        fundAccount(1000 ether);
+
+        uint256 treasuryPreBalance = sUSD.balanceOf(settings.TREASURY());
+
+        // create a long position in the ETH market
+        address market = getMarketAddressFromKey(sETHPERP);
+
+        /// Deposit all available account margin into market margin
+        int256 marginDelta = int256(1000 ether);
+        int256 sizeDelta = 1 ether;
+
+        (uint256 desiredFillPrice,) =
+            IPerpsV2MarketConsolidated(market).assetPrice();
+
+        // Deposit market margin
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(market, marginDelta);
+        account.execute(commands, inputs);
+
+        // Execute Atomic Order
+        IAccount.Command[] memory commandsAtomic = new IAccount.Command[](2);
+        commandsAtomic[0] = IAccount.Command.PERPS_V2_SUBMIT_ATOMIC_ORDER;
+        bytes[] memory inputsAtomic = new bytes[](2);
+        inputsAtomic[0] = abi.encode(market, sizeDelta, desiredFillPrice);
+
+        // Current configuration should have insufficient margin to cover for orderflow fee and revert
+        // because there is not enough margin for the position delta.
+        vm.expectRevert("Insufficient margin");
+
+        account.execute(commandsAtomic, inputsAtomic);
+
+        uint256 treasuryPostBalance = sUSD.balanceOf(settings.TREASURY());
+
+        // Assert that no overflowfee was distributed
+        assertEq(treasuryPreBalance, treasuryPostBalance);
     }
 
-    /// Verifies that the correct Event is emitted with correct value
+    /// Verifies that the correct Event is emitted with correct fee value
     function test_imposeOrderFlowFee_event() public {
-        /// @custom:todo test the following:
-
         fundAccount(AMOUNT);
         // create a long position in the ETH market
         address market = getMarketAddressFromKey(sETHPERP);
