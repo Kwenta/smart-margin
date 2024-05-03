@@ -23,6 +23,7 @@ import {
     ADDRESS_RESOLVER,
     AMOUNT,
     BLOCK_NUMBER,
+    DESIRED_FILL_PRICE,
     FUTURES_MARKET_MANAGER,
     GELATO,
     OPS,
@@ -50,6 +51,9 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
     // helper contracts for testing
     IERC20 private sUSD;
     AccountExposed private accountExposed;
+
+    // helper variables for testing
+    uint256 private currentEthPriceInUSD;
 
     // constants
     uint256 private constant INITIAL_ORDER_FLOW_FEE = 5; // 0.005%
@@ -103,6 +107,13 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
             UNISWAP_PERMIT2
         );
         accountExposed = new AccountExposed(params);
+
+        // get current ETH price in USD
+        (currentEthPriceInUSD,) = accountExposed.expose_sUSDRate(
+            IPerpsV2MarketConsolidated(
+                accountExposed.expose_getPerpsV2Market(sETHPERP)
+            )
+        );
 
         // call approve() on an ERC20 to grant an infinite allowance to the SM account contract
         sUSD.approve(address(account), type(uint256).max);
@@ -211,6 +222,61 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
 
         // Assert that fee was correctly sent from market margin
         assertEq(uint256(position.margin), AMOUNT - imposedOrderFlowFee - 563);
+        // Assert that fee was correctly sent to treasury address
+        assertEq(treasuryPostBalance - treasuryPreBalance, imposedOrderFlowFee);
+    }
+
+    /// Verifies that OrderFlowFee is correctly sent from market margin to treasury 
+    // when there is no funds in account margin to cover orderFlowFee in account margin
+    // with a pending order to confirm locked margin is not used in this case
+    function test_imposeOrderFlowFee_market_margin_with_pending_order() public {
+        fundAccount(AMOUNT);
+
+        uint256 treasuryPreBalance = sUSD.balanceOf(settings.TREASURY());
+
+        // create a long position in the ETH market
+        address market = getMarketAddressFromKey(sETHPERP);
+
+        uint256 conditionalOrderMarginDelta = 10_000;
+        uint256 conditionalOrdersizeDelta = 1;
+
+        // Place a conditional order
+        assertEq(account.committedMargin(), 0);
+
+        placeConditionalOrder({
+            marketKey: sETHPERP,
+            marginDelta: int256(conditionalOrderMarginDelta),
+            sizeDelta: int256(conditionalOrdersizeDelta),
+            targetPrice: currentEthPriceInUSD,
+            conditionalOrderType: IAccount.ConditionalOrderTypes.LIMIT,
+            desiredFillPrice: DESIRED_FILL_PRICE,
+            reduceOnly: false
+        });
+
+        assertEq(account.committedMargin(), conditionalOrderMarginDelta);
+
+        /// Deposit all remaining margin so that account has no margin to cover orderFlowFee
+        int256 marginDelta = int256(AMOUNT) - int256(conditionalOrderMarginDelta);
+        int256 sizeDelta = 1;
+
+        (uint256 desiredFillPrice,) =
+            IPerpsV2MarketConsolidated(market).assetPrice();
+
+        submitAtomicOrder(sETHPERP, marginDelta, sizeDelta, desiredFillPrice);
+
+        // Assert that locked account margin was not used to cover fee
+        assertEq(account.committedMargin(), conditionalOrderMarginDelta); 
+
+        uint256 treasuryPostBalance = sUSD.balanceOf(settings.TREASURY());
+
+        IPerpsV2MarketConsolidated.Position memory position =
+            account.getPosition(sETHPERP);
+
+        (, uint256 imposedOrderFlowFee) =
+            account.getExpectedOrderFlowFee(market, position.size);
+
+        // Assert that fee was correctly sent from market margin
+        assertEq(uint256(position.margin), uint256(marginDelta) - imposedOrderFlowFee - 563);
         // Assert that fee was correctly sent to treasury address
         assertEq(treasuryPostBalance - treasuryPreBalance, imposedOrderFlowFee);
     }
@@ -388,5 +454,30 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         inputs[0] = abi.encode(market, marginDelta);
         inputs[1] = abi.encode(market, sizeDelta, desiredFillPrice);
         account.execute(commands, inputs);
+    }
+
+    function placeConditionalOrder(
+        bytes32 marketKey,
+        int256 marginDelta,
+        int256 sizeDelta,
+        uint256 targetPrice,
+        IAccount.ConditionalOrderTypes conditionalOrderType,
+        uint256 desiredFillPrice,
+        bool reduceOnly
+    ) private returns (uint256 conditionalOrderId) {
+        IAccount.Command[] memory commands = new IAccount.Command[](1);
+        commands[0] = IAccount.Command.GELATO_PLACE_CONDITIONAL_ORDER;
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            marketKey,
+            marginDelta,
+            sizeDelta,
+            targetPrice,
+            conditionalOrderType,
+            desiredFillPrice,
+            reduceOnly
+        );
+        account.execute(commands, inputs);
+        conditionalOrderId = account.conditionalOrderId() - 1;
     }
 }
