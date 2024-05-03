@@ -158,7 +158,7 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         }
     }
 
-    /// Verifies that OrderFlowFee is correctly sent from account margin to treasury 
+    /// Verifies that OrderFlowFee is correctly sent from account margin to treasury
     // when there is enough funds in account margin to cover orderFlowFee
     function test_imposeOrderFlowFee_account_margin() public {
         fundAccount(AMOUNT);
@@ -193,7 +193,7 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         assertEq(treasuryPostBalance - treasuryPreBalance, imposedOrderFlowFee);
     }
 
-    /// Verifies that OrderFlowFee is correctly sent from market margin to treasury 
+    /// Verifies that OrderFlowFee is correctly sent from market margin to treasury
     // when there is no funds in account margin to cover orderFlowFee in account margin
     function test_imposeOrderFlowFee_market_margin() public {
         fundAccount(AMOUNT);
@@ -226,10 +226,12 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         assertEq(treasuryPostBalance - treasuryPreBalance, imposedOrderFlowFee);
     }
 
-    /// Verifies that OrderFlowFee is correctly sent from market margin to treasury 
+    /// Verifies that OrderFlowFee is correctly sent from market margin to treasury
     // when there is no funds in account margin to cover orderFlowFee in account margin
     // with a pending order to confirm locked margin is not used in this case
-    function test_imposeOrderFlowFee_market_margin_with_pending_order() public {
+    function test_imposeOrderFlowFee_market_margin_with_pending_order()
+        public
+    {
         fundAccount(AMOUNT);
 
         uint256 treasuryPreBalance = sUSD.balanceOf(settings.TREASURY());
@@ -256,7 +258,8 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         assertEq(account.committedMargin(), conditionalOrderMarginDelta);
 
         /// Deposit all remaining margin so that account has no margin to cover orderFlowFee
-        int256 marginDelta = int256(AMOUNT) - int256(conditionalOrderMarginDelta);
+        int256 marginDelta =
+            int256(AMOUNT) - int256(conditionalOrderMarginDelta);
         int256 sizeDelta = 1;
 
         (uint256 desiredFillPrice,) =
@@ -265,7 +268,7 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         submitAtomicOrder(sETHPERP, marginDelta, sizeDelta, desiredFillPrice);
 
         // Assert that locked account margin was not used to cover fee
-        assertEq(account.committedMargin(), conditionalOrderMarginDelta); 
+        assertEq(account.committedMargin(), conditionalOrderMarginDelta);
 
         uint256 treasuryPostBalance = sUSD.balanceOf(settings.TREASURY());
 
@@ -276,12 +279,15 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
             account.getExpectedOrderFlowFee(market, position.size);
 
         // Assert that fee was correctly sent from market margin
-        assertEq(uint256(position.margin), uint256(marginDelta) - imposedOrderFlowFee - 563);
+        assertEq(
+            uint256(position.margin),
+            uint256(marginDelta) - imposedOrderFlowFee - 563
+        );
         // Assert that fee was correctly sent to treasury address
         assertEq(treasuryPostBalance - treasuryPreBalance, imposedOrderFlowFee);
     }
 
-    /// Verifies that OrderFlowFee is correctly sent from both market margin and account margin 
+    /// Verifies that OrderFlowFee is correctly sent from both market margin and account margin
     // when there is not enough funds to cover orderFlowFee in account margin
     function test_imposeOrderFlowFee_both_margin() public {
         fundAccount(AMOUNT);
