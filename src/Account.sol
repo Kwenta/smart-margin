@@ -685,7 +685,7 @@ contract Account is IAccount, Auth, OpsReady {
         }
 
         // calculate notional value of order
-        uint256 notionalValue = _abs(_sizeDelta) * price;
+        uint256 notionalValue = (_abs(_sizeDelta) / 1 ether) * price;
 
         // calculate fee to impose
         return notionalValue * orderFlowFee / SETTINGS.MAX_ORDER_FLOW_FEE();
@@ -923,7 +923,7 @@ contract Account is IAccount, Auth, OpsReady {
             execAddress: address(this),
             execData: abi.encodeCall(
                 this.executeConditionalOrder, conditionalOrderId
-                ),
+            ),
             moduleData: moduleData,
             feeToken: ETH
         });
