@@ -19,6 +19,8 @@ import {IPerpsV2MarketConsolidated} from "src/interfaces/IAccount.sol";
 import {IPerpsV2ExchangeRate} from
     "src/interfaces/synthetix/IPerpsV2ExchangeRate.sol";
 
+import "forge-std/console2.sol";
+
 import {
     ADDRESS_RESOLVER,
     AMOUNT,
@@ -139,7 +141,7 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
 
         /// Keep account margin to cover for orderFlowFee
         int256 marginDelta = int256(AMOUNT) / 5;
-        int256 sizeDelta = 1;
+        int256 sizeDelta = 1 ether;
 
         (uint256 desiredFillPrice,) =
             IPerpsV2MarketConsolidated(market).assetPrice();
@@ -152,8 +154,9 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         if (fee == 0) {
             assertEq(imposedOrderFlowFee, 0);
         } else {
-            uint256 orderFlowFeeMath = abs(sizeDelta) * sUSDmarketRate
-                * settings.orderFlowFee() / settings.MAX_ORDER_FLOW_FEE();
+            // Size is 1 ETH, so fee should be the orderflowfee value of 1 ETH in sUSD
+            uint256 orderFlowFeeMath = sUSDmarketRate * settings.orderFlowFee()
+                / settings.MAX_ORDER_FLOW_FEE();
             assertEq(orderFlowFeeMath, imposedOrderFlowFee);
         }
     }
@@ -297,9 +300,10 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         // create a long position in the ETH market
         address market = getMarketAddressFromKey(sETHPERP);
 
-        /// Leave 10_000 in account (not enough to cover fees)
-        int256 marginDelta = int256(AMOUNT) - 10_000;
-        int256 sizeDelta = 1;
+        /// orderFlowFee is 94025250000000000 in the following configuration
+        /// Leave 50000000000 in account (not enough to cover fees)
+        int256 marginDelta = int256(AMOUNT) - 50_000_000_000;
+        int256 sizeDelta = 1 ether;
 
         (uint256 desiredFillPrice,) =
             IPerpsV2MarketConsolidated(market).assetPrice();
@@ -312,15 +316,17 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
             account.getPosition(sETHPERP);
 
         (, uint256 imposedOrderFlowFee) =
-            account.getExpectedOrderFlowFee(market, position.size);
+            account.getExpectedOrderFlowFee(market, sizeDelta);
 
         // Account margin is emptied
         assertEq(account.freeMargin(), 0);
 
-        // Market margin is reduced by (imposedOrderFlowFee - 10 000)
+        // Market margin is reduced by the missing amount to cover fee
+        // uint256(marginDelta) - 563537402924844194061 is the effective position margin when there is no orderflowfee
         assertEq(
             uint256(position.margin),
-            uint256(marginDelta) - (imposedOrderFlowFee - 10_000) - 563
+            uint256(marginDelta) - 563_537_402_924_844_194_061
+                - imposedOrderFlowFee + 50_000_000_000
         );
 
         // Assert that fee was correctly sent to treasury address
@@ -331,10 +337,10 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
     /// @dev Synthetix makes transaction reverts if the resulting position is too large, outside the max leverage, or is liquidating.
     function test_imposeOrderFlowFee_market_margin_failed() public {
         // Set orderflow fee high to easily test that transaction fails if neither account or market has sufficient margin to cover for fees
-        uint256 testOrderFlowFee = 10_000; // 10%
+        uint256 testOrderFlowFee = 50_000; // 50%
         settings.setOrderFlowFee(testOrderFlowFee);
 
-        fundAccount(1000 ether);
+        fundAccount(AMOUNT);
 
         uint256 treasuryPreBalance = sUSD.balanceOf(settings.TREASURY());
 
@@ -342,8 +348,8 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         address market = getMarketAddressFromKey(sETHPERP);
 
         /// Deposit all available account margin into market margin
-        int256 marginDelta = int256(1000 ether);
-        int256 sizeDelta = 1 ether;
+        int256 marginDelta = int256(AMOUNT);
+        int256 sizeDelta = 10 ether;
 
         (uint256 desiredFillPrice,) =
             IPerpsV2MarketConsolidated(market).assetPrice();
@@ -381,7 +387,7 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
 
         /// Keep account margin to cover for orderFlowFee
         int256 marginDelta = int256(AMOUNT) / 5;
-        int256 sizeDelta = 1;
+        int256 sizeDelta = 1 ether;
 
         (uint256 desiredFillPrice,) =
             IPerpsV2MarketConsolidated(market).assetPrice();
