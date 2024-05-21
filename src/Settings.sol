@@ -6,6 +6,7 @@ import {Owned} from "src/utils/Owned.sol";
 
 /// @title Kwenta Smart Margin Account Settings
 /// @author JaredBorders (jaredborders@pm.me)
+/// @author Flocqst (florian@kwenta.io)
 /// @notice This contract is used to manage the settings of the Kwenta Smart Margin Account
 /// @custom:caution Changes to this contract will effectively clear any existing settings.
 /// Post update, the owner will need to reconfigure the settings either in the deploy script or

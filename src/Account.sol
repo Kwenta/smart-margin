@@ -25,7 +25,9 @@ import {IERC20} from "src/interfaces/token/IERC20.sol";
 import {V3Path} from "src/utils/uniswap/V3Path.sol";
 
 /// @title Kwenta Smart Margin Account Implementation
-/// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
+/// @author JaredBorders (jaredborders@pm.me)
+/// @author JChiaramonte7 (jeremy@bytecode.llc)
+/// @author Flocqst (florian@kwenta.io)
 /// @notice flexible smart margin account enabling users to trade on-chain derivatives
 contract Account is IAccount, Auth, OpsReady {
     using V3Path for bytes;

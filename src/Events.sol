@@ -7,6 +7,7 @@ import {IFactory} from "./interfaces/IFactory.sol";
 /// @title Consolidates all events emitted by the Smart Margin Accounts
 /// @dev restricted to only Smart Margin Accounts
 /// @author JaredBorders (jaredborders@pm.me)
+/// @author Flocqst (florian@kwenta.io)
 contract Events is IEvents {
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
