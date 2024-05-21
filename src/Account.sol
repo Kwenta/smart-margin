@@ -55,7 +55,7 @@ contract Account is IAccount, Auth, OpsReady {
         IPerpsV2DynamicFeesModule(0x05F6f46e5EED6dec1D8Cc3c6e8169D447966844d);
 
     /// @notice used to scale down values following multiplication
-    uint256 internal constant SCALING_FACTOR = SCALING_FACTOR;
+    uint256 internal constant SCALING_FACTOR = 1 ether;
 
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
