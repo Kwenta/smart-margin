@@ -54,6 +54,9 @@ contract Account is IAccount, Auth, OpsReady {
     IPerpsV2DynamicFeesModule internal constant PERPS_V2_DYNAMIC_FEES_MODULE =
         IPerpsV2DynamicFeesModule(0x05F6f46e5EED6dec1D8Cc3c6e8169D447966844d);
 
+    /// @notice used to scale down values following multiplication
+    uint256 internal constant SCALING_FACTOR = SCALING_FACTOR;
+
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
     //////////////////////////////////////////////////////////////*/
@@ -685,7 +688,7 @@ contract Account is IAccount, Auth, OpsReady {
         }
 
         // calculate notional value of order
-        uint256 notionalValue = (_abs(_sizeDelta) / 1 ether) * price;
+        uint256 notionalValue = (_abs(_sizeDelta) / SCALING_FACTOR) * price;
 
         // calculate fee to impose
         return notionalValue * orderFlowFee / SETTINGS.MAX_ORDER_FLOW_FEE();
@@ -923,7 +926,7 @@ contract Account is IAccount, Auth, OpsReady {
             execAddress: address(this),
             execData: abi.encodeCall(
                 this.executeConditionalOrder, conditionalOrderId
-            ),
+                ),
             moduleData: moduleData,
             feeToken: ETH
         });
