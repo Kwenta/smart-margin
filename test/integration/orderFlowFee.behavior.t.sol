@@ -148,21 +148,24 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
 
         submitAtomicOrder(sETHPERP, marginDelta, sizeDelta, desiredFillPrice);
 
-        (uint256 sUSDmarketRate, uint256 imposedOrderFlowFee) =
+        uint256 imposedOrderFlowFee =
             account.getExpectedOrderFlowFee(market, sizeDelta);
+
+        // Current marketRate is 1880.505 sUSD per 1 ETH
+        uint256 currentMarketRate = 1_880_505_000_000_000_000_000;
 
         if (fee == 0) {
             assertEq(imposedOrderFlowFee, 0);
         } else {
             // Size is 1 ETH, so fee should be the orderflowfee value of 1 ETH in sUSD
-            uint256 orderFlowFeeMath = sUSDmarketRate * settings.orderFlowFee()
-                / settings.MAX_ORDER_FLOW_FEE();
+            uint256 orderFlowFeeMath = currentMarketRate
+                * settings.orderFlowFee() / settings.MAX_ORDER_FLOW_FEE();
             assertEq(orderFlowFeeMath, imposedOrderFlowFee);
         }
     }
 
     /// Verifies that OrderFlowFee is correctly sent from account margin to treasury
-    // when there is enough funds in account margin to cover orderFlowFee
+    /// when there is enough funds in account margin to cover orderFlowFee
     function test_imposeOrderFlowFee_account_margin() public {
         fundAccount(AMOUNT);
 
@@ -185,7 +188,7 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         /// inital funding - sETHPERP margin = 8000 ether
         uint256 accountMarginBeforeFee = AMOUNT - uint256(marginDelta);
 
-        (, uint256 imposedOrderFlowFee) =
+        uint256 imposedOrderFlowFee =
             account.getExpectedOrderFlowFee(market, sizeDelta);
 
         // Assert that fee was correctly sent from account margin
@@ -196,8 +199,55 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         assertEq(treasuryPostBalance - treasuryPreBalance, imposedOrderFlowFee);
     }
 
+    /// Verifies that OrderFlowFee is correctly sent from account margin to treasury with a
+    /// delayed order when there is enough funds in account margin to cover orderFlowFee
+    function test_imposeOrderFlowFee_account_margin_delayed() public {
+        fundAccount(AMOUNT);
+
+        uint256 treasuryPreBalance = sUSD.balanceOf(settings.TREASURY());
+
+        // create a long position in the ETH market
+        address market = getMarketAddressFromKey(sETHPERP);
+
+        /// Keep account margin to cover for orderFlowFee
+        int256 marginDelta = int256(AMOUNT) / 5;
+        int256 sizeDelta = 34_500_000_000_000_000;
+        uint256 desiredFillPrice = 3_787_625_873_186_525_010_951;
+        uint256 desiredTimeDelta = 0;
+
+        IAccount.Command[] memory commands = new IAccount.Command[](2);
+        commands[0] = IAccount.Command.PERPS_V2_MODIFY_MARGIN;
+        commands[1] = IAccount.Command.PERPS_V2_SUBMIT_DELAYED_ORDER;
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(market, marginDelta);
+        inputs[1] =
+            abi.encode(market, sizeDelta, desiredTimeDelta, desiredFillPrice);
+        account.execute(commands, inputs);
+
+        uint256 treasuryPostBalance = sUSD.balanceOf(settings.TREASURY());
+
+        /// inital funding - sETHPERP margin = 8000 ether
+        uint256 accountMarginBeforeFee = AMOUNT - uint256(marginDelta);
+
+        uint256 imposedOrderFlowFee =
+            account.getExpectedOrderFlowFee(market, sizeDelta, desiredFillPrice);
+
+        console2.log("imposedOrderFlowFee", imposedOrderFlowFee);
+
+        // Assert that fee was correctly sent from account margin
+        assertApproxEqAbs(
+            accountMarginBeforeFee - imposedOrderFlowFee,
+            account.freeMargin(),
+            1
+        );
+        // Assert that fee was correctly sent to treasury address
+        assertApproxEqAbs(
+            treasuryPostBalance - treasuryPreBalance, imposedOrderFlowFee, 1
+        );
+    }
+
     /// Verifies that OrderFlowFee is correctly sent from market margin to treasury
-    // when there is no funds in account margin to cover orderFlowFee in account margin
+    /// when there is no funds in account margin to cover orderFlowFee in account margin
     function test_imposeOrderFlowFee_market_margin() public {
         fundAccount(AMOUNT);
 
@@ -220,7 +270,7 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         IPerpsV2MarketConsolidated.Position memory position =
             account.getPosition(sETHPERP);
 
-        (, uint256 imposedOrderFlowFee) =
+        uint256 imposedOrderFlowFee =
             account.getExpectedOrderFlowFee(market, position.size);
 
         // Assert that fee was correctly sent from market margin
@@ -230,8 +280,8 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
     }
 
     /// Verifies that OrderFlowFee is correctly sent from market margin to treasury
-    // when there is no funds in account margin to cover orderFlowFee in account margin
-    // with a pending order to confirm locked margin is not used in this case
+    /// when there is no funds in account margin to cover orderFlowFee in account margin
+    /// with a pending order to confirm locked margin is not used in this case
     function test_imposeOrderFlowFee_market_margin_with_pending_order()
         public
     {
@@ -278,7 +328,7 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         IPerpsV2MarketConsolidated.Position memory position =
             account.getPosition(sETHPERP);
 
-        (, uint256 imposedOrderFlowFee) =
+        uint256 imposedOrderFlowFee =
             account.getExpectedOrderFlowFee(market, position.size);
 
         // Assert that fee was correctly sent from market margin
@@ -291,7 +341,7 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
     }
 
     /// Verifies that OrderFlowFee is correctly sent from both market margin and account margin
-    // when there is not enough funds to cover orderFlowFee in account margin
+    /// when there is not enough funds to cover orderFlowFee in account margin
     function test_imposeOrderFlowFee_both_margin() public {
         fundAccount(AMOUNT);
 
@@ -315,7 +365,7 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         IPerpsV2MarketConsolidated.Position memory position =
             account.getPosition(sETHPERP);
 
-        (, uint256 imposedOrderFlowFee) =
+        uint256 imposedOrderFlowFee =
             account.getExpectedOrderFlowFee(market, sizeDelta);
 
         // Account margin is emptied
