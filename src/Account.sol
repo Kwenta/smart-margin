@@ -216,16 +216,30 @@ contract Account is IAccount, Auth, OpsReady {
     }
 
     /// @inheritdoc IAccount
+    function getExpectedOrderFlowFee(
+        address _market,
+        int256 _sizeDelta,
+        uint256 _desiredFillPrice
+    ) public view override returns (uint256 orderFlowFee) {
+        uint256 price;
+
+        // if desiredFillPrice is specified then use it
+        if (_desiredFillPrice != 0) {
+            price = _desiredFillPrice;
+        } else {
+            // fetch current sUSD exchange rate for market
+            (price,) = _sUSDRate(IPerpsV2MarketConsolidated(_market));
+        }
+
+        orderFlowFee = _calculateOrderFlowFee(_market, _sizeDelta, price);
+    }
+
     function getExpectedOrderFlowFee(address _market, int256 _sizeDelta)
         public
         view
-        override
-        returns (uint256 sUSDmarketRate, uint256 orderFlowFee)
+        returns (uint256 orderFlowFee)
     {
-        // fetch current sUSD exchange rate for market
-        (sUSDmarketRate,) = _sUSDRate(IPerpsV2MarketConsolidated(_market));
-
-        orderFlowFee = _calculateOrderFlowFee(_market, _sizeDelta);
+        orderFlowFee = getExpectedOrderFlowFee(_market, _sizeDelta, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -690,7 +704,7 @@ contract Account is IAccount, Auth, OpsReady {
         }
 
         // calculate notional value of order
-        uint256 notionalValue = (_abs(_sizeDelta) / SCALING_FACTOR) * price;
+        uint256 notionalValue = (_abs(_sizeDelta) * price) / SCALING_FACTOR;
 
         // calculate fee to impose
         return notionalValue * orderFlowFee / SETTINGS.MAX_ORDER_FLOW_FEE();
@@ -928,7 +942,7 @@ contract Account is IAccount, Auth, OpsReady {
             execAddress: address(this),
             execData: abi.encodeCall(
                 this.executeConditionalOrder, conditionalOrderId
-                ),
+            ),
             moduleData: moduleData,
             feeToken: ETH
         });
