@@ -19,8 +19,6 @@ import {IPerpsV2MarketConsolidated} from "src/interfaces/IAccount.sol";
 import {IPerpsV2ExchangeRate} from
     "src/interfaces/synthetix/IPerpsV2ExchangeRate.sol";
 
-import "forge-std/console2.sol";
-
 import {
     ADDRESS_RESOLVER,
     AMOUNT,
@@ -122,6 +120,8 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
 
         // set the order flow fee to a non-zero value
         settings.setOrderFlowFee(INITIAL_ORDER_FLOW_FEE);
+
+        fundAccount(AMOUNT);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -132,9 +132,8 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
     /// For this test, it is assumed that there is enough account margin to cover fee
     function test_calculateOrderFlowFee(uint256 fee) public {
         vm.assume(fee < settings.MAX_ORDER_FLOW_FEE());
-        settings.setOrderFlowFee(fee);
 
-        fundAccount(AMOUNT);
+        settings.setOrderFlowFee(fee);
 
         // create a long position in the ETH market
         address market = getMarketAddressFromKey(sETHPERP);
@@ -167,8 +166,6 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
     /// Verifies that OrderFlowFee is correctly sent from account margin to treasury
     /// when there is enough funds in account margin to cover orderFlowFee
     function test_imposeOrderFlowFee_account_margin() public {
-        fundAccount(AMOUNT);
-
         uint256 treasuryPreBalance = sUSD.balanceOf(settings.TREASURY());
 
         // create a long position in the ETH market
@@ -202,8 +199,6 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
     /// Verifies that OrderFlowFee is correctly sent from account margin to treasury with a
     /// delayed order when there is enough funds in account margin to cover orderFlowFee
     function test_imposeOrderFlowFee_account_margin_delayed() public {
-        fundAccount(AMOUNT);
-
         uint256 treasuryPreBalance = sUSD.balanceOf(settings.TREASURY());
 
         // create a long position in the ETH market
@@ -232,25 +227,17 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         uint256 imposedOrderFlowFee =
             account.getExpectedOrderFlowFee(market, sizeDelta, desiredFillPrice);
 
-        console2.log("imposedOrderFlowFee", imposedOrderFlowFee);
-
         // Assert that fee was correctly sent from account margin
-        assertApproxEqAbs(
-            accountMarginBeforeFee - imposedOrderFlowFee,
-            account.freeMargin(),
-            1
+        assertEq(
+            accountMarginBeforeFee - imposedOrderFlowFee, account.freeMargin()
         );
         // Assert that fee was correctly sent to treasury address
-        assertApproxEqAbs(
-            treasuryPostBalance - treasuryPreBalance, imposedOrderFlowFee, 1
-        );
+        assertEq(treasuryPostBalance - treasuryPreBalance, imposedOrderFlowFee);
     }
 
     /// Verifies that OrderFlowFee is correctly sent from market margin to treasury
     /// when there is no funds in account margin to cover orderFlowFee in account margin
     function test_imposeOrderFlowFee_market_margin() public {
-        fundAccount(AMOUNT);
-
         uint256 treasuryPreBalance = sUSD.balanceOf(settings.TREASURY());
 
         // create a long position in the ETH market
@@ -285,8 +272,6 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
     function test_imposeOrderFlowFee_market_margin_with_pending_order()
         public
     {
-        fundAccount(AMOUNT);
-
         uint256 treasuryPreBalance = sUSD.balanceOf(settings.TREASURY());
 
         // create a long position in the ETH market
@@ -343,8 +328,6 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
     /// Verifies that OrderFlowFee is correctly sent from both market margin and account margin
     /// when there is not enough funds to cover orderFlowFee in account margin
     function test_imposeOrderFlowFee_both_margin() public {
-        fundAccount(AMOUNT);
-
         uint256 treasuryPreBalance = sUSD.balanceOf(settings.TREASURY());
 
         // create a long position in the ETH market
@@ -390,8 +373,6 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         uint256 testOrderFlowFee = 50_000; // 50%
         settings.setOrderFlowFee(testOrderFlowFee);
 
-        fundAccount(AMOUNT);
-
         uint256 treasuryPreBalance = sUSD.balanceOf(settings.TREASURY());
 
         // create a long position in the ETH market
@@ -431,7 +412,6 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
 
     /// Verifies that the correct Event is emitted with correct fee value
     function test_imposeOrderFlowFee_event() public {
-        fundAccount(AMOUNT);
         // create a long position in the ETH market
         address market = getMarketAddressFromKey(sETHPERP);
 
@@ -447,6 +427,21 @@ contract OrderFlowFeeTest is Test, ConsolidatedEvents {
         emit OrderFlowFeeImposed(address(account), 94_025_250_000_000_000);
 
         submitAtomicOrder(sETHPERP, marginDelta, sizeDelta, desiredFillPrice);
+    }
+
+    // Verifies atomic order flow fee calculation across different scenarios
+    function test_orderFlowFee(
+        int256 marginDelta,
+        int256 sizeDelta,
+        uint256 desiredFillPrice
+    ) public {
+        // if margin delta is too big, expect revert
+        // if size delta is too big, expect revert
+        // if desired fill price is out of range, idk
+        // if above assertions hold, then calculate order flow fee
+        // assert that the order flow fee is correct
+        // assert that the order flow fee is correctly deducted from the account margin
+        // assert that the order flow fee is correctly sent to the treasury
     }
 
     /*//////////////////////////////////////////////////////////////
