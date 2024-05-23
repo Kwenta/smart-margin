@@ -42,3 +42,19 @@ address constant OPTIMISM_UNISWAP_UNIVERSAL_ROUTER =
 
 address constant OPTIMISM_UNISWAP_PERMIT2 =
     0x000000000022D473030F116dDEE9F6B43aC78BA3;
+
+/*//////////////////////////////////////////////////////////////
+                        TOKEN WHITELIST
+//////////////////////////////////////////////////////////////*/
+
+// https://optimistic.etherscan.io/address/0x7F5c764cBc14f9669B88837ca1490cCa17c31607#code
+address constant OPTIMISM_USDC = 0x7F5c764cBc14f9669B88837ca1490cCa17c31607;
+
+// https://optimistic.etherscan.io/address/0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1
+address constant OPTIMISM_DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
+
+// https://optimistic.etherscan.io/address/0x94b008aA00579c1307B0EF2c499aD98a8ce58e58
+address constant OPTIMISM_USDT = 0x94b008aA00579c1307B0EF2c499aD98a8ce58e58;
+
+// https://optimistic.etherscan.io/address/0xc40F949F8a4e094D1b49a23ea9241D289B7b2819
+address constant OPTIMISM_LUSD = 0xc40F949F8a4e094D1b49a23ea9241D289B7b2819;

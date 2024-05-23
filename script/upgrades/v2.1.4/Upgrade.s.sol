@@ -21,7 +21,12 @@ import {
     PERPS_V2_EXCHANGE_RATE,
     PROXY_SUSD,
     SYSTEM_STATUS,
-    OPTIMISM_PDAO
+    OPTIMISM_PDAO,
+    OPTIMISM_DEPLOYER,
+    OPTIMISM_USDC,
+    OPTIMISM_DAI,
+    OPTIMISM_USDT,
+    OPTIMISM_LUSD
 } from "script/utils/parameters/OptimismParameters.sol";
 
 import {
@@ -64,17 +69,21 @@ contract UpgradeAccountOptimism is Script {
 
         address events = address(new Events({_factory: OPTIMISM_FACTORY}));
 
-        address settings = address(new Settings({_owner: OPTIMISM_PDAO}));
+        // set owner to deploy so that the owner can set the orderFlowFee and token whitelist
+        address settings = address(new Settings({_owner: OPTIMISM_DEPLOYER}));
 
-        // the following tokens should be whitelisted by the owner of the Account
-        // immediately following deployment in the same transaction:
-        // USDC: 0x7F5c764cBc14f9669B88837ca1490cCa17c31607
-        // DAI: 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1
-        // USDT: 0x94b008aA00579c1307B0EF2c499aD98a8ce58e58
-        // LUSD: 0xc40F949F8a4e094D1b49a23ea9241D289B7b2819
+        // USDC, DAI, USDT, LUSD token addresses whitelisted
+        Settings(settings).setTokenWhitelistStatus(OPTIMISM_USDC, true);
+        Settings(settings).setTokenWhitelistStatus(OPTIMISM_DAI, true);
+        Settings(settings).setTokenWhitelistStatus(OPTIMISM_USDT, true);
+        Settings(settings).setTokenWhitelistStatus(OPTIMISM_LUSD, true);
 
-        // the orderFlowFee should be set appropriately by the owner of the Account
-        // immediately following deployment in the same transaction
+        // Order flow fee set to 0.5 BPS
+        Settings(settings).setOrderFlowFee(5);
+
+        // transfer ownership to pDAO following settings configuration 
+        // during the upgrade process
+        Settings(settings).transferOwnership(OPTIMISM_PDAO);
 
         IAccount.AccountConstructorParams memory params = IAccount
             .AccountConstructorParams({
