@@ -70,7 +70,13 @@ contract UpgradeAccountOptimism is Script {
         address events = address(new Events({_factory: OPTIMISM_FACTORY}));
 
         // set owner to deploy so that the owner can set the orderFlowFee and token whitelist
-        address settings = address(new Settings({_owner: OPTIMISM_DEPLOYER}));
+        address settings = address(
+            new Settings({
+                _owner: (msg.sender == OPTIMISM_DEPLOYER)
+                    ? OPTIMISM_DEPLOYER
+                    : address(this)
+            })
+        );
 
         // USDC, DAI, USDT, LUSD token addresses whitelisted
         Settings(settings).setTokenWhitelistStatus(OPTIMISM_USDC, true);
@@ -81,7 +87,7 @@ contract UpgradeAccountOptimism is Script {
         // Order flow fee set to 0.5 BPS
         Settings(settings).setOrderFlowFee(5);
 
-        // transfer ownership to pDAO following settings configuration 
+        // transfer ownership to pDAO following settings configuration
         // during the upgrade process
         Settings(settings).transferOwnership(OPTIMISM_PDAO);
 
