@@ -16,18 +16,18 @@ address constant OPTIMISM_GELATO = 0x01051113D81D7d6DA508462F2ad6d7fD96cF42Ef;
 
 address constant OPTIMISM_OPS = 0x340759c8346A1E6Ed92035FB8B6ec57cE1D82c2c;
 
-// v2.1.3
+// v2.1.4
 address constant OPTIMISM_IMPLEMENTATION =
-    0xf274803c43AC4888205E7eE482E9b7a379Cb8DB6;
+    0x0f716Fc517955863824CD9317603E4795EDfffb4;
 
-// released with v2.1.2 implementation (used by v2.1.*)
-address constant OPTIMISM_EVENTS = 0xc3d16e00833355b48d2fD69D838c6ACF004cf4b6;
+// released with v2.1.4 implementation (used by v2.1.*)
+address constant OPTIMISM_EVENTS = 0x6B32d15a6Cb77ea227A6Fb19532b2de542c45AC6;
 
 // updated with v2.1.3 implementation
 address constant OPTIMISM_FACTORY = 0x8234F990b149Ae59416dc260305E565e5DAfEb54;
 
-// released with v2.1.0 implementation (used by v2.1.*)
-address constant OPTIMISM_SETTINGS = 0x865dA103d126b3Be3599D84caB57109A861F5631;
+// released with v2.1.4 implementation (used by v2.1.*)
+address constant OPTIMISM_SETTINGS = 0xf36003a5dd0B17D51ca1525857dEf220E579447D;
 
 // key(s) used by Synthetix address resolver
 bytes32 constant PROXY_SUSD = "ProxysUSD";
@@ -42,3 +42,19 @@ address constant OPTIMISM_UNISWAP_UNIVERSAL_ROUTER =
 
 address constant OPTIMISM_UNISWAP_PERMIT2 =
     0x000000000022D473030F116dDEE9F6B43aC78BA3;
+
+/*//////////////////////////////////////////////////////////////
+                        TOKEN WHITELIST
+//////////////////////////////////////////////////////////////*/
+
+// https://optimistic.etherscan.io/address/0x7F5c764cBc14f9669B88837ca1490cCa17c31607#code
+address constant OPTIMISM_USDC = 0x7F5c764cBc14f9669B88837ca1490cCa17c31607;
+
+// https://optimistic.etherscan.io/address/0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1
+address constant OPTIMISM_DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
+
+// https://optimistic.etherscan.io/address/0x94b008aA00579c1307B0EF2c499aD98a8ce58e58
+address constant OPTIMISM_USDT = 0x94b008aA00579c1307B0EF2c499aD98a8ce58e58;
+
+// https://optimistic.etherscan.io/address/0xc40F949F8a4e094D1b49a23ea9241D289B7b2819
+address constant OPTIMISM_LUSD = 0xc40F949F8a4e094D1b49a23ea9241D289B7b2819;

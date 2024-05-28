@@ -6,11 +6,23 @@ import {Owned} from "src/utils/Owned.sol";
 
 /// @title Kwenta Smart Margin Account Settings
 /// @author JaredBorders (jaredborders@pm.me)
+/// @author Flocqst (florian@kwenta.io)
 /// @notice This contract is used to manage the settings of the Kwenta Smart Margin Account
 /// @custom:caution Changes to this contract will effectively clear any existing settings.
 /// Post update, the owner will need to reconfigure the settings either in the deploy script or
 /// via the Settings contract constructor.
 contract Settings is ISettings, Owned {
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISettings
+    uint256 public constant MAX_ORDER_FLOW_FEE = 100_000;
+
+    /// @inheritdoc ISettings
+    address public constant TREASURY =
+        0x82d2242257115351899894eF384f779b5ba8c695;
+
     /*//////////////////////////////////////////////////////////////
                                  STATE
     //////////////////////////////////////////////////////////////*/
@@ -19,10 +31,13 @@ contract Settings is ISettings, Owned {
     bool public accountExecutionEnabled = true;
 
     /// @inheritdoc ISettings
-    uint256 public executorFee = 1 ether / 1000;
+    uint256 public executorFee = 3 ether / 10_000;
 
     /// @notice mapping of whitelisted tokens available for swapping via uniswap commands
     mapping(address => bool) internal _whitelistedTokens;
+
+    /// @inheritdoc ISettings
+    uint256 public orderFlowFee;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -77,5 +92,20 @@ contract Settings is ISettings, Owned {
         _whitelistedTokens[_token] = _isWhitelisted;
 
         emit TokenWhitelistStatusUpdated(_token, _isWhitelisted);
+    }
+
+    /// @inheritdoc ISettings
+    function setOrderFlowFee(uint256 _orderFlowFee)
+        external
+        override
+        onlyOwner
+    {
+        if (_orderFlowFee > MAX_ORDER_FLOW_FEE) {
+            revert InvalidOrderFlowFee();
+        }
+
+        orderFlowFee = _orderFlowFee;
+
+        emit OrderFlowFeeSet(_orderFlowFee);
     }
 }

@@ -19,17 +19,21 @@ address constant OPTIMISM_SEPOLIA_GELATO = address(0);
 // not deployed yet
 address constant OPTIMISM_SEPOLIA_OPS = address(0);
 
+// v2.1.4
 address constant OPTIMISM_SEPOLIA_IMPLEMENTATION =
-    0xe5bB889B1f0B6B4B7384Bd19cbb37adBDDa941a6;
+    0x10B04483d762Bd4F193F35600112ad52391004A7;
 
+// released with v2.1.4 implementation (used by v2.1.*)
 address constant OPTIMISM_SEPOLIA_EVENTS =
-    0xd5fE5beAa04270B32f81Bf161768c44DF9880D11;
+    0x15725a8159629ca9763deC4211e309c94d9f5CB0;
 
+// updated with v2.1.4 implementation
 address constant OPTIMISM_SEPOLIA_FACTORY =
     0xF877315CfC91E69e7f4c308ec312cf91D66a095F;
 
+// released with v2.1.4 implementation (used by v2.1.*)
 address constant OPTIMISM_SEPOLIA_SETTINGS =
-    0x33B725a1B2dE9178121D423D2A1c062C5452f310;
+    0xb2a20fCdc506a685122847b21E34536359E94C56;
 
 // uniswap v3:
 // UniversalRouterV1_2

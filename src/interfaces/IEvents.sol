@@ -177,4 +177,10 @@ interface IEvents {
     event DelegatedAccountRemoved(
         address indexed caller, address indexed delegate
     );
+
+    /// @notice emitted after order flow fee is imposed
+    /// @param amount: amount of the imposed order flow fee
+    function emitOrderFlowFeeImposed(uint256 amount) external;
+
+    event OrderFlowFeeImposed(address indexed account, uint256 amount);
 }

@@ -25,7 +25,9 @@ import {IERC20} from "src/interfaces/token/IERC20.sol";
 import {V3Path} from "src/utils/uniswap/V3Path.sol";
 
 /// @title Kwenta Smart Margin Account Implementation
-/// @author JaredBorders (jaredborders@pm.me), JChiaramonte7 (jeremy@bytecode.llc)
+/// @author JaredBorders (jaredborders@pm.me)
+/// @author JChiaramonte7 (jeremy@bytecode.llc)
+/// @author Flocqst (florian@kwenta.io)
 /// @notice flexible smart margin account enabling users to trade on-chain derivatives
 contract Account is IAccount, Auth, OpsReady {
     using V3Path for bytes;
@@ -37,7 +39,7 @@ contract Account is IAccount, Auth, OpsReady {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAccount
-    bytes32 public constant VERSION = "2.1.3";
+    bytes32 public constant VERSION = "2.1.4";
 
     /// @notice tracking code used when modifying positions
     bytes32 internal constant TRACKING_CODE = "KWENTA";
@@ -53,6 +55,9 @@ contract Account is IAccount, Auth, OpsReady {
     /// @notice Synthetix Dynamic Fees Module
     IPerpsV2DynamicFeesModule internal constant PERPS_V2_DYNAMIC_FEES_MODULE =
         IPerpsV2DynamicFeesModule(0x05F6f46e5EED6dec1D8Cc3c6e8169D447966844d);
+
+    /// @notice used to scale down values following multiplication
+    uint256 internal constant SCALING_FACTOR = 1 ether;
 
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
@@ -208,6 +213,33 @@ contract Account is IAccount, Auth, OpsReady {
         returns (ConditionalOrder memory)
     {
         return conditionalOrders[_conditionalOrderId];
+    }
+
+    /// @inheritdoc IAccount
+    function getExpectedOrderFlowFee(
+        address _market,
+        int256 _sizeDelta,
+        uint256 _desiredFillPrice
+    ) public view override returns (uint256 orderFlowFee) {
+        uint256 price;
+
+        // if desiredFillPrice is specified then use it
+        if (_desiredFillPrice != 0) {
+            price = _desiredFillPrice;
+        } else {
+            // fetch current sUSD exchange rate for market
+            (price,) = _sUSDRate(IPerpsV2MarketConsolidated(_market));
+        }
+
+        orderFlowFee = _calculateOrderFlowFee(_market, _sizeDelta, price);
+    }
+
+    function getExpectedOrderFlowFee(address _market, int256 _sizeDelta)
+        public
+        view
+        returns (uint256 orderFlowFee)
+    {
+        orderFlowFee = getExpectedOrderFlowFee(_market, _sizeDelta, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -592,6 +624,101 @@ contract Account is IAccount, Auth, OpsReady {
     }
 
     /*//////////////////////////////////////////////////////////////
+                       ORDER FLOW PROCESSING FEE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice impose an order flow fee on the account
+    /// @param _market: address of market
+    /// @param _sizeDelta: size delta of order
+    /// @param _desiredFillPrice: desiredFillPrice if this is a delayed order, 0 otherwise
+    /// @dev will attempt to deduct fee from account's idle margin first
+    /// @dev if fee exceeds idle margin, fee will be deducted from market's margin
+    /// if possible. If not possible, the transaction will revert.
+    /// @dev if fee is deducted from market's margin, then the following order
+    /// may be rejected if the account has insufficient available market margin
+    /// @dev _desiredFillPrice is used to calculate orderFlowFee with correct price for Delayed orders
+    function _imposeOrderFlowFee(
+        address _market,
+        int256 _sizeDelta,
+        uint256 _desiredFillPrice
+    ) internal {
+        // calculate order flow fee
+        uint256 fee =
+            _calculateOrderFlowFee(_market, _sizeDelta, _desiredFillPrice);
+
+        if (fee != 0) {
+            uint256 idleMargin = freeMargin();
+
+            /// @notice if fee exceeds free margin,
+            /// attempt to withdraw fee amount
+            /// from the market margin
+            if (fee > idleMargin) {
+                uint256 difference = fee - idleMargin;
+
+                /// @dev this will revert if market does not
+                /// have sufficient available margin
+                _perpsV2ModifyMargin(_market, -int256(difference));
+            }
+
+            // impose fee on account from account margin
+            MARGIN_ASSET.transfer(SETTINGS.TREASURY(), fee);
+        }
+
+        EVENTS.emitOrderFlowFeeImposed({amount: fee});
+    }
+
+    /// @notice impose an order flow fee on the account
+    /// @param _market: address of market
+    /// @param _sizeDelta: size delta of order
+    /// @dev will attempt to deduct fee from account's idle margin first
+    /// @dev if fee exceeds idle margin, fee will be deducted from market's margin
+    /// if possible. If not possible, the transaction will revert.
+    /// @dev if fee is deducted from market's margin, then the following order
+    /// may be rejected if the account has insufficient available market margin
+    function _imposeOrderFlowFee(address _market, int256 _sizeDelta) internal {
+        _imposeOrderFlowFee(_market, _sizeDelta, 0);
+    }
+
+    /// @notice calculate order flow fee for a given market and size delta
+    /// @param _market: address of market
+    /// @param _sizeDelta: size delta of order
+    /// @param _desiredFillPrice desiredFillPrice in case of a delayed Order
+    /// @return fee: order flow fee to impose
+    /// @dev _desiredFillPrice is used to calculate orderFlowFee for Delayed Orders
+    function _calculateOrderFlowFee(
+        address _market,
+        int256 _sizeDelta,
+        uint256 _desiredFillPrice
+    ) internal view returns (uint256) {
+        // fetch order flow fee from settings
+        uint256 orderFlowFee = SETTINGS.orderFlowFee();
+
+        uint256 price;
+
+        // if desiredFillPrice is specified then use it
+        if (_desiredFillPrice != 0) {
+            price = _desiredFillPrice;
+        } else {
+            // fetch current sUSD exchange rate for market
+            (price,) = _sUSDRate(IPerpsV2MarketConsolidated(_market));
+        }
+
+        // calculate notional value of order
+        uint256 notionalValue = (_abs(_sizeDelta) * price) / SCALING_FACTOR;
+
+        // calculate fee to impose
+        return notionalValue * orderFlowFee / SETTINGS.MAX_ORDER_FLOW_FEE();
+    }
+
+    function _calculateOrderFlowFee(address _market, int256 _sizeDelta)
+        internal
+        view
+        returns (uint256 orderflowFee)
+    {
+        orderflowFee = _calculateOrderFlowFee(_market, _sizeDelta, 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                              ATOMIC ORDERS
     //////////////////////////////////////////////////////////////*/
 
@@ -605,6 +732,8 @@ contract Account is IAccount, Auth, OpsReady {
         int256 _sizeDelta,
         uint256 _desiredFillPrice
     ) internal {
+        _imposeOrderFlowFee(_market, _sizeDelta);
+
         IPerpsV2MarketConsolidated(_market).modifyPositionWithTracking({
             sizeDelta: _sizeDelta,
             desiredFillPrice: _desiredFillPrice,
@@ -618,6 +747,13 @@ contract Account is IAccount, Auth, OpsReady {
     function _perpsV2ClosePosition(address _market, uint256 _desiredFillPrice)
         internal
     {
+        _imposeOrderFlowFee(
+            _market,
+            IPerpsV2MarketConsolidated(_market).positions({
+                account: address(this)
+            }).size
+        );
+
         // close position (i.e. reduce size to zero)
         /// @dev this does not remove margin from market
         IPerpsV2MarketConsolidated(_market).closePositionWithTracking({
@@ -641,6 +777,8 @@ contract Account is IAccount, Auth, OpsReady {
         uint256 _desiredTimeDelta,
         uint256 _desiredFillPrice
     ) internal {
+        _imposeOrderFlowFee(_market, _sizeDelta, _desiredFillPrice);
+
         IPerpsV2MarketConsolidated(_market).submitDelayedOrderWithTracking({
             sizeDelta: _sizeDelta,
             desiredTimeDelta: _desiredTimeDelta,
@@ -664,6 +802,13 @@ contract Account is IAccount, Auth, OpsReady {
         uint256 _desiredTimeDelta,
         uint256 _desiredFillPrice
     ) internal {
+        _imposeOrderFlowFee(
+            _market,
+            IPerpsV2MarketConsolidated(_market).positions({
+                account: address(this)
+            }).size
+        );
+
         // close position (i.e. reduce size to zero)
         /// @dev this does not remove margin from market
         IPerpsV2MarketConsolidated(_market).submitCloseDelayedOrderWithTracking({
@@ -686,6 +831,8 @@ contract Account is IAccount, Auth, OpsReady {
         int256 _sizeDelta,
         uint256 _desiredFillPrice
     ) internal {
+        _imposeOrderFlowFee(_market, _sizeDelta, _desiredFillPrice);
+
         IPerpsV2MarketConsolidated(_market)
             .submitOffchainDelayedOrderWithTracking({
             sizeDelta: _sizeDelta,
@@ -709,6 +856,14 @@ contract Account is IAccount, Auth, OpsReady {
         address _market,
         uint256 _desiredFillPrice
     ) internal {
+        _imposeOrderFlowFee(
+            _market,
+            IPerpsV2MarketConsolidated(_market).positions({
+                account: address(this)
+            }).size,
+            _desiredFillPrice
+        );
+
         // close position (i.e. reduce size to zero)
         /// @dev this does not remove margin from market
         IPerpsV2MarketConsolidated(_market)
@@ -917,7 +1072,6 @@ contract Account is IAccount, Auth, OpsReady {
             committedMargin -= _abs(conditionalOrder.marginDelta);
         }
 
-        // execute trade
         _perpsV2ModifyMargin({
             _market: address(market),
             _amount: conditionalOrder.marginDelta
